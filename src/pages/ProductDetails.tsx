@@ -4,7 +4,7 @@
  */
 
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useProducts } from '../contexts/ProductContext';
 import { formatPrice, cn } from '../lib/utils';
 import { Minus, Plus, ShoppingBag, ArrowLeft, Shield, Truck, RotateCcw, Maximize2 } from 'lucide-react';
@@ -47,6 +47,22 @@ export default function ProductDetails({ onAddToCart }: ProductDetailsProps) {
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
+  const [showStickyBar, setShowStickyBar] = useState(false);
+
+  React.useEffect(() => {
+    const handleScroll = () => {
+      if (window.innerWidth < 768) {
+        const addToCartBtn = document.getElementById('add-to-cart-main');
+        if (addToCartBtn) {
+          const rect = addToCartBtn.getBoundingClientRect();
+          setShowStickyBar(rect.bottom < 0);
+        }
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   if (!product) {
     return (
@@ -213,7 +229,7 @@ export default function ProductDetails({ onAddToCart }: ProductDetailsProps) {
                   <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
                 </span>
                 <button 
-                  onClick={() => navigate('/size-guide')}
+                  onClick={() => setIsSizeGuideOpen(true)}
                   className="text-[10px] uppercase tracking-widest underline opacity-50 hover:opacity-100 transition-opacity"
                 >
                   Size Guide
@@ -262,7 +278,7 @@ export default function ProductDetails({ onAddToCart }: ProductDetailsProps) {
             </div>
 
             {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+            <div className="flex flex-col sm:flex-row gap-4 pt-4" id="add-to-cart-main">
               <button
                 onClick={handleAddToCart}
                 disabled={isAdded}
@@ -329,6 +345,150 @@ export default function ProductDetails({ onAddToCart }: ProductDetailsProps) {
         {/* Customer Reviews Section */}
         <Reviews productId={product.id} />
       </div>
+
+      {/* Size Guide Modal */}
+      <AnimatePresence>
+        {isSizeGuideOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+            onClick={() => setIsSizeGuideOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white p-8 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-8">
+                <h2 className="text-2xl font-black uppercase italic tracking-tighter">Size Guide</h2>
+                <button onClick={() => setIsSizeGuideOpen(false)} className="text-2xl">&times;</button>
+              </div>
+              
+              <div className="space-y-8">
+                <p className="text-sm text-slate-500">Measure yourself globally to find your perfect fit at Elegan BD.</p>
+                
+                <div className="overflow-x-auto">
+                  {product.category.toLowerCase().includes('pant') ? (
+                    <table className="w-full text-xs text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50">
+                          <th className="p-4 border border-slate-100 uppercase tracking-widest font-black">Waist Size</th>
+                          <th className="p-4 border border-slate-100 uppercase tracking-widest font-black">Length (in)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td className="p-4 border border-slate-100 font-bold">30</td>
+                          <td className="p-4 border border-slate-100">40</td>
+                        </tr>
+                        <tr className="bg-slate-50/50">
+                          <td className="p-4 border border-slate-100 font-bold">32</td>
+                          <td className="p-4 border border-slate-100">40</td>
+                        </tr>
+                        <tr>
+                          <td className="p-4 border border-slate-100 font-bold">34</td>
+                          <td className="p-4 border border-slate-100">41</td>
+                        </tr>
+                        <tr className="bg-slate-50/50">
+                          <td className="p-4 border border-slate-100 font-bold">36</td>
+                          <td className="p-4 border border-slate-100">41</td>
+                        </tr>
+                        <tr>
+                          <td className="p-4 border border-slate-100 font-bold">38</td>
+                          <td className="p-4 border border-slate-100">41</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  ) : (
+                    <table className="w-full text-xs text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50">
+                          <th className="p-4 border border-slate-100 uppercase tracking-widest font-black">Size</th>
+                          <th className="p-4 border border-slate-100 uppercase tracking-widest font-black">Chest (in)</th>
+                          <th className="p-4 border border-slate-100 uppercase tracking-widest font-black">Waist (in)</th>
+                          <th className="p-4 border border-slate-100 uppercase tracking-widest font-black">Length (in)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td className="p-4 border border-slate-100 font-bold">M</td>
+                          <td className="p-4 border border-slate-100">38-40</td>
+                          <td className="p-4 border border-slate-100">32-34</td>
+                          <td className="p-4 border border-slate-100">28</td>
+                        </tr>
+                        <tr className="bg-slate-50/50">
+                          <td className="p-4 border border-slate-100 font-bold">L</td>
+                          <td className="p-4 border border-slate-100">40-42</td>
+                          <td className="p-4 border border-slate-100">34-36</td>
+                          <td className="p-4 border border-slate-100">29</td>
+                        </tr>
+                        <tr>
+                          <td className="p-4 border border-slate-100 font-bold">XL</td>
+                          <td className="p-4 border border-slate-100">42-44</td>
+                          <td className="p-4 border border-slate-100">36-38</td>
+                          <td className="p-4 border border-slate-100">30</td>
+                        </tr>
+                        <tr className="bg-slate-50/50">
+                          <td className="p-4 border border-slate-100 font-bold">XXL</td>
+                          <td className="p-4 border border-slate-100">44-46</td>
+                          <td className="p-4 border border-slate-100">38-40</td>
+                          <td className="p-4 border border-slate-100">31</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+                
+                <div className="bg-brand-muted p-6 rounded-2xl">
+                  <h4 className="text-[10px] uppercase tracking-widest font-black mb-2">How to measure?</h4>
+                  <p className="text-xs leading-relaxed text-slate-600">
+                    {product.category.toLowerCase().includes('pant') 
+                      ? "Measure around your natural waistline. Length is measured from the waistband down to the bottom hem."
+                      : "Use a soft tape measure. Keep the tape horizontal for chest and waist. Length is measured from the highest point of the shoulder down to the hem."
+                    }
+                  </p>
+                </div>
+                
+                <button 
+                  onClick={() => setIsSizeGuideOpen(false)}
+                  className="w-full py-4 bg-brand-ink text-white text-[10px] uppercase tracking-widest font-black rounded-xl"
+                >
+                  Got it
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Sticky Mobile Add to Cart */}
+      <AnimatePresence>
+        {showStickyBar && (
+          <motion.div
+            initial={{ y: 100 }}
+            animate={{ y: 0 }}
+            exit={{ y: 100 }}
+            className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/95 backdrop-blur-md border-t border-slate-100 p-4 box-shadow-up"
+          >
+            <div className="flex gap-4 items-center max-w-md mx-auto">
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-tighter truncate">{product.name}</p>
+                <p className="text-sm font-bold text-brand-gold">{formatPrice(product.price, currency, rate)}</p>
+              </div>
+              <button
+                onClick={handleAddToCart}
+                className="bg-brand-ink text-white px-8 py-3 text-[10px] font-black uppercase tracking-widest rounded-full"
+              >
+                {isAdded ? 'Added' : 'Add to Bag'}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

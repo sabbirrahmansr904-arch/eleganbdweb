@@ -24,6 +24,7 @@ export default function Home({ onAddToCart }: HomeProps): React.JSX.Element {
   const { banners } = useBanners();
   const [searchParams, setSearchParams] = useSearchParams();
   const [currentBanner, setCurrentBanner] = React.useState(0);
+  const [sortBy, setSortBy] = React.useState<string>('featured');
   
   const categoryFromUrl = searchParams.get('category') || 'All Products';
   const filterFromUrl = searchParams.get('filter');
@@ -33,16 +34,22 @@ export default function Home({ onAddToCart }: HomeProps): React.JSX.Element {
     let result = products;
     
     if (filterFromUrl === 'new') {
-      // Sort by creation or ID to show newest first
       result = [...products].sort((a, b) => b.id.localeCompare(a.id)).slice(0, 12);
-      return result;
-    }
-
-    if (activeCategory !== 'All Products') {
+    } else if (activeCategory !== 'All Products') {
       result = result.filter(p => p.category === activeCategory);
     }
+
+    // Apply sorting
+    if (sortBy === 'price-low') {
+      result = [...result].sort((a, b) => a.price - b.price);
+    } else if (sortBy === 'price-high') {
+      result = [...result].sort((a, b) => b.price - a.price);
+    } else if (sortBy === 'newest') {
+      result = [...result].sort((a, b) => b.id.localeCompare(a.id));
+    }
+    
     return result;
-  }, [products, activeCategory, filterFromUrl]);
+  }, [products, activeCategory, filterFromUrl, sortBy]);
 
   // Sync state if URL changes
   React.useEffect(() => {
@@ -213,24 +220,40 @@ export default function Home({ onAddToCart }: HomeProps): React.JSX.Element {
             <p className="text-gray-400 text-xs uppercase tracking-[0.4em] font-bold">Category wise shopping</p>
           </div>
           
-          <div className="flex flex-wrap justify-center gap-3 md:gap-5 max-w-4xl mx-auto">
-            {categories.map((catName, idx) => (
-              <button 
-                key={idx} 
-                onClick={() => handleCategoryChange(catName)}
-                className={cn(
-                  "px-8 py-4 md:px-10 md:py-5 rounded-[2.5rem] font-bold uppercase tracking-widest text-xs md:text-sm shadow-[0_4px_20px_rgb(0,0,0,0.03)] transition-all duration-300 flex items-center justify-center whitespace-nowrap outline-none",
-                  activeCategory === catName 
-                    ? "bg-[#0f172a] text-white shadow-[0_8px_30px_rgb(0,0,0,0.08)]" 
-                    : "bg-white text-slate-700 hover:bg-[#0f172a] hover:text-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]"
-                )}
-              >
-                {catName}
-              </button>
-            ))}
+          <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-12">
+            <div className="flex flex-wrap justify-center md:justify-start gap-3 md:gap-4 flex-1">
+              {categories.map((catName, idx) => (
+                <button 
+                  key={idx} 
+                  onClick={() => handleCategoryChange(catName)}
+                  className={cn(
+                    "px-6 py-3 md:px-8 md:py-4 rounded-[2rem] font-bold uppercase tracking-widest text-[10px] md:text-[11px] shadow-[0_4px_15px_rgb(0,0,0,0.02)] transition-all duration-300 flex items-center justify-center whitespace-nowrap outline-none border",
+                    activeCategory === catName 
+                      ? "bg-brand-ink text-white border-brand-ink" 
+                      : "bg-white text-slate-500 border-slate-100 hover:border-brand-ink hover:text-brand-ink"
+                  )}
+                >
+                  {catName}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-3 bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
+               <span className="text-[10px] uppercase tracking-widest font-black text-slate-400 ml-3">Sort by:</span>
+               <select 
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="bg-transparent text-[11px] font-black uppercase tracking-widest outline-none cursor-pointer pr-4"
+               >
+                 <option value="featured">Featured</option>
+                 <option value="newest">Newest</option>
+                 <option value="price-low">Price: Low to High</option>
+                 <option value="price-high">Price: High to Low</option>
+               </select>
+            </div>
           </div>
 
-          <div className="mt-12 max-w-4xl mx-auto border-t border-gray-200" />
+          <div className="max-w-4xl mx-auto border-t border-gray-100" />
             
           <div className="mt-12">
             {filteredCategoryProducts.length > 0 ? (
@@ -303,6 +326,53 @@ export default function Home({ onAddToCart }: HomeProps): React.JSX.Element {
                 />
               </motion.div>
             )}
+          </div>
+        </div>
+      </section>
+
+      {/* Instagram/Social Section */}
+      <section className="py-24 bg-white border-t border-slate-50">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+             <h2 className="text-3xl md:text-5xl font-black text-brand-ink tracking-tight uppercase italic mb-4">#EleganStyle</h2>
+             <p className="text-slate-500 text-xs md:text-sm font-bold uppercase tracking-[0.3em]">Follow us on Instagram <a href="https://instagram.com/eleganbd" className="text-brand-gold underline">@eleganbd</a></p>
+          </div>
+          
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="aspect-square bg-slate-100 rounded-3xl overflow-hidden relative group">
+                <img 
+                  src={`https://images.unsplash.com/photo-${i === 1 ? '1523381210434-271e8be1f52b' : i === 2 ? '1543076447-215ad9ba6923' : i === 3 ? '1515886657613-9f3515b0c78f' : '1551488831-00ddcb6c6bd3'}?auto=format&fit=crop&w=600&q=80`} 
+                  alt="Style" 
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white">
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.255-1.693 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.441 1.441 1.441c.795 0 1.439-.645 1.439-1.441s-.644-1.44-1.439-1.44z"/></svg>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <div className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-12 border-t border-slate-50 pt-20">
+             <div className="text-center space-y-4">
+                <h4 className="text-3xl font-black text-brand-ink italic tracking-tighter">50K+</h4>
+                <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400">Happy Customers</p>
+             </div>
+             <div className="text-center space-y-4">
+                <h4 className="text-3xl font-black text-brand-ink italic tracking-tighter">100%</h4>
+                <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400">Pure Fabrics</p>
+             </div>
+             <div className="text-center space-y-4">
+                <h4 className="text-3xl font-black text-brand-ink italic tracking-tighter">24Hrs</h4>
+                <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400">Avg. Delivery</p>
+             </div>
+             <div className="text-center space-y-4">
+                <h4 className="text-3xl font-black text-brand-ink italic tracking-tighter">7 Days</h4>
+                <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400">Return Policy</p>
+             </div>
           </div>
         </div>
       </section>
