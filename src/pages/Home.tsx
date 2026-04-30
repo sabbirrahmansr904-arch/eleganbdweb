@@ -110,11 +110,11 @@ export default function Home({ onAddToCart }: HomeProps): React.JSX.Element {
               <img
                 src={heroBannerUrl}
                 alt="Elegan BD Banner"
-                className="w-full h-auto block transition-opacity duration-500"
+                className="w-full h-auto block"
                 referrerPolicy="no-referrer"
                 loading="eager"
                 fetchPriority="high"
-                onLoad={(e) => (e.currentTarget.style.opacity = '1')}
+                decoding="sync"
                 onError={(e) => {
                   e.currentTarget.classList.add('hidden');
                   const fallback = e.currentTarget.parentElement?.querySelector('.hero-fallback') as HTMLElement;
@@ -123,7 +123,6 @@ export default function Home({ onAddToCart }: HomeProps): React.JSX.Element {
                     fallback.style.display = 'flex';
                   }
                 }}
-                style={{ opacity: 0 }}
               />
             )}
             {/* Overlay if image fails or is loading */}
@@ -166,9 +165,10 @@ export default function Home({ onAddToCart }: HomeProps): React.JSX.Element {
               <img 
                 src={collectionsBannerUrl} 
                 alt="Discover Our Collections" 
-                className="w-full h-auto block transition-transform duration-[2s] group-hover:scale-105 opacity-0" 
+                className="w-full h-auto block transition-transform duration-[2s] group-hover:scale-105" 
                 referrerPolicy="no-referrer"
-                onLoad={(e) => (e.currentTarget.style.opacity = '1')}
+                loading="lazy"
+                decoding="async"
                 onError={(e) => {
                   e.currentTarget.classList.add('hidden');
                   const fallback = e.currentTarget.parentElement?.querySelector('.collections-fallback') as HTMLElement;
@@ -235,8 +235,8 @@ export default function Home({ onAddToCart }: HomeProps): React.JSX.Element {
           <div className="mt-12">
             {filteredCategoryProducts.length > 0 ? (
                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-10">
-                 {filteredCategoryProducts.map(product => (
-                    <ProductCard key={product.id} product={product} onAddToCart={onAddToCart} />
+                 {filteredCategoryProducts.map((product, idx) => (
+                    <ProductCard key={product.id} product={product} onAddToCart={onAddToCart} loading={idx < 4 ? "eager" : "lazy"} />
                  ))}
                </div>
             ) : (

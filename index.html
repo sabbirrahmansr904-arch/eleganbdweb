@@ -7,6 +7,27 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://firebasestorage.googleapis.com" />
+    <link rel="dns-prefetch" href="https://images.unsplash.com" />
+    <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com" />
+    <script>
+      // Performance optimization: Preload the hero banner from cache as early as possible
+      (function() {
+        try {
+          const cached = localStorage.getItem('eleganbd_banners_large');
+          if (cached) {
+            const data = JSON.parse(cached);
+            if (data.heroBannerUrl) {
+              const link = document.createElement('link');
+              link.rel = 'preload';
+              link.as = 'image';
+              link.href = data.heroBannerUrl;
+              link.fetchPriority = 'high';
+              document.head.appendChild(link);
+            }
+          }
+        } catch (e) {}
+      })();
+    </script>
     <style>
       /* Prevent invisible text while font is loading */
       html { font-display: swap; }

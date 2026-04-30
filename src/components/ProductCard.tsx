@@ -16,9 +16,10 @@ import toast from 'react-hot-toast';
 interface ProductCardProps {
   product: Product;
   onAddToCart?: (productId: string, size: string, quantity: number) => void;
+  loading?: "lazy" | "eager";
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
+const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, loading = "lazy" }) => {
   const { currency, rate } = useCurrency();
 
   const handleQuickAdd = (e: React.MouseEvent) => {
@@ -45,11 +46,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
             src={product.images[0]}
             alt={product.name}
             className={cn(
-              "w-full h-full object-cover transition-all duration-700 bg-gray-100",
+              "w-full h-full object-cover bg-gray-100",
               product.stock === 0 && "grayscale"
             )}
             referrerPolicy="no-referrer"
-            loading="lazy"
+            loading={loading}
             decoding="async"
           />
         ) : (
