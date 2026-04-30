@@ -1,0 +1,121 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "A single product item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "fabric": { "type": "string" },
+        "fitType": { "type": "string" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "sizes": { "type": "array", "items": { "type": "string" } },
+        "featured": { "type": "boolean" },
+        "rating": { "type": "number" },
+        "isTopRated": { "type": "boolean" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["name", "price", "category", "images", "sizes"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer order",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerInfo": { "type": "object" },
+        "items": { "type": "array" },
+        "total": { "type": "number" },
+        "deliveryCharge": { "type": "number" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["customerInfo", "items", "total", "status"]
+    },
+    "Banner": {
+      "title": "Banner",
+      "description": "Homepage banner element",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "image": { "type": "string" },
+        "title": { "type": "string" },
+        "link": { "type": "string" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["image", "active"]
+    },
+    "BrandingConfig": {
+      "title": "BrandingConfig",
+      "description": "Global settings for branding",
+      "type": "object",
+      "properties": {
+        "logoUrl": { "type": "string" },
+        "sizeChartUrl": { "type": "string" },
+        "collectionsBannerUrl": { "type": "string" },
+        "heroBannerUrl": { "type": "string" },
+        "featureBannerUrl": { "type": "string" },
+        "categoryImages": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "AdminConfig": {
+      "title": "AdminConfig",
+      "description": "Admin configuration and privileges",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string" }
+      }
+    },
+    "StockTransaction": {
+      "title": "StockTransaction",
+      "description": "Inventory movement record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["in", "out"] },
+        "sku": { "type": "string" },
+        "productName": { "type": "string" },
+        "quantities": { "type": "object" },
+        "totalQuantity": { "type": "number" },
+        "timestamp": { "type": "number" },
+        "category": { "type": "string" },
+        "authorizedBy": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["type", "sku", "productName", "quantities", "totalQuantity", "timestamp", "category", "authorizedBy"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Stored products (read all, write admin)"
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Customer Orders (create all, write/list admin, list own)"
+    },
+    "/banners/{bannerId}": {
+      "schema": { "$ref": "#/entities/Banner" },
+      "description": "Home page banners (read all, write admin)"
+    },
+    "/config/branding": {
+      "schema": { "$ref": "#/entities/BrandingConfig" },
+      "description": "App visual settings (read all, write admin)"
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/AdminConfig" },
+      "description": "Admin records"
+    },
+    "/inventory_transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/StockTransaction" },
+      "description": "Inventory logs (admin only)"
+    }
+  }
+}

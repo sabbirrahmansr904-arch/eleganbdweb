@@ -1,0 +1,104 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidProduct(data) {
+      return data.name is string && data.name.size() > 0 &&
+        data.price is number && data.price >= 0 &&
+        data.category is string &&
+        data.images is list &&
+        data.sizes is list &&
+        data.stock is number &&
+        data.sizeStock is map &&
+        (!data.keys().contains('fabric') || data.fabric is string) &&
+        (!data.keys().contains('fitType') || data.fitType is string) &&
+        (!data.keys().contains('description') || data.description is string) &&
+        (!data.keys().contains('rating') || (data.rating is number && data.rating >= 0 && data.rating <= 5)) &&
+        (!data.keys().contains('isTopRated') || data.isTopRated is bool);
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidId(productId) && isValidProduct(incoming());
+      allow update: if (isAdmin() || (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['sizeStock', 'stock']))) && isValidId(productId) && isValidProduct(incoming());
+      allow delete: if isAdmin() && isValidId(productId);
+      allow list: if true; 
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['customerId', 'items', 'total', 'status']) &&
+        data.customerId is string && 
+        data.items is list && data.items.size() > 0 && data.items.size() <= 50 &&
+        data.total is number && data.total >= 0 &&
+        data.status is string && data.status.matches('^(?i)(pending|processing|shipped|delivered|cancelled)$');
+    }
+
+    match /orders/{orderId} {
+      allow read: if isSignedIn() && (isAdmin() || resource.data.customerId == request.auth.uid);
+      allow list: if isSignedIn() && (isAdmin() || resource.data.customerId == request.auth.uid);
+      allow create: if isSignedIn() && isValidId(orderId) && isValidOrder(incoming()) && incoming().customerId == request.auth.uid;
+      allow update: if (isAdmin() || (isSignedIn() && resource.data.customerId == request.auth.uid)) && isValidId(orderId) && (
+        (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['status'])) ||
+        (existing().status.matches('(?i)pending') && incoming().diff(existing()).affectedKeys().hasOnly(['status']) && incoming().status.matches('(?i)cancelled'))
+      );
+      allow delete: if isAdmin();
+    }
+
+    function isValidBanner(data) {
+      return data.keys().hasAll(['image', 'active']) &&
+        data.image is string && data.image.size() <= 500000 &&
+        data.active is bool;
+    }
+
+    match /banners/{bannerId} {
+      allow read: if true;
+      allow list: if true;
+      allow create: if isAdmin() && isValidId(bannerId) && isValidBanner(incoming());
+      allow update: if isAdmin() && isValidId(bannerId) && isValidBanner(incoming());
+      allow delete: if isAdmin() && isValidId(bannerId);
+    }
+
+    match /banners/{bannerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /config/{configId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /admins/{adminId} {
+      allow read: if isSignedIn() && adminId == request.auth.uid;
+      allow create: if isSignedIn() && adminId == request.auth.uid && request.auth.token.email == 'sabbirrahmansr904@gmail.com';
+    }
+
+    function isValidStockTransaction(data) {
+      return data.keys().hasAll(['type', 'sku', 'productName', 'quantities', 'totalQuantity', 'timestamp', 'category', 'authorizedBy']) &&
+        data.type.matches('^(in|out)$') &&
+        data.sku is string &&
+        data.productName is string &&
+        data.quantities is map &&
+        data.totalQuantity is number &&
+        data.timestamp is number &&
+        data.category is string &&
+        data.authorizedBy is string &&
+        (!data.keys().contains('notes') || data.notes is string);
+    }
+
+    match /inventory_transactions/{transactionId} {
+      allow read, list: if isAdmin();
+      allow create: if isAdmin() && isValidId(transactionId) && isValidStockTransaction(incoming());
+      allow update, delete: if false;
+    }
+  }
+}

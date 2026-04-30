@@ -1,0 +1,27 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Poppins", serif;
+  
+  --color-brand-bg: #FFFFFF;
+  --color-brand-ink: #000000;
+  --color-brand-gold: #111111;
+  --color-brand-muted: #F3F4F6;
+}
+
+@layer base {
+  body {
+    @apply bg-brand-bg text-brand-ink font-sans antialiased;
+  }
+}
+
+.hero-mask {
+  clip-path: polygon(0 0, 100% 0, 85% 100%, 0% 100%);
+}
+
+.perspective-1000 {
+  perspective: 1000px;
+}
+
