@@ -89,10 +89,13 @@ export default function CustomerDashboard() {
                   
                   <div className="flex flex-col md:items-end w-full md:w-auto">
                     <p className="text-sm font-bold text-brand-ink mb-2">
-                      {currency === 'USD' ? '$' : '৳'}{formatPrice(order.total, rate)}
+                       {formatPrice(order.total, currency, rate)}
                     </p>
-                    <button onClick={() => alert('Order tracking feature coming soon!')} className="text-[10px] flex items-center gap-1 uppercase tracking-widest text-brand-gold hover:text-brand-ink transition-colors">
-                      View Details <ArrowRight size={12} />
+                    <button 
+                      onClick={() => navigate(`/track-order?id=${order.id}`)} 
+                      className="text-[10px] flex items-center gap-1 uppercase tracking-widest text-brand-gold hover:text-brand-ink transition-colors"
+                    >
+                      Track Order <ArrowRight size={12} />
                     </button>
                   </div>
                 </div>

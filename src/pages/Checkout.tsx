@@ -5,20 +5,17 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CartItem, CheckoutFormData, Order } from '../types';
+import { CheckoutFormData, Order } from '../types';
 import { formatPrice, cn } from '../lib/utils';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useOrders } from '../contexts/OrderContext';
 import { useProducts } from '../contexts/ProductContext';
+import { useCart } from '../contexts/CartContext';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-interface CheckoutProps {
-  items: CartItem[];
-  onClearCart: () => void;
-}
-
-export default function Checkout({ items, onClearCart }: CheckoutProps) {
+export default function Checkout() {
+  const { items, clearCart } = useCart();
   const { currency, rate } = useCurrency();
   const navigate = useNavigate();
   const { addOrder } = useOrders();
@@ -52,7 +49,7 @@ export default function Checkout({ items, onClearCart }: CheckoutProps) {
     }
   };
 
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   const isInsideDhaka = formData.city === 'Dhaka';
                         
   const shipping = isInsideDhaka ? 70 : 130;
@@ -78,7 +75,7 @@ export default function Checkout({ items, onClearCart }: CheckoutProps) {
         phone: formData.phone,
         address: formData.address,
         city: formData.city,
-        items: [...items],
+        items: items.map(item => ({ ...item.product, selectedSize: item.selectedSize, quantity: item.quantity })),
         deliveryCharge: shipping,
         total: total,
         status: 'Pending',
@@ -91,7 +88,7 @@ export default function Checkout({ items, onClearCart }: CheckoutProps) {
       
       // Update inventory
       items.forEach(item => {
-        const product = products.find(p => p.id === item.id);
+        const product = products.find(p => p.id === item.product.id);
         if (product) {
           const updatedSizeStock = { ...product.sizeStock };
           updatedSizeStock[item.selectedSize] = Math.max(0, (updatedSizeStock[item.selectedSize] || 0) - item.quantity);
@@ -106,7 +103,7 @@ export default function Checkout({ items, onClearCart }: CheckoutProps) {
 
       setIsProcessing(false);
       setIsComplete(true);
-      onClearCart();
+      clearCart();
     }, 2500);
   };
 
@@ -335,12 +332,12 @@ export default function Checkout({ items, onClearCart }: CheckoutProps) {
               <h2 className="text-xl font-serif mb-8 text-brand-gold">Order Review</h2>
               <div className="space-y-6 max-h-[400px] overflow-y-auto no-scrollbar pr-4">
                 {items.map((item) => (
-                  <div key={`${item.id}-${item.selectedSize}`} className="flex space-x-4">
-                    <img src={item.images[0]} className="w-16 h-20 object-cover" alt="" referrerPolicy="no-referrer" />
+                  <div key={item.id} className="flex space-x-4">
+                    <img src={item.product.images[0]} className="w-16 h-20 object-cover" alt="" referrerPolicy="no-referrer" />
                     <div className="flex-1 flex flex-col justify-center">
-                      <p className="text-[10px] uppercase tracking-widest font-bold truncate">{item.name}</p>
+                      <p className="text-[10px] uppercase tracking-widest font-bold truncate">{item.product.name}</p>
                       <p className="text-[9px] text-brand-ink/50 uppercase tracking-widest">SIZE {item.selectedSize} × {item.quantity}</p>
-                      <p className="text-xs font-serif mt-1">{formatPrice(item.price * item.quantity, currency, rate)}</p>
+                      <p className="text-xs font-serif mt-1">{formatPrice(item.product.price * item.quantity, currency, rate)}</p>
                     </div>
                   </div>
                 ))}

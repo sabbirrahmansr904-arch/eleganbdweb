@@ -28,8 +28,8 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
           parsed = parsed.map(p => {
              let category = p.category;
              if (category === 'Premium Formal Shirt') category = 'Formal Shirt';
-             if (category === 'Drop Shoulder T-shirt') category = 'T-shirt';
-             if (category === 'Panjabi') category = 'T-shirt';
+             if (category === 'Drop Shoulder T-shirt') category = 'Polo t-shirt';
+             if (category === 'Panjabi') category = 'Polo t-shirt';
              if (category === 'Casual Shirt' || category === 'Woman Palazzo') category = 'Formal Pant'; 
              
              return {
@@ -75,9 +75,10 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const normalizedData = prodData.map(p => {
              let category = p.category;
              if (category === 'Premium Formal Shirt') category = 'Formal Shirt';
-             if (category === 'Drop Shoulder T-shirt') category = 'T-shirt';
-             if (category === 'Panjabi') category = 'T-shirt';
+             if (category === 'Drop Shoulder T-shirt') category = 'Polo T-shirt';
+             if (category === 'Panjabi') category = 'Polo T-shirt';
              if (category === 'Casual Shirt' || category === 'Woman Palazzo') category = 'Formal Pant'; 
+             if (category === 'Polo t-shirt') category = 'Polo T-shirt';
              return { ...p, category };
           });
           setProducts(normalizedData);

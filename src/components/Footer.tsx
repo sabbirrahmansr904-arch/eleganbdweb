@@ -10,82 +10,86 @@ import { useBranding } from '../contexts/BrandingContext';
 export default function Footer() {
   const { logoUrl } = useBranding();
   return (
-    <footer className="bg-brand-ink text-white py-20 px-6 md:px-12">
-      <div className="max-w-4xl mx-auto flex flex-col items-center text-center space-y-16">
-        {/* Brand Info */}
-        <div className="flex flex-col items-center space-y-6">
-          <Link to="/" className="group flex flex-col items-center gap-4">
-            {logoUrl && (
-              <img 
-                src={logoUrl} 
-                alt="Logo" 
-                className="h-14 w-auto object-contain brightness-0 invert transition-transform duration-300 group-hover:scale-110" 
-                referrerPolicy="no-referrer"
-              />
+    <footer className="bg-black text-white pt-20 pb-10 px-6 md:px-12 border-t border-white/10">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8">
+        {/* Column 1: Brand & Contact */}
+        <div className="space-y-6">
+          <Link to="/" className="inline-block transform transition-transform hover:scale-105">
+            {logoUrl ? (
+              <img src={logoUrl} alt="Logo" className="h-10 w-auto" />
+            ) : (
+              <span className="font-black text-2xl uppercase tracking-tighter text-white">
+                Elegan <span className="text-brand-gold">BD</span>
+              </span>
             )}
-            <span className="font-black text-3xl md:text-4xl italic tracking-tighter uppercase text-white group-hover:text-brand-gold transition-colors leading-none">
-              Elegan BD
-            </span>
           </Link>
-          <p className="text-white/80 text-sm leading-relaxed max-w-md">
-            Defining modern elegance through minimalist design and premium craftsmanship. Join us in our journey of timeless style.
-          </p>
-          <div className="flex space-x-6 invisible">
-            <a href="#" className="hover:text-brand-gold transition-colors"><Facebook size={22} /></a>
-            <a href="#" className="hover:text-brand-gold transition-colors"><Instagram size={22} /></a>
-            <a href="#" className="hover:text-brand-gold transition-colors"><Twitter size={22} /></a>
+          <div className="space-y-4 text-xs uppercase tracking-widest text-gray-400 font-bold leading-loose">
+            <p className="flex items-start gap-3">
+              <span className="text-brand-gold">📍</span>
+              Salim Uddin Market, Ahamed Nagar Paikpara, Mirpur 1, Dhaka-1216
+            </p>
+            <p className="flex items-center gap-3">
+              <span className="text-brand-gold">📞</span>
+              +880 1631 496122
+            </p>
+            <p className="flex items-center gap-3">
+              <span className="text-brand-gold">✉️</span>
+              eleganbdltd@gmail.com
+            </p>
+          </div>
+          <div className="flex gap-4 pt-4 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all text-white">
+            <Facebook size={20} className="cursor-pointer hover:text-brand-gold" />
+            <Instagram size={20} className="cursor-pointer hover:text-brand-gold" />
+            <Twitter size={20} className="cursor-pointer hover:text-brand-gold" />
           </div>
         </div>
 
-        {/* Links Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 w-full text-center">
-          {/* Quick Links */}
-          <div className="flex flex-col items-center">
-            <h4 className="text-xs uppercase tracking-widest mb-6 text-brand-gold font-bold">Quick Links</h4>
-            <div className="grid grid-cols-2 gap-x-12 gap-y-4 text-sm text-white/80 max-w-lg mx-auto">
-              <Link to="/?filter=new" className="hover:text-white transition-colors">New Arrivals</Link>
-              <Link to="/returns-exchange" className="hover:text-white transition-colors">Returns & Exchange</Link>
-              <Link to="/customer-care" className="hover:text-white transition-colors">Customer Care</Link>
-              <Link to="/track-order" className="hover:text-white transition-colors">Track Your Order</Link>
-              <Link to="/about" className="hover:text-white transition-colors">About Elegan BD</Link>
-              <Link to="/contact" className="hover:text-white transition-colors">Contact Us</Link>
-              <Link to="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link>
-              <Link to="/terms-conditions" className="hover:text-white transition-colors">Terms & Conditions</Link>
-            </div>
-          </div>
+        {/* Column 2: Essential Links */}
+        <div>
+          <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-brand-gold mb-8 italic">SHOPPING GUIDE</h4>
+          <ul className="space-y-4 text-[10px] font-black uppercase tracking-widest text-gray-400">
+            <li><Link to="/track-order" className="hover:text-white transition-colors">Track Your Order</Link></li>
+            <li><Link to="/category/new" className="hover:text-white transition-colors">New Arrivals</Link></li>
+            <li><Link to="/shipping-policy" className="hover:text-white transition-colors">Shipping & Delivery</Link></li>
+            <li><Link to="/size-guide" className="hover:text-white transition-colors">Size Guide</Link></li>
+          </ul>
+        </div>
 
-          {/* Contact */}
-          <div className="flex flex-col items-center">
-            <h4 className="text-xs uppercase tracking-widest mb-6 text-brand-gold font-bold">Get In Touch</h4>
-            <ul className="space-y-6 text-sm text-white/80">
-              <li className="flex flex-col items-center gap-1">
-                <span className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-bold">Email Us</span>
-                <a href="mailto:eleganbdltd@gmail.com" className="hover:text-brand-gold transition-colors block font-medium">
-                  eleganbdltd@gmail.com
-                </a>
-              </li>
-              <li className="flex flex-col items-center gap-1">
-                <span className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-bold">Call Us</span>
-                <a href="tel:+8801631496122" className="hover:text-brand-gold transition-colors block font-medium">
-                  +8801631496122
-                </a>
-              </li>
-            </ul>
+        {/* Column 3: Company */}
+        <div>
+          <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-brand-gold mb-8 italic">CORPORATE</h4>
+          <ul className="space-y-4 text-[10px] font-black uppercase tracking-widest text-gray-400">
+            <li><Link to="/about" className="hover:text-white transition-colors">About Elegan BD</Link></li>
+            <li><Link to="/contact" className="hover:text-white transition-colors">Contact Us</Link></li>
+            <li><Link to="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
+            <li><Link to="/terms-conditions" className="hover:text-white transition-colors">Terms & Conditions</Link></li>
+            <li><Link to="/returns-exchange" className="hover:text-white transition-colors">Exchange & Returns</Link></li>
+          </ul>
+        </div>
+
+        {/* Column 4: Newsletter */}
+        <div>
+          <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-brand-gold mb-8 italic">NEWSLETTER</h4>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-6 leading-loose">
+            Be the first to know about new arrivals, sales & exclusive offers!
+          </p>
+          <div className="relative">
+            <input 
+              type="email" 
+              placeholder="Your Email" 
+              className="w-full bg-white/5 border border-white/10 py-3 px-4 text-xs text-white focus:ring-1 focus:ring-brand-gold outline-none transition-all placeholder:text-[9px] placeholder:uppercase placeholder:font-bold placeholder:text-gray-500"
+            />
+            <button className="absolute right-0 top-0 h-full px-4 bg-brand-gold text-white text-[9px] font-black uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all">
+              Join
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto mt-24 pt-10 border-t border-white/5 flex flex-col items-center space-y-8 text-center">
-        <div className="flex flex-wrap justify-center gap-6 opacity-30 grayscale brightness-0">
-           <img src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" className="h-6" alt="Paypal" />
-           <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" className="h-6" alt="Visa" />
-           <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" className="h-6" alt="Mastercard" />
-           <img src="https://upload.wikimedia.org/wikipedia/commons/c/cb/Bkash_logo.png" className="h-6" alt="bKash" />
-        </div>
-
-        <div className="flex flex-row justify-center text-[10px] uppercase tracking-[0.3em] text-white/40 mt-4 whitespace-nowrap">
-          <span>2026 ELEGAN BD. All Rights Reserved</span>
-        </div>
+      <div className="max-w-7xl mx-auto mt-20 pt-8 border-t border-white/5 text-center">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white">
+          © 2026 ELEGAN BD LIMITED. ALL RIGHTS RESERVED.
+        </p>
       </div>
     </footer>
   );

@@ -61,7 +61,7 @@ export const PRODUCTS: Product[] = [
     name: 'Essential Oversized T-Shirt',
     price: 950,
     description: 'A premium heavy-weight cotton t-shirt with a relaxed, oversized fit. Perfect for high-street minimalist style.',
-    category: 'T-shirt',
+    category: 'Polo t-shirt',
     color: 'Black',
     material: 'Cotton',
     images: [
@@ -78,7 +78,7 @@ export const PRODUCTS: Product[] = [
     name: 'Vintage Wash Graphic Tee',
     price: 1150,
     description: 'Hand-finished vintage wash t-shirt featuring artistic screen-printed graphics. Made from 100% organic cotton.',
-    category: 'T-shirt',
+    category: 'Polo t-shirt',
     color: 'Grey',
     material: 'Organic Cotton',
     images: [
@@ -103,20 +103,6 @@ export const PRODUCTS: Product[] = [
     sizeStock: {'30': 15, '32': 15, '34': 10, '36': 10},
     featured: true,
     newArrival: true
-  },
-  {
-    id: '7',
-    name: 'Navy Blue Cuban Collar Shirt',
-    price: 1250,
-    description: 'Relaxed fit Cuban collar shirt with a smooth finish. Ideal for casual summer days and evening hangouts.',
-    category: 'Cuban Shirt',
-    color: 'Navy Blue',
-    material: 'Viscose',
-    images: ['https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=1000'],
-    sizes: ['M', 'L', 'XL'],
-    stock: 40,
-    sizeStock: {'M': 15, 'L': 15, 'XL': 10},
-    featured: true
   },
   {
     id: '8',
@@ -145,20 +131,6 @@ export const PRODUCTS: Product[] = [
     sizes: ['30', '32', '34', '36'],
     stock: 35,
     sizeStock: {'30': 10, '32': 10, '34': 10, '36': 5},
-    featured: false
-  },
-  {
-    id: '10',
-    name: 'Summer Breeze Linen Shirt',
-    price: 1650,
-    description: 'Ultra-breathable linen shirt in a pastel tone. Perfect for the tropical climate.',
-    category: 'Cuban Shirt',
-    color: 'Mint',
-    material: 'Linen',
-    images: ['https://images.unsplash.com/photo-1598033129183-c4f50c7176c8?q=80&w=1000'],
-    sizes: ['M', 'L', 'XL'],
-    stock: 30,
-    sizeStock: {'M': 10, 'L': 15, 'XL': 5},
     featured: false
   }
 ];
@@ -233,9 +205,9 @@ export const MOCK_CUSTOMERS: Customer[] = [
 ];
 
 export const COLORS = {
-  bg: '#FBFBFB',        // Off-white/Beigeish
-  ink: '#1A1A1A',       // Deep black for text
-  accent: '#D4AF37',    // Gold accent
-  muted: '#F5F2ED',     // Soft beige for backgrounds
-  border: 'rgba(26, 26, 26, 0.1)'
+  bg: '#1A1A1A',        // Deep black background
+  ink: '#FBFBFB',       // Off-white/Beigeish text
+  accent: '#FFFFFF',    // White accent
+  muted: '#2A2A2A',     // Darker grey for backgrounds
+  border: 'rgba(255, 255, 255, 0.1)'
 };

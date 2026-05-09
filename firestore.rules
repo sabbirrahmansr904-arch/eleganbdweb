@@ -6,7 +6,12 @@ service cloud.firestore {
     }
 
     function isSignedIn() { return request.auth != null; }
-    function isAdmin() { return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    function isAdmin() { 
+      return isSignedIn() && (
+        request.auth.token.email == 'sabbirrahmansr904@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      ); 
+    }
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
@@ -19,19 +24,31 @@ service cloud.firestore {
         data.sizes is list &&
         data.stock is number &&
         data.sizeStock is map &&
-        (!data.keys().contains('fabric') || data.fabric is string) &&
-        (!data.keys().contains('fitType') || data.fitType is string) &&
-        (!data.keys().contains('description') || data.description is string) &&
-        (!data.keys().contains('rating') || (data.rating is number && data.rating >= 0 && data.rating <= 5)) &&
-        (!data.keys().contains('isTopRated') || data.isTopRated is bool);
+        (!('sku' in data) || data.sku is string) &&
+        (!('cost' in data) || data.cost is number) &&
+        (!('salePrice' in data) || data.salePrice is number) &&
+        (!('fabric' in data) || data.fabric is string) &&
+        (!('fitType' in data) || data.fitType is string) &&
+        (!('description' in data) || data.description is string) &&
+        (!('rating' in data) || (data.rating is number || data.rating == 0)) &&
+        (!('isTopRated' in data) || data.isTopRated is bool) &&
+        (!('newArrival' in data) || data.newArrival is bool) &&
+        (!('featured' in data) || data.featured is bool) &&
+        (!('createdAt' in data) || data.createdAt is number) &&
+        (!('updatedAt' in data) || data.updatedAt is number) &&
+        (!('id' in data) || data.id is string) &&
+        (!('discount' in data) || data.discount is number) &&
+        (!('regularPrice' in data) || data.regularPrice is number) &&
+        (!('originalPrice' in data) || data.originalPrice is number) &&
+        (!('color' in data) || data.color is string) &&
+        (!('material' in data) || data.material is string);
     }
 
     match /products/{productId} {
-      allow read: if true;
+      allow read, list: if true;
       allow create: if isAdmin() && isValidId(productId) && isValidProduct(incoming());
       allow update: if (isAdmin() || (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['sizeStock', 'stock']))) && isValidId(productId) && isValidProduct(incoming());
       allow delete: if isAdmin() && isValidId(productId);
-      allow list: if true; 
     }
 
     function isValidOrder(data) {
@@ -59,6 +76,14 @@ service cloud.firestore {
         data.active is bool;
     }
 
+    function isValidCategory(data) {
+      return data.keys().hasAll(['name', 'slug']) &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+        data.slug is string && data.slug.size() > 0 && data.slug.size() <= 100 &&
+        (!data.keys().contains('image') || (data.image is string && data.image.size() <= 1000)) &&
+        (!data.keys().contains('description') || (data.description is string && data.description.size() <= 1000));
+    }
+
     match /banners/{bannerId} {
       allow read: if true;
       allow list: if true;
@@ -67,19 +92,18 @@ service cloud.firestore {
       allow delete: if isAdmin() && isValidId(bannerId);
     }
 
-    match /banners/{bannerId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
     match /config/{configId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
+    match /test/connection {
+      allow read: if true;
+    }
+
     match /admins/{adminId} {
-      allow read: if isSignedIn() && adminId == request.auth.uid;
-      allow create: if isSignedIn() && adminId == request.auth.uid && request.auth.token.email == 'sabbirrahmansr904@gmail.com';
+      allow read: if isSignedIn() && (adminId == request.auth.uid || isAdmin());
+      allow write: if isSignedIn() && adminId == request.auth.uid && request.auth.token.email == 'sabbirrahmansr904@gmail.com';
     }
 
     function isValidStockTransaction(data) {
@@ -99,6 +123,27 @@ service cloud.firestore {
       allow read, list: if isAdmin();
       allow create: if isAdmin() && isValidId(transactionId) && isValidStockTransaction(incoming());
       allow update, delete: if false;
+    }
+
+    match /categories/{categoryId} {
+      allow read, list: if true;
+      allow create, update: if isAdmin() && isValidId(categoryId) && isValidCategory(incoming());
+      allow delete: if isAdmin() && isValidId(categoryId);
+    }
+
+    function isValidReview(data) {
+      return data.keys().hasAll(['productId', 'userName', 'rating', 'comment', 'createdAt']) &&
+        data.productId is string &&
+        data.userName is string && data.userName.size() > 0 &&
+        data.rating is number && data.rating >= 1 && data.rating <= 5 &&
+        data.comment is string && data.comment.size() > 0 && data.comment.size() <= 500 &&
+        data.createdAt is number;
+    }
+
+    match /reviews/{reviewId} {
+      allow read, list: if true;
+      allow create: if isValidId(reviewId) && isValidReview(incoming());
+      allow update, delete: if isAdmin();
     }
   }
 }

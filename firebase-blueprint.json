@@ -90,6 +90,33 @@
         "notes": { "type": "string" }
       },
       "required": ["type", "sku", "productName", "quantities", "totalQuantity", "timestamp", "category", "authorizedBy"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Product category",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "image": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "required": ["name", "slug"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Product review left by a customer",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "userName": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["productId", "userName", "rating", "comment", "createdAt"]
     }
   },
   "firestore": {
@@ -116,6 +143,14 @@
     "/inventory_transactions/{transactionId}": {
       "schema": { "$ref": "#/entities/StockTransaction" },
       "description": "Inventory logs (admin only)"
+    },
+    "/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "Product categories (read all, write admin)"
+    },
+    "/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/Review" },
+      "description": "Product reviews (all read, all create)"
     }
   }
 }

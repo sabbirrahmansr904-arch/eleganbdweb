@@ -65,127 +65,134 @@ export default function AdminInventoryOverview() {
   });
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 font-sans text-slate-800">
-      <div className="flex items-center space-x-3 mb-2">
-        <Tag className="w-8 h-8 text-blue-800" fill="currentColor" stroke="white" strokeWidth={1} />
-        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Inventory Overview</h1>
+    <div className="max-w-7xl mx-auto space-y-6 font-sans text-black">
+      <div className="flex items-center space-x-4 mb-4 bg-gray-50 p-8 rounded-3xl border border-gray-100 shadow-sm transition-all hover:bg-gray-100/50">
+        <div className="p-3 bg-black text-white rounded-2xl shadow-lg">
+          <Box className="w-8 h-8" />
+        </div>
+        <div>
+          <h1 className="text-3xl font-black italic tracking-tighter uppercase text-black">Inventory Metrics</h1>
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mt-1">High-level analytics and stock distribution matrix.</p>
+        </div>
       </div>
-      <p className="text-slate-600 mb-8">High-level analytics and stock distribution metrics.</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Metric Cards */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex items-center space-x-4">
-          <div className="bg-blue-50 p-3 rounded-xl text-blue-600">
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center space-x-4 group hover:border-black transition-all">
+          <div className="bg-gray-50 p-3 rounded-xl text-black border border-gray-100 group-hover:bg-black group-hover:text-white transition-all">
             <Box size={24} />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Unique Products</p>
-            <p className="text-2xl font-black text-slate-900">{uniqueProducts}</p>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Unique SKUs</p>
+            <p className="text-2xl font-black italic tracking-tighter text-black">{uniqueProducts}</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex items-center space-x-4">
-          <div className="bg-blue-50 p-3 rounded-xl text-blue-600">
-            <Box size={24} />
-          </div>
-          <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Total Units Stock</p>
-            <p className="text-2xl font-black text-slate-900">{totalUnitsStock}</p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex items-center space-x-4">
-          <div className="bg-emerald-50 p-3 rounded-xl text-emerald-600">
-            <PiggyBank size={24} />
-          </div>
-          <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Inventory Value (Cost)</p>
-            <p className="text-2xl font-black text-slate-900">৳{inventoryValue.toLocaleString()}</p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex items-center space-x-4">
-          <div className="bg-pink-50 p-3 rounded-xl text-red-500">
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center space-x-4 group hover:border-black transition-all">
+          <div className="bg-gray-50 p-3 rounded-xl text-black border border-gray-100 group-hover:bg-black group-hover:text-white transition-all">
             <TrendingUp size={24} />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Potential Revenue</p>
-            <p className="text-2xl font-black text-slate-900">৳{potentialRevenue.toLocaleString()}</p>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Stock Pool</p>
+            <p className="text-2xl font-black italic tracking-tighter text-black">{totalUnitsStock}</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center space-x-4 group hover:border-emerald-500 transition-all">
+          <div className="bg-gray-50 p-3 rounded-xl text-emerald-500 border border-gray-100 group-hover:bg-emerald-500 group-hover:text-white transition-all">
+            <PiggyBank size={24} />
+          </div>
+          <div>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Warehouse Value</p>
+            <p className="text-2xl font-black italic tracking-tighter text-black">৳{inventoryValue.toLocaleString()}</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center space-x-4 group hover:border-black transition-all">
+          <div className="bg-black p-3 rounded-xl text-white shadow-xl shadow-black/20">
+            <TrendingUp size={24} />
+          </div>
+          <div>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Projected Revenue</p>
+            <p className="text-2xl font-black italic tracking-tighter text-black">৳{potentialRevenue.toLocaleString()}</p>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mt-6">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-2 text-slate-700">
-            <Box size={20} />
-            <h2 className="font-bold uppercase tracking-widest text-sm">Inventory Analytics</h2>
+      <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-6 transition-all hover:bg-gray-50/30">
+        <div className="flex items-center justify-between mb-10">
+          <div className="flex items-center space-x-3 text-black">
+            <Box size={20} className="text-brand-gold" />
+            <h2 className="font-black uppercase tracking-[0.2em] text-xs italic">Analytical Distribution</h2>
           </div>
-          <button className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center hover:text-slate-900">
-            Hide Details <ChevronDown size={14} className="ml-1" />
+          <button className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center hover:text-black transition-colors">
+            EXPAND VIEW <ChevronDown size={14} className="ml-1" />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
           {/* By Category */}
-          <div>
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-6 flex items-center">
-               <span className="w-4 h-4 bg-slate-200 rounded-sm inline-flex items-center justify-center mr-2"><Box size={10} /></span>
-               By Category
+          <div className="space-y-8">
+            <h3 className="text-[10px] font-black text-brand-gold uppercase tracking-[0.3em] mb-6 flex items-center">
+               <span className="w-6 h-6 bg-black text-white rounded flex items-center justify-center mr-3 italic">C</span>
+               Category Breakdown
             </h3>
             
-            <div className="space-y-6">
+            <div className="space-y-8">
               {categoryArray.map((cat, idx) => (
-                <div key={idx} className="space-y-2">
+                <div key={idx} className="space-y-3 group">
                   <div className="flex justify-between items-end">
-                    <p className="font-bold text-slate-700 text-sm">{cat.name}</p>
-                    <p className="text-xs font-bold text-blue-600">{cat.percentage.toFixed(1)}%</p>
+                    <p className="font-black text-black text-[11px] uppercase tracking-widest group-hover:text-brand-gold transition-all">{cat.name}</p>
+                    <p className="text-[10px] font-black text-brand-gold">{cat.percentage.toFixed(1)}%</p>
                   </div>
-                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-blue-500 rounded-full" 
-                      style={{ width: `${cat.percentage}%` }}
+                  <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${cat.percentage}%` }}
+                      transition={{ duration: 1, ease: "circOut" }}
+                      className="h-full bg-black rounded-full" 
                     />
                   </div>
-                  <div className="flex justify-between items-center">
-                    <p className="text-xs font-bold text-slate-400">{cat.products} PRODUCTS</p>
-                    <p className="text-xs font-bold text-slate-400">{cat.units} UNITS</p>
+                  <div className="flex justify-between items-center text-[8px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                    <p>{cat.products} SKUS</p>
+                    <p>{cat.units} TOTAL UNITS</p>
                   </div>
                 </div>
               ))}
               {categoryArray.length === 0 && (
-                <div className="text-sm text-slate-400 text-center py-4">No categories found</div>
+                <div className="text-sm text-gray-400 text-center py-4 italic">No data detected</div>
               )}
             </div>
           </div>
 
           {/* Top Attributes (Units) */}
-          <div>
-             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-6 flex items-center">
-               <span className="w-4 h-4 bg-slate-200 rounded-sm inline-flex items-center justify-center mr-2"><Tag size={10} /></span>
-               Top Attributes (Units)
+          <div className="space-y-8">
+             <h3 className="text-[10px] font-black text-brand-gold uppercase tracking-[0.3em] mb-6 flex items-center">
+               <span className="w-6 h-6 bg-black text-white rounded flex items-center justify-center mr-3 italic">A</span>
+               Attribute Distribution
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
               {sizeArray.map((sizeObj, idx) => (
-                <div key={idx} className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex items-center space-x-3">
-                    <div className="font-black text-blue-600 text-sm w-8">{sizeObj.name}</div>
-                    <div>
-                      <p className="font-bold text-slate-800 text-sm">{sizeObj.name}</p>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{sizeObj.products} PRODUCTS</p>
-                    </div>
+                <div key={idx} className="flex flex-col gap-2 p-5 rounded-2xl border border-gray-100 bg-gray-50 hover:bg-white hover:border-black transition-all group shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <span className="text-lg font-black text-black group-hover:text-brand-gold transition-all italic">{sizeObj.name}</span>
+                    <div className="w-2 h-2 rounded-full bg-brand-gold/30 group-hover:bg-brand-gold animate-pulse" />
                   </div>
-                  <div className="text-sm font-bold text-slate-500">{sizeObj.units}</div>
+                  <div className="space-y-1">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">{sizeObj.products} SKUs</p>
+                    <p className="text-xs font-black text-black">{sizeObj.units} Units</p>
+                  </div>
                 </div>
               ))}
               {sizeArray.length === 0 && (
-                <div className="text-sm text-slate-400 text-center py-4 col-span-2">No attributes found</div>
+                <div className="text-sm text-gray-400 text-center py-4 col-span-3 italic">No attributes found</div>
               )}
             </div>
           </div>
         </div>
       </div>
     </div>
+
   );
 }

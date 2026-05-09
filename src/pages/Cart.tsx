@@ -4,22 +4,17 @@
  */
 
 import { Link, useNavigate } from 'react-router-dom';
-import { CartItem } from '../types';
 import { formatPrice } from '../lib/utils';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useCart } from '../contexts/CartContext';
 import { Trash2, Minus, Plus, ArrowLeft, ArrowRight } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-interface CartProps {
-  items: CartItem[];
-  onUpdateQuantity: (id: string, size: string, delta: number) => void;
-  onRemove: (id: string, size: string) => void;
-}
-
-export default function Cart({ items, onUpdateQuantity, onRemove }: CartProps) {
-  const { currency, rate, symbol } = useCurrency();
+export default function Cart() {
+  const { items, updateQuantity, removeFromCart } = useCart();
+  const { currency, rate } = useCurrency();
   const navigate = useNavigate();
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   const shipping = subtotal > 200 ? 0 : 25;
 
   if (items.length === 0) {
@@ -47,7 +42,7 @@ export default function Cart({ items, onUpdateQuantity, onRemove }: CartProps) {
           <AnimatePresence mode="popLayout">
             {items.map((item) => (
               <motion.div
-                key={`${item.id}-${item.selectedSize}`}
+                key={item.id}
                 layout
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -57,8 +52,8 @@ export default function Cart({ items, onUpdateQuantity, onRemove }: CartProps) {
                 <div className="flex space-x-6">
                   <div className="w-24 md:w-32 aspect-[3/4] bg-brand-muted relative overflow-hidden">
                     <img
-                      src={item.images[0]}
-                      alt={item.name}
+                      src={item.product.images[0]}
+                      alt={item.product.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       referrerPolicy="no-referrer"
                     />
@@ -66,18 +61,18 @@ export default function Cart({ items, onUpdateQuantity, onRemove }: CartProps) {
                   <div className="flex flex-col justify-between py-1">
                     <div>
                       <h3 className="text-sm md:text-base uppercase tracking-widest font-medium mb-1 hover:text-brand-gold transition-colors">
-                        <Link to={`/product/${item.id}`}>{item.name}</Link>
+                        <Link to={`/product/${item.product.id}`}>{item.product.name}</Link>
                       </h3>
                       <p className="text-[10px] text-brand-ink/50 uppercase tracking-widest mb-4">Size: {item.selectedSize}</p>
-                      <p className="text-sm font-medium">{formatPrice(item.price, currency, rate)}</p>
+                      <p className="text-sm font-medium">{formatPrice(item.product.price, currency, rate)}</p>
                     </div>
                     
                     <div className="flex items-center space-x-6 border border-brand-ink/10 w-fit px-4 py-2 mt-4">
-                      <button onClick={() => onUpdateQuantity(item.id, item.selectedSize, -1)} className="hover:text-brand-gold">
+                      <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="hover:text-brand-gold">
                         <Minus size={14} />
                       </button>
                       <span className="text-xs font-medium w-4 text-center">{item.quantity}</span>
-                      <button onClick={() => onUpdateQuantity(item.id, item.selectedSize, 1)} className="hover:text-brand-gold">
+                      <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="hover:text-brand-gold">
                         <Plus size={14} />
                       </button>
                     </div>
@@ -86,12 +81,12 @@ export default function Cart({ items, onUpdateQuantity, onRemove }: CartProps) {
 
                 <div className="flex flex-col items-end justify-between self-stretch py-1">
                   <button 
-                    onClick={() => onRemove(item.id, item.selectedSize)}
+                    onClick={() => removeFromCart(item.id)}
                     className="text-brand-ink/30 hover:text-red-500 transition-colors"
                   >
                     <Trash2 size={18} strokeWidth={1.5} />
                   </button>
-                  <p className="text-sm font-bold">{formatPrice(item.price * item.quantity, currency, rate)}</p>
+                  <p className="text-sm font-bold">{formatPrice(item.product.price * item.quantity, currency, rate)}</p>
                 </div>
               </motion.div>
             ))}

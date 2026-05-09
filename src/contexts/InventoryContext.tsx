@@ -52,7 +52,9 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const newTrans: StockTransaction = {
       ...trans,
       id,
-      timestamp
+      timestamp,
+      authorizedBy: 'Admin', // Default or from context
+      notes: ''
     };
 
     try {

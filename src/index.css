@@ -1,27 +1,24 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Poppins", serif;
-  
-  --color-brand-bg: #FFFFFF;
-  --color-brand-ink: #000000;
-  --color-brand-gold: #111111;
-  --color-brand-muted: #F3F4F6;
+  --color-brand-gold: #FFFFFF;
+  --color-brand-black: #1A1A1A;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
-@layer base {
-  body {
-    @apply bg-brand-bg text-brand-ink font-sans antialiased;
-  }
+:root {
+  --brand-accent: #FFFFFF;
 }
 
-.hero-mask {
-  clip-path: polygon(0 0, 100% 0, 85% 100%, 0% 100%);
+body {
+  @apply bg-white text-black font-sans antialiased;
 }
 
-.perspective-1000 {
-  perspective: 1000px;
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
-
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

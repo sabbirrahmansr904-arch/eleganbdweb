@@ -23,8 +23,18 @@ export interface Product {
   featured?: boolean;
   discount?: number;
   regularPrice?: number;
+  salePrice?: number;
   rating?: number;
   isTopRated?: boolean;
+  originalPrice?: number;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  image?: string;
+  description?: string;
 }
 
 export interface CartItem extends Product {
@@ -95,4 +105,15 @@ export interface StockTransaction {
   totalQuantity: number;
   timestamp: number;
   category: string;
+  authorizedBy?: string;
+  notes?: string;
+}
+
+export interface Review {
+  id: string;
+  productId: string;
+  userName: string;
+  rating: number;
+  comment: string;
+  createdAt: number;
 }

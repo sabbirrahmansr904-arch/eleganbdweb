@@ -48,7 +48,7 @@ export default function AdminLogin() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
-        className="w-full max-w-md bg-white border border-brand-ink/5 p-8 md:p-12 shadow-2xl relative z-10"
+        className="w-full max-w-md bg-white/5 backdrop-blur-md border border-white/10 p-8 md:p-12 shadow-2xl relative z-10"
       >
         <div className="text-center mb-10">
           <div className="flex items-center justify-center mb-4">
@@ -56,29 +56,29 @@ export default function AdminLogin() {
               <img 
                 src={logoUrl} 
                 alt="Elegan BD" 
-                className="h-16 w-auto mx-auto object-contain" 
+                className="h-16 w-auto mx-auto object-contain brightness-0 invert" 
                 referrerPolicy="no-referrer"
               />
             ) : (
               <div className="flex items-center justify-center">
                 <div className="flex flex-col gap-[3px] mr-3">
-                  <div className="h-[4px] w-6 bg-brand-ink" />
-                  <div className="h-[4px] w-[14px] bg-brand-ink translate-x-[-2px]" />
-                  <div className="h-[4px] w-6 bg-brand-ink" />
+                  <div className="h-[4px] w-6 bg-white" />
+                  <div className="h-[4px] w-[14px] bg-white translate-x-[-2px]" />
+                  <div className="h-[4px] w-6 bg-white" />
                 </div>
-                <span className="font-black text-2xl italic tracking-tighter uppercase text-brand-ink">
+                <span className="font-black text-2xl italic tracking-tighter uppercase text-white">
                   Elegan BD
                 </span>
               </div>
             )}
           </div>
-          <p className="text-[10px] uppercase tracking-[0.4em] text-gray-400 font-bold">Admin Portal Access</p>
+          <p className="text-[10px] uppercase tracking-[0.4em] text-gray-500 font-bold">Admin Portal Access</p>
         </div>
 
         <button 
           onClick={handleLogin}
           type="button"
-          className="w-full bg-brand-ink text-white py-5 text-[11px] uppercase tracking-widest font-bold hover:bg-brand-gold transition-all shadow-xl active:scale-[0.98]"
+          className="w-full bg-white text-brand-black py-5 text-[11px] uppercase tracking-widest font-bold hover:bg-brand-gold hover:text-white transition-all shadow-xl active:scale-[0.98]"
         >
           Sign in with Google
         </button>

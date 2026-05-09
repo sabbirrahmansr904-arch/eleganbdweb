@@ -1,195 +1,165 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import React, { useState, useCallback, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import { CartItem } from './types';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider } from './contexts/AuthContext';
-import { CurrencyProvider } from './contexts/CurrencyContext';
-import { BrandingProvider } from './contexts/BrandingContext';
-import { BannerProvider } from './contexts/BannerContext';
-import { ProductProvider, useProducts } from './contexts/ProductContext';
+
+// Contexts
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ProductProvider } from './contexts/ProductContext';
 import { OrderProvider } from './contexts/OrderContext';
+import { BrandingProvider } from './contexts/BrandingContext';
+import { CurrencyProvider } from './contexts/CurrencyContext';
+import { CartProvider } from './contexts/CartContext';
 import { InventoryProvider } from './contexts/InventoryContext';
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
+import { BannerProvider } from './contexts/BannerContext';
+import { CategoryProvider } from './contexts/CategoryContext';
+
+// Layouts
+import AdminLayout from './components/admin/AdminLayout';
+import MainLayout from './components/MainLayout';
+import ScrollToTop from './components/ScrollToTop';
+
+// Public Pages
 import Home from './pages/Home';
 import ProductDetails from './pages/ProductDetails';
-import Cart from './pages/Cart';
-import Checkout from './pages/Checkout';
+import TrackOrder from './pages/TrackOrder';
 import About from './pages/About';
 import Contact from './pages/Contact';
+import Support from './pages/Support';
+import FastDelivery from './pages/FastDelivery';
+import SizeGuide from './pages/SizeGuide';
 import ReturnsExchange from './pages/ReturnsExchange';
-import CustomerCare from './pages/CustomerCare';
-import TrackOrder from './pages/TrackOrder';
+import SecurePayment from './pages/SecurePayment';
+import ShippingPolicy from './pages/ShippingPolicy';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsConditions from './pages/TermsConditions';
-import SizeGuide from './pages/SizeGuide';
-import ShippingPolicy from './pages/ShippingPolicy';
-import SecurePayment from './pages/SecurePayment';
-import FastDelivery from './pages/FastDelivery';
-import Support from './pages/Support';
+import CustomerCare from './pages/CustomerCare';
+import CustomerDashboard from './pages/CustomerDashboard';
+import ProductList from './pages/ProductList';
+import Cart from './pages/Cart';
+import Checkout from './pages/Checkout';
 
-// Admin Imports
-import AdminLayout from './components/admin/AdminLayout';
+// Admin Pages
+import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/AdminDashboard';
-import AdminProducts from './pages/admin/AdminProducts';
 import AdminOrders from './pages/admin/AdminOrders';
+import AdminProducts from './pages/admin/AdminProducts';
+import AdminAddProduct from './pages/admin/AdminAddProduct';
 import AdminCustomers from './pages/admin/AdminCustomers';
 import AdminSettings from './pages/admin/AdminSettings';
-import AdminBanners from './pages/admin/AdminBanners';
-import AdminLogin from './pages/admin/AdminLogin';
 import AdminNotifications from './pages/admin/AdminNotifications';
-import AdminInventoryOverview from './pages/admin/AdminInventoryOverview';
-import AdminAddProduct from './pages/admin/AdminAddProduct';
+import AdminBanners from './pages/admin/AdminBanners';
 import AdminStockIn from './pages/admin/AdminStockIn';
 import AdminStockOut from './pages/admin/AdminStockOut';
+import AdminInventoryOverview from './pages/admin/AdminInventoryOverview';
 import AdminInventoryLog from './pages/admin/AdminInventoryLog';
+import AdminCategories from './pages/admin/AdminCategories';
+import AdminExchanges from './pages/admin/AdminExchanges';
+import AdminMedia from './pages/admin/AdminMedia';
 
-import CustomerDashboard from './pages/CustomerDashboard';
-import FloatingWhatsApp from './components/FloatingWhatsApp';
+// Protected Route Component
+const ProtectedRoute = ({ children, requireAdmin = true }: { children: React.ReactNode, requireAdmin?: boolean }) => {
+  const { currentUser, isAdmin, loading } = useAuth();
 
-import { Helmet, HelmetProvider } from 'react-helmet-async';
-
-function ScrollToTop() {
-  const { pathname } = useLocation();
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [pathname]);
-  return null;
-}
-
-export default function App() {
-  return (
-    <HelmetProvider>
-      <Router>
-        <AuthProvider>
-          <CurrencyProvider>
-            <BrandingProvider>
-              <BannerProvider>
-                <ProductProvider>
-                  <OrderProvider>
-                    <InventoryProvider>
-                      <AppContent />
-                    </InventoryProvider>
-                  </OrderProvider>
-                </ProductProvider>
-              </BannerProvider>
-            </BrandingProvider>
-          </CurrencyProvider>
-        </AuthProvider>
-      </Router>
-    </HelmetProvider>
+  if (loading) return (
+    <div className="h-screen flex items-center justify-center bg-white text-black font-bold uppercase tracking-widest text-xs">
+       Loading Elegance...
+    </div>
   );
-}
 
-function AppContent() {
-  const { products } = useProducts();
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  if (!currentUser) {
+    return <Navigate to="/admin/login" replace />;
+  }
 
-  const addToCart = useCallback((productId: string, size: string, quantity: number) => {
-    setCartItems(prev => {
-      const existing = prev.find(item => item.id === productId && item.selectedSize === size);
-      if (existing) {
-        return prev.map(item => 
-          item.id === productId && item.selectedSize === size 
-            ? { ...item, quantity: item.quantity + quantity } 
-            : item
-        );
-      }
-      
-      const product = products.find(p => p.id === productId);
-      if (!product) return prev;
-      
-      return [...prev, { ...product, selectedSize: size, quantity }];
-    });
-  }, [products]);
+  if (requireAdmin && !isAdmin) {
+    return <Navigate to="/" replace />;
+  }
 
-  const updateQuantity = useCallback((id: string, size: string, delta: number) => {
-    setCartItems(prev => prev.map(item => {
-      if (item.id === id && item.selectedSize === size) {
-        const newQty = Math.max(1, item.quantity + delta);
-        return { ...item, quantity: newQty };
-      }
-      return item;
-    }));
-  }, []);
+  return <>{children}</>;
+};
 
-  const removeFromCart = useCallback((id: string, size: string) => {
-    setCartItems(prev => prev.filter(item => !(item.id === id && item.selectedSize === size)));
-  }, []);
-
-  const clearCart = useCallback(() => {
-    setCartItems([]);
-  }, []);
-
-  const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-
+function AppRoutes() {
   return (
-    <>
-      <Helmet>
-        <title>Elegan BD | Premium Essentials</title>
-        <meta name="description" content="Discover premium formal shirts, casual wear, and essentials at Elegan BD." />
-        <meta name="keywords" content="Elegan BD, premium clothing, formal shirts, DB shirt, casual wear BD" />
-      </Helmet>
-      <Toaster position="top-center" reverseOrder={false} />
-      <ScrollToTop />
+    <MainLayout>
       <Routes>
-        {/* Admin Routes - No default Navbar/Footer */}
+        {/* Public Routes */}
+        <Route path="/" element={<Home />} />
+        <Route path="/category/:category" element={<ProductList />} />
+        <Route path="/product/:id" element={<ProductDetails />} />
+        <Route path="/track-order" element={<TrackOrder />} />
+        <Route path="/cart" element={<Cart />} />
+        <Route path="/checkout" element={<Checkout />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/support" element={<Support />} />
+        <Route path="/customer-care" element={<CustomerCare />} />
+        <Route path="/fast-delivery" element={<FastDelivery />} />
+        <Route path="/size-guide" element={<SizeGuide />} />
+        <Route path="/returns-exchange" element={<ReturnsExchange />} />
+        <Route path="/secure-payment" element={<SecurePayment />} />
+        <Route path="/shipping-policy" element={<ShippingPolicy />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-conditions" element={<TermsConditions />} />
+        
+        {/* Customer Routes */}
+        <Route path="/dashboard" element={<ProtectedRoute requireAdmin={false}><CustomerDashboard /></ProtectedRoute>} />
+
+        {/* Admin Auth */}
         <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/admin" element={<AdminLayout />}>
+
+        {/* Protected Admin Routes */}
+        <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
           <Route index element={<AdminDashboard />} />
-          <Route path="products" element={<AdminProducts />} />
-          <Route path="products/add" element={<AdminAddProduct />} />
-          <Route path="inventory" element={<AdminInventoryOverview />} />
-          <Route path="inventory/overview" element={<AdminInventoryOverview />} />
-          <Route path="inventory/log" element={<AdminInventoryLog />} />
           <Route path="orders" element={<AdminOrders />} />
+          <Route path="products" element={<AdminProducts />} />
+          <Route path="add-product" element={<AdminAddProduct />} />
+          <Route path="edit-product/:id" element={<AdminAddProduct />} />
           <Route path="customers" element={<AdminCustomers />} />
-          <Route path="reports" element={<AdminDashboard />} />
-          <Route path="banners" element={<AdminBanners />} />
-          <Route path="coupons" element={<AdminSettings />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="notifications" element={<AdminNotifications />} />
+          <Route path="banners" element={<AdminBanners />} />
+          <Route path="stock-in" element={<AdminStockIn />} />
+          <Route path="stock-out" element={<AdminStockOut />} />
+          <Route path="inventory" element={<AdminInventoryOverview />} />
+          <Route path="inventory-log" element={<AdminInventoryLog />} />
+          <Route path="categories" element={<AdminCategories />} />
+          <Route path="exchanges" element={<AdminExchanges />} />
+          <Route path="media" element={<AdminMedia />} />
         </Route>
 
-        {/* Client Routes */}
-        <Route
-          path="*"
-          element={
-            <div className="flex flex-col min-h-screen selection:bg-brand-gold selection:text-white">
-              <Navbar cartCount={totalItems} />
-              <main className="flex-grow">
-                <Routes>
-                  <Route path="/" element={<Home onAddToCart={addToCart} />} />
-                  <Route path="/product/:id" element={<ProductDetails onAddToCart={addToCart} />} />
-                  <Route path="/cart" element={<Cart items={cartItems} onUpdateQuantity={updateQuantity} onRemove={removeFromCart} />} />
-                  <Route path="/checkout" element={<Checkout items={cartItems} onClearCart={clearCart} />} />
-                  <Route path="/about" element={<About />} />
-                  <Route path="/contact" element={<Contact />} />
-                  <Route path="/returns-exchange" element={<ReturnsExchange />} />
-                  <Route path="/customer-care" element={<CustomerCare />} />
-                  <Route path="/track-order" element={<TrackOrder />} />
-                  <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-                  <Route path="/terms-conditions" element={<TermsConditions />} />
-                  <Route path="/size-guide" element={<SizeGuide />} />
-                  <Route path="/shipping-policy" element={<ShippingPolicy />} />
-                  <Route path="/secure-payment" element={<SecurePayment />} />
-                  <Route path="/fast-delivery" element={<FastDelivery />} />
-                  <Route path="/support" element={<Support />} />
-                  <Route path="/my-account" element={<CustomerDashboard />} />
-                </Routes>
-              </main>
-              <Footer />
-              <FloatingWhatsApp />
-            </div>
-          }
-        />
+        {/* Catch-all */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </>
+    </MainLayout>
   );
 }
 
+function App() {
+  return (
+    <AuthProvider>
+      <BrandingProvider>
+        <BannerProvider>
+          <CategoryProvider>
+            <ProductProvider>
+              <OrderProvider>
+                <CurrencyProvider>
+                  <InventoryProvider>
+                    <CartProvider>
+                      <Router>
+                        <ScrollToTop />
+                        <div className="min-h-screen bg-white selection:bg-black/10 selection:text-black">
+                          <Toaster position="top-center" reverseOrder={false} />
+                          <AppRoutes />
+                        </div>
+                      </Router>
+                    </CartProvider>
+                  </InventoryProvider>
+                </CurrencyProvider>
+              </OrderProvider>
+            </ProductProvider>
+          </CategoryProvider>
+        </BannerProvider>
+      </BrandingProvider>
+    </AuthProvider>
+  );
+}
+
+export default App;
