@@ -16,7 +16,7 @@ const CategoryContext = createContext<CategoryContextType | undefined>(undefined
 
 const DEFAULT_CATEGORIES: Category[] = [
   { id: '1', name: 'Formal Shirt', slug: 'formal-shirt', description: 'Premium formal shirts for professionals' },
-  { id: '2', name: 'Polo t-shirt', slug: 'polo-t-shirt', description: 'Comfortable and stylish polo t-shirts' },
+  { id: '2', name: 'Polo T-shirt', slug: 'polo-t-shirt', description: 'Comfortable and stylish polo t-shirts' },
   { id: '3', name: 'Formal Pant', slug: 'formal-pant', description: 'Tailored formal pants' },
   { id: '5', name: 'Premium Shirt', slug: 'premium-shirt', description: 'Luxury collection shirts' }
 ];

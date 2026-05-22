@@ -138,7 +138,12 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                           <img 
                             src={product.images[0]} 
                             alt={product.name} 
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                            className={cn(
+                              "w-full h-full group-hover:scale-110 transition-transform duration-500",
+                              (product?.category?.toLowerCase().includes("polo") || product?.category?.toLowerCase().includes("t-shirt") || product?.category?.toLowerCase().includes("tee"))
+                                ? "object-contain bg-white p-1"
+                                : "object-cover"
+                            )}
                           />
                         </div>
                         <div className="flex flex-col justify-center">

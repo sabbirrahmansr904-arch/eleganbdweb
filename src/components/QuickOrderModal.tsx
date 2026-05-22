@@ -106,7 +106,16 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
                 <form onSubmit={handleSubmit} className="space-y-6">
                   {/* Product Summary */}
                   <div className="flex gap-4 p-3 bg-gray-50 rounded-sm">
-                    <img src={product.images[0]} alt="" className="w-16 h-20 object-cover" />
+                    <img 
+                      src={product.images[0]} 
+                      alt="" 
+                      className={cn(
+                        "w-16 h-20",
+                        (product?.category?.toLowerCase().includes("polo") || product?.category?.toLowerCase().includes("t-shirt") || product?.category?.toLowerCase().includes("tee"))
+                          ? "object-contain bg-white p-1"
+                          : "object-cover"
+                      )} 
+                    />
                     <div>
                       <h4 className="text-[10px] font-black uppercase tracking-tight text-brand-black truncate w-48">
                         {product.name}

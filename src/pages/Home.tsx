@@ -30,7 +30,11 @@ const Home = () => {
   // Get products by category
   const formalPants = products.filter(p => p.category === 'Formal Pant').slice(0, 8);
   const formalShirts = products.filter(p => p.category === 'Formal Shirt').slice(0, 8);
-  const poloTshirts = products.filter(p => p.category === 'Polo T-shirt').slice(0, 8);
+  const poloTshirts = products.filter(p => 
+    p.category === 'Polo T-shirt' || 
+    p.category?.toLowerCase() === 'polo-t-shirt' || 
+    p.category?.toLowerCase() === 'polo t-shirt'
+  ).slice(0, 8);
   const allCollection = products.slice(0, 12);
 
   return (
@@ -134,28 +138,6 @@ const Home = () => {
 
       {/* Category Sections */}
       <div className="space-y-4">
-        {/* Formal Pants */}
-        {formalPants.length > 0 && (
-          <section className="py-20 bg-white">
-            <div className="max-w-7xl mx-auto px-6">
-              <div className="mb-12 text-center">
-                <h3 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase text-black">Formal Pants</h3>
-                <p className="text-[10px] text-gray-500 uppercase tracking-[0.4em] mt-3 font-bold">Smart & Professionals</p>
-              </div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-10">
-                {formalPants.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
-              <div className="mt-12 flex justify-center">
-                <Link to="/category/formal-pant" className="text-[10px] font-black uppercase tracking-[0.3em] text-black hover:text-brand-gold transition-colors flex items-center gap-2">
-                  View All Formal Pants <ArrowRight size={14} />
-                </Link>
-              </div>
-            </div>
-          </section>
-        )}
-
         {/* Formal Shirts */}
         {formalShirts.length > 0 && (
           <section className="py-20 bg-gray-50">
@@ -199,20 +181,43 @@ const Home = () => {
             </div>
           </section>
         )}
+
+        {/* Feature Section Banner */}
+        {featureBannerUrl && (
+          <section className="max-w-7xl mx-auto px-6 py-12">
+            <div className="rounded-[2rem] overflow-hidden shadow-2xl bg-gray-50 border border-gray-100">
+              <img 
+                src={featureBannerUrl} 
+                className="w-full h-auto block" 
+                alt="Feature Banner" 
+              />
+            </div>
+          </section>
+        )}
+
+        {/* Formal Pants */}
+        {formalPants.length > 0 && (
+          <section className="py-20 bg-gray-50">
+            <div className="max-w-7xl mx-auto px-6">
+              <div className="mb-12 text-center">
+                <h3 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase text-black">Formal Pants</h3>
+                <p className="text-[10px] text-gray-500 uppercase tracking-[0.4em] mt-3 font-bold">Smart & Professionals</p>
+              </div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-10">
+                {formalPants.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+              <div className="mt-12 flex justify-center">
+                <Link to="/category/formal-pant" className="text-[10px] font-black uppercase tracking-[0.3em] text-black hover:text-brand-gold transition-colors flex items-center gap-2">
+                  View All Formal Pants <ArrowRight size={14} />
+                </Link>
+              </div>
+            </div>
+          </section>
+        )}
       </div>
 
-      {/* Feature Section Banner */}
-      {featureBannerUrl && (
-        <section className="max-w-7xl mx-auto px-6 mb-24">
-          <div className="rounded-[2rem] overflow-hidden shadow-2xl bg-gray-50 border border-gray-100">
-            <img 
-              src={featureBannerUrl} 
-              className="w-full h-auto block" 
-              alt="Feature Banner" 
-            />
-          </div>
-        </section>
-      )}
 
     </div>
   );

@@ -65,7 +65,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, loading
             src={product.images[0]}
             alt={product.name}
             className={cn(
-              "w-full h-full object-cover bg-transparent",
+              "w-full h-full bg-transparent transition-all duration-300",
+              (product.category?.toLowerCase().includes("polo") || product.category?.toLowerCase().includes("t-shirt") || product.category?.toLowerCase().includes("tee"))
+                ? "object-contain bg-white p-2"
+                : "object-cover",
               product.stock === 0 && "grayscale"
             )}
             referrerPolicy="no-referrer"

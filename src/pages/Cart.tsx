@@ -4,7 +4,7 @@
  */
 
 import { Link, useNavigate } from 'react-router-dom';
-import { formatPrice } from '../lib/utils';
+import { formatPrice, cn } from '../lib/utils';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useCart } from '../contexts/CartContext';
 import { Trash2, Minus, Plus, ArrowLeft, ArrowRight } from 'lucide-react';
@@ -54,7 +54,12 @@ export default function Cart() {
                     <img
                       src={item.product.images[0]}
                       alt={item.product.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      className={cn(
+                        "w-full h-full group-hover:scale-105 transition-transform duration-500",
+                        (item.product.category?.toLowerCase().includes("polo") || item.product.category?.toLowerCase().includes("t-shirt") || item.product.category?.toLowerCase().includes("tee"))
+                          ? "object-contain bg-white p-1"
+                          : "object-cover"
+                      )}
                       referrerPolicy="no-referrer"
                     />
                   </div>

@@ -27,6 +27,7 @@ const ProductDetails = () => {
   const [showZoom, setShowZoom] = useState(false);
   const [isQuickOrderOpen, setIsQuickOrderOpen] = useState(false);
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
+  const [isHovering, setIsHovering] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   
   // Reviews state
@@ -36,9 +37,15 @@ const ProductDetails = () => {
   const [reviewComment, setReviewComment] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
-  // Related products
+  // Related products (same category)
   const relatedProducts = products
     .filter(p => p.category === product?.category && p.id !== id)
+    .slice(0, 4);
+
+  // Explore more (other categories)
+  const otherCategoryProducts = products
+    .filter(p => p.category !== product?.category)
+    .sort(() => 0.5 - Math.random())
     .slice(0, 4);
 
   useEffect(() => {
@@ -91,15 +98,16 @@ const ProductDetails = () => {
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isExpanded) return;
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - left) / width) * 100;
     const y = ((e.clientY - top) / height) * 100;
     setZoomPos({ x, y });
   };
 
+  const handleMouseEnter = () => setIsHovering(true);
+  const handleMouseLeave = () => setIsHovering(false);
+
   const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (!isExpanded) return;
     const touch = e.touches[0];
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
     const x = ((touch.clientX - left) / width) * 100;
@@ -169,13 +177,28 @@ const ProductDetails = () => {
                     selectedImage === idx ? "border-brand-gold" : "border-transparent opacity-60"
                   )}
                 >
-                  <img src={img} alt="" className="w-full h-full object-cover" />
+                  <img 
+                    src={img} 
+                    alt="" 
+                    className={cn(
+                      "w-full h-full",
+                      (product?.category?.toLowerCase().includes("polo") || product?.category?.toLowerCase().includes("t-shirt") || product?.category?.toLowerCase().includes("tee"))
+                        ? "object-contain bg-white p-1"
+                        : "object-cover"
+                    )} 
+                  />
                 </button>
               ))}
             </div>
 
             {/* Main Image */}
-            <div className="order-1 md:order-2 flex-1 relative group aspect-[3/4] bg-gray-50 rounded-sm overflow-hidden border border-gray-100">
+            <div 
+              className="order-1 md:order-2 flex-1 relative group aspect-[3/4] bg-gray-50 rounded-sm overflow-hidden border border-gray-100 cursor-zoom-in"
+              onMouseMove={handleMouseMove}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              onClick={() => setShowZoom(true)}
+            >
               <AnimatePresence mode="wait">
                 <motion.img
                   key={selectedImage}
@@ -184,16 +207,38 @@ const ProductDetails = () => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="w-full h-full object-cover"
+                  className={cn(
+                    "w-full h-full",
+                    (product?.category?.toLowerCase().includes("polo") || product?.category?.toLowerCase().includes("t-shirt") || product?.category?.toLowerCase().includes("tee"))
+                      ? "object-contain bg-white p-4"
+                      : "object-cover"
+                  )}
                 />
               </AnimatePresence>
+
+              {/* Hover Zoom Overly (200% zoom) */}
+              <AnimatePresence>
+                {isHovering && !showZoom && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 pointer-events-none hidden md:block"
+                    style={{
+                      backgroundImage: `url(${product.images?.[selectedImage]})`,
+                      backgroundPosition: `${zoomPos.x}% ${zoomPos.y}%`,
+                      backgroundSize: '200%',
+                      backgroundRepeat: 'no-repeat'
+                    }}
+                  />
+                )}
+              </AnimatePresence>
               
-              <button 
-                onClick={() => setShowZoom(true)}
+              <div 
                 className="absolute top-4 right-4 p-3 bg-white/50 backdrop-blur-md shadow-sm rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
               >
                 <Maximize2 size={20} className="text-black" />
-              </button>
+              </div>
 
               {discount > 0 && (
                 <div className="absolute top-4 left-4 bg-red-600 text-white text-[10px] font-black px-3 py-1 uppercase tracking-widest">
@@ -345,36 +390,44 @@ const ProductDetails = () => {
         </div>
 
         {/* Reviews Section */}
-        <div className="mt-24 border-t border-gray-100 pt-24">
+        <div className="mt-32 pt-20 border-t border-gray-100">
+          <div className="flex flex-col items-center text-center mb-16">
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-500 mb-3">Customer Voice</span>
+            <h2 className="text-4xl font-black italic tracking-tighter uppercase text-black">Reviews & Feedback</h2>
+            <div className="w-20 h-1 bg-black mt-6"></div>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
             {/* Reviews List */}
             <div className="lg:col-span-7">
               <div className="flex items-center gap-3 mb-10">
                 <MessageSquare className="text-black" size={24} />
-                <h2 className="text-2xl font-black italic uppercase tracking-tighter">Customer Reviews ({reviews.length})</h2>
+                <h2 className="text-2xl font-black italic uppercase tracking-tighter">Verified Reviews ({reviews.length})</h2>
               </div>
 
               {reviews.length === 0 ? (
-                <div className="bg-gray-50 rounded-3xl p-12 text-center border border-gray-100">
-                  <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">No reviews yet. Be the first to review this product!</p>
+                <div className="bg-gray-50 rounded-[2rem] p-12 text-center border border-gray-100">
+                  <Sparkles size={32} className="mx-auto text-gray-200 mb-4" />
+                  <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Be the first to review this masterpiece</p>
                 </div>
               ) : (
-                <div className="space-y-8">
+                <div className="space-y-8 h-[600px] overflow-y-auto no-scrollbar pr-4">
                   {reviews.map(review => (
                     <motion.div 
                       key={review.id}
                       initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="border-b border-gray-100 pb-8"
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      className="bg-gray-50 p-8 rounded-[2rem] border border-gray-100 space-y-4"
                     >
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center text-xs font-black uppercase">
+                          <div className="w-12 h-12 bg-black text-white rounded-2xl flex items-center justify-center text-lg font-black uppercase shadow-lg">
                             {review.userName.charAt(0)}
                           </div>
                           <div>
-                            <p className="text-xs font-black uppercase tracking-widest text-black">{review.userName}</p>
-                            <p className="text-[10px] text-gray-400 font-bold">{new Date(review.createdAt).toLocaleDateString()}</p>
+                            <p className="text-sm font-black uppercase tracking-tighter italic text-black">{review.userName}</p>
+                            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{new Date(review.createdAt).toLocaleDateString()}</p>
                           </div>
                         </div>
                         <div className="flex gap-0.5">
@@ -383,7 +436,7 @@ const ProductDetails = () => {
                           ))}
                         </div>
                       </div>
-                      <p className="text-sm text-gray-600 leading-relaxed italic">"{review.comment}"</p>
+                      <p className="text-sm text-gray-600 leading-relaxed italic font-medium">"{review.comment}"</p>
                     </motion.div>
                   ))}
                 </div>
@@ -391,9 +444,10 @@ const ProductDetails = () => {
             </div>
 
             {/* Add Review Form */}
-            <div className="lg:col-span-5 bg-gray-50 rounded-[2.5rem] p-10 border border-gray-100">
-              <h3 className="text-xl font-black italic uppercase tracking-tighter text-black mb-8">Write a Review</h3>
-              <form onSubmit={handleSubmitReview} className="space-y-6">
+            <div className="lg:col-span-5 bg-gray-50 rounded-[3rem] p-10 border border-gray-100 h-fit shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-brand-gold/5 blur-2xl -mr-12 -mt-12 rounded-full" />
+              <h3 className="text-xl font-black italic uppercase tracking-tighter text-black mb-8 relative z-10">Rate Your Experience</h3>
+              <form onSubmit={handleSubmitReview} className="space-y-6 relative z-10">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Your Name</label>
                   <input 
@@ -407,14 +461,14 @@ const ProductDetails = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Rating</label>
-                  <div className="flex gap-2 bg-white border border-gray-200 rounded-2xl p-4">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1 text-center block">Rating</label>
+                  <div className="flex gap-2 bg-white border border-gray-200 rounded-2xl p-4 justify-center">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <button
                         key={star}
                         type="button"
                         onClick={() => setReviewRating(star)}
-                        className="hover:scale-110 transition-transform"
+                        className="hover:scale-120 transition-transform p-1"
                       >
                         <Star size={24} className={cn(star <= reviewRating ? "text-amber-400 fill-amber-400" : "text-gray-200")} />
                       </button>
@@ -429,7 +483,7 @@ const ProductDetails = () => {
                     onChange={(e) => setReviewComment(e.target.value)}
                     placeholder="Tell us what you think..."
                     rows={4}
-                    className="w-full bg-white border border-gray-200 rounded-2xl px-5 py-4 text-sm font-bold text-black outline-none focus:border-black transition-all resize-none"
+                    className="w-full bg-white border border-gray-200 rounded-2xl px-5 py-4 text-sm font-bold text-black outline-none focus:border-black transition-all resize-none shadow-sm"
                     required
                   ></textarea>
                 </div>
@@ -437,7 +491,7 @@ const ProductDetails = () => {
                 <button 
                   type="submit"
                   disabled={isSubmittingReview}
-                  className="w-full bg-black text-white px-8 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-brand-gold transition-all flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50"
+                  className="w-full bg-black text-white px-8 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-brand-gold transition-all flex items-center justify-center gap-4 active:scale-[0.98] disabled:opacity-50 shadow-xl"
                 >
                   {isSubmittingReview ? 'Submitting...' : 'Post Review'}
                   <Send size={14} />
@@ -449,9 +503,9 @@ const ProductDetails = () => {
 
         {/* Related Products */}
         {relatedProducts.length > 0 && (
-          <div className="mt-32 pb-20">
+          <div className="mt-32">
             <div className="flex flex-col items-center text-center mb-16">
-              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-orange-400 mb-3">You Might Also Like</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-500 mb-3">You Might Also Like</span>
               <h2 className="text-4xl font-black italic tracking-tighter uppercase text-black">Related Masterpieces</h2>
               <div className="w-20 h-1 bg-black mt-6"></div>
             </div>
@@ -459,6 +513,23 @@ const ProductDetails = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
               {relatedProducts.map(relProduct => (
                 <ProductCard key={relProduct.id} product={relProduct} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Explore More Collections */}
+        {otherCategoryProducts.length > 0 && (
+          <div className="mt-32 pb-40">
+            <div className="flex flex-col items-center text-center mb-16">
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-brand-gold mb-3">Explore More</span>
+              <h2 className="text-4xl font-black italic tracking-tighter uppercase text-black">Other Collections</h2>
+              <div className="w-20 h-1 bg-black mt-6"></div>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+              {otherCategoryProducts.map(otherProduct => (
+                <ProductCard key={otherProduct.id} product={otherProduct} />
               ))}
             </div>
           </div>

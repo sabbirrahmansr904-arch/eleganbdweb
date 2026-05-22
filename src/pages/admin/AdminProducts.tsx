@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useProducts } from '../../contexts/ProductContext';
+import { useCategories } from '../../contexts/CategoryContext';
 import { Product } from '../../types';
 import { formatPrice, cn } from '../../lib/utils';
 import { useCurrency } from '../../contexts/CurrencyContext';
@@ -37,6 +38,7 @@ import toast from 'react-hot-toast';
 export default function AdminProducts() {
   const navigate = useNavigate();
   const { products, deleteProduct, updateProduct, addProduct } = useProducts();
+  const { categories } = useCategories();
   const { currency, rate } = useCurrency();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
@@ -509,13 +511,14 @@ export default function AdminProducts() {
                         <label className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50 block ml-1">Category</label>
                         <select 
                           name="category"
-                          defaultValue={editingProduct?.category}
+                          defaultValue={editingProduct?.category || 'UNCATEGORIZED'}
                           className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-sm font-bold text-white focus:border-brand-gold outline-none transition-all shadow-sm cursor-pointer appearance-none"
                           required
                         >
-                          <option value="Formal Pant" className="bg-black">Formal Pant</option>
-                          <option value="Formal Shirt" className="bg-black">Formal Shirt</option>
-                          <option value="Polo T-shirt" className="bg-black">Polo T-shirt</option>
+                          {categories.map(cat => (
+                            <option key={cat.id} value={cat.name} className="bg-black">{cat.name}</option>
+                          ))}
+                          <option value="UNCATEGORIZED" className="bg-black">UNCATEGORIZED</option>
                         </select>
                       </div>
 

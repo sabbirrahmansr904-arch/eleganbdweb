@@ -37,10 +37,10 @@ export default function Footer() {
               eleganbdltd@gmail.com
             </p>
           </div>
-          <div className="flex gap-4 pt-4 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all text-white">
-            <Facebook size={20} className="cursor-pointer hover:text-brand-gold" />
-            <Instagram size={20} className="cursor-pointer hover:text-brand-gold" />
-            <Twitter size={20} className="cursor-pointer hover:text-brand-gold" />
+          <div className="flex gap-4 pt-4 opacity-70 hover:opacity-100 transition-all text-white">
+            <Facebook size={20} className="cursor-pointer hover:text-[#1877F2] transition-colors" />
+            <Instagram size={20} className="cursor-pointer hover:text-[#E4405F] transition-colors" />
+            <Twitter size={20} className="cursor-pointer hover:text-[#1DA1F2] transition-colors" />
           </div>
         </div>
 
@@ -87,7 +87,7 @@ export default function Footer() {
       </div>
 
       <div className="max-w-7xl mx-auto mt-20 pt-8 border-t border-white/5 text-center">
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white">
+        <p className="text-[9px] md:text-[10px] font-bold uppercase tracking-[0.1em] md:tracking-[0.2em] text-white whitespace-nowrap">
           © 2026 ELEGAN BD LIMITED. ALL RIGHTS RESERVED.
         </p>
       </div>

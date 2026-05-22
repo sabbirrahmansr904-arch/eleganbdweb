@@ -333,7 +333,17 @@ export default function Checkout() {
               <div className="space-y-6 max-h-[400px] overflow-y-auto no-scrollbar pr-4">
                 {items.map((item) => (
                   <div key={item.id} className="flex space-x-4">
-                    <img src={item.product.images[0]} className="w-16 h-20 object-cover" alt="" referrerPolicy="no-referrer" />
+                    <img 
+                      src={item.product.images[0]} 
+                      className={cn(
+                        "w-16 h-20",
+                        (item.product.category?.toLowerCase().includes("polo") || item.product.category?.toLowerCase().includes("t-shirt") || item.product.category?.toLowerCase().includes("tee"))
+                          ? "object-contain bg-white p-1"
+                          : "object-cover"
+                      )} 
+                      alt="" 
+                      referrerPolicy="no-referrer" 
+                    />
                     <div className="flex-1 flex flex-col justify-center">
                       <p className="text-[10px] uppercase tracking-widest font-bold truncate">{item.product.name}</p>
                       <p className="text-[9px] text-brand-ink/50 uppercase tracking-widest">SIZE {item.selectedSize} × {item.quantity}</p>

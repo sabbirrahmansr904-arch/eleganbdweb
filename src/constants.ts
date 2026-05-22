@@ -61,7 +61,7 @@ export const PRODUCTS: Product[] = [
     name: 'Essential Oversized T-Shirt',
     price: 950,
     description: 'A premium heavy-weight cotton t-shirt with a relaxed, oversized fit. Perfect for high-street minimalist style.',
-    category: 'Polo t-shirt',
+    category: 'Polo T-shirt',
     color: 'Black',
     material: 'Cotton',
     images: [
@@ -78,7 +78,7 @@ export const PRODUCTS: Product[] = [
     name: 'Vintage Wash Graphic Tee',
     price: 1150,
     description: 'Hand-finished vintage wash t-shirt featuring artistic screen-printed graphics. Made from 100% organic cotton.',
-    category: 'Polo t-shirt',
+    category: 'Polo T-shirt',
     color: 'Grey',
     material: 'Organic Cotton',
     images: [
