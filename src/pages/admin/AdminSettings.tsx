@@ -39,6 +39,8 @@ export default function AdminSettings() {
     setHeroBannerUrl,
     featureBannerUrl,
     setFeatureBannerUrl,
+    poloBannerUrl,
+    setPoloBannerUrl,
     showShowcase,
     setShowShowcase
   } = useBranding();
@@ -514,6 +516,47 @@ export default function AdminSettings() {
                           <div className="p-6">
                             <p className="text-[10px] uppercase tracking-[0.2em] font-black text-black italic">Secondary Vanguard</p>
                             <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-2">LOWER ARCHITECTURAL SEGMENT</p>
+                          </div>
+                      </div>
+
+                      <div className="bg-gray-50 border border-gray-100 p-3 rounded-3xl group relative overflow-hidden shadow-sm font-sans">
+                          <div className="aspect-video bg-white rounded-2xl relative border-2 border-dashed border-gray-100 hover:border-black transition-all flex items-center justify-center overflow-hidden">
+                            {poloBannerUrl ? (
+                                <img src={poloBannerUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" alt="Polo Banner" />
+                            ) : (
+                                <div className="text-gray-200 flex flex-col items-center gap-3">
+                                    <ImageIcon size={32} />
+                                    <span className="text-[9px] uppercase tracking-widest font-black">NULL STATE</span>
+                                </div>
+                            )}
+                            
+                            <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm gap-3">
+                                <label className="bg-white text-black px-8 py-4 text-[10px] uppercase tracking-[0.2em] font-black hover:bg-black hover:text-white transition-all cursor-pointer flex items-center gap-3 rounded-2xl shadow-2xl">
+                                    <Upload size={18} />
+                                    <span>Polo Replace</span>
+                                    <input 
+                                        type="file" 
+                                        accept="image/*" 
+                                        className="hidden" 
+                                        onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                try {
+                                                    const result = await compressImage(file, 1600, 900, 0.8);
+                                                    setPoloBannerUrl(result);
+                                                    toast.success('Polo banner updated.');
+                                                } catch (err) {
+                                                    toast.error('Processing failure.');
+                                                }
+                                            }
+                                        }} 
+                                    />
+                                </label>
+                            </div>
+                          </div>
+                          <div className="p-6">
+                            <p className="text-[10px] uppercase tracking-[0.2em] font-black text-black italic">Polo T-Shirt Banner</p>
+                            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-2 font-sans">DEDICATED POLO SECTION BANNER</p>
                           </div>
                       </div>
                  </div>

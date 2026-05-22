@@ -14,6 +14,7 @@ interface BrandingContextType {
   collectionsBannerUrl: string;
   heroBannerUrl: string;
   featureBannerUrl: string;
+  poloBannerUrl: string;
   showShowcase: boolean;
   categoryImages: Record<string, string>;
   setLogoUrl: (url: string) => void;
@@ -21,6 +22,7 @@ interface BrandingContextType {
   setCollectionsBannerUrl: (url: string) => void;
   setHeroBannerUrl: (url: string) => void;
   setFeatureBannerUrl: (url: string) => void;
+  setPoloBannerUrl: (url: string) => void;
   setShowShowcase: (show: boolean) => void;
   setCategoryImageUrl: (category: string, url: string) => void;
 }
@@ -30,6 +32,7 @@ const DEFAULT_SIZE_CHART = "https://images.unsplash.com/photo-1512436991641-6745
 const DEFAULT_COLLECTIONS_BANNER = "https://images.unsplash.com/photo-1441991271612-42177c385b00?q=80&w=2000&auto=format";
 const DEFAULT_HERO_BANNER = "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2000&auto=format";
 const DEFAULT_FEATURE_BANNER = "https://images.unsplash.com/photo-1563124803-db51591028f1?q=80&w=2000&auto=format";
+const DEFAULT_POLO_BANNER = "https://images.unsplash.com/photo-1581655353564-df123a1eb820?q=80&w=2000&auto=format";
 
 const BrandingContext = createContext<BrandingContextType | undefined>(undefined);
 
@@ -82,6 +85,16 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       } catch (e) { return DEFAULT_FEATURE_BANNER; }
     }
     return DEFAULT_FEATURE_BANNER;
+  });
+
+  const [poloBannerUrl, setPoloBannerUrlState] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_banners_large');
+    if (cached) {
+      try {
+        return JSON.parse(cached).poloBannerUrl || DEFAULT_POLO_BANNER;
+      } catch (e) { return DEFAULT_POLO_BANNER; }
+    }
+    return DEFAULT_POLO_BANNER;
   });
 
   const [showShowcase, setShowShowcaseState] = useState<boolean>(() => {
@@ -149,6 +162,16 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
     });
 
+    const poloRef = doc(db, 'config', 'banner_polo');
+    const unsubPolo = onSnapshot(poloRef, (snap) => {
+      if (snap.exists()) {
+        const url = snap.data().url;
+        setPoloBannerUrlState(url);
+        const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
+        localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, poloBannerUrl: url }));
+      }
+    });
+
     // 3. Listen for Category Images
     const catRef = doc(db, 'config', 'categories');
     const unsubCats = onSnapshot(catRef, (snap) => {
@@ -166,6 +189,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       unsubHero();
       unsubCollections();
       unsubFeature();
+      unsubPolo();
       unsubCats();
     };
   }, []);
@@ -214,6 +238,13 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     updateFirestore('banner_feature', { url });
   };
 
+  const setPoloBannerUrl = (url: string) => {
+    setPoloBannerUrlState(url);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
+    localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, poloBannerUrl: url }));
+    updateFirestore('banner_polo', { url });
+  };
+
   const setShowShowcase = (show: boolean) => {
     setShowShowcaseState(show);
     const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
@@ -229,7 +260,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   return (
-    <BrandingContext.Provider value={{ logoUrl, sizeChartUrl, collectionsBannerUrl, heroBannerUrl, featureBannerUrl, showShowcase, categoryImages, setLogoUrl, setSizeChartUrl, setCollectionsBannerUrl, setHeroBannerUrl, setFeatureBannerUrl, setShowShowcase, setCategoryImageUrl }}>
+    <BrandingContext.Provider value={{ logoUrl, sizeChartUrl, collectionsBannerUrl, heroBannerUrl, featureBannerUrl, poloBannerUrl, showShowcase, categoryImages, setLogoUrl, setSizeChartUrl, setCollectionsBannerUrl, setHeroBannerUrl, setFeatureBannerUrl, setPoloBannerUrl, setShowShowcase, setCategoryImageUrl }}>
       {children}
     </BrandingContext.Provider>
   );

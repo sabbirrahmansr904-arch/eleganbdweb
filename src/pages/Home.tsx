@@ -13,7 +13,7 @@ const Home = () => {
   const { products, loading: productsLoading } = useProducts();
   const { categories } = useCategories();
   const { banners } = useBanners();
-  const { heroBannerUrl, collectionsBannerUrl, featureBannerUrl } = useBranding();
+  const { heroBannerUrl, collectionsBannerUrl, featureBannerUrl, poloBannerUrl } = useBranding();
   
   const activeBanners = banners.filter(b => b.active);
   const [currentBanner, setCurrentBanner] = React.useState(0);
@@ -156,6 +156,19 @@ const Home = () => {
                   View All Formal Shirts <ArrowRight size={14} />
                 </Link>
               </div>
+            </div>
+          </section>
+        )}
+
+        {/* Polo T-Shirt Banner */}
+        {poloBannerUrl && (
+          <section className="max-w-7xl mx-auto px-6 py-12">
+            <div className="rounded-[2rem] overflow-hidden shadow-2xl bg-gray-50 border border-gray-100">
+              <img 
+                src={poloBannerUrl} 
+                className="w-full h-auto block" 
+                alt="Polo T-Shirt Banner" 
+              />
             </div>
           </section>
         )}
