@@ -152,10 +152,10 @@ const ProductDetails = () => {
   const rating = product.rating || 0;
 
   return (
-    <div className="pt-24 pb-24 bg-white min-h-screen">
+    <div className="pt-4 md:pt-8 pb-24 bg-white min-h-screen">
       <div className="max-w-7xl mx-auto px-6">
         {/* Breadcrumbs */}
-        <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-gray-400 mb-8">
+        <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-gray-400 mb-4 md:mb-6">
           <Link to="/" className="hover:text-black transition-colors">Home</Link>
           <ChevronRight size={12} />
           <Link to={`/category/${product.category.toLowerCase()}`} className="hover:text-black transition-colors">{product.category}</Link>

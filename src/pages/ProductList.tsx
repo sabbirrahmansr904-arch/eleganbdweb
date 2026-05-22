@@ -54,7 +54,7 @@ const ProductList = () => {
   const categoryTitle = category ? category.replace(/-/g, ' ').toUpperCase() : 'ALL PRODUCTS';
 
   return (
-    <div className="pt-24 pb-20 px-6">
+    <div className="pt-4 md:pt-8 pb-20 px-6">
       <div className="max-w-7xl mx-auto">
         {/* Breadcrumbs & Header */}
         <div className="mb-8 text-center">
