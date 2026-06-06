@@ -51,7 +51,7 @@ export default function AdminSettings() {
   } = useBranding();
   const { products } = useProducts();
   const { currentUser } = useAuth();
-  const isSuperAdmin = currentUser?.email === 'sabbirrahmansr904@gmail.com';
+  const isSuperAdmin = currentUser?.email === 'eleganbd.ltd@gmail.com';
 
   const [activeTab, setActiveTab ] = useState('General');
   const [tempLogo, setTempLogo] = useState(logoUrl);
@@ -759,7 +759,7 @@ export default function AdminSettings() {
                   ) : (
                     <div className="border border-gray-105 rounded-3xl overflow-hidden divide-y divide-gray-100 bg-white">
                       {adminList.map((admin) => {
-                        const isSelf = admin.email === 'sabbirrahmansr904@gmail.com';
+                        const isSelf = admin.email === 'eleganbd.ltd@gmail.com';
                         return (
                           <div key={admin.id} className="p-6 flex items-center justify-between hover:bg-gray-50/50 transition-all">
                             <div className="space-y-1">
