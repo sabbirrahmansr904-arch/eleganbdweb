@@ -253,7 +253,7 @@ export default function AdminProducts() {
                         <img 
                           src={product.images[0]} 
                           alt={product.name} 
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain bg-white p-1"
                           referrerPolicy="no-referrer"
                         />
                       </div>
@@ -546,7 +546,7 @@ export default function AdminProducts() {
                                 <>
                                   <img 
                                     src={uploadedImages[i]} 
-                                    className="w-full h-full object-cover" 
+                                    className="w-full h-full object-contain bg-white p-1" 
                                     alt="Asset Preview"
                                     referrerPolicy="no-referrer"
                                   />

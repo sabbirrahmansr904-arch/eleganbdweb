@@ -436,7 +436,7 @@ export default function AdminAddProduct() {
                   <>
                     <img 
                       src={uploadedImages[coverImageIndex]} 
-                      className="w-full h-full object-cover" 
+                      className="w-full h-full object-contain bg-white p-1" 
                       referrerPolicy="no-referrer" 
                     />
                     <button 
@@ -482,7 +482,7 @@ export default function AdminAddProduct() {
                 {uploadedImages.map((img, i) => (
                   i !== coverImageIndex && (
                     <div key={i} className="relative aspect-square bg-gray-50 rounded-xl overflow-hidden border border-gray-100 group">
-                      <img src={img} className="w-full h-full object-cover" />
+                      <img src={img} className="w-full h-full object-contain bg-white p-1" />
                       <button 
                         type="button"
                         onClick={() => {

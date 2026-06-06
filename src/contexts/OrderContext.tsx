@@ -13,6 +13,7 @@ import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 interface OrderContextType {
   orders: Order[];
   updateOrderStatus: (id: string, status: Order['status']) => Promise<void>;
+  updateOrder: (id: string, data: Partial<Order> & Record<string, any>) => Promise<void>;
   deleteOrder: (id: string) => Promise<void>;
   addOrder: (order: Order) => Promise<void>;
   loading: boolean;
@@ -96,6 +97,15 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateOrder = async (id: string, data: Partial<Order> & Record<string, any>) => {
+    try {
+      const updatedData = { ...data, updatedAt: Date.now() };
+      await setDoc(doc(db, 'orders', id), updatedData, { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `orders/${id}`);
+    }
+  };
+
   const deleteOrder = async (id: string) => {
     try {
       await deleteDoc(doc(db, 'orders', id));
@@ -120,7 +130,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <OrderContext.Provider value={{ orders, updateOrderStatus, deleteOrder, addOrder, loading, lastOrder }}>
+    <OrderContext.Provider value={{ orders, updateOrderStatus, updateOrder, deleteOrder, addOrder, loading, lastOrder }}>
       {children}
     </OrderContext.Provider>
   );

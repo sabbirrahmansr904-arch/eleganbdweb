@@ -23,7 +23,16 @@ import {
   Bell,
   Search,
   Moon,
-  Layout
+  Layout,
+  User,
+  CheckSquare,
+  BarChart3,
+  Database,
+  ShoppingBag,
+  History,
+  AlertCircle,
+  RefreshCw,
+  ExternalLink
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -42,35 +51,36 @@ export default function AdminLayout() {
       title: 'OVERVIEW',
       items: [
         { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
+        { name: 'My Account', path: '/admin/settings', icon: User },
+        { name: 'Stock Check', path: '/admin/inventory', icon: CheckSquare },
       ]
     },
     {
       title: 'INVENTORY',
       items: [
-        { name: 'Overview', path: '/admin/inventory', icon: Archive },
-        { name: 'Categories', path: '/admin/categories', icon: Layout },
-        { name: 'Product List', path: '/admin/products', icon: List },
+        { name: 'Overview', path: '/admin/inventory', icon: BarChart3 },
+        { name: 'Master Table', path: '/admin/categories', icon: Database },
+        { name: 'Product List', path: '/admin/products', icon: ShoppingBag },
         { name: 'Add Product', path: '/admin/add-product', icon: PlusSquare },
-        { name: 'Inventory Log', path: '/admin/inventory-log', icon: FileText },
         { name: 'Stock In', path: '/admin/stock-in', icon: ArrowDownToLine },
         { name: 'Stock Out', path: '/admin/stock-out', icon: ArrowUpFromLine },
+        { name: 'Inventory Log', path: '/admin/inventory-log', icon: History },
       ]
     },
     {
       title: 'ORDER MANAGEMENT',
       items: [
         { name: 'Orders', path: '/admin/orders', icon: ShoppingCart },
-        { name: 'Exchanges', path: '/admin/exchanges', icon: ShoppingCart },
+        { name: 'Issues', path: '/admin/issues', icon: AlertCircle },
+        { name: 'Exchanges', path: '/admin/exchanges', icon: RefreshCw },
         { name: 'Customers', path: '/admin/customers', icon: Users },
       ]
     },
     {
       title: 'SYSTEM',
       items: [
-        { name: 'Banners', path: '/admin/banners', icon: FileText },
-        { name: 'Media Library', path: '/admin/media', icon: ImageIcon },
-        { name: 'Settings', path: '/admin/settings', icon: Settings },
-        { name: 'Visit Storefront', path: '/', icon: LayoutDashboard },
+        { name: 'Media', path: '/admin/media', icon: ImageIcon },
+        { name: 'Visit Storefront', path: '/', icon: ExternalLink },
       ]
     }
   ];
@@ -112,33 +122,30 @@ export default function AdminLayout() {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-72 bg-black z-[70] lg:hidden flex flex-col shadow-2xl border-r border-white/10"
+              className="fixed inset-y-0 left-0 w-72 bg-white z-[70] lg:hidden flex flex-col shadow-2xl border-r border-[#F0F2F5]"
             >
-              <div className="h-20 flex items-center justify-between px-6 border-b border-white/10">
-              <div className="flex items-center">
-                {logoUrl ? (
-                  <img src={logoUrl} alt="Logo" className="h-8 w-auto object-contain brightness-0 invert" referrerPolicy="no-referrer" />
-                ) : (
-                  <>
-                    <div className="flex flex-col gap-[2px] mr-3">
-                      <div className="h-[2px] w-4 bg-white" />
-                      <div className="h-[2px] w-[10px] bg-white translate-x-[-1px]" />
-                      <div className="h-[2px] w-4 bg-white" />
-                    </div>
-                    <span className="font-black text-xl italic tracking-tighter uppercase text-white">
-                      Elegan BD
+              <div className="h-20 flex items-center justify-between px-6 border-b border-[#F0F2F5] bg-white text-black">
+                <Link to="/" onClick={() => setIsMobileOpen(false)} className="shrink-0 flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-[#E04622] flex items-center justify-center text-white font-serif text-lg font-black shrink-0 shadow-sm shadow-[#E04622]/20">
+                    E
+                  </div>
+                  <div className="flex flex-col text-left">
+                    <span className="font-extrabold tracking-tight text-sm uppercase text-gray-950 leading-none">
+                      Elegan BD Admin
                     </span>
-                  </>
-                )}
-              </div>
-                <button onClick={() => setIsMobileOpen(false)} className="text-gray-400 hover:text-white p-2 transition-colors">
-                  <X size={24} />
+                    <span className="text-[9px] uppercase tracking-widest font-black text-gray-400 mt-1">
+                      Secure Console
+                    </span>
+                  </div>
+                </Link>
+                <button onClick={() => setIsMobileOpen(false)} className="text-gray-400 hover:text-black p-2 transition-colors">
+                  <X size={20} />
                 </button>
               </div>
-              <nav className="flex-1 py-6 px-4 space-y-6 overflow-y-auto no-scrollbar">
+              <nav className="flex-1 py-6 px-4 space-y-6 overflow-y-auto no-scrollbar bg-white">
                 {menuGroups.map((group, gIdx) => (
-                  <div key={gIdx} className="space-y-1">
-                    <p className="px-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">{group.title}</p>
+                  <div key={gIdx} className="space-y-1.5">
+                    <p className="px-3 text-[9px] font-black text-gray-400 tracking-[0.18em] uppercase mb-2 leading-none">{group.title}</p>
                     {group.items.map((item) => {
                       const isActive = location.pathname === item.path || (item.path !== '/admin' && item.path !== '/' && location.pathname.startsWith(item.path));
                       const Icon = item.icon;
@@ -148,13 +155,13 @@ export default function AdminLayout() {
                           to={item.path}
                           onClick={() => setIsMobileOpen(false)}
                           className={cn(
-                            "flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all font-medium text-sm",
+                            "flex items-center space-x-3.5 px-3 py-2.5 rounded-xl transition-all font-semibold text-xs tracking-tight",
                             isActive 
-                              ? "bg-white/10 text-white shadow-sm" 
-                              : "text-gray-400 hover:bg-white/5 hover:text-white"
+                              ? "bg-[#FFF1EF] text-[#D83A1F] shadow-xs" 
+                              : "text-[#62758A] hover:text-[#0C1421] hover:bg-[#F8FAFC]"
                           )}
                         >
-                          <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
+                          <Icon size={17} strokeWidth={isActive ? 2.5 : 2} className={cn(isActive ? "text-[#D83A1F]" : "text-[#7EA0B6]")} />
                           <span>{item.name}</span>
                         </Link>
                       );
@@ -179,33 +186,33 @@ export default function AdminLayout() {
       {/* Desktop Sidebar */}
       <aside 
         className={cn(
-          "hidden lg:flex flex-col bg-white border-r border-gray-100 transition-all duration-300 shrink-0 z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)]",
+          "hidden lg:flex flex-col bg-white border-r border-[#F0F2F5] transition-all duration-300 shrink-0 z-50 shadow-[4px_0_24px_rgba(0,0,0,0.015)]",
           isSidebarOpen ? "w-64" : "w-20"
         )}
       >
-        <div className="h-20 flex items-center px-6 border-b border-gray-100 overflow-hidden">
-          <Link to="/" className="shrink-0 flex items-center min-w-0">
+        <div className="h-20 flex items-center px-6 border-b border-[#F0F2F5] overflow-hidden bg-white shrink-0">
+          <Link to="/" className="shrink-0 flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-[#E04622] flex items-center justify-center text-white font-serif text-lg font-black shrink-0 shadow-sm shadow-[#E04622]/20">
+              E
+            </div>
             {isSidebarOpen && (
-              <div className="flex flex-col gap-[2px] mr-3">
-                <div className="h-[2px] w-4 bg-black" />
-                <div className="h-[2px] w-[10px] bg-black translate-x-[-1px]" />
-                <div className="h-[2px] w-4 bg-black" />
+              <div className="flex flex-col">
+                <span className="font-extrabold tracking-tight text-sm uppercase text-gray-950 leading-none">
+                  Elegan BD Admin
+                </span>
+                <span className="text-[9px] uppercase tracking-widest font-black text-gray-400 mt-1">
+                  Secure Console
+                </span>
               </div>
             )}
-            <span className={cn(
-              "font-black italic tracking-tighter uppercase text-black transition-all duration-300",
-              isSidebarOpen ? "text-xl" : "text-[10px]"
-            )}>
-              {isSidebarOpen ? 'Elegan BD' : 'EB'}
-            </span>
           </Link>
         </div>
 
-        <nav className="flex-1 py-6 px-3 space-y-6 overflow-y-auto no-scrollbar">
+        <nav className="flex-1 py-6 px-3.5 space-y-7 overflow-y-auto no-scrollbar">
           {menuGroups.map((group, gIdx) => (
-            <div key={gIdx} className="space-y-1">
+            <div key={gIdx} className="space-y-1.5">
               {isSidebarOpen && (
-                 <p className="px-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">{group.title}</p>
+                 <p className="px-3 text-[9px] font-black text-gray-400 tracking-[0.18em] uppercase mb-2 leading-none">{group.title}</p>
               )}
               {group.items.map((item) => {
                 const isActive = location.pathname === item.path || (item.path !== '/admin' && item.path !== '/' && location.pathname.startsWith(item.path));
@@ -216,13 +223,13 @@ export default function AdminLayout() {
                     key={item.name}
                     to={item.path}
                     className={cn(
-                      "flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-all group relative font-medium text-sm",
+                      "flex items-center space-x-3.5 px-3 py-2.5 rounded-xl transition-all group relative font-semibold text-[13px] tracking-tight",
                       isActive 
-                        ? "bg-black/5 text-black shadow-sm" 
-                        : "text-gray-500 hover:text-black hover:bg-gray-50"
+                        ? "bg-[#FFF1EF] text-[#D83A1F] shadow-sm shadow-[#D83A1F]/5" 
+                        : "text-[#62758A] hover:text-[#0C1421] hover:bg-[#F8FAFC]"
                     )}
                   >
-                    <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
+                    <Icon size={17} strokeWidth={isActive ? 2.5 : 2} className={cn(isActive ? "text-[#D83A1F]" : "text-[#7EA0B6]")} />
                     {isSidebarOpen && (
                       <span className="truncate">{item.name}</span>
                     )}
@@ -250,7 +257,7 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-gray-100">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#F8FAFC]">
         {/* Header */}
         <header className="h-20 bg-white/80 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-6 shrink-0 sticky top-0 z-40">
           <div className="flex items-center space-x-4">

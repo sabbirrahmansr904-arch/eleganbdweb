@@ -180,12 +180,7 @@ const ProductDetails = () => {
                   <img 
                     src={img} 
                     alt="" 
-                    className={cn(
-                      "w-full h-full",
-                      (product?.category?.toLowerCase().includes("polo") || product?.category?.toLowerCase().includes("t-shirt") || product?.category?.toLowerCase().includes("tee"))
-                        ? "object-contain bg-white p-1"
-                        : "object-cover"
-                    )} 
+                    className="w-full h-full object-contain bg-white p-1" 
                   />
                 </button>
               ))}
@@ -207,12 +202,7 @@ const ProductDetails = () => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className={cn(
-                    "w-full h-full",
-                    (product?.category?.toLowerCase().includes("polo") || product?.category?.toLowerCase().includes("t-shirt") || product?.category?.toLowerCase().includes("tee"))
-                      ? "object-contain bg-white p-4"
-                      : "object-cover"
-                  )}
+                  className="w-full h-full object-contain bg-white p-4"
                 />
               </AnimatePresence>
 

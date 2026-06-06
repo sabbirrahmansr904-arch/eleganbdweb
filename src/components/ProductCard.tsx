@@ -65,10 +65,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, loading
             src={product.images[0]}
             alt={product.name}
             className={cn(
-              "w-full h-full bg-transparent transition-all duration-300",
-              (product.category?.toLowerCase().includes("polo") || product.category?.toLowerCase().includes("t-shirt") || product.category?.toLowerCase().includes("tee"))
-                ? "object-contain bg-white p-2"
-                : "object-cover",
+              "w-full h-full bg-transparent transition-all duration-350",
+              "object-contain bg-white p-2",
               product.stock === 0 && "grayscale"
             )}
             referrerPolicy="no-referrer"
@@ -81,41 +79,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, loading
           </div>
         )}
         
-        {/* Order Buttons Overlay */}
-        <div className="absolute inset-x-2 bottom-2 md:bottom-4 md:inset-x-4 flex flex-col gap-1.5 md:gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 transform md:translate-y-2 md:group-hover:translate-y-0 z-20">
-          <button 
-            onClick={handleQuickOrder}
-            className="w-full bg-black text-white py-2 md:py-3 rounded-sm text-[8px] md:text-[10px] font-black uppercase tracking-[0.1em] md:tracking-[0.2em] shadow-xl flex items-center justify-center gap-1.5 md:gap-2 hover:bg-brand-gold hover:text-white transition-colors"
-          >
-            <Zap size={12} fill="currentColor" className="md:w-3.5 md:h-3.5" />
-            <span>সরাসরি অর্ডার</span>
-          </button>
-          
-          <div className="flex gap-1.5 md:gap-2">
-            <button 
-              onClick={handleQuickAdd}
-              className="flex-1 bg-white text-black py-2 md:py-3 rounded-sm text-[8px] md:text-[10px] font-black uppercase tracking-[0.1em] md:tracking-[0.2em] shadow-lg flex items-center justify-center gap-1.5 md:gap-2 border border-gray-100 hover:bg-black hover:text-white transition-colors"
-            >
-              <ShoppingBag size={12} className="md:w-3.5 md:h-3.5" />
-              <span className="hidden xs:inline">কার্টে দিন</span>
-              <span className="xs:hidden">কার্ট</span>
-            </button>
-            <button 
-              onClick={handleQuickView}
-              className="hidden md:flex p-3 bg-white text-black rounded-sm shadow-lg border border-gray-100 hover:bg-black hover:text-white transition-colors"
-              title="Quick View"
-            >
-              <Eye size={16} />
-            </button>
-          </div>
-        </div>
-
         {/* Badges */}
         <div className="absolute top-4 right-4 flex flex-col space-y-2">
           {discount > 0 && (
             <div className="w-12 h-12 md:w-14 md:h-14 rounded-full border-2 border-dashed border-red-500 bg-white/90 flex flex-col items-center justify-center text-red-500 shadow-sm animate-pulse">
               <span className="text-[9px] md:text-[11px] font-bold leading-none">{discount}%</span>
-              <span className="text-[7px] md:text-[9px] font-bold leading-none">ছাড়</span>
+              <span className="text-[7px] md:text-[9px] font-bold leading-none font-sans">ছাড়</span>
             </div>
           )}
         </div>
@@ -157,6 +126,25 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, loading
                {formatPrice(product.regularPrice, currency, rate)}
              </p>
            )}
+        </div>
+
+        {/* Beautiful, non-blocking high-converting checkout buttons underneath pricing details */}
+        <div className="w-full mt-3.5 px-1 flex flex-col gap-1.5">
+          <button 
+            onClick={handleQuickOrder}
+            className="w-full bg-[#0C1421] text-white py-2 md:py-2.5 rounded-sm text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] md:tracking-[0.15em] flex items-center justify-center gap-1.5 hover:bg-emerald-600 transition-colors cursor-pointer group/btn"
+          >
+            <Zap size={10} fill="currentColor" className="text-amber-400 group-hover/btn:scale-110 transition-transform" />
+            <span>সরাসরি অর্ডার</span>
+          </button>
+          
+          <button 
+            onClick={handleQuickAdd}
+            className="w-full bg-white text-black py-1.5 md:py-2 rounded-sm text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] md:tracking-[0.15em] flex items-center justify-center gap-1.5 border border-gray-200/90 hover:bg-[#0C1421] hover:text-white transition-colors cursor-pointer"
+          >
+            <ShoppingBag size={10} />
+            <span>কার্টে দিন</span>
+          </button>
         </div>
       </div>
       <QuickViewModal 

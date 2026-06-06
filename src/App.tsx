@@ -53,6 +53,7 @@ import AdminInventoryOverview from './pages/admin/AdminInventoryOverview';
 import AdminInventoryLog from './pages/admin/AdminInventoryLog';
 import AdminCategories from './pages/admin/AdminCategories';
 import AdminExchanges from './pages/admin/AdminExchanges';
+import AdminIssues from './pages/admin/AdminIssues';
 import AdminMedia from './pages/admin/AdminMedia';
 
 // Protected Route Component
@@ -122,6 +123,7 @@ function AppRoutes() {
           <Route path="inventory-log" element={<AdminInventoryLog />} />
           <Route path="categories" element={<AdminCategories />} />
           <Route path="exchanges" element={<AdminExchanges />} />
+          <Route path="issues" element={<AdminIssues />} />
           <Route path="media" element={<AdminMedia />} />
         </Route>
 

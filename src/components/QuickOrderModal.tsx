@@ -40,7 +40,7 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
     setIsSubmitting(true);
     
     // Simulate order placement
-    const shipping = formData.city === 'Dhaka' ? 70 : 130;
+    const shipping = formData.city === 'Dhaka' ? 80 : 130;
     const total = product.price + shipping;
 
     const newOrder = {
@@ -109,12 +109,7 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
                     <img 
                       src={product.images[0]} 
                       alt="" 
-                      className={cn(
-                        "w-16 h-20",
-                        (product?.category?.toLowerCase().includes("polo") || product?.category?.toLowerCase().includes("t-shirt") || product?.category?.toLowerCase().includes("tee"))
-                          ? "object-contain bg-white p-1"
-                          : "object-cover"
-                      )} 
+                      className="w-16 h-20 object-contain bg-white p-1"
                     />
                     <div>
                       <h4 className="text-[10px] font-black uppercase tracking-tight text-brand-black truncate w-48">
@@ -187,7 +182,7 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
                            onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
                            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 outline-none focus:border-brand-gold text-sm font-medium"
                         >
-                            <option value="Dhaka">Inside Dhaka (70 TK)</option>
+                            <option value="Dhaka">Inside Dhaka (80 TK)</option>
                             <option value="Outside Dhaka">Outside Dhaka (130 TK)</option>
                         </select>
                     </div>

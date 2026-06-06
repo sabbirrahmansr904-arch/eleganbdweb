@@ -1,198 +1,312 @@
-import React from 'react';
-import { Tag, Box, PiggyBank, TrendingUp, ChevronDown } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { 
+  Package, 
+  Search, 
+  Filter, 
+  Hash, 
+  ChevronDown, 
+  LayoutGrid, 
+  AlertTriangle, 
+  CheckCircle2, 
+  X,
+  XCircle,
+  Boxes,
+  ArrowRight,
+  TrendingDown,
+  Tag
+} from 'lucide-react';
 import { useProducts } from '../../contexts/ProductContext';
-import { motion } from 'motion/react';
+import { useCurrency } from '../../contexts/CurrencyContext';
+import { useCategories } from '../../contexts/CategoryContext';
+import { formatPrice } from '../../lib/utils';
 
-export default function AdminInventoryOverview() {
+export default function AdminInventoryOverview(): React.JSX.Element {
   const { products } = useProducts();
+  const { currency, rate } = useCurrency();
+  const { categories } = useCategories();
 
-  // Calculations
-  const uniqueProducts = products.length;
-  
-  // Total units stock
-  const totalUnitsStock = products.reduce((total, product) => {
-    return total + (product.stock || 0);
-  }, 0);
+  // Search and filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedSize, setSelectedSize] = useState('');
 
-  // Inventory Value (Cost) - Assuming cost is same as price for now or need a separate field. We'll use price.
-  const inventoryValue = products.reduce((total, product) => {
-    return total + (product.price * (product.stock || 0));
-  }, 0);
+  // Extract all categories fully dynamically:
+  // Merging categories context names + any category name present in products to guarantee robust dynamic scaling
+  const categoriesList = useMemo(() => {
+    const listFromCtx = categories.map(c => c.name);
+    const listFromProducts = products.map(p => p.category).filter(Boolean);
+    const combined = Array.from(new Set([...listFromCtx, ...listFromProducts]));
+    return combined.sort((a, b) => a.localeCompare(b));
+  }, [categories, products]);
 
-  // Potential Revenue
-  const potentialRevenue = products.reduce((total, product) => {
-      // Maybe regular price vs discount
-      return total + ((product.originalPrice || product.price) * (product.stock || 0));
-  }, 0);
+  // All standard sizes
+  const sizesList = useMemo(() => {
+    const foundSizes = products.flatMap(p => p.sizes || []);
+    const uniqueSizes = Array.from(new Set(foundSizes)).filter(Boolean);
+    const standardOrder = ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL', 'Polo-M', 'Polo-L', 'Polo-XL', 'Polo-XXL', 'Polo-3XL'];
+    
+    return uniqueSizes.sort((a, b) => {
+      const idxA = standardOrder.indexOf(a);
+      const idxB = standardOrder.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+  }, [products]);
 
+  // Determine if searching/filtering is active
+  const isActiveFilter = searchTerm.trim() !== '' || selectedCategory !== '' || selectedSize !== '';
 
-  // Group by category
-  const categories: Record<string, { products: number; units: number }> = {};
-  products.forEach(p => {
-    const cat = p.category;
-    if (!categories[cat]) categories[cat] = { products: 0, units: 0 };
-    categories[cat].products += 1;
-    categories[cat].units += p.stock || 0;
-  });
+  // Filtered products list
+  const filteredProducts = useMemo(() => {
+    if (!isActiveFilter) return [];
 
-  const categoryArray = Object.entries(categories).map(([name, data]) => ({
-    name,
-    products: data.products,
-    units: data.units,
-    percentage: totalUnitsStock > 0 ? (data.units / totalUnitsStock) * 100 : 0
-  }));
+    return products.filter(product => {
+      // Search term matching (SKU or Product Name)
+      const matchesSearch = searchTerm.trim() === '' || 
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (product.sku && product.sku.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  // Group by size attributes
-  const sizes: Record<string, { products: number; units: number }> = {};
-  products.forEach(p => {
-    if (p.sizes) {
-      p.sizes.forEach(size => {
-         if (!sizes[size]) sizes[size] = { products: 0, units: 0 };
-         sizes[size].products += 1; // It has this size
-         const sStock = p.sizeStock ? (p.sizeStock[size] || 0) : 0;
-         sizes[size].units += sStock; 
-      });
-    }
-  });
+      // Category matching
+      const matchesCategory = selectedCategory === '' || 
+        product.category?.toLowerCase() === selectedCategory.toLowerCase();
 
-  const sizeArray = Object.entries(sizes).map(([name, data]) => ({
-    name,
-    products: data.products,
-    units: data.units,
-  })).sort((a, b) => {
-      const order = ['M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL', '7XL', '8XL', '9XL', '10XL'];
-      return order.indexOf(a.name) - order.indexOf(b.name);
-  });
+      // Size matching
+      const matchesSize = selectedSize === '' || 
+        (product.sizes && product.sizes.includes(selectedSize));
+
+      return matchesSearch && matchesCategory && matchesSize;
+    });
+  }, [products, searchTerm, selectedCategory, selectedSize, isActiveFilter]);
+
+  // Reset filters
+  const handleReset = () => {
+    setSearchTerm('');
+    setSelectedCategory('');
+    setSelectedSize('');
+  };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 font-sans text-black">
-      <div className="flex items-center space-x-4 mb-4 bg-gray-50 p-8 rounded-3xl border border-gray-100 shadow-sm transition-all hover:bg-gray-100/50">
-        <div className="p-3 bg-black text-white rounded-2xl shadow-lg">
-          <Box className="w-8 h-8" />
+    <div className="max-w-5xl mx-auto space-y-6 pb-12 font-sans text-[#0C1421]">
+      
+      {/* Header matching requested visual */}
+      <div className="flex items-center space-x-4 mb-4">
+        <div className="w-12 h-12 rounded-2xl bg-[#E04622]/10 text-[#E04622] flex items-center justify-center shrink-0">
+          <Boxes className="w-6 h-6" />
         </div>
         <div>
-          <h1 className="text-3xl font-black italic tracking-tighter uppercase text-black">Inventory Metrics</h1>
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mt-1">High-level analytics and stock distribution matrix.</p>
+          <h1 className="text-2xl md:text-3xl font-black text-[#0C1421] tracking-tight">Quick Stock Check</h1>
+          <p className="text-[13px] text-[#62758A] font-semibold mt-0.5">Instant inventory lookup across all categories and sizes.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric Cards */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center space-x-4 group hover:border-black transition-all">
-          <div className="bg-gray-50 p-3 rounded-xl text-black border border-gray-100 group-hover:bg-black group-hover:text-white transition-all">
-            <Box size={24} />
+      {/* Filter Options Box styled perfectly like the screenshot */}
+      <div className="bg-white rounded-[24px] p-6 border border-[#EFF2F6] shadow-[0_4px_24px_rgba(0,0,0,0.015)]">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+          
+          {/* Search SKU/Product Name */}
+          <div className="relative md:col-span-6">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input 
+              type="text"
+              placeholder="Search by SKU or Product Name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-11 pr-4 py-3.5 bg-[#F8FAFC] border-none text-[13px] font-semibold rounded-2xl placeholder-gray-400 text-[#0C1421] focus:ring-2 focus:ring-[#E04622]/25 focus:bg-white outline-none transition-all"
+            />
           </div>
-          <div>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Unique SKUs</p>
-            <p className="text-2xl font-black italic tracking-tighter text-black">{uniqueProducts}</p>
+
+          {/* Dynamic Any Category Dropdown - Updates when categories are added */}
+          <div className="relative md:col-span-3">
+            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="w-full pl-11 pr-10 py-3.5 bg-[#F8FAFC] border-none text-[11px] font-extrabold uppercase tracking-wider rounded-2xl text-[#62758A] focus:ring-2 focus:ring-[#E04622]/25 focus:bg-white focus:text-[#0C1421] outline-none transition-all appearance-none cursor-pointer"
+            >
+              <option value="">ANY CATEGORY</option>
+              {categoriesList.map(cat => (
+                <option key={cat} value={cat}>{cat.toUpperCase()}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
           </div>
+
+          {/* Any Size Dropdown */}
+          <div className="relative md:col-span-3">
+            <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
+            <select
+              value={selectedSize}
+              onChange={(e) => setSelectedSize(e.target.value)}
+              className="w-full pl-11 pr-10 py-3.5 bg-[#F8FAFC] border-none text-[11px] font-extrabold uppercase tracking-wider rounded-2xl text-[#62758A] focus:ring-2 focus:ring-[#E04622]/25 focus:bg-white focus:text-[#0C1421] outline-none transition-all appearance-none cursor-pointer"
+            >
+              <option value="">ANY SIZE</option>
+              {sizesList.map(size => (
+                <option key={size} value={size}>{size.toUpperCase()}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+          </div>
+
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center space-x-4 group hover:border-black transition-all">
-          <div className="bg-gray-50 p-3 rounded-xl text-black border border-gray-100 group-hover:bg-black group-hover:text-white transition-all">
-            <TrendingUp size={24} />
+        {/* Status indicator row styled perfectly like screenshot */}
+        <div className="mt-4 flex items-center justify-between border-t border-[#F1F5F9] pt-4">
+          <div className="flex items-center space-x-2">
+            <span className="w-2 h-2 rounded-full bg-[#5D63D3] animate-pulse" />
+            <span className="text-[10px] font-black tracking-widest uppercase text-[#5D63D3]">
+              {isActiveFilter 
+                ? `FOUND ${filteredProducts.length} IN-STOCK MATCHES` 
+                : 'ENTER A SEARCH OR SELECT FILTERS'
+              }
+            </span>
           </div>
-          <div>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Stock Pool</p>
-            <p className="text-2xl font-black italic tracking-tighter text-black">{totalUnitsStock}</p>
-          </div>
-        </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center space-x-4 group hover:border-emerald-500 transition-all">
-          <div className="bg-gray-50 p-3 rounded-xl text-emerald-500 border border-gray-100 group-hover:bg-emerald-500 group-hover:text-white transition-all">
-            <PiggyBank size={24} />
-          </div>
-          <div>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Warehouse Value</p>
-            <p className="text-2xl font-black italic tracking-tighter text-black">৳{inventoryValue.toLocaleString()}</p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center space-x-4 group hover:border-black transition-all">
-          <div className="bg-black p-3 rounded-xl text-white shadow-xl shadow-black/20">
-            <TrendingUp size={24} />
-          </div>
-          <div>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Projected Revenue</p>
-            <p className="text-2xl font-black italic tracking-tighter text-black">৳{potentialRevenue.toLocaleString()}</p>
-          </div>
+          {isActiveFilter && (
+            <button 
+              onClick={handleReset} 
+              className="rounded-full px-5 py-2.5 bg-[#0C1421] text-white hover:bg-gray-800 transition-all uppercase font-black text-[10px] tracking-wider flex items-center space-x-1.5 shadow-[0_4px_12px_rgba(12,20,33,0.15)]"
+            >
+              <XCircle size={14} className="stroke-[2.5]" />
+              <span>Clear All Filters</span>
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-6 transition-all hover:bg-gray-50/30">
-        <div className="flex items-center justify-between mb-10">
-          <div className="flex items-center space-x-3 text-black">
-            <Box size={20} className="text-brand-gold" />
-            <h2 className="font-black uppercase tracking-[0.2em] text-xs italic">Analytical Distribution</h2>
-          </div>
-          <button className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center hover:text-black transition-colors">
-            EXPAND VIEW <ChevronDown size={14} className="ml-1" />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
-          {/* By Category */}
-          <div className="space-y-8">
-            <h3 className="text-[10px] font-black text-brand-gold uppercase tracking-[0.3em] mb-6 flex items-center">
-               <span className="w-6 h-6 bg-black text-white rounded flex items-center justify-center mr-3 italic">C</span>
-               Category Breakdown
-            </h3>
-            
-            <div className="space-y-8">
-              {categoryArray.map((cat, idx) => (
-                <div key={idx} className="space-y-3 group">
-                  <div className="flex justify-between items-end">
-                    <p className="font-black text-black text-[11px] uppercase tracking-widest group-hover:text-brand-gold transition-all">{cat.name}</p>
-                    <p className="text-[10px] font-black text-brand-gold">{cat.percentage.toFixed(1)}%</p>
-                  </div>
-                  <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${cat.percentage}%` }}
-                      transition={{ duration: 1, ease: "circOut" }}
-                      className="h-full bg-black rounded-full" 
-                    />
-                  </div>
-                  <div className="flex justify-between items-center text-[8px] font-black text-gray-400 uppercase tracking-[0.2em]">
-                    <p>{cat.products} SKUS</p>
-                    <p>{cat.units} TOTAL UNITS</p>
-                  </div>
-                </div>
-              ))}
-              {categoryArray.length === 0 && (
-                <div className="text-sm text-gray-400 text-center py-4 italic">No data detected</div>
-              )}
+      {/* Main content or list checking view */}
+      <div className="bg-white rounded-[24px] p-8 border border-[#EFF2F6] min-h-[360px] flex flex-col items-center justify-center shadow-[0_4px_24px_rgba(0,0,0,0.015)]">
+        
+        {!isActiveFilter ? (
+          // Exact Placeholder State match screenshot!
+          <div className="text-center max-w-md mx-auto py-12 flex flex-col items-center">
+            <div className="w-16 h-16 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-400 mb-6 border border-gray-100">
+              <LayoutGrid className="w-8 h-8 stroke-[1.5]" />
             </div>
+            <h2 className="text-base font-black tracking-tight text-[#0C1421] uppercase">START CHECKING STOCK</h2>
+            <p className="text-[13px] text-[#62758A] font-semibold mt-3 leading-relaxed">
+              Search by SKU, Product Name or use filters to quickly check real-time stock levels across all variants.
+            </p>
           </div>
-
-          {/* Top Attributes (Units) */}
-          <div className="space-y-8">
-             <h3 className="text-[10px] font-black text-brand-gold uppercase tracking-[0.3em] mb-6 flex items-center">
-               <span className="w-6 h-6 bg-black text-white rounded flex items-center justify-center mr-3 italic">A</span>
-               Attribute Distribution
-            </h3>
-
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-              {sizeArray.map((sizeObj, idx) => (
-                <div key={idx} className="flex flex-col gap-2 p-5 rounded-2xl border border-gray-100 bg-gray-50 hover:bg-white hover:border-black transition-all group shadow-sm">
-                  <div className="flex justify-between items-start">
-                    <span className="text-lg font-black text-black group-hover:text-brand-gold transition-all italic">{sizeObj.name}</span>
-                    <div className="w-2 h-2 rounded-full bg-brand-gold/30 group-hover:bg-brand-gold animate-pulse" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">{sizeObj.products} SKUs</p>
-                    <p className="text-xs font-black text-black">{sizeObj.units} Units</p>
-                  </div>
-                </div>
-              ))}
-              {sizeArray.length === 0 && (
-                <div className="text-sm text-gray-400 text-center py-4 col-span-3 italic">No attributes found</div>
-              )}
+        ) : (
+          // Active Search Results List formatted in elegant stock list details
+          <div className="w-full space-y-5 text-left">
+            <div className="flex justify-between items-center pb-2 border-b border-[#EFF2F6]">
+              <span className="text-[11px] font-black text-[#8292A1] uppercase tracking-wider">
+                MATCHING PRODUCTS ({filteredProducts.length})
+              </span>
             </div>
+
+            {filteredProducts.length === 0 ? (
+              <div className="text-center py-16 flex flex-col items-center justify-center">
+                <div className="w-12 h-12 rounded-xl bg-[#FFF9EC] text-[#FF8800] border border-[#FFE8CC] flex items-center justify-center mb-4">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-bold text-[#0C1421] uppercase">No Matching Stock Records</h3>
+                <p className="text-xs text-[#62758A] mt-2">Try adjusting your filters or SKU term for different outcomes.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {filteredProducts.map((product) => {
+                  const hasVariantsSum = product.sizes && product.sizes.length > 0;
+                  return (
+                    <div 
+                      key={product.id} 
+                      className="group bg-white rounded-2xl p-5 border border-[#EFF2F6] hover:border-gray-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.03)] transition-all flex items-start gap-4"
+                    >
+                      {/* Product image with sleek custom placeholder if none exists */}
+                      <div className="w-16 h-16 rounded-xl border border-gray-150 overflow-hidden bg-white p-1 shrink-0 flex items-center justify-center">
+                        {product.images?.[0] ? (
+                          <img 
+                            src={product.images[0]} 
+                            alt={product.name} 
+                            className="w-full h-full object-contain"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="w-full h-full rounded-lg bg-gray-50 flex flex-col items-center justify-center leading-none text-gray-400 font-serif font-black text-[13px]">
+                            <span>ELEGAN BD</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Info on the right side of the image */}
+                      <div className="flex-1 min-w-0">
+                        {/* Title of style requested "MINT FLORAL PREMIUM SHIRT" All Uppercase */}
+                        <h4 className="text-[13px] font-black text-[#0C1421] tracking-tight uppercase leading-snug">
+                          {product.name}
+                        </h4>
+
+                        {/* Badges immediately below layout name */}
+                        <div className="flex flex-wrap gap-2 items-center mt-1.5">
+                          {product.sku && (
+                            <span className="text-[10px] font-black tracking-wide text-gray-500 bg-[#E8ECEF] px-2 py-0.5 rounded leading-none">
+                              {product.sku.toUpperCase()}
+                            </span>
+                          )}
+                          {product.category && (
+                            <span className="flex items-center text-[10px] font-black text-[#5D63D3] bg-[#EEF2FF] px-2 py-0.5 rounded leading-none">
+                              <Tag size={10} className="mr-1 inline-block text-[#5D63D3] stroke-[2.5]" />
+                              {product.category.toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Sizes stock inline wraps - Easy size check feature! */}
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {hasVariantsSum ? (
+                            product.sizes.map((size) => {
+                              const qty = product.sizeStock?.[size] ?? 0;
+                              let colorClass = "";
+                              
+                              if (qty === 0) {
+                                // Red out of stock badge
+                                colorClass = "bg-[#FFF2F2] text-[#DC2626] border-[#FEE2E2]";
+                              } else if (qty <= 5) {
+                                // Amber low stock badge 1-5
+                                colorClass = "bg-[#FFF9EC] text-[#D97706] border-[#FEF3C7]";
+                              } else {
+                                // Teal healthy stock badge > 5
+                                colorClass = "bg-[#EBFDFB] text-[#0D9488] border-[#CCFBF1]";
+                              }
+
+                              return (
+                                <div 
+                                  key={size} 
+                                  className={`flex items-center text-[10px] font-bold rounded px-2 py-1 border shrink-0 transition-colors ${colorClass}`}
+                                >
+                                  <span className="uppercase">{size}</span>
+                                  <span className="mx-1 text-gray-400 font-normal">:</span>
+                                  <span>{qty}</span>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            // Simple single quantity badge if product sizes aren't configured
+                            <div className={`flex items-center text-[10px] font-bold rounded px-2.5 py-1 border ${
+                              product.stock === 0 
+                                ? 'bg-[#FFF2F2] text-[#DC2626] border-[#FEE2E2]' 
+                                : product.stock < 10 
+                                  ? 'bg-[#FFF9EC] text-[#D97706] border-[#FEF3C7]' 
+                                  : 'bg-[#EBFDFB] text-[#0D9488] border-[#CCFBF1]'
+                            }`}>
+                              <span>TOTAL STOCK</span>
+                              <span className="mx-1 text-gray-400 font-normal">:</span>
+                              <span>{product.stock}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        </div>
+        )}
+
       </div>
     </div>
-
   );
 }

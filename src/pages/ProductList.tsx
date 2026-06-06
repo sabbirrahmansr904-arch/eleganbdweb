@@ -21,11 +21,15 @@ const ProductList = () => {
 
     // Filter by Category
     if (category && category !== 'all' && category !== 'new-arrivals') {
-      filtered = filtered.filter(p => 
-        p.category.toLowerCase() === category.toLowerCase() ||
-        (category === 'men' && p.category.toLowerCase().includes('men')) ||
-        (category === 'women' && p.category.toLowerCase().includes('women'))
-      );
+      filtered = filtered.filter(p => {
+        const pCat = p.category.toLowerCase();
+        const paramCat = category.toLowerCase();
+        return pCat === paramCat ||
+          pCat.replace(/\s+/g, '-') === paramCat ||
+          pCat.replace(/-/g, ' ') === paramCat ||
+          (category === 'men' && pCat.includes('men')) ||
+          (category === 'women' && pCat.includes('women'));
+      });
     }
 
     // Filter by Size

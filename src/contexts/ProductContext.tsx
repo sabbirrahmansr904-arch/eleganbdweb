@@ -26,12 +26,23 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (Array.isArray(parsed)) {
           // Normalize categories
           parsed = parsed.map(p => {
-             let category = p.category;
-             if (category === 'Premium Formal Shirt') category = 'Formal Shirt';
-             if (category === 'Drop Shoulder T-shirt') category = 'Polo T-shirt';
-             if (category === 'Panjabi') category = 'Polo T-shirt';
-             if (category === 'Polo t-shirt') category = 'Polo T-shirt';
-             if (category === 'Casual Shirt' || category === 'Woman Palazzo') category = 'Formal Pant'; 
+             let category = p.category || '';
+             const lowerCategory = category.toLowerCase().trim();
+             if (lowerCategory === 'formal shirt' || lowerCategory === 'formal-shirt' || lowerCategory === 'premium formal shirt' || lowerCategory === 'premium-formal-shirt') {
+               category = 'Formal Shirt';
+             } else if (lowerCategory === 'drop shoulder t-shirt' || lowerCategory === 'drop-shoulder-t-shirt' || lowerCategory === 'panjabi') {
+               category = 'Polo T-shirt';
+             } else if (lowerCategory === 'polo t-shirt' || lowerCategory === 'polo-t-shirt' || lowerCategory === 'polo t shirt' || lowerCategory === 'polo t-shirt') {
+               category = 'Polo T-shirt';
+             } else if (lowerCategory === 'casual shirt' || lowerCategory === 'casual-shirt' || lowerCategory === 'woman palazzo' || lowerCategory === 'formal pant' || lowerCategory === 'formal-pant') {
+               if (lowerCategory === 'casual shirt' || lowerCategory === 'casual-shirt') {
+                 category = 'Formal Pant';
+               } else {
+                 category = 'Formal Pant';
+               }
+             } else if (lowerCategory === 'premium shirt' || lowerCategory === 'premium-shirt') {
+               category = 'Premium Shirt';
+             }
              
              return {
                ...p,
@@ -74,12 +85,23 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         if (prodData.length > 0) {
           const normalizedData = prodData.map(p => {
-             let category = p.category;
-             if (category === 'Premium Formal Shirt') category = 'Formal Shirt';
-             if (category === 'Drop Shoulder T-shirt') category = 'Polo T-shirt';
-             if (category === 'Panjabi') category = 'Polo T-shirt';
-             if (category === 'Casual Shirt' || category === 'Woman Palazzo') category = 'Formal Pant'; 
-             if (category === 'Polo t-shirt' || category === 'polo-t-shirt' || category === 'Polo T-Shirt') category = 'Polo T-shirt';
+             let category = p.category || '';
+             const lowerCategory = category.toLowerCase().trim();
+             if (lowerCategory === 'formal shirt' || lowerCategory === 'formal-shirt' || lowerCategory === 'premium formal shirt' || lowerCategory === 'premium-formal-shirt') {
+               category = 'Formal Shirt';
+             } else if (lowerCategory === 'drop shoulder t-shirt' || lowerCategory === 'drop-shoulder-t-shirt' || lowerCategory === 'panjabi') {
+               category = 'Polo T-shirt';
+             } else if (lowerCategory === 'polo t-shirt' || lowerCategory === 'polo-t-shirt' || lowerCategory === 'polo t shirt' || lowerCategory === 'polo t-shirt') {
+               category = 'Polo T-shirt';
+             } else if (lowerCategory === 'casual shirt' || lowerCategory === 'casual-shirt' || lowerCategory === 'woman palazzo' || lowerCategory === 'formal pant' || lowerCategory === 'formal-pant') {
+               if (lowerCategory === 'casual shirt' || lowerCategory === 'casual-shirt') {
+                 category = 'Formal Pant';
+               } else {
+                 category = 'Formal Pant';
+               }
+             } else if (lowerCategory === 'premium shirt' || lowerCategory === 'premium-shirt') {
+               category = 'Premium Shirt';
+             }
              return { ...p, category };
           });
           setProducts(normalizedData);

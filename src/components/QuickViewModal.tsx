@@ -62,12 +62,7 @@ export default function QuickViewModal({ product, isOpen, onClose }: QuickViewMo
               <img 
                 src={product.images[selectedImage]} 
                 alt={product.name} 
-                className={cn(
-                  "w-full h-full",
-                  (product?.category?.toLowerCase().includes("polo") || product?.category?.toLowerCase().includes("t-shirt") || product?.category?.toLowerCase().includes("tee"))
-                    ? "object-contain bg-white p-4"
-                    : "object-cover"
-                )}
+                className="w-full h-full object-contain bg-white p-4"
               />
               {product.images.length > 1 && (
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">

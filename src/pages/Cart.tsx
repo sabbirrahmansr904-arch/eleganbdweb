@@ -54,12 +54,7 @@ export default function Cart() {
                     <img
                       src={item.product.images[0]}
                       alt={item.product.name}
-                      className={cn(
-                        "w-full h-full group-hover:scale-105 transition-transform duration-500",
-                        (item.product.category?.toLowerCase().includes("polo") || item.product.category?.toLowerCase().includes("t-shirt") || item.product.category?.toLowerCase().includes("tee"))
-                          ? "object-contain bg-white p-1"
-                          : "object-cover"
-                      )}
+                      className="w-full h-full group-hover:scale-105 transition-transform duration-500 object-contain bg-white p-1"
                       referrerPolicy="no-referrer"
                     />
                   </div>

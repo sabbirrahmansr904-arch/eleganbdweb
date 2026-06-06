@@ -28,13 +28,20 @@ const Home = () => {
   }, [activeBanners.length]);
 
   // Get products by category
-  const formalPants = products.filter(p => p.category === 'Formal Pant').slice(0, 8);
-  const formalShirts = products.filter(p => p.category === 'Formal Shirt').slice(0, 8);
-  const poloTshirts = products.filter(p => 
-    p.category === 'Polo T-shirt' || 
-    p.category?.toLowerCase() === 'polo-t-shirt' || 
-    p.category?.toLowerCase() === 'polo t-shirt'
-  ).slice(0, 8);
+  const formalPants = products.filter(p => {
+    const cat = (p.category || '').toLowerCase().trim();
+    return cat === 'formal pant' || cat === 'formal-pant';
+  }).slice(0, 8);
+
+  const formalShirts = products.filter(p => {
+    const cat = (p.category || '').toLowerCase().trim();
+    return cat === 'formal shirt' || cat === 'formal-shirt' || cat === 'premium formal shirt' || cat === 'premium-formal-shirt';
+  }).slice(0, 8);
+
+  const poloTshirts = products.filter(p => {
+    const cat = (p.category || '').toLowerCase().trim();
+    return cat === 'polo t-shirt' || cat === 'polo-t-shirt' || cat === 'polo t shirt';
+  }).slice(0, 8);
   const allCollection = products.slice(0, 12);
 
   return (

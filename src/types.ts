@@ -56,6 +56,12 @@ export interface Order {
   status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
   paymentMethod: 'cod' | 'bkash' | 'nagad' | 'card';
   transactionId?: string;
+  notes?: string;
+  discount?: number;
+  advancePayment?: number;
+  issueType?: string;
+  issueStatus?: 'open' | 'resolved';
+  issueReplies?: Array<{ sender: 'customer' | 'admin', message: string, timestamp: string }>;
   createdAt: string;
 }
 
