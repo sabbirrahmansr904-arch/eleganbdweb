@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, signInWithPopup, GoogleAuthProvider, signOut as firebaseSignOut, signInWithEmailAndPassword } from 'firebase/auth';
+import { User, signInWithPopup, GoogleAuthProvider, signOut as firebaseSignOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -9,7 +9,9 @@ interface AuthContextType {
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (e: string, p: string) => Promise<void>;
+  signUpWithEmail: (e: string, p: string) => Promise<void>;
   signOut: () => Promise<void>;
+  refreshAdminStatus: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,15 +21,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const isSuperAdminEmail = (email: string | null) => 
+    email === 'sabbirrahmansr904@gmail.com' || email === 'superadmin@gmail.com';
+
+  const refreshAdminStatus = async () => {
+    if (auth.currentUser) {
+      if (isSuperAdminEmail(auth.currentUser.email)) {
+        setIsAdmin(true);
+      } else {
+        try {
+          const adminDoc = await getDoc(doc(db, 'admins', auth.currentUser.uid));
+          setIsAdmin(adminDoc.exists());
+        } catch (e) {
+          setIsAdmin(false);
+        }
+      }
+    } else {
+      setIsAdmin(false);
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       setCurrentUser(user);
       if (user) {
         // Check admin
         try {
-          if (user.email === 'sabbirrahmansr904@gmail.com') {
+          if (isSuperAdminEmail(user.email)) {
             setIsAdmin(true);
-            // Ensure admin document exists for rules.exists checks
+            // Ensure admin document exists
             const adminRef = doc(db, 'admins', user.uid);
             const adminDoc = await getDoc(adminRef);
             if (!adminDoc.exists()) {
@@ -45,8 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (!e?.message?.includes('resource-exhausted') && !e?.message?.includes('Quota limit exceeded')) {
              console.error("Admin check error:", e);
           }
-          // Fallback if quota hit but user matches critical email
-          setIsAdmin(user.email === 'sabbirrahmansr904@gmail.com');
+          setIsAdmin(isSuperAdminEmail(user.email));
         }
       } else {
         setIsAdmin(false);
@@ -65,12 +86,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signInWithEmailAndPassword(auth, email, pass);
   };
 
+  const signUpWithEmail = async (email: string, pass: string) => {
+    await createUserWithEmailAndPassword(auth, email, pass);
+  };
+
   const signOut = async () => {
     await firebaseSignOut(auth);
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, isAdmin, loading, signInWithGoogle, signInWithEmail, signOut }}>
+    <AuthContext.Provider value={{ currentUser, isAdmin, loading, signInWithGoogle, signInWithEmail, signUpWithEmail, signOut, refreshAdminStatus }}>
       {children}
     </AuthContext.Provider>
   );

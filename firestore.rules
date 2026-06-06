@@ -63,9 +63,16 @@ service cloud.firestore {
       allow read: if isSignedIn() && (isAdmin() || resource.data.customerId == request.auth.uid);
       allow list: if isSignedIn() && (isAdmin() || resource.data.customerId == request.auth.uid);
       allow create: if isSignedIn() && isValidId(orderId) && isValidOrder(incoming()) && incoming().customerId == request.auth.uid;
-      allow update: if (isAdmin() || (isSignedIn() && resource.data.customerId == request.auth.uid)) && isValidId(orderId) && (
-        (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['status'])) ||
-        (existing().status.matches('(?i)pending') && incoming().diff(existing()).affectedKeys().hasOnly(['status']) && incoming().status.matches('(?i)cancelled'))
+      allow update: if isSignedIn() && isValidId(orderId) && (
+        (isAdmin() && isValidOrder(incoming())) ||
+        (
+          resource.data.customerId == request.auth.uid &&
+          isValidOrder(incoming()) &&
+          incoming().customerId == existing().customerId &&
+          existing().status.matches('(?i)pending') &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']) &&
+          incoming().status.matches('(?i)cancelled')
+        )
       );
       allow delete: if isAdmin();
     }
@@ -93,7 +100,7 @@ service cloud.firestore {
     }
 
     match /config/{configId} {
-      allow read: if true;
+      allow read: if configId != 'admin_settings' || isAdmin();
       allow write: if isAdmin();
     }
 
@@ -103,7 +110,17 @@ service cloud.firestore {
 
     match /admins/{adminId} {
       allow read: if isSignedIn() && (adminId == request.auth.uid || isAdmin());
-      allow write: if isSignedIn() && adminId == request.auth.uid && request.auth.token.email == 'sabbirrahmansr904@gmail.com';
+      allow create: if isSignedIn() && adminId == request.auth.uid && (
+        request.auth.token.email == 'sabbirrahmansr904@gmail.com' ||
+        (
+          get(/databases/$(database)/documents/config/admin_settings).exists() &&
+          incoming().signupCode == get(/databases/$(database)/documents/config/admin_settings).data.signupCode
+        )
+      );
+      allow update, delete: if isSignedIn() && (
+        request.auth.token.email == 'sabbirrahmansr904@gmail.com' ||
+        isAdmin()
+      );
     }
 
     function isValidStockTransaction(data) {

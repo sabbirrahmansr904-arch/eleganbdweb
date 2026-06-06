@@ -107,6 +107,16 @@ export default function Navbar() {
 
           {/* Right Side: Account & Cart */}
           <div className="flex items-center justify-end gap-1 md:gap-6 text-white">
+            {isAdmin && (
+               <Link 
+                  to="/admin"
+                  className="hidden md:flex items-center gap-2 text-brand-gold hover:text-white transition-colors p-2" 
+                  title="Admin Panel"
+                >
+                  <User size={20} strokeWidth={1.5} />
+                  <span className="hidden lg:inline text-[10px] font-black uppercase tracking-widest">Admin</span>
+                </Link>
+            )}
             {currentUser ? (
               <Link to="/dashboard" className="flex items-center gap-2 text-white hover:text-brand-gold transition-colors p-2" title="My Account">
                 <User size={22} strokeWidth={1.5} />

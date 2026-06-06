@@ -8,12 +8,20 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useBranding } from '../../contexts/BrandingContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { db } from '../../lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
 export default function AdminLogin() {
   const { logoUrl } = useBranding();
-  const { signInWithGoogle, isAdmin } = useAuth();
+  const { signInWithGoogle, signInWithEmail, signUpWithEmail, isAdmin, currentUser, refreshAdminStatus, signOut } = useAuth();
   const navigate = useNavigate();
+  const [code, setCode] = React.useState('');
+  const [isActivating, setIsActivating] = React.useState(false);
+  const [mode, setMode] = React.useState<'login' | 'signup'>('login');
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [isLoading, setIsLoading] = React.useState(false);
 
   // If already admin, redirect automatically
   React.useEffect(() => {
@@ -27,13 +35,64 @@ export default function AdminLogin() {
       await signInWithGoogle();
       toast.success('Authentication successful!');
     } catch (error: any) {
-      if (error?.code === 'auth/unauthorized-domain') {
-        const domain = window.location.hostname;
-        toast.error(`Error: This website's domain (${domain}) is not authorized in Firebase!`, { duration: 8000 });
-        toast('To fix this: Go to your Firebase Console -> Authentication -> Settings -> Authorized Domains and add: ' + domain, { duration: 15000, icon: '🔧' });
+       toast.error(error?.message || 'Authentication failed.');
+    }
+  };
+
+  const handleEmailAuth = async () => {
+    if (!email || !password) {
+      toast.error("Please enter email and password.");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      if (mode === 'signup') {
+        await signUpWithEmail(email, password);
+        toast.success('Account created! Please enter activation code if applicable.');
+        setMode('login');
       } else {
-        toast.error(error?.message || 'Authentication failed.');
+        await signInWithEmail(email, password);
+        toast.success('Signed in successfully!');
       }
+    } catch (error: any) {
+        toast.error(error?.message || 'Authentication failed.');
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  const handleActivate = async () => {
+    if (!currentUser) return;
+    if (!code.trim()) {
+      toast.error("Please enter the signup code.");
+      return;
+    }
+    setIsActivating(true);
+    const loadingToast = toast.loading("Verifying secret invitation code...");
+    try {
+      const adminRef = doc(db, 'admins', currentUser.uid);
+      await setDoc(adminRef, {
+        role: 'admin',
+        email: currentUser.email,
+        signupCode: code.trim(),
+        updatedAt: Date.now()
+      });
+      toast.success("Administrator access activated successfully!", { id: loadingToast });
+      await refreshAdminStatus();
+    } catch (err: any) {
+      console.error("Activation failure: ", err);
+      toast.error("Invalid signup code or unauthorized access!", { id: loadingToast });
+    } finally {
+      setIsActivating(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast.success("Signed out safely.");
+    } catch (err) {
+      toast.error("Sign out failed.");
     }
   };
 
@@ -75,13 +134,80 @@ export default function AdminLogin() {
           <p className="text-[10px] uppercase tracking-[0.4em] text-gray-500 font-bold">Admin Portal Access</p>
         </div>
 
-        <button 
-          onClick={handleLogin}
-          type="button"
-          className="w-full bg-white text-brand-black py-5 text-[11px] uppercase tracking-widest font-bold hover:bg-brand-gold hover:text-white transition-all shadow-xl active:scale-[0.98]"
-        >
-          Sign in with Google
-        </button>
+        {currentUser && !isAdmin ? (
+          <div className="space-y-6 text-white text-sans">
+            <div className="p-5 bg-white/5 border border-white/10 rounded-2xl space-y-1 text-center">
+              <p className="text-[9px] uppercase tracking-[0.2em] text-gray-400 font-black">Logged In Profile</p>
+              <p className="text-xs font-black truncate text-brand-gold font-mono">{currentUser.email}</p>
+            </div>
+
+            <div className="space-y-2 text-center text-sans">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-300">ADMIN ACCOUNT ACTIVATION</p>
+              <p className="text-[11px] text-gray-400 leading-relaxed font-semibold italic">
+                Your account is not registered. To activate admin privileges, enter the secret invitation code:
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <input 
+                type="text"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="PROMO CODE"
+                className="w-full bg-black/45 border border-white/20 hover:border-white/40 focus:border-brand-gold focus:outline-none rounded-2xl px-5 py-4 text-center font-mono text-xs uppercase tracking-[0.2em] text-white font-black placeholder:text-white/30"
+              />
+
+              <button 
+                onClick={handleActivate}
+                disabled={isActivating || !code.trim()}
+                className="w-full bg-white text-brand-black py-5 text-[10px] uppercase tracking-widest font-black hover:bg-brand-gold hover:text-white transition-all shadow-xl active:scale-[0.98] disabled:opacity-50"
+              >
+                {isActivating ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-brand-black/30 border-t-brand-black rounded-full animate-spin" />
+                    <span>Verifying...</span>
+                  </span>
+                ) : (
+                  <span>Activate Access</span>
+                )}
+              </button>
+
+              <button 
+                onClick={handleSignOut}
+                type="button"
+                className="w-full bg-transparent border border-white/10 text-gray-400 hover:text-white hover:border-white/30 py-4 text-[9px] uppercase tracking-widest font-black transition-all"
+              >
+                Sign out
+              </button>
+            </div>
+          </div>
+        ) : !currentUser ? (
+          <div className="space-y-4">
+             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="w-full bg-black/45 border border-white/20 rounded-2xl px-5 py-4 text-white text-sm" />
+             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" className="w-full bg-black/45 border border-white/20 rounded-2xl px-5 py-4 text-white text-sm" />
+             <button onClick={handleEmailAuth} className="w-full bg-white text-brand-black py-5 text-[10px] uppercase tracking-widest font-black hover:bg-brand-gold hover:text-white transition-all shadow-xl">
+                 {isLoading ? 'Processing...' : mode === 'login' ? 'Sign In' : 'Sign Up'}
+             </button>
+             <button onClick={() => setMode(mode === 'login' ? 'signup' : 'login')} className="w-full text-gray-400 text-[10px] underline">
+                 {mode === 'login' ? 'Need an account? Sign Up' : 'Already have an account? Sign In'}
+             </button>
+             <div className="text-center text-white/50 text-xs py-2">OR</div>
+             <button 
+                onClick={handleLogin}
+                type="button"
+                className="w-full bg-white text-brand-black py-5 text-[11px] uppercase tracking-widest font-bold hover:bg-brand-gold hover:text-white transition-all shadow-xl active:scale-[0.98]"
+              >
+                Sign in with Google
+              </button>
+          </div>
+        ) : (
+          <button 
+            onClick={handleSignOut}
+            className="w-full bg-white/10 text-white py-5 text-[10px] uppercase font-bold tracking-widest"
+          >
+             Sign Out {currentUser.email}
+          </button>
+        )}
 
         <div className="mt-12 pt-8 border-t border-gray-50 text-center">
            <p className="text-[10px] uppercase tracking-widest text-gray-300">

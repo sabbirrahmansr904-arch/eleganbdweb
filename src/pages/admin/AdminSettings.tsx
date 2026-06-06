@@ -15,12 +15,17 @@ import {
   Store,
   Save,
   Plus,
-  Upload
+  Upload,
+  Trash2,
+  RefreshCw
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion } from 'motion/react';
 import { useBranding } from '../../contexts/BrandingContext';
 import { useProducts } from '../../contexts/ProductContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { db } from '../../lib/firebase';
+import { doc, getDoc, getDocs, setDoc, deleteDoc, collection } from 'firebase/firestore';
 import { compressImage } from '../../utils/imageCompressor';
 import toast from 'react-hot-toast';
 
@@ -45,10 +50,82 @@ export default function AdminSettings() {
     setShowShowcase
   } = useBranding();
   const { products } = useProducts();
-  const [activeTab, setActiveTab] = useState('General');
+  const { currentUser } = useAuth();
+  const isSuperAdmin = currentUser?.email === 'sabbirrahmansr904@gmail.com';
+
+  const [activeTab, setActiveTab ] = useState('General');
   const [tempLogo, setTempLogo] = useState(logoUrl);
   const [tempSizeChart, setTempSizeChart] = useState(sizeChartUrl);
   const allCategories = Array.from(new Set(products.map(p => p.category)));
+
+  // Admin Access management states
+  const [adminCode, setAdminCode] = useState('');
+  const [adminList, setAdminList] = useState<{ id: string; email?: string; role?: string; updatedAt?: number }[]>([]);
+  const [loadingAdmins, setLoadingAdmins] = useState(false);
+  const [isSavingCode, setIsSavingCode] = useState(false);
+
+  const loadAdminConfigAndList = async () => {
+    setLoadingAdmins(true);
+    try {
+      // 1. Get Code
+      const settingsDoc = await getDoc(doc(db, 'config', 'admin_settings'));
+      if (settingsDoc.exists()) {
+        setAdminCode(settingsDoc.data().signupCode || '');
+      } else {
+        setAdminCode('ELEGAN-VIP-2026'); // Secret default code
+      }
+
+      // 2. Get Admins list
+      const adminsSnapshot = await getDocs(collection(db, 'admins'));
+      const list: any[] = [];
+      adminsSnapshot.forEach(doc => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      setAdminList(list);
+    } catch (err) {
+      console.error("Error loading admin system stats:", err);
+    } finally {
+      setLoadingAdmins(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'Admin Access' && isSuperAdmin) {
+      loadAdminConfigAndList();
+    }
+  }, [activeTab, isSuperAdmin]);
+
+  const handleSaveAdminCode = async () => {
+    if (!adminCode.trim()) {
+      toast.error("Please enter a valid signup code.");
+      return;
+    }
+    setIsSavingCode(true);
+    try {
+      await setDoc(doc(db, 'config', 'admin_settings'), {
+        signupCode: adminCode.trim(),
+        updatedAt: Date.now()
+      });
+      toast.success("Admin invite signup code saved successfully.");
+    } catch (err) {
+      toast.error("Failed to save signup code.");
+    } finally {
+      setIsSavingCode(false);
+    }
+  };
+
+  const handleRevokeAdmin = async (adminId: string, email?: string) => {
+    if (window.confirm(`Are you sure you want to revoke admin access for ${email || adminId}?`)) {
+      try {
+        await deleteDoc(doc(db, 'admins', adminId));
+        toast.success("Admin access revoked successfully.");
+        // Refresh list
+        setAdminList(prev => prev.filter(admin => admin.id !== adminId));
+      } catch (err) {
+        toast.error("Failed to revoke admin credentials.");
+      }
+    }
+  };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -113,6 +190,7 @@ export default function AdminSettings() {
     { name: 'Categories', icon: Tag },
     { name: 'Banners', icon: Globe },
     { name: 'Notifications', icon: Bell },
+    ...(isSuperAdmin ? [{ name: 'Admin Access', icon: Lock }] : [])
   ];
 
   return (
@@ -615,7 +693,107 @@ export default function AdminSettings() {
             </div>
           )}
           
-          {activeTab !== 'General' && activeTab !== 'Banners' && activeTab !== 'Categories' && activeTab !== 'Notifications' && activeTab !== 'Branding' && (
+          {activeTab === 'Admin Access' && isSuperAdmin && (
+            <div className="space-y-12 max-w-4xl relative z-10 font-sans">
+              <div className="space-y-8">
+                <div className="flex justify-between items-center border-b border-gray-100 pb-6">
+                  <h3 className="serif text-2xl text-black italic tracking-tighter uppercase">Authorized Administrative Personnel</h3>
+                  <Lock size={20} className="text-brand-gold" />
+                </div>
+                
+                <p className="text-xs text-gray-500 max-w-2xl leading-relaxed">
+                  Set up registration criteria so that your chosen team members can sign up in the Admin portal using a secret invitation code. Only managers with exact verification credentials can access the administration dashboard.
+                </p>
+
+                {/* Secret Invite Code Form */}
+                <div className="p-8 bg-gray-50 border border-gray-100 rounded-3xl space-y-6">
+                  <label className="text-[10px] uppercase tracking-[0.2em] font-black text-gray-400">
+                    Admin Activation Sign-up Invitation Code (Set by you)
+                  </label>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <input 
+                      type="text" 
+                      value={adminCode}
+                      onChange={(e) => setAdminCode(e.target.value)}
+                      placeholder="e.g. ELEGAN-TEAM-ACCESS-2026"
+                      className="flex-1 bg-white border border-gray-200 rounded-2xl px-6 py-4 outline-none focus:border-black transition-all text-black text-sm font-mono tracking-wider font-bold" 
+                    />
+                    <button 
+                      onClick={handleSaveAdminCode}
+                      disabled={isSavingCode || loadingAdmins}
+                      className="bg-black text-white px-8 py-4 rounded-xl text-[10px] uppercase font-black tracking-widest hover:bg-gray-850 transition-all flex items-center justify-center gap-2"
+                    >
+                      {isSavingCode ? (
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : "Update Code"}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-gray-400">
+                    Share this secret invitation code with the team members. They will enter it during registration on the login page to gain administrator access.
+                  </p>
+                </div>
+
+                {/* Admin Users List */}
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-sm font-black uppercase tracking-widest text-[#0C1421]">Active Administrators ({adminList.length})</h4>
+                    <button 
+                      onClick={loadAdminConfigAndList} 
+                      disabled={loadingAdmins}
+                      className="text-[10px] font-black uppercase text-brand-gold hover:text-black flex items-center gap-1.5 transition-colors"
+                    >
+                      <RefreshCw size={12} className={loadingAdmins ? "animate-spin" : ""} />
+                      Reload List
+                    </button>
+                  </div>
+
+                  {loadingAdmins ? (
+                    <div className="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-3xl border border-gray-100">
+                      <span className="w-8 h-8 border-3 border-brand-gold/30 border-t-brand-gold rounded-full animate-spin mb-3" />
+                      <p className="text-[10px] uppercase tracking-widest font-black text-gray-400">Querying identity directory...</p>
+                    </div>
+                  ) : adminList.length === 0 ? (
+                    <div className="text-center py-12 bg-gray-50 border border-gray-150 rounded-3xl">
+                      <p className="text-xs text-gray-400 font-bold italic">No admins currently registered besides Super Admin.</p>
+                    </div>
+                  ) : (
+                    <div className="border border-gray-105 rounded-3xl overflow-hidden divide-y divide-gray-100 bg-white">
+                      {adminList.map((admin) => {
+                        const isSelf = admin.email === 'sabbirrahmansr904@gmail.com';
+                        return (
+                          <div key={admin.id} className="p-6 flex items-center justify-between hover:bg-gray-50/50 transition-all">
+                            <div className="space-y-1">
+                              <p className="text-sm font-black text-[#0C1421]">{admin.email}</p>
+                              <div className="flex items-center gap-3">
+                                <span className="text-[9px] font-bold text-gray-400 font-mono">UID: {admin.id}</span>
+                                <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${
+                                  isSelf ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-brand-gold/15 text-brand-gold'
+                                }`}>
+                                  {isSelf ? 'Super Admin' : 'Admin'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {!isSelf && (
+                              <button 
+                                onClick={() => handleRevokeAdmin(admin.id, admin.email)}
+                                className="p-3 text-red-500 hover:text-white hover:bg-red-500 border border-transparent hover:border-red-650 rounded-xl transition-all shadow-3xs"
+                                title="Revoke Admin Access"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {activeTab !== 'General' && activeTab !== 'Banners' && activeTab !== 'Categories' && activeTab !== 'Notifications' && activeTab !== 'Branding' && activeTab !== 'Admin Access' && (
              <div className="flex flex-col items-center justify-center py-32 text-center opacity-20 relative z-10 font-sans">
                 <Settings size={64} className="mb-6 animate-spin-slow text-brand-gold" />
                 <h3 className="serif text-3xl text-black italic tracking-tighter uppercase font-black">Under Construction</h3>
