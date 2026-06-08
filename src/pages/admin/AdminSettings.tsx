@@ -46,6 +46,8 @@ export default function AdminSettings() {
     setFeatureBannerUrl,
     poloBannerUrl,
     setPoloBannerUrl,
+    comboOfferBannerUrl,
+    setComboOfferBannerUrl,
     showShowcase,
     setShowShowcase
   } = useBranding();
@@ -124,6 +126,13 @@ export default function AdminSettings() {
       } catch (err) {
         toast.error("Failed to revoke admin credentials.");
       }
+    }
+  };
+
+  const handleDeleteBanner = (setter: (url: string) => void, name: string) => {
+    if (window.confirm(`Are you sure you want to delete the ${name}?`)) {
+      setter('');
+      toast.success(`${name} deleted.`);
     }
   };
 
@@ -500,6 +509,12 @@ export default function AdminSettings() {
                                       }} 
                                   />
                               </label>
+                              <button 
+                                onClick={() => handleDeleteBanner(setCollectionsBannerUrl, 'Collections Banner')}
+                                className="p-4 bg-red-600 text-white rounded-2xl hover:bg-red-700 transition-all font-black uppercase tracking-widest text-[10px]"
+                             >
+                                <Trash2 size={18} />
+                             </button>
                           </div>
                       </div>
                       <div className="p-8">
@@ -548,6 +563,12 @@ export default function AdminSettings() {
                                         }} 
                                     />
                                 </label>
+                                <button 
+                                  onClick={() => handleDeleteBanner(setHeroBannerUrl, 'Hero Banner')}
+                                  className="p-4 bg-red-600 text-white rounded-2xl hover:bg-red-700 transition-all font-black uppercase tracking-widest text-[10px]"
+                               >
+                                  <Trash2 size={18} />
+                               </button>
                             </div>
                           </div>
                           <div className="p-6">
@@ -589,6 +610,12 @@ export default function AdminSettings() {
                                         }} 
                                     />
                                 </label>
+                                <button 
+                                  onClick={() => handleDeleteBanner(setFeatureBannerUrl, 'Feature Banner')}
+                                  className="p-4 bg-red-600 text-white rounded-2xl hover:bg-red-700 transition-all font-black uppercase tracking-widest text-[10px]"
+                               >
+                                  <Trash2 size={18} />
+                               </button>
                             </div>
                           </div>
                           <div className="p-6">
@@ -630,6 +657,12 @@ export default function AdminSettings() {
                                         }} 
                                     />
                                 </label>
+                                <button 
+                                  onClick={() => handleDeleteBanner(setPoloBannerUrl, 'Polo Banner')}
+                                  className="p-4 bg-red-600 text-white rounded-2xl hover:bg-red-700 transition-all font-black uppercase tracking-widest text-[10px]"
+                               >
+                                  <Trash2 size={18} />
+                               </button>
                             </div>
                           </div>
                           <div className="p-6">
@@ -637,6 +670,53 @@ export default function AdminSettings() {
                             <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-2 font-sans">DEDICATED POLO SECTION BANNER</p>
                           </div>
                       </div>
+
+                      <div className="bg-gray-50 border border-gray-100 p-3 rounded-3xl group relative overflow-hidden shadow-sm font-sans">
+                      <div className="aspect-video bg-white rounded-2xl relative border-2 border-dashed border-gray-100 hover:border-black transition-all flex items-center justify-center overflow-hidden">
+                        {comboOfferBannerUrl ? (
+                            <img src={comboOfferBannerUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" alt="Combo Offer Banner" />
+                        ) : (
+                            <div className="text-gray-200 flex flex-col items-center gap-3">
+                                <ImageIcon size={32} />
+                                <span className="text-[9px] uppercase tracking-widest font-black">NULL STATE</span>
+                            </div>
+                        )}
+                        
+                        <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm gap-3">
+                            <label className="bg-white text-black px-8 py-4 text-[10px] uppercase tracking-[0.2em] font-black hover:bg-black hover:text-white transition-all cursor-pointer flex items-center gap-3 rounded-2xl shadow-2xl">
+                                <Upload size={18} />
+                                <span>Combo Replace</span>
+                                <input 
+                                    type="file" 
+                                    accept="image/*" 
+                                    className="hidden" 
+                                    onChange={async (e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                            try {
+                                                const result = await compressImage(file, 1600, 900, 0.8);
+                                                setComboOfferBannerUrl(result);
+                                                toast.success('Combo banner updated.');
+                                            } catch (err) {
+                                                toast.error('Processing failure.');
+                                            }
+                                        }
+                                    }} 
+                                />
+                            </label>
+                            <button 
+                                  onClick={() => handleDeleteBanner(setComboOfferBannerUrl, 'Combo Offer Banner')}
+                                  className="p-4 bg-red-600 text-white rounded-2xl hover:bg-red-700 transition-all font-black uppercase tracking-widest text-[10px]"
+                               >
+                                  <Trash2 size={18} />
+                               </button>
+                        </div>
+                      </div>
+                      <div className="p-6">
+                        <p className="text-[10px] uppercase tracking-[0.2em] font-black text-black italic">Combo Offer Banner</p>
+                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-2 font-sans">SHOWN ON WEBSITE OPEN</p>
+                      </div>
+                  </div>
                  </div>
                </div>
             </div>

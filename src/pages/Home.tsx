@@ -67,22 +67,24 @@ const Home = () => {
               </div>
             </motion.div>
           ) : (
-            <motion.div 
-              key="fallback"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.8 }}
-              className="relative w-full flex justify-center"
-            >
-              <div className="w-full">
-                <img 
-                  src={heroBannerUrl} 
-                  alt="Hero Banner" 
-                  className="w-full h-auto block"
-                />
-              </div>
-            </motion.div>
+            heroBannerUrl ? (
+              <motion.div 
+                key="fallback"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.8 }}
+                className="relative w-full flex justify-center"
+              >
+                <div className="w-full">
+                  <img 
+                    src={heroBannerUrl} 
+                    alt="Hero Banner" 
+                    className="w-full h-auto block"
+                  />
+                </div>
+              </motion.div>
+            ) : null
           )}
         </AnimatePresence>
       </section>

@@ -50,8 +50,6 @@ export default function Navbar() {
   ];
   if (isAdmin) {
     navLinks.push({ name: 'Admin Panel', path: '/admin' });
-  } else {
-    navLinks.push({ name: 'Admin', path: '/admin/login' });
   }
 
   const handleAuthClick = async () => {

@@ -47,7 +47,7 @@ service cloud.firestore {
     match /products/{productId} {
       allow read, list: if true;
       allow create: if isAdmin() && isValidId(productId) && isValidProduct(incoming());
-      allow update: if (isAdmin() || (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['sizeStock', 'stock']))) && isValidId(productId) && isValidProduct(incoming());
+      allow update: if (isAdmin() || (isSignedIn() && (incoming().diff(existing()).affectedKeys().hasOnly(['sizeStock', 'stock']) || incoming().diff(existing()).affectedKeys().hasOnly(['stock']) || incoming().diff(existing()).affectedKeys().hasOnly(['sizeStock'])))) && isValidId(productId);
       allow delete: if isAdmin() && isValidId(productId);
     }
 
