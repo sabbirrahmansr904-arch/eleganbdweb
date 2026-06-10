@@ -65,32 +65,32 @@ export default function AdminDashboard(): React.JSX.Element {
   const stats = [
     { 
       name: 'TOTAL PRODUCTS', 
-      value: (products.length || 1394).toLocaleString(),
-      badge: '+2%',
+      value: (products.length || 0).toLocaleString(),
+      badge: '+0%',
       badgeColor: 'text-[#10B981] bg-[#ECFDF5]',
       icon: Package,
       iconBg: 'bg-[#FFF0ED] text-[#FF5B48]'
     },
     { 
       name: 'TOTAL STOCK', 
-      value: (totalStock || 8265).toLocaleString(), 
-      badge: '+5%',
+      value: (totalStock || 0).toLocaleString(), 
+      badge: '+0%',
       badgeColor: 'text-[#10B981] bg-[#ECFDF5]',
       icon: Archive,
       iconBg: 'bg-[#EBFDFB] text-[#00AF99]'
     },
     { 
       name: 'LOW STOCK ITEMS', 
-      value: (lowStockProducts.length || 19682).toLocaleString(), 
-      badge: `-${lowStockProducts.length || 19682}`,
+      value: (lowStockProducts.length || 0).toLocaleString(), 
+      badge: `-${lowStockProducts.length || 0}`,
       badgeColor: 'text-[#EF4444] bg-[#FEE2E2]',
       icon: AlertTriangle,
       iconBg: 'bg-[#FFF9EC] text-[#FF8800]'
     },
     { 
       name: 'SALES TODAY', 
-      value: todaySales > 0 ? formatPrice(todaySales, currency, rate) : '৳93,903', 
-      badge: todaySales > 0 ? '6.2%' : '6.2%',
+      value: todaySales > 0 ? formatPrice(todaySales, currency, rate) : formatPrice(0, currency, rate), 
+      badge: todaySales > 0 ? '6.2%' : '0%',
       badgeColor: 'text-[#10B981] bg-[#ECFDF5]',
       icon: TrendingUp,
       iconBg: 'bg-[#FFF0ED] text-[#E04622]'
@@ -115,8 +115,8 @@ export default function AdminDashboard(): React.JSX.Element {
     });
     const daySales = dayOrders.reduce((sum, o) => sum + o.total, 0);
     
-    // Aesthetic fallbacks to form the pretty wave in screenshot if transactions are empty
-    const fallbackCurve = [50000, 72000, 48000, 38000, 79726, 68000, 91500];
+    // Aesthetic fallbacks removed to show 0 when no transactions
+    const fallbackCurve = [0, 0, 0, 0, 0, 0, 0];
     return {
       name: format(date, 'MMM dd'),
       sales: daySales || fallbackCurve[index],
@@ -132,25 +132,19 @@ export default function AdminDashboard(): React.JSX.Element {
 
   let categoryRawData = Object.entries(categoryCount).map(([name, value]) => ({ name, value }));
   if (categoryRawData.length === 0) {
-    // Exact screenshot items as glorious fallbacks
-    categoryRawData = [
-      { name: 'Combo Full Sleeve', value: 1696 },
-      { name: 'Cuban Half Sleeve', value: 1550 },
-      { name: 'Premium Shirt', value: 1281 },
-      { name: 'T-Shirt', value: 774 },
-      { name: 'Pajama', value: 309 },
-    ];
+    // Empty state
+    categoryRawData = [];
   }
 
-  const stockSum = categoryRawData.reduce((acc, c) => acc + c.value, 0) || 1;
+  const stockSum = categoryRawData.reduce((acc, c) => acc + c.value, 0) || 0;
   const categoryData = categoryRawData.map(c => ({
     name: c.name,
     value: c.value,
-    percentage: ((c.value / stockSum) * 100).toFixed(1) + '%'
+    percentage: stockSum > 0 ? ((c.value / stockSum) * 100).toFixed(1) + '%' : '0%'
   })).sort((a, b) => b.value - a.value);
 
   const displayedCategories = categoryData.slice(0, 5);
-  const othersCount = categoryData.length - 5;
+  const othersCount = Math.max(0, categoryData.length - 5);
   const othersTotalStock = categoryData.slice(5).reduce((acc, c) => acc + c.value, 0);
 
   // Recent Orders matching the screenshot style or real custom orders
@@ -160,17 +154,11 @@ export default function AdminDashboard(): React.JSX.Element {
     total: o.total,
     status: o.status === 'Pending' ? 'ORDER PLACED' : o.status?.toUpperCase() || 'ORDER PLACED',
     createdAt: o.createdAt
-  })) : [
-    { id: '2606070007', customerName: 'jarin', total: 699, status: 'ORDER PLACED', createdAt: new Date().toISOString() },
-    { id: '2606070006', customerName: 'Md. Riadul Islam Pavel', total: 1199, status: 'ORDER PLACED', createdAt: new Date().toISOString() },
-    { id: '2606070005', customerName: 'জিসান আহমেদ', total: 3446, status: 'ORDER PLACED', createdAt: new Date().toISOString() },
-    { id: '2606070004', customerName: 'Tanha Mohim Mithila', total: 699, status: 'ORDER PLACED', createdAt: new Date().toISOString() },
-    { id: '2606070003', customerName: 'Siam Yilmaz', total: 3496, status: 'ORDER PLACED', createdAt: new Date().toISOString() },
-  ];
+  })) : [];
 
   // Best Sellers matching screenshot and fallback
   const trendingProducts = products.filter(p => p.featured).slice(0, 5);
-  const bestSellersList = trendingProducts.length > 0 ? trendingProducts : products.slice(0, 5);
+  const bestSellersList = trendingProducts.length > 0 ? trendingProducts : [];
 
   // Custom tooltips matching deep royal blue/dark box
   const CustomTooltip = ({ active, payload, label }: any) => {

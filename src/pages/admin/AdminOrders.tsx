@@ -566,6 +566,21 @@ export default function AdminOrders(): React.JSX.Element {
           text: 'CANCELLED',
           class: 'bg-[#FFF1F2] text-[#E11D48] border-[#FFE4E6]',
         };
+      case 'Printed':
+        return {
+          text: 'PRINTED',
+          class: 'bg-[#FEFCE8] text-[#CA8A04] border-[#FEF08A]',
+        };
+      case 'Hold':
+        return {
+          text: 'HOLD',
+          class: 'bg-[#FFF7ED] text-[#EA580C] border-[#FED7AA]',
+        };
+      case 'Returned':
+        return {
+          text: 'RETURNED',
+          class: 'bg-[#F1F5F9] text-[#475569] border-[#CBD5E1]',
+        };
       default: 
         return {
           text: (status as string).toUpperCase(),
@@ -735,9 +750,12 @@ export default function AdminOrders(): React.JSX.Element {
             >
               <option value="All">STATUS</option>
               <option value="Pending">PLACED</option>
+              <option value="Printed">PRINTED</option>
               <option value="Processing">PREPARING</option>
               <option value="Shipped">SHIPPED</option>
               <option value="Delivered">SUCCESS</option>
+              <option value="Hold">HOLD</option>
+              <option value="Returned">RETURNED</option>
               <option value="Cancelled">CANCELLED</option>
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
@@ -1765,9 +1783,12 @@ export default function AdminOrders(): React.JSX.Element {
                           className="w-full bg-[#F8FAFC] border border-gray-100 text-[12px] font-semibold rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white"
                         >
                           <option value="Pending">Pending (Placed)</option>
+                          <option value="Printed">Printed</option>
                           <option value="Processing">Processing (Preparing)</option>
                           <option value="Shipped">Shipped</option>
                           <option value="Delivered">Delivered (Success)</option>
+                          <option value="Hold">Hold</option>
+                          <option value="Returned">Returned</option>
                           <option value="Cancelled">Cancelled</option>
                         </select>
                       </div>

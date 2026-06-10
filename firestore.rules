@@ -56,7 +56,7 @@ service cloud.firestore {
         data.customerId is string && 
         data.items is list && data.items.size() > 0 && data.items.size() <= 50 &&
         data.total is number && data.total >= 0 &&
-        data.status is string && data.status.matches('^(?i)(pending|processing|shipped|delivered|cancelled)$');
+        data.status is string && data.status.matches('^(?i)(pending|processing|shipped|delivered|cancelled|printed|hold|returned)$');
     }
 
     match /orders/{orderId} {

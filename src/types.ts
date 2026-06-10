@@ -53,7 +53,7 @@ export interface Order {
   items: CartItem[];
   deliveryCharge: number;
   total: number;
-  status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
+  status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Printed' | 'Hold' | 'Returned';
   paymentMethod: 'cod' | 'bkash' | 'nagad' | 'card';
   transactionId?: string;
   notes?: string;

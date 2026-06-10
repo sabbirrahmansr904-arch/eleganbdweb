@@ -8,8 +8,12 @@ export default function ComboOfferBanner() {
   const { comboOfferBannerUrl } = useBranding();
 
   useEffect(() => {
+    const hasBeenShown = localStorage.getItem('comboOfferShown');
+    if (hasBeenShown) return;
+
     const timer = setTimeout(() => {
       setIsVisible(true);
+      localStorage.setItem('comboOfferShown', 'true');
     }, 1000);
     return () => clearTimeout(timer);
   }, []);
