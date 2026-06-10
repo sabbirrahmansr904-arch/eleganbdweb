@@ -30,6 +30,7 @@ export default function AdminBanners() {
     title: '',
     link: '/shop',
     active: true,
+    type: 'hero',
   });
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -67,6 +68,7 @@ export default function AdminBanners() {
         title: '',
         link: '/shop',
         active: true,
+        type: 'hero',
       });
     } catch (err) {
       toast.error('Failed to save banner.');
@@ -79,6 +81,7 @@ export default function AdminBanners() {
       title: banner.title,
       link: banner.link,
       active: banner.active,
+      type: banner.type || 'other',
     });
     setEditingId(banner.id);
     setIsAdding(true);
@@ -92,6 +95,7 @@ export default function AdminBanners() {
       title: '',
       link: '/shop',
       active: true,
+      type: 'hero',
     });
   };
 
@@ -146,6 +150,17 @@ export default function AdminBanners() {
                     placeholder="/category/men"
                     className="w-full bg-gray-50 border border-gray-100 px-6 py-4 text-sm font-bold text-black outline-none focus:border-black transition-all rounded-2xl"
                   />
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] uppercase tracking-[0.2em] font-black text-gray-400 ml-1">Banner Type</label>
+                  <select 
+                    value={formData.type || 'other'}
+                    onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as 'hero' | 'other' }))}
+                    className="w-full bg-gray-50 border border-gray-100 px-6 py-4 text-sm font-bold text-black outline-none focus:border-black transition-all rounded-2xl"
+                  >
+                    <option value="hero">Hero Banner</option>
+                    <option value="other">Other Banner</option>
+                  </select>
                 </div>
               </div>
 

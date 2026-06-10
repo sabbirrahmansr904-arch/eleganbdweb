@@ -162,5 +162,19 @@ service cloud.firestore {
       allow create: if isValidId(reviewId) && isValidReview(incoming());
       allow update, delete: if isAdmin();
     }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'email']) &&
+        data.id is string && data.id.size() > 0 &&
+        data.email is string &&
+        (!data.keys().contains('name') || data.name is string) &&
+        (!data.keys().contains('phone') || data.phone is string) &&
+        (!data.keys().contains('wishlist') || data.wishlist is list);
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && userId == request.auth.uid;
+      allow write: if isSignedIn() && userId == request.auth.uid;
+    }
   }
 }

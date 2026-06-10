@@ -63,12 +63,12 @@ export default function Navbar() {
 
   return (
     <>
-      <AnnouncementBar />
       <nav
         className={cn(
           'sticky top-0 left-0 w-full z-50 bg-black border-b border-white/10 transition-all duration-300'
         )}
       >
+        <AnnouncementBar />
         {/* Top Row: Menu, Logo, Actions */}
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-[50px] md:h-[65px] grid grid-cols-3 items-center">
           {/* Left Side: Mobile Menu Toggle & Search (Icon only to keep center logo clean) */}

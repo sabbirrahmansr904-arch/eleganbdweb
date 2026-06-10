@@ -15,17 +15,17 @@ const Home = () => {
   const { banners } = useBanners();
   const { heroBannerUrl, collectionsBannerUrl, featureBannerUrl, poloBannerUrl } = useBranding();
   
-  const activeBanners = banners.filter(b => b.active);
+  const activeHeroBanners = banners.filter(b => b.active && b.type === 'hero');
   const [currentBanner, setCurrentBanner] = React.useState(0);
 
   React.useEffect(() => {
-    if (activeBanners.length > 1) {
+    if (activeHeroBanners.length > 1) {
       const timer = setInterval(() => {
-        setCurrentBanner(prev => (prev + 1) % activeBanners.length);
+        setCurrentBanner(prev => (prev + 1) % activeHeroBanners.length);
       }, 5000);
       return () => clearInterval(timer);
     }
-  }, [activeBanners.length]);
+  }, [activeHeroBanners.length]);
 
   // Get products by category
   const formalPants = products.filter(p => {
@@ -49,22 +49,22 @@ const Home = () => {
       {/* Hero Section */}
       <section className="relative w-full bg-white overflow-hidden">
         <AnimatePresence mode="wait">
-          {activeBanners.length > 0 ? (
+          {activeHeroBanners.length > 0 ? (
             <motion.div
-              key={activeBanners[currentBanner]?.id || 'slider'}
+              key={activeHeroBanners[currentBanner]?.id || 'slider'}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.8 }}
               className="relative w-full flex justify-center"
             >
-              <div className="w-full">
+              <Link to={activeHeroBanners[currentBanner].link} className="w-full">
                 <img 
-                  src={activeBanners[currentBanner]?.image} 
-                  alt={activeBanners[currentBanner]?.title} 
+                  src={activeHeroBanners[currentBanner]?.image} 
+                  alt={activeHeroBanners[currentBanner]?.title} 
                   className="w-full h-auto block"
                 />
-              </div>
+              </Link>
             </motion.div>
           ) : (
             heroBannerUrl ? (
@@ -147,37 +147,24 @@ const Home = () => {
 
       {/* Category Sections */}
       <div className="space-y-4">
-        {/* Formal Shirts */}
-        {formalShirts.length > 0 && (
+        {/* Formal Pants */}
+        {formalPants.length > 0 && (
           <section className="py-20 bg-gray-50">
             <div className="max-w-7xl mx-auto px-6">
               <div className="mb-12 text-center">
-                <h3 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase text-black">Formal Shirts</h3>
-                <p className="text-[10px] text-gray-500 uppercase tracking-[0.4em] mt-3 font-bold">Elegance Redefined</p>
+                <h3 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase text-black">Formal Pants</h3>
+                <p className="text-[10px] text-gray-500 uppercase tracking-[0.4em] mt-3 font-bold">Smart & Professionals</p>
               </div>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-10">
-                {formalShirts.map((product) => (
+                {formalPants.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}
               </div>
               <div className="mt-12 flex justify-center">
-                <Link to="/category/formal-shirt" className="text-[10px] font-black uppercase tracking-[0.3em] text-black hover:text-brand-gold transition-colors flex items-center gap-2">
-                  View All Formal Shirts <ArrowRight size={14} />
+                <Link to="/category/formal-pant" className="text-[10px] font-black uppercase tracking-[0.3em] text-black hover:text-brand-gold transition-colors flex items-center gap-2">
+                  View All Formal Pants <ArrowRight size={14} />
                 </Link>
               </div>
-            </div>
-          </section>
-        )}
-
-        {/* Polo T-Shirt Banner */}
-        {poloBannerUrl && (
-          <section className="max-w-7xl mx-auto px-6 py-12">
-            <div className="rounded-[2rem] overflow-hidden shadow-2xl bg-gray-50 border border-gray-100">
-              <img 
-                src={poloBannerUrl} 
-                className="w-full h-auto block" 
-                alt="Polo T-Shirt Banner" 
-              />
             </div>
           </section>
         )}
@@ -217,22 +204,22 @@ const Home = () => {
           </section>
         )}
 
-        {/* Formal Pants */}
-        {formalPants.length > 0 && (
+        {/* Formal Shirts */}
+        {formalShirts.length > 0 && (
           <section className="py-20 bg-gray-50">
             <div className="max-w-7xl mx-auto px-6">
               <div className="mb-12 text-center">
-                <h3 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase text-black">Formal Pants</h3>
-                <p className="text-[10px] text-gray-500 uppercase tracking-[0.4em] mt-3 font-bold">Smart & Professionals</p>
+                <h3 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase text-black">Formal Shirts</h3>
+                <p className="text-[10px] text-gray-500 uppercase tracking-[0.4em] mt-3 font-bold">Elegance Redefined</p>
               </div>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-10">
-                {formalPants.map((product) => (
+                {formalShirts.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}
               </div>
               <div className="mt-12 flex justify-center">
-                <Link to="/category/formal-pant" className="text-[10px] font-black uppercase tracking-[0.3em] text-black hover:text-brand-gold transition-colors flex items-center gap-2">
-                  View All Formal Pants <ArrowRight size={14} />
+                <Link to="/category/formal-shirt" className="text-[10px] font-black uppercase tracking-[0.3em] text-black hover:text-brand-gold transition-colors flex items-center gap-2">
+                  View All Formal Shirts <ArrowRight size={14} />
                 </Link>
               </div>
             </div>

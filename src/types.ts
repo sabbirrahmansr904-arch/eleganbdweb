@@ -70,6 +70,7 @@ export interface Customer {
   name: string;
   email: string;
   phone: string;
+  wishlist: string[];
   totalOrders: number;
   totalSpent: number;
   lastOrderDate: string;
@@ -81,6 +82,7 @@ export interface Banner {
   title: string;
   link: string;
   active: boolean;
+  type?: 'hero' | 'other';
 }
 
 export interface Coupon {

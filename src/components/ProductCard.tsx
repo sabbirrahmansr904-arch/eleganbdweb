@@ -3,13 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Product } from '../types';
 import { formatPrice, cn } from '../lib/utils';
-import { ShoppingBag, Star, Eye, Zap } from 'lucide-react';
+import { ShoppingBag, Star, Zap, Heart } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useAuth } from '../contexts/AuthContext';
+import { db } from '../lib/firebase';
+import { doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc } from 'firebase/firestore';
 import QuickViewModal from './QuickViewModal';
 import QuickOrderModal from './QuickOrderModal';
 
@@ -23,8 +26,47 @@ interface ProductCardProps {
 
 const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, loading = "lazy" }) => {
   const { currency, rate } = useCurrency();
+  const { currentUser } = useAuth();
   const [isQuickViewOpen, setIsQuickViewOpen] = React.useState(false);
   const [isQuickOrderOpen, setIsQuickOrderOpen] = React.useState(false);
+  const [isWishlisted, setIsWishlisted] = useState(false);
+
+  useEffect(() => {
+    if (currentUser) {
+      const checkWishlist = async () => {
+        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setIsWishlisted(userData.wishlist?.includes(product.id) || false);
+        }
+      };
+      checkWishlist();
+    }
+  }, [currentUser, product.id]);
+
+  const handleWishlistToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!currentUser) {
+        toast.error('Please login to add to wishlist');
+        return;
+    }
+    const userRef = doc(db, 'users', currentUser.uid);
+    try {
+      if (isWishlisted) {
+        await setDoc(userRef, { wishlist: arrayRemove(product.id) }, { merge: true });
+        setIsWishlisted(false);
+        toast.success('Removed from wishlist');
+      } else {
+        await setDoc(userRef, { wishlist: arrayUnion(product.id) }, { merge: true });
+        setIsWishlisted(true);
+        toast.success('Added to wishlist');
+      }
+    } catch (error) {
+      console.error('Error updating wishlist:', error);
+      toast.error('Failed to update wishlist');
+    }
+  };
 
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -87,6 +129,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, loading
               <span className="text-[7px] md:text-[9px] font-bold leading-none font-sans">ছাড়</span>
             </div>
           )}
+          <button onClick={handleWishlistToggle} className="p-2 bg-white/80 rounded-full hover:bg-white transition-colors text-gray-400 hover:text-red-500">
+            <Heart size={20} className={isWishlisted ? "fill-red-500 text-red-500" : ""} />
+          </button>
         </div>
         
         <div className="absolute top-2 left-2">

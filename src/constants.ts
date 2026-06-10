@@ -189,6 +189,7 @@ export const MOCK_CUSTOMERS: Customer[] = [
     name: 'Aria Rahman',
     email: 'aria@example.com',
     phone: '01712345678',
+    wishlist: [],
     totalOrders: 5,
     totalSpent: 1250,
     lastOrderDate: '2026-04-15'
@@ -198,6 +199,7 @@ export const MOCK_CUSTOMERS: Customer[] = [
     name: 'Zubair Hossain',
     email: 'zubair@example.com',
     phone: '01812345679',
+    wishlist: [],
     totalOrders: 2,
     totalSpent: 240,
     lastOrderDate: '2026-04-18'

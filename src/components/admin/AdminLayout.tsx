@@ -17,6 +17,7 @@ import {
   FileText,
   Settings, 
   Image as ImageIcon,
+  Image,
   LogOut, 
   Menu, 
   X, 
@@ -80,6 +81,7 @@ export default function AdminLayout() {
       title: 'SYSTEM',
       items: [
         { name: 'Media', path: '/admin/media', icon: ImageIcon },
+        { name: 'Banners', path: '/admin/banners', icon: Image },
         { name: 'Visit Storefront', path: '/', icon: ExternalLink },
       ]
     }

@@ -117,6 +117,19 @@
         "createdAt": { "type": "number" }
       },
       "required": ["productId", "userName", "rating", "comment", "createdAt"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile and wishlist",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "wishlist": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "email"]
     }
   },
   "firestore": {
@@ -151,6 +164,10 @@
     "/reviews/{reviewId}": {
       "schema": { "$ref": "#/entities/Review" },
       "description": "Product reviews (all read, all create)"
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles and wishlist (read own, write own)"
     }
   }
 }
