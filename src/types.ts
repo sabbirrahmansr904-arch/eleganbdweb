@@ -63,6 +63,8 @@ export interface Order {
   issueStatus?: 'open' | 'resolved';
   issueReplies?: Array<{ sender: 'customer' | 'admin', message: string, timestamp: string }>;
   createdAt: string;
+  courier?: string;
+  partner?: string;
 }
 
 export interface Customer {

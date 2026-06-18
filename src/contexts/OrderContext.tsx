@@ -107,10 +107,14 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteOrder = async (id: string) => {
+    console.log(`Attempting to delete order: ${id}`);
     try {
       await deleteDoc(doc(db, 'orders', id));
+      console.log(`Successfully deleted order document: ${id}`);
     } catch (error) {
+      console.error(`Error deleting order ${id}:`, error);
       handleFirestoreError(error, OperationType.DELETE, `orders/${id}`);
+      throw error;
     }
   };
 

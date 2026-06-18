@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import toast from 'react-hot-toast';
 import { 
   Search, 
   Eye, 
@@ -24,7 +25,8 @@ import {
   CheckCircle2,
   Scan,
   ShoppingCart,
-  Edit3
+  Edit3,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatPrice, cn } from '../../lib/utils';
@@ -33,12 +35,11 @@ import { useOrders } from '../../contexts/OrderContext';
 import { useProducts } from '../../contexts/ProductContext';
 import { Order, CartItem } from '../../types';
 import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
 import { Html5Qrcode } from 'html5-qrcode';
 
 export default function AdminOrders(): React.JSX.Element {
   const { currency, rate } = useCurrency();
-  const { orders, updateOrderStatus, updateOrder, addOrder } = useOrders();
+  const { orders, updateOrderStatus, updateOrder, addOrder, deleteOrder } = useOrders();
   const { products } = useProducts();
   const navigate = useNavigate();
 
@@ -780,6 +781,19 @@ export default function AdminOrders(): React.JSX.Element {
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
           </div>
 
+          {/* 4. COURIER Filter Dropdown */}
+          <div className="relative md:col-span-1.5 md:col-span-1">
+            <select
+              className="w-full pl-4 pr-10 py-3 bg-[#F8FAFC] border-none text-[11px] font-extrabold uppercase tracking-wider rounded-2xl text-[#62758A] focus:ring-2 focus:ring-[#2563EB]/20 focus:bg-white focus:text-[#0C1421] outline-none transition-all appearance-none cursor-pointer"
+            >
+              <option value="All">COURIER</option>
+              <option value="Pathao">PATHAO</option>
+              <option value="RedX">REDX</option>
+              <option value="Steadfast">STEADFAST</option>
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+          </div>
+
         </div>
 
         {/* Clear filters row indicator */}
@@ -850,7 +864,18 @@ export default function AdminOrders(): React.JSX.Element {
           
           <table className="w-full text-left border-collapse table-fixed min-w-[1100px]">
             {/* Table Column specifications to match high precision alignments */}
-            <colgroup><col className="w-[55px]" /><col className="w-[100px]" /><col className="w-[100px]" /><col className="w-[185px]" /><col className="w-[155px]" /><col className="w-[185px]" /><col className="w-[145px]" /><col className="w-[220px]" /></colgroup>
+            <colgroup>
+              <col className="w-[50px]" />
+              <col className="w-[90px]" />
+              <col className="w-[90px]" />
+              <col className="w-[120px]" />
+              <col className="w-[120px]" />
+              <col className="w-[120px]" />
+              <col className="w-[120px]" />
+              <col className="w-[100px]" />
+              <col className="w-[100px]" />
+              <col className="w-[150px]" />
+            </colgroup>
 
             {/* Header row exactly showing sizes or price fields */}
             <thead>
@@ -867,8 +892,10 @@ export default function AdminOrders(): React.JSX.Element {
                 <th className="px-5 text-[11px] font-black uppercase tracking-widest text-[#8292A1]">TIME</th>
                 <th className="px-5 text-[11px] font-black uppercase tracking-widest text-[#8292A1]">ORDER NO</th>
                 <th className="px-5 text-[11px] font-black uppercase tracking-widest text-[#8292A1]">INVOICE BY</th>
-                <th className="px-5 text-[11px] font-black uppercase tracking-widest text-[#8292A1]">QR / SCAN CODE</th>
+                <th className="px-5 text-[11px] font-black uppercase tracking-widest text-[#8292A1]">INVOICE NO</th>
                 <th className="px-5 text-[11px] font-black uppercase tracking-widest text-[#8292A1]">STATUS</th>
+                <th className="px-5 text-[11px] font-black uppercase tracking-widest text-[#8292A1]">COURIER</th>
+                <th className="px-5 text-[11px] font-black uppercase tracking-widest text-[#8292A1]">PARTNER</th>
                 <th className="px-5 text-[11px] font-black uppercase tracking-widest text-[#8292A1] text-right pr-6">ACTION</th>
               </tr>
             </thead>
@@ -955,9 +982,11 @@ export default function AdminOrders(): React.JSX.Element {
                         </span>
                       </td>
 
-                      {/* QR / SCAN CODE WITH TEXT LABEL */}
+                      {/* INVOICE NO */}
                       <td className="px-5 py-4">
-                        {renderOrderQRCode(order.id)}
+                        <span className="text-[12px] font-semibold text-[#4A5E73] font-mono">
+                          {order.id}
+                        </span>
                       </td>
 
                       {/* STATUS Badge */}
@@ -967,6 +996,20 @@ export default function AdminOrders(): React.JSX.Element {
                           statusInfo.class
                         )}>
                           {statusInfo.text}
+                        </span>
+                      </td>
+
+                      {/* COURIER */}
+                      <td className="px-5 py-4">
+                        <span className="text-[12px] font-semibold text-gray-500">
+                          {order.courier || '-'}
+                        </span>
+                      </td>
+
+                      {/* PARTNER */}
+                      <td className="px-5 py-4">
+                        <span className="text-[12px] font-semibold text-gray-500">
+                          {order.partner || '-'}
                         </span>
                       </td>
 
@@ -1011,7 +1054,26 @@ export default function AdminOrders(): React.JSX.Element {
                             <Printer size={13} className="stroke-[2.2]" />
                           </button>
 
-                          {/* 4. Barcode details tags */}
+                          {/* 4. Delete button */}
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (window.confirm('Are you sure you want to delete this order?')) {
+                                deleteOrder(order.id)
+                                  .then(() => toast.success(`Order #${order.id} deleted successfully`))
+                                  .catch((err) => {
+                                      console.error("Delete error:", err);
+                                      toast.error(`Failed to delete order: ${err.message || 'Unknown error'}`);
+                                  });
+                              }
+                            }}
+                            title="Delete Order"
+                            className="p-2 bg-red-50 hover:bg-red-100 rounded-lg text-red-500 hover:text-red-700 transition-all cursor-pointer border border-red-100"
+                          >
+                            <Trash2 size={13} className="stroke-[2.2]" />
+                          </button>
+
+                          {/* 5. Barcode details tags */}
                           <button 
                             onClick={() => {
                               toast.success(`Order #${order.id} verified. Tag matched!`);

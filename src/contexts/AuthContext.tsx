@@ -22,7 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const isSuperAdminEmail = (email: string | null) => 
-    email === 'eleganbd.ltd@gmail.com';
+    email === 'sabbirrahmansr904@gmail.com';
 
   const refreshAdminStatus = async () => {
     if (auth.currentUser) {

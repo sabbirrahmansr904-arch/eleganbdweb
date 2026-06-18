@@ -7,27 +7,36 @@ import React from 'react';
 import { motion } from 'framer-motion';
 
 export default function AnnouncementBar() {
+  const announcements = [
+    "🌟 SPECIAL LAUNCH OFFER: Enjoy flat 30% discount on all new arrivals! ✨",
+    "🚚 FREE SHIPPING: Get free delivery on all orders above 1500 BDT nationwide! 🚛",
+    "📞 HOTLINE: Call or WhatsApp us at 01631496122 for any support! 📱"
+  ];
+
   return (
-    <div className="bg-white py-1.5 overflow-hidden border-b border-indigo-100/50">
-      <div className="hidden lg:flex justify-center items-center px-4">
-          Special Launch Offer! Only for today. Hotline: 01631496122
+    <div className="bg-gradient-to-r from-brand-black to-gray-900 py-3 overflow-hidden border-b border-white/10 text-white">
+      <div className="hidden lg:flex flex-col items-center gap-1">
+        {announcements.map((text, idx) => (
+            <span key={idx} className="text-[10px] font-black uppercase tracking-[0.2em]">
+              {text}
+            </span>
+        ))}
       </div>
       <div className="lg:hidden whitespace-nowrap">
         <motion.div
-          animate={{ x: [0, -1200] }}
+          animate={{ x: [0, -1000] }}
           transition={{
             repeat: Infinity,
-            duration: 25,
+            duration: 30,
             ease: "linear",
           }}
           className="inline-block px-4"
         >
-          <span className="text-[11px] font-bold text-indigo-900 uppercase tracking-wider">
-            Special Launch Offer! Only for today. Hotline: 01631496122
-          </span>
-          <span className="mx-12 text-[11px] font-bold text-indigo-900 uppercase tracking-wider">
-            Special Launch Offer! Only for today. Hotline: 01631496122
-          </span>
+          {announcements.map((text, idx) => (
+              <span key={idx} className="text-[10px] font-black uppercase tracking-wider mx-4">
+                {text}
+              </span>
+          ))}
         </motion.div>
       </div>
     </div>
