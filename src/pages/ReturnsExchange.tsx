@@ -48,7 +48,7 @@ export default function ReturnsExchange() {
             <ul className="space-y-3 list-none pl-0">
               <li className="flex items-start gap-3">
                 <CheckCircle2 size={18} className="text-green-500 mt-0.5 flex-shrink-0" />
-                <span>Contact our customer care team via WhatsApp at +8801631496122.</span>
+                <span>Contact our customer care team via WhatsApp at +8801619835133.</span>
               </li>
               <li className="flex items-start gap-3">
                 <CheckCircle2 size={18} className="text-green-500 mt-0.5 flex-shrink-0" />

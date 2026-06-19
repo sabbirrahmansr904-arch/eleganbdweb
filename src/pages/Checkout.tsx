@@ -159,12 +159,11 @@ export default function Checkout() {
         </button>
         <h1 className="text-xl md:text-2xl font-black text-[#0C1421] tracking-tight uppercase">CHECKOUT</h1>
       </div>
-
+      <form onSubmit={handleSubmit} className="space-y-10">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
         
         {/* Left Side: Dynamic Checkout Card */}
         <div className="border border-gray-100/80 bg-white p-5 md:p-10 rounded-3xl shadow-sm">
-          <form onSubmit={handleSubmit} className="space-y-10">
             
             {/* Step 1: Shipping Information */}
             <div className="space-y-6">
@@ -394,7 +393,7 @@ export default function Checkout() {
                 </label>
 
               </div>
-
+              
               {/* Secure Manual Mobile Banking Instructions (Clean Monochrome High Contrast Aesthetics) */}
               <AnimatePresence>
                 {(formData.paymentMethod === 'bkash' || formData.paymentMethod === 'nagad') && (
@@ -410,7 +409,7 @@ export default function Checkout() {
                     </p>
                     <div className="text-[12.5px] space-y-3.5 text-[#0C1421] leading-relaxed font-sans font-bold">
                       <p>১. নিচের নাম্বারে <span className="font-extrabold underline">{formData.paymentMethod === 'bkash' ? 'bKash' : 'Nagad'} Personal</span> এ <span className="font-extrabold">Send Money</span> করুন।</p>
-                      <p>২. নাম্বার: <span className="text-[#0C1421] font-black text-base tracking-wider bg-white border border-gray-200 px-2.5 py-1 rounded-md shadow-3xs ml-1 font-mono">01631496122</span></p>
+                      <p>২. নাম্বার: <span className="text-[#0C1421] font-black text-base tracking-wider bg-white border border-gray-200 px-2.5 py-1 rounded-md shadow-3xs ml-1 font-mono">01619835133</span></p>
                       <p>৩. টাকা পাঠানো হয়ে গেলে ট্রানজেকশন আইডি টি নিচের বক্সে লিখে অর্ডার সম্পন্ন করুন।</p>
                       
                       <div className="space-y-2 pt-3">
@@ -430,7 +429,7 @@ export default function Checkout() {
                 )}
               </AnimatePresence>
             </div>
-
+            
             {/* Huge Confirmation Action Button */}
             <div className="pt-2">
               <button
@@ -458,9 +457,8 @@ export default function Checkout() {
               </span>
             </div>
 
-          </form>
-        </div>
-
+          </div>
+        
         {/* Right Side: Order Summary Card */}
         <div className="border border-gray-100/80 bg-white p-5 md:p-10 rounded-3xl shadow-sm space-y-8">
           
@@ -556,6 +554,33 @@ export default function Checkout() {
             </div>
           </div>
 
+                    {/* Huge Confirmation Action Button (Moved here for visibility) */}
+          <div className="pt-2">
+            <button
+              disabled={isProcessing}
+              type="submit"
+              className={cn(
+                "w-full py-5 text-xs uppercase tracking-[0.2em] font-black transition-all duration-300 rounded-2xl flex items-center justify-center cursor-pointer shadow-md",
+                isProcessing 
+                  ? "bg-gray-200 text-gray-500 cursor-not-allowed" 
+                  : "bg-[#0C1421] text-white hover:bg-emerald-600 shadow-xl shadow-[#0C1421]/5"
+              )}
+            >
+              {isProcessing ? (
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="w-4 h-4 border-2 border-gray-400 border-t-gray-700 rounded-full animate-spin" />
+                  <span>Processing Order...</span>
+                </div>
+              ) : (
+                `CONFIRM & PLACE ORDER — ${formatPrice(total, currency, rate)}`
+              )}
+            </button>
+            
+            <span className="text-center text-gray-500/85 uppercase tracking-[0.15em] text-[9.5px] font-black mt-4 block">
+              ESTIMATED DELIVERY: 24-48 HOURS
+            </span>
+          </div>
+
           <p className="text-[9.5px] text-[#62758A]/80 font-semibold leading-relaxed text-center pt-2">
             By placing your order, you agree to our Terms of Use and Privacy Policy. Delivery typically takes 1 business day.
           </p>
@@ -563,6 +588,7 @@ export default function Checkout() {
         </div>
 
       </div>
+</form>
     </div>
   );
 }

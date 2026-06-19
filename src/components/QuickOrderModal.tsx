@@ -188,6 +188,10 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
                     </div>
                   </div>
 
+                  <div className="text-[10px] text-center p-3 bg-brand-gold/10 border border-brand-gold/20 rounded-sm text-brand-black font-bold uppercase tracking-wider">
+                    Bkash/Nagad Merchant: 01619835133
+                  </div>
+
                   <button
                     disabled={isSubmitting}
                     type="submit"

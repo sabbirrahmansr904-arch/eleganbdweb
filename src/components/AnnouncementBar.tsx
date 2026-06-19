@@ -10,7 +10,7 @@ export default function AnnouncementBar() {
   const announcements = [
     "🌟 SPECIAL LAUNCH OFFER: Enjoy flat 30% discount on all new arrivals! ✨",
     "🚚 FREE SHIPPING: Get free delivery on all orders above 1500 BDT nationwide! 🚛",
-    "📞 HOTLINE: Call or WhatsApp us at 01631496122 for any support! 📱"
+    "📞 HOTLINE: Call or WhatsApp us at 01619835133 for any support! 📱"
   ];
 
   return (

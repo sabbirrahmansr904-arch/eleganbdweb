@@ -22,3 +22,8 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+::selection {
+  background-color: #ef4444;
+  color: white;
+}
