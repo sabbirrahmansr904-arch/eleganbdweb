@@ -12,7 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useCategories } from '../contexts/CategoryContext';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import AnnouncementBar from './AnnouncementBar';
+
 import SearchOverlay from './SearchOverlay';
 
 import { useCart } from '../contexts/CartContext';
@@ -68,7 +68,6 @@ export default function Navbar() {
           'sticky top-0 left-0 w-full z-50 bg-black border-b border-white/10 transition-all duration-300'
         )}
       >
-        <AnnouncementBar />
         {/* Top Row: Menu, Logo, Actions */}
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-[50px] md:h-[65px] grid grid-cols-3 items-center">
           {/* Left Side: Mobile Menu Toggle & Search (Icon only to keep center logo clean) */}

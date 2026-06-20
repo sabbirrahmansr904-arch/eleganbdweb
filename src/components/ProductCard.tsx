@@ -11,10 +11,11 @@ import { formatPrice, cn } from '../lib/utils';
 import { ShoppingBag, Star, Zap, Heart } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useCart } from '../contexts/CartContext';
+import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/firebase';
 import { doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc } from 'firebase/firestore';
 import QuickViewModal from './QuickViewModal';
-import QuickOrderModal from './QuickOrderModal';
 
 import toast from 'react-hot-toast';
 
@@ -28,7 +29,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, loading
   const { currency, rate } = useCurrency();
   const { currentUser } = useAuth();
   const [isQuickViewOpen, setIsQuickViewOpen] = React.useState(false);
-  const [isQuickOrderOpen, setIsQuickOrderOpen] = React.useState(false);
   const [isWishlisted, setIsWishlisted] = useState(false);
 
   useEffect(() => {
@@ -68,14 +68,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, loading
     }
   };
 
+  const { addToCart } = useCart();
+  const navigate = useNavigate();
+
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (onAddToCart) {
-      const defaultSize = product.sizes[0] || 'M';
-      onAddToCart(product.id, defaultSize, 1);
-      toast.success(`${product.name} added to bag`);
-    }
+    addToCart(product, product.sizes[0] || 'M', 1);
+    toast.success(`${product.name} added to bag`);
   };
 
   const handleQuickView = (e: React.MouseEvent) => {
@@ -87,7 +87,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, loading
   const handleQuickOrder = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsQuickOrderOpen(true);
+    addToCart(product, product.sizes[0] || 'M', 1);
+    navigate('/checkout');
   };
 
   const discount = product.discount || 0;
@@ -180,7 +181,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, loading
             className="w-full bg-[#0C1421] text-white py-2 md:py-2.5 rounded-sm text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] md:tracking-[0.15em] flex items-center justify-center gap-1.5 hover:bg-emerald-600 transition-colors cursor-pointer group/btn"
           >
             <Zap size={10} fill="currentColor" className="text-amber-400 group-hover/btn:scale-110 transition-transform" />
-            <span>সরাসরি অর্ডার</span>
+            <span>Buy Now</span>
           </button>
           
           <button 
@@ -188,7 +189,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, loading
             className="w-full bg-white text-black py-1.5 md:py-2 rounded-sm text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] md:tracking-[0.15em] flex items-center justify-center gap-1.5 border border-gray-200/90 hover:bg-[#0C1421] hover:text-white transition-colors cursor-pointer"
           >
             <ShoppingBag size={10} />
-            <span>কার্টে দিন</span>
+            <span>Add To Cart</span>
           </button>
         </div>
       </div>
@@ -196,11 +197,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, loading
         product={product} 
         isOpen={isQuickViewOpen} 
         onClose={() => setIsQuickViewOpen(false)} 
-      />
-      <QuickOrderModal
-        product={product}
-        isOpen={isQuickOrderOpen}
-        onClose={() => setIsQuickOrderOpen(false)}
       />
     </motion.div>
   );
