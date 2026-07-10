@@ -7,7 +7,7 @@ import React, { useMemo } from 'react';
 import { useOrders } from '../../contexts/OrderContext';
 import { useProducts } from '../../contexts/ProductContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
-import { ShoppingBag, Package, Bell, Clock, Search } from 'lucide-react';
+import { ShoppingBag, Package, Bell, Clock, Search, CheckSquare, AlertCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { formatPrice, cn } from '../../lib/utils';
 
@@ -28,14 +28,39 @@ export default function AdminNotifications() {
 
     // Order notifications
     orders.forEach(order => {
+      // 1. New Order notification
       items.push({
         id: `order-${order.id}`,
         title: `New Order Received`,
-        message: `Order #${order.id.slice(-6)} placed for ${order.items.length} items totaling ${formatPrice(order.total, currency, rate)}. Status: ${order.status}`,
+        message: `Order #${order.id.slice(-6).toUpperCase()} placed for ${order.items.length} items totaling ${formatPrice(order.total, currency, rate)}.`,
         time: new Date(order.createdAt),
         icon: ShoppingBag,
-        color: 'text-blue-500 bg-blue-50',
+        color: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
       });
+
+      // 2. QC Passed notification
+      if (order.status === 'QC') {
+        items.push({
+          id: `order-qc-${order.id}`,
+          title: `Order QC Passed`,
+          message: `Order #${order.id.slice(-6).toUpperCase()} (${order.customerName}) has successfully passed Quality Check (QC). Ready for shipment packaging.`,
+          time: order.updatedAt ? new Date(order.updatedAt) : new Date(order.createdAt),
+          icon: CheckSquare,
+          color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+        });
+      }
+
+      // 3. Issue Active notification
+      if (order.issueType) {
+        items.push({
+          id: `order-issue-${order.id}`,
+          title: `Order Issue: ${order.issueType}`,
+          message: `Internal discussion raised for Order #${order.id.slice(-6).toUpperCase()} (${order.customerName}). Status: ${order.issueStatus?.toUpperCase() || 'OPEN'}. Latest: "${order.issueReplies?.[order.issueReplies.length - 1]?.message || 'No description provided'}"`,
+          time: order.updatedAt ? new Date(order.updatedAt) : new Date(order.createdAt),
+          icon: AlertCircle,
+          color: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+        });
+      }
     });
 
     // Recent products added
@@ -47,12 +72,12 @@ export default function AdminNotifications() {
         message: `${product.name} was recently added or updated in the catalog.`,
         time: productTime,
         icon: Package,
-        color: 'text-brand-gold bg-brand-gold/10',
+        color: 'bg-brand-gold/10 text-brand-gold border-brand-gold/20',
       });
     });
 
     return items.sort((a, b) => b.time.getTime() - a.time.getTime());
-  }, [orders, products]);
+  }, [orders, products, currency, rate]);
 
   return (
     <div className="space-y-8 max-w-4xl max-w-full">
@@ -81,8 +106,8 @@ export default function AdminNotifications() {
               return (
                 <div key={notification.id} className="p-8 hover:bg-white/10 transition-all flex gap-6 group">
                   <div className={cn(
-                    "w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center border border-white/10 shadow-xl transition-transform group-hover:scale-110",
-                    notification.color.includes('blue') ? "bg-blue-500/10 text-blue-500 border-blue-500/20" : "bg-brand-gold/10 text-brand-gold border-brand-gold/20"
+                    "w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center border shadow-xl transition-transform group-hover:scale-110",
+                    notification.color
                   )}>
                     <Icon size={20} />
                   </div>

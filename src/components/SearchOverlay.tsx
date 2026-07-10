@@ -5,6 +5,7 @@ import { useProducts } from '../contexts/ProductContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { Product } from '../types';
+import ProductSkeleton from './ProductSkeleton';
 
 interface SearchOverlayProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
   const [query, setQuery] = useState('');
   const { products } = useProducts();
   const [results, setResults] = useState<Product[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
@@ -28,14 +30,20 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
 
   useEffect(() => {
     if (query.trim()) {
-      const filtered = products.filter(p => 
-        p.name.toLowerCase().includes(query.toLowerCase()) ||
-        p.category.toLowerCase().includes(query.toLowerCase()) ||
-        (p.description && p.description.toLowerCase().includes(query.toLowerCase()))
-      ).slice(0, 8);
-      setResults(filtered);
+      setIsSearching(true);
+      const timer = setTimeout(() => {
+        const filtered = products.filter(p => 
+          p.name.toLowerCase().includes(query.toLowerCase()) ||
+          p.category.toLowerCase().includes(query.toLowerCase()) ||
+          (p.description && p.description.toLowerCase().includes(query.toLowerCase()))
+        ).slice(0, 8);
+        setResults(filtered);
+        setIsSearching(false);
+      }, 300);
+      return () => clearTimeout(timer);
     } else {
       setResults([]);
+      setIsSearching(false);
     }
   }, [query, products]);
 
@@ -127,38 +135,59 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                   <h3 className="text-xs uppercase tracking-[0.2em] font-bold text-gray-500 mb-8">
                     Found {results.length} results for "{query}"
                   </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    {results.map((product) => (
-                      <div 
-                        key={product.id}
-                        onClick={() => handleProductClick(product.id)}
-                        className="flex gap-4 p-4 hover:bg-white/5 border border-transparent hover:border-white/10 rounded-xl cursor-pointer group transition-all"
-                      >
-                        <div className="w-20 h-24 bg-white/5 rounded-lg overflow-hidden shrink-0">
-                          <img 
-                            src={product.images[0]} 
-                            alt={product.name} 
-                            className="w-full h-full group-hover:scale-110 transition-transform duration-500 object-contain bg-white p-1"
-                          />
-                        </div>
-                        <div className="flex flex-col justify-center">
-                          <p className="text-[10px] uppercase tracking-widest text-brand-gold font-bold mb-1">
-                            {product.category}
-                          </p>
-                          <h4 className="font-medium text-white group-hover:text-brand-gold transition-colors uppercase italic tracking-tighter">
-                            {product.name}
-                          </h4>
-                          <p className="text-sm font-bold text-gray-400 mt-1">
-                            ৳{product.price}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  {results.length === 0 && (
-                    <div className="text-center py-20">
-                      <p className="text-gray-500 italic">No products found matching your search.</p>
+                  {isSearching ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      {[1, 2, 3, 4].map((i) => <ProductSkeleton key={i} />)}
                     </div>
+                  ) : (
+                    <motion.div 
+                      className="grid grid-cols-1 sm:grid-cols-2 gap-6"
+                      variants={{
+                        hidden: { opacity: 0 },
+                        show: { opacity: 1, transition: { staggerChildren: 0.05 } }
+                      }}
+                      initial="hidden"
+                      animate="show"
+                    >
+                      {results.map((product) => (
+                        <motion.div 
+                          key={product.id}
+                          variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
+                          onClick={() => handleProductClick(product.id)}
+                          className="flex gap-4 p-4 hover:bg-white/5 border border-transparent hover:border-white/10 rounded-xl cursor-pointer group transition-all"
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          <div className="w-20 h-24 bg-white/5 rounded-lg overflow-hidden shrink-0">
+                            <img 
+                              src={product.images[0]} 
+                              alt={product.name} 
+                              className="w-full h-full group-hover:scale-110 transition-transform duration-500 object-contain bg-white p-1"
+                            />
+                          </div>
+                          <div className="flex flex-col justify-center">
+                            <p className="text-[10px] uppercase tracking-widest text-brand-gold font-bold mb-1">
+                              {product.category}
+                            </p>
+                            <h4 className="font-medium text-white group-hover:text-brand-gold transition-colors uppercase italic tracking-tighter">
+                              {product.name}
+                            </h4>
+                            <p className="text-sm font-bold text-gray-400 mt-1">
+                              ৳{product.price}
+                            </p>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </motion.div>
+                  )}
+                  {results.length === 0 && !isSearching && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-center py-20"
+                    >
+                      <p className="text-gray-500 italic">No products found matching your search.</p>
+                    </motion.div>
                   )}
                 </div>
               )}

@@ -21,8 +21,8 @@ export default function Navbar() {
   const { items } = useCart();
   const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const { currency, setCurrency } = useCurrency();
-  const { logoUrl } = useBranding();
-  const { currentUser, isAdmin, signInWithGoogle, signOut } = useAuth();
+  const { logoUrl, showAnnouncementBar, announcementMessage } = useBranding();
+  const { currentUser, customerUser, logoutCustomer, isAdmin, signInWithGoogle, signOut } = useAuth();
   const { categories } = useCategories();
   const [isOpen, setIsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -63,6 +63,11 @@ export default function Navbar() {
 
   return (
     <>
+      {showAnnouncementBar && (
+        <div className="bg-brand-gold text-black text-center py-2 px-4 text-[10px] md:text-xs font-black uppercase tracking-[0.15em] relative z-[60]">
+          {announcementMessage}
+        </div>
+      )}
       <nav
         className={cn(
           'sticky top-0 left-0 w-full z-50 bg-black border-b border-white/10 transition-all duration-300'
@@ -119,6 +124,20 @@ export default function Navbar() {
                 <User size={22} strokeWidth={1.5} />
                 <span className="hidden lg:inline text-[10px] font-black uppercase tracking-widest">Account</span>
               </Link>
+            ) : customerUser ? (
+              <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1 rounded-full text-white">
+                <div className="flex flex-col text-right">
+                  <span className="text-[7.5px] uppercase tracking-widest text-white/50 font-black">Verified Client</span>
+                  <span className="text-[9.5px] font-mono font-black text-brand-gold leading-none">{customerUser.phone}</span>
+                </div>
+                <button 
+                  onClick={logoutCustomer}
+                  className="p-1 text-[8.5px] font-black uppercase tracking-wider text-red-400 hover:text-red-300 transition-colors ml-1 cursor-pointer"
+                  title="Logout Phone Session"
+                >
+                  Logout
+                </button>
+              </div>
             ) : (
               <button onClick={handleAuthClick} className="flex items-center gap-2 text-white hover:text-brand-gold transition-colors p-2" title="Sign In">
                 <User size={22} strokeWidth={1.5} />
@@ -257,8 +276,24 @@ export default function Navbar() {
                       }}
                       className="text-sm font-bold uppercase tracking-widest py-3 border-b border-white/10 text-left flex items-center gap-2 text-white/80"
                     >
-                      <LogOut size={18} /> Sign Out
+                      <LogOut size={18} /> Sign Out (Admin)
                     </button>
+                  ) : customerUser ? (
+                    <div className="py-3 border-b border-white/10 text-left space-y-2">
+                      <div className="flex items-center gap-2 text-brand-gold">
+                        <User size={18} strokeWidth={1.5} />
+                        <span className="text-xs font-mono font-black">{customerUser.phone} (Verified)</span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          logoutCustomer();
+                          setIsOpen(false);
+                        }}
+                        className="text-xs font-black uppercase tracking-widest text-red-400 hover:text-red-300 flex items-center gap-2 cursor-pointer"
+                      >
+                        <LogOut size={16} /> Log Out Phone
+                      </button>
+                    </div>
                   ) : (
                     <button
                       onClick={() => {

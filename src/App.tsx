@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import PixelTracker from './components/PixelTracker';
 
 // Contexts
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -55,6 +56,7 @@ import AdminCategories from './pages/admin/AdminCategories';
 import AdminExchanges from './pages/admin/AdminExchanges';
 import AdminIssues from './pages/admin/AdminIssues';
 import AdminMedia from './pages/admin/AdminMedia';
+import FixSizes from './pages/admin/FixSizes';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requireAdmin = true }: { children: React.ReactNode, requireAdmin?: boolean }) => {
@@ -125,6 +127,7 @@ function AppRoutes() {
           <Route path="exchanges" element={<AdminExchanges />} />
           <Route path="issues" element={<AdminIssues />} />
           <Route path="media" element={<AdminMedia />} />
+          <Route path="fix-sizes" element={<FixSizes />} />
         </Route>
 
         {/* Catch-all */}
@@ -149,6 +152,7 @@ function App() {
                         <ScrollToTop />
                         <div className="min-h-screen bg-white selection:bg-black/10 selection:text-black">
                           <Toaster position="top-center" reverseOrder={false} />
+                          <PixelTracker />
                           <AppRoutes />
                         </div>
                       </Router>

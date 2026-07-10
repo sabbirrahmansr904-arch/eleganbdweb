@@ -98,9 +98,9 @@ export const PRODUCTS: Product[] = [
     color: 'Black',
     material: 'Gabardine',
     images: ['https://images.unsplash.com/photo-1624371414361-e6e0efc8c030?q=80&w=1000'],
-    sizes: ['30', '32', '34', '36'],
+    sizes: ['28', '30', '32', '34', '36', '38', '40'],
     stock: 50,
-    sizeStock: {'30': 15, '32': 15, '34': 10, '36': 10},
+    sizeStock: {'28': 5, '30': 8, '32': 8, '34': 8, '36': 8, '38': 7, '40': 6},
     featured: true,
     newArrival: true
   },
@@ -128,9 +128,9 @@ export const PRODUCTS: Product[] = [
     color: 'Grey',
     material: 'Twill Cotton',
     images: ['https://images.unsplash.com/photo-1473966968600-fa801b869a1a?q=80&w=1000'],
-    sizes: ['30', '32', '34', '36'],
+    sizes: ['28', '30', '32', '34', '36', '38', '40'],
     stock: 35,
-    sizeStock: {'30': 10, '32': 10, '34': 10, '36': 5},
+    sizeStock: {'28': 3, '30': 6, '32': 6, '34': 6, '36': 6, '38': 4, '40': 4},
     featured: false
   }
 ];

@@ -35,6 +35,8 @@ export interface Category {
   slug: string;
   image?: string;
   description?: string;
+  order?: number;
+  isMega?: boolean;
 }
 
 export interface CartItem extends Product {
@@ -53,18 +55,21 @@ export interface Order {
   items: CartItem[];
   deliveryCharge: number;
   total: number;
-  status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Printed' | 'Hold' | 'Returned';
+  status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Printed' | 'Hold' | 'Returned' | 'QC';
   paymentMethod: 'cod' | 'bkash' | 'nagad' | 'card';
   transactionId?: string;
   notes?: string;
   discount?: number;
   advancePayment?: number;
   issueType?: string;
+  issueUrgency?: string;
   issueStatus?: 'open' | 'resolved';
   issueReplies?: Array<{ sender: 'customer' | 'admin', message: string, timestamp: string }>;
   createdAt: string;
+  updatedAt?: number;
   courier?: string;
   partner?: string;
+  invoiceBy?: string;
 }
 
 export interface Customer {

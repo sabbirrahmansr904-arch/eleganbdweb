@@ -4,11 +4,11 @@
  */
 
 import { Link } from 'react-router-dom';
-import { Facebook, Instagram, Twitter } from 'lucide-react';
+import { Facebook, Instagram, Youtube } from 'lucide-react';
 import { useBranding } from '../contexts/BrandingContext';
 
 export default function Footer() {
-  const { logoUrl } = useBranding();
+  const { logoUrl, facebookUrl, instagramUrl, youtubeUrl, tiktokUrl } = useBranding();
   return (
     <footer className="bg-black text-white pt-20 pb-10 px-6 md:px-12 border-t border-white/10">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8">
@@ -26,7 +26,7 @@ export default function Footer() {
           <div className="space-y-4 text-xs uppercase tracking-widest text-gray-400 font-bold leading-loose">
             <p className="flex items-start gap-3">
               <span className="text-brand-gold">📍</span>
-              Salim Uddin Market, Ahamed Nagar Paikpara, Mirpur 1, Dhaka-1216
+              Dhaka Mirpur-6, 1216
             </p>
             <p className="flex items-center gap-3">
               <span className="text-brand-gold">📞</span>
@@ -38,9 +38,28 @@ export default function Footer() {
             </p>
           </div>
           <div className="flex gap-4 pt-4 opacity-70 hover:opacity-100 transition-all text-white">
-            <Facebook size={20} className="cursor-pointer hover:text-[#1877F2] transition-colors" />
-            <Instagram size={20} className="cursor-pointer hover:text-[#E4405F] transition-colors" />
-            <Twitter size={20} className="cursor-pointer hover:text-[#1DA1F2] transition-colors" />
+            {(facebookUrl || !instagramUrl && !youtubeUrl && !tiktokUrl) && (
+              <a href={facebookUrl || "https://facebook.com"} target="_blank" rel="noopener noreferrer">
+                <Facebook size={20} className="cursor-pointer hover:text-[#1877F2] transition-colors" />
+              </a>
+            )}
+            {(instagramUrl || !facebookUrl && !youtubeUrl && !tiktokUrl) && (
+              <a href={instagramUrl || "https://instagram.com"} target="_blank" rel="noopener noreferrer">
+                <Instagram size={20} className="cursor-pointer hover:text-[#E4405F] transition-colors" />
+              </a>
+            )}
+            {youtubeUrl && (
+              <a href={youtubeUrl} target="_blank" rel="noopener noreferrer">
+                <Youtube size={20} className="cursor-pointer hover:text-[#FF0000] transition-colors" />
+              </a>
+            )}
+            {tiktokUrl && (
+              <a href={tiktokUrl} target="_blank" rel="noopener noreferrer" className="flex items-center">
+                <svg className="w-5 h-5 cursor-pointer fill-current hover:text-[#25F4EE] transition-colors" viewBox="0 0 24 24">
+                  <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.02 1.59 4.23.95 1.2 2.27 2 3.75 2.29V10.3c-1.35-.08-2.68-.54-3.82-1.34-.56-.4-.1.05-.6 1.05v6.52c.04 4.07-2.22 7.82-5.91 9.5-3.69 1.68-8.08.97-11.02-1.78C-2.48 21.5-2.53 16.4 1.34 13.56c2.81-2.06 6.78-2.12 9.66-.17v4.13c-1.57-.96-3.62-.9-5.11.16-1.5 1.05-2.06 2.96-1.4 4.63.66 1.67 2.42 2.64 4.2 2.37 1.78-.27 3.08-1.7 3.12-3.51.02-3.55.01-7.1 0-10.65v-10.7z"/>
+                </svg>
+              </a>
+            )}
           </div>
         </div>
 

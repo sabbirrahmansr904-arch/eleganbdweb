@@ -88,10 +88,28 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, [currentUser, isAdmin]);
 
+  const removeUndefined = (obj: any): any => {
+    if (obj === null || typeof obj !== 'object') {
+      return obj;
+    }
+    if (Array.isArray(obj)) {
+      return obj.map(removeUndefined);
+    }
+    const cleaned: any = {};
+    for (const key of Object.keys(obj)) {
+      const val = obj[key];
+      if (val !== undefined) {
+        cleaned[key] = removeUndefined(val);
+      }
+    }
+    return cleaned;
+  };
+
   const updateOrderStatus = async (id: string, status: Order['status']) => {
     try {
       const updatedData = { status, updatedAt: Date.now() };
-      await setDoc(doc(db, 'orders', id), updatedData, { merge: true });
+      const cleaned = removeUndefined(updatedData);
+      await setDoc(doc(db, 'orders', id), cleaned, { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `orders/${id}`);
     }
@@ -100,7 +118,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const updateOrder = async (id: string, data: Partial<Order> & Record<string, any>) => {
     try {
       const updatedData = { ...data, updatedAt: Date.now() };
-      await setDoc(doc(db, 'orders', id), updatedData, { merge: true });
+      const cleaned = removeUndefined(updatedData);
+      await setDoc(doc(db, 'orders', id), cleaned, { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `orders/${id}`);
     }
@@ -119,15 +138,18 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addOrder = async (order: Order) => {
-    if (!currentUser) throw new Error("Must be logged in to order");
     try {
+      const targetCustomerId = currentUser
+        ? ((isAdmin && order.customerId) ? order.customerId : currentUser.uid)
+        : (order.customerId || `GUEST-${Math.floor(Math.random() * 1000)}`);
       const newOrder = {
         ...order,
-        customerId: currentUser.uid,
-        createdAt: new Date().toISOString(),
+        customerId: targetCustomerId,
+        createdAt: order.createdAt || new Date().toISOString(),
         updatedAt: Date.now()
       };
-      await setDoc(doc(db, 'orders', order.id), newOrder);
+      const cleaned = removeUndefined(newOrder);
+      await setDoc(doc(db, 'orders', order.id), cleaned);
     } catch(e) {
       handleFirestoreError(e, OperationType.CREATE, `orders/${order.id}`);
     }

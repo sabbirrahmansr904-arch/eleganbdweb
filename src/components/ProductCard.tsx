@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Product } from '../types';
 import { formatPrice, cn } from '../lib/utils';
-import { ShoppingBag, Star, Zap, Heart } from 'lucide-react';
+import { ShoppingBag, ShoppingCart, Star, Zap, Heart } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
@@ -25,7 +25,7 @@ interface ProductCardProps {
   loading?: "lazy" | "eager";
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, loading = "lazy" }) => {
+const ProductCard = React.memo(({ product, onAddToCart, loading = "lazy" }: ProductCardProps) => {
   const { currency, rate } = useCurrency();
   const { currentUser } = useAuth();
   const [isQuickViewOpen, setIsQuickViewOpen] = React.useState(false);
@@ -175,21 +175,20 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, loading
         </div>
 
         {/* Beautiful, non-blocking high-converting checkout buttons underneath pricing details */}
-        <div className="w-full mt-3.5 px-1 flex flex-col gap-1.5">
+        <div className="w-full mt-3 px-1 flex flex-col gap-2">
           <button 
-            onClick={handleQuickOrder}
-            className="w-full bg-[#0C1421] text-white py-2 md:py-2.5 rounded-sm text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] md:tracking-[0.15em] flex items-center justify-center gap-1.5 hover:bg-emerald-600 transition-colors cursor-pointer group/btn"
+            onClick={handleQuickAdd}
+            className="w-full bg-white text-[#1b49c4] border border-[#1b49c4] py-2 px-3 rounded-lg text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-blue-50/50 transition-colors cursor-pointer"
           >
-            <Zap size={10} fill="currentColor" className="text-amber-400 group-hover/btn:scale-110 transition-transform" />
-            <span>Buy Now</span>
+            <ShoppingCart size={14} className="text-[#1b49c4]" />
+            <span>Add to cart</span>
           </button>
           
           <button 
-            onClick={handleQuickAdd}
-            className="w-full bg-white text-black py-1.5 md:py-2 rounded-sm text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] md:tracking-[0.15em] flex items-center justify-center gap-1.5 border border-gray-200/90 hover:bg-[#0C1421] hover:text-white transition-colors cursor-pointer"
+            onClick={handleQuickOrder}
+            className="w-full bg-[#1b49c4] text-white py-2.5 px-3 rounded-lg text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5 border border-[#1b49c4] hover:bg-[#153899] transition-colors cursor-pointer"
           >
-            <ShoppingBag size={10} />
-            <span>Add To Cart</span>
+            <span>Order Now</span>
           </button>
         </div>
       </div>
@@ -200,6 +199,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, loading
       />
     </motion.div>
   );
-};
+});
 
 export default ProductCard;

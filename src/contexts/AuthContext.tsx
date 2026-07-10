@@ -5,6 +5,9 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface AuthContextType {
   currentUser: User | null;
+  customerUser: { phone: string; name?: string } | null;
+  loginCustomer: (phone: string, name?: string) => void;
+  logoutCustomer: () => void;
   isAdmin: boolean;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
@@ -18,8 +21,27 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [customerUser, setCustomerUser] = useState<{ phone: string; name?: string } | null>(() => {
+    try {
+      const saved = localStorage.getItem('elegan_customer_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const loginCustomer = (phone: string, name?: string) => {
+    const user = { phone, name };
+    setCustomerUser(user);
+    localStorage.setItem('elegan_customer_user', JSON.stringify(user));
+  };
+
+  const logoutCustomer = () => {
+    setCustomerUser(null);
+    localStorage.removeItem('elegan_customer_user');
+  };
 
   const isSuperAdminEmail = (email: string | null) => 
     email === 'sabbirrahmansr904@gmail.com';
@@ -95,7 +117,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, isAdmin, loading, signInWithGoogle, signInWithEmail, signUpWithEmail, signOut, refreshAdminStatus }}>
+    <AuthContext.Provider value={{ 
+      currentUser, 
+      customerUser, 
+      loginCustomer, 
+      logoutCustomer, 
+      isAdmin, 
+      loading, 
+      signInWithGoogle, 
+      signInWithEmail, 
+      signUpWithEmail, 
+      signOut, 
+      refreshAdminStatus 
+    }}>
       {children}
     </AuthContext.Provider>
   );

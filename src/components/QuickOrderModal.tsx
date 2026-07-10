@@ -5,6 +5,7 @@ import { Product } from '../types';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useOrders } from '../contexts/OrderContext';
 import { useProducts } from '../contexts/ProductContext';
+import { useBranding } from '../contexts/BrandingContext';
 import { formatPrice, cn } from '../lib/utils';
 import toast from 'react-hot-toast';
 
@@ -18,6 +19,7 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
   const { currency, rate } = useCurrency();
   const { addOrder } = useOrders();
   const { updateProduct } = useProducts();
+  const { shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter } = useBranding();
   
   const [step, setStep] = useState<'form' | 'success'>('form');
   const [selectedSize, setSelectedSize] = useState(product.sizes[0] || '');
@@ -40,7 +42,9 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
     setIsSubmitting(true);
     
     // Simulate order placement
-    const shipping = formData.city === 'Dhaka' ? 80 : 130;
+    const isInsideDhaka = formData.city === 'Dhaka';
+    const baseShipping = isInsideDhaka ? shippingInsideDhaka : shippingOutsideDhaka;
+    const shipping = (shippingFreeAfter > 0 && product.price >= shippingFreeAfter) ? 0 : baseShipping;
     const total = product.price + shipping;
 
     const newOrder = {
@@ -55,7 +59,8 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
       total: total,
       status: 'Pending',
       paymentMethod: 'cod',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      invoiceBy: 'Website order'
     };
 
     setTimeout(() => {

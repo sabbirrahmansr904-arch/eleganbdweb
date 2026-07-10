@@ -4,8 +4,10 @@
  */
 
 import { motion } from 'motion/react';
+import { useBranding } from '../contexts/BrandingContext';
 
 export default function About() {
+  const { aboutText } = useBranding();
   return (
     <div className="pt-32 pb-24">
       {/* Hero Section */}
@@ -32,11 +34,8 @@ export default function About() {
               "Elegan BD is born from the belief that true beauty lies in the essential. We strip away the noise to find the soul of style."
             </p>
             <div className="space-y-6 text-brand-ink/70 leading-relaxed max-w-lg">
-              <p>
-                In a world of fast fashion and fleeting trends, we chose a different path. Founded in Dhaka with a vision to redefine luxury for the region, Elegan BD focuses on the harmony between craftsmanship and contemporary minimalism.
-              </p>
-              <p>
-                Our collections are designed for those who appreciate the quiet confidence of a well-cut garment and the enduring quality of premium textiles.
+              <p className="whitespace-pre-line">
+                {aboutText || "In a world of fast fashion and fleeting trends, we chose a different path. Founded in Dhaka with a vision to redefine luxury for the region, Elegan BD focuses on the harmony between craftsmanship and contemporary minimalism."}
               </p>
             </div>
             

@@ -13,7 +13,7 @@ const Home = () => {
   const { products, loading: productsLoading } = useProducts();
   const { categories } = useCategories();
   const { banners } = useBanners();
-  const { heroBannerUrl, collectionsBannerUrl, featureBannerUrl, poloBannerUrl } = useBranding();
+  const { heroBannerUrl, collectionsBannerUrl, featureBannerUrl, poloBannerUrl, showHeroBanner, showCountdownBanner } = useBranding();
   
   const activeHeroBanners = banners.filter(b => b.active && b.type === 'hero');
   const [currentBanner, setCurrentBanner] = React.useState(0);
@@ -46,121 +46,117 @@ const Home = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-white">
-      {/* Hero Section */}
-      <section className="relative w-full bg-white overflow-hidden">
-        <AnimatePresence mode="wait">
-          {activeHeroBanners.length > 0 ? (
+      {/* Hero Banner Carousel Section */}
+      {showHeroBanner && activeHeroBanners.length > 0 && (
+        <section className="relative h-[45vh] md:h-[75vh] bg-gray-900 overflow-hidden">
+          <AnimatePresence mode="wait">
             <motion.div
-              key={activeHeroBanners[currentBanner]?.id || 'slider'}
+              key={currentBanner}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.8 }}
-              className="relative w-full flex justify-center"
+              className="absolute inset-0"
             >
-              <Link to={activeHeroBanners[currentBanner].link} className="w-full">
-                <img 
-                  src={activeHeroBanners[currentBanner]?.image} 
-                  alt={activeHeroBanners[currentBanner]?.title} 
-                  className="w-full h-auto block"
-                />
-              </Link>
-            </motion.div>
-          ) : (
-            heroBannerUrl ? (
-              <motion.div 
-                key="fallback"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.8 }}
-                className="relative w-full flex justify-center"
-              >
-                <div className="w-full">
-                  <img 
-                    src={heroBannerUrl} 
-                    alt="Hero Banner" 
-                    className="w-full h-auto block"
-                  />
+              <img 
+                src={activeHeroBanners[currentBanner].image} 
+                alt={activeHeroBanners[currentBanner].title || "Hero Banner"} 
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-center p-6">
+                <div className="max-w-2xl space-y-4">
+                  {activeHeroBanners[currentBanner].title && (
+                    <h1 className="text-3xl md:text-6xl font-black italic uppercase tracking-tighter text-white">
+                      {activeHeroBanners[currentBanner].title}
+                    </h1>
+                  )}
+                  {activeHeroBanners[currentBanner].link && (
+                    <div className="pt-4">
+                      <Link 
+                        to={activeHeroBanners[currentBanner].link}
+                        className="inline-block bg-white text-black px-6 md:px-8 py-3 text-[10px] font-black uppercase tracking-[0.25em] hover:bg-brand-gold hover:text-white transition-all shadow-lg"
+                      >
+                        Shop Collection
+                      </Link>
+                    </div>
+                  )}
                 </div>
-              </motion.div>
-            ) : null
-          )}
-        </AnimatePresence>
-      </section>
-
-      {/* Trust Features */}
-      <section className="bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-6 py-12 grid grid-cols-2 lg:grid-cols-4 gap-8">
-          {[
-            { 
-              label: 'Premium Quality', 
-              sub: 'Craftsmanship Guaranteed', 
-              icon: <Sparkles className="text-amber-500" size={28} />,
-              bg: 'bg-amber-50'
-            },
-            { 
-              label: 'Easy Returns', 
-              sub: '7 Days Guarantee', 
-              icon: <RotateCcw className="text-green-500" size={28} />,
-              bg: 'bg-green-50'
-            },
-            { 
-              label: 'Free Shipping', 
-              sub: 'On orders over ৳3000', 
-              icon: <Truck className="text-blue-500" size={28} />,
-              bg: 'bg-blue-50'
-            },
-            { 
-              label: 'Cash on Delivery', 
-              sub: 'Pay after check', 
-              icon: <Banknote className="text-emerald-500" size={28} />,
-              bg: 'bg-emerald-50'
-            },
-          ].map((feature, i) => (
-            <div key={i} className="flex items-center gap-5 group">
-              <div className={cn("p-4 rounded-2xl transition-all duration-300 group-hover:scale-110", feature.bg)}>
-                {feature.icon}
               </div>
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-widest text-black">{feature.label}</p>
-                <p className="text-[9px] text-gray-400 uppercase tracking-tighter font-bold">{feature.sub}</p>
-              </div>
+            </motion.div>
+          </AnimatePresence>
+          
+          {/* Slider Indicators */}
+          {activeHeroBanners.length > 1 && (
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2.5 z-10">
+              {activeHeroBanners.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentBanner(idx)}
+                  className={cn(
+                    "w-2.5 h-2.5 rounded-full transition-all cursor-pointer",
+                    currentBanner === idx ? "bg-brand-gold w-6" : "bg-white/40"
+                  )}
+                />
+              ))}
             </div>
-          ))}
-        </div>
-      </section>
-
-
-      {/* Collections Banner Separator */}
-      {collectionsBannerUrl && (
-        <section className="max-w-7xl mx-auto px-6 py-20 pb-0">
-          <div className="rounded-[2rem] overflow-hidden shadow-2xl bg-gray-50 border border-gray-100">
-            <img 
-              src={collectionsBannerUrl} 
-              className="w-full h-auto block" 
-              alt="Matrix Segment Banner" 
-            />
-          </div>
+          )}
         </section>
       )}
 
+      {/* Countdown Timer Promo Banner */}
+      {showCountdownBanner && (
+        <section className="bg-black text-white py-8 border-b border-white/10 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-brand-gold/10 blur-[100px] rounded-full pointer-events-none" />
+          <div className="max-w-7xl mx-auto px-6 relative z-10 flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-gold">Flash Deal of the Day</span>
+              <h2 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter mt-1">HURRY! LIMITED TIME OFFER</h2>
+              <p className="text-xs text-gray-400 mt-2 uppercase tracking-wide">Premium minimal fashion on hot demand!</p>
+            </div>
+            
+            <div className="flex gap-4 md:gap-6 text-center">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-3 min-w-[70px] backdrop-blur-xs">
+                <span className="text-xl md:text-2xl font-black text-brand-gold">02</span>
+                <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Hours</p>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-xl p-3 min-w-[70px] backdrop-blur-xs">
+                <span className="text-xl md:text-2xl font-black text-brand-gold">45</span>
+                <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Mins</p>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-xl p-3 min-w-[70px] backdrop-blur-xs">
+                <span className="text-xl md:text-2xl font-black text-brand-gold">18</span>
+                <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Secs</p>
+              </div>
+            </div>
+            
+            <div>
+              <Link
+                to="/category/all"
+                className="inline-block bg-brand-gold text-black px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all rounded-lg"
+              >
+                Order Now
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+      
       {/* Category Sections */}
-      <div className="space-y-4">
+      <div className="space-y-4 pt-4">
         {/* Formal Pants */}
         {formalPants.length > 0 && (
-          <section className="py-20 bg-gray-50">
-            <div className="max-w-7xl mx-auto px-6">
-              <div className="mb-12 text-center">
-                <h3 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase text-black">Formal Pants</h3>
-                <p className="text-[10px] text-gray-500 uppercase tracking-[0.4em] mt-3 font-bold">Smart & Professionals</p>
+          <section className="py-10 bg-white">
+            <div className="max-w-7xl mx-auto px-4">
+              <div className="mb-6 text-center">
+                <h3 className="text-xl md:text-3xl font-black italic tracking-tighter uppercase text-black">Formal Pants</h3>
               </div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-10">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {formalPants.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}
               </div>
-              <div className="mt-12 flex justify-center">
+              <div className="mt-8 flex justify-center">
                 <Link to="/category/formal-pant" className="text-[10px] font-black uppercase tracking-[0.3em] text-black hover:text-brand-gold transition-colors flex items-center gap-2">
                   View All Formal Pants <ArrowRight size={14} />
                 </Link>
@@ -171,18 +167,17 @@ const Home = () => {
 
         {/* Polo T-shirts */}
         {poloTshirts.length > 0 && (
-          <section className="py-20 bg-white">
-            <div className="max-w-7xl mx-auto px-6">
-              <div className="mb-12 text-center">
-                <h3 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase text-black">Polo T-shirts</h3>
-                <p className="text-[10px] text-gray-500 uppercase tracking-[0.4em] mt-3 font-bold">Premium Comfort</p>
+          <section className="py-10 bg-gray-50">
+            <div className="max-w-7xl mx-auto px-4">
+              <div className="mb-6 text-center">
+                <h3 className="text-xl md:text-3xl font-black italic tracking-tighter uppercase text-black">Polo T-shirts</h3>
               </div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-10">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {poloTshirts.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}
               </div>
-              <div className="mt-12 flex justify-center">
+              <div className="mt-8 flex justify-center">
                 <Link to="/category/polo-t-shirt" className="text-[10px] font-black uppercase tracking-[0.3em] text-black hover:text-brand-gold transition-colors flex items-center gap-2">
                   View All Polo T-shirts <ArrowRight size={14} />
                 </Link>
@@ -191,33 +186,19 @@ const Home = () => {
           </section>
         )}
 
-        {/* Feature Section Banner */}
-        {featureBannerUrl && (
-          <section className="max-w-7xl mx-auto px-6 py-12">
-            <div className="rounded-[2rem] overflow-hidden shadow-2xl bg-gray-50 border border-gray-100">
-              <img 
-                src={featureBannerUrl} 
-                className="w-full h-auto block" 
-                alt="Feature Banner" 
-              />
-            </div>
-          </section>
-        )}
-
         {/* Formal Shirts */}
         {formalShirts.length > 0 && (
-          <section className="py-20 bg-gray-50">
-            <div className="max-w-7xl mx-auto px-6">
-              <div className="mb-12 text-center">
-                <h3 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase text-black">Formal Shirts</h3>
-                <p className="text-[10px] text-gray-500 uppercase tracking-[0.4em] mt-3 font-bold">Elegance Redefined</p>
+          <section className="py-10 bg-white">
+            <div className="max-w-7xl mx-auto px-4">
+              <div className="mb-6 text-center">
+                <h3 className="text-xl md:text-3xl font-black italic tracking-tighter uppercase text-black">Formal Shirts</h3>
               </div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-10">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {formalShirts.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}
               </div>
-              <div className="mt-12 flex justify-center">
+              <div className="mt-8 flex justify-center">
                 <Link to="/category/formal-shirt" className="text-[10px] font-black uppercase tracking-[0.3em] text-black hover:text-brand-gold transition-colors flex items-center gap-2">
                   View All Formal Shirts <ArrowRight size={14} />
                 </Link>
@@ -226,8 +207,6 @@ const Home = () => {
           </section>
         )}
       </div>
-
-
     </div>
   );
 };

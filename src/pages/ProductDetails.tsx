@@ -118,7 +118,9 @@ const ProductDetails = () => {
 
   useEffect(() => {
     if (product && product.sizes && product.sizes.length > 0) {
-      setSelectedSize(product.sizes[0]);
+      const sortedSizes = [...product.sizes].sort((a, b) => parseInt(a) - parseInt(b));
+      const firstAvailable = sortedSizes.find(size => (product.sizeStock?.[size] || 0) > 0);
+      setSelectedSize(firstAvailable || sortedSizes[0]);
     }
   }, [product]);
 
@@ -274,18 +276,24 @@ const ProductDetails = () => {
                 <Link to="/size-guide" className="text-[10px] font-bold uppercase tracking-widest text-brand-gold hover:text-black underline decoration-dotted">Size Guide</Link>
               </div>
               <div className="flex flex-wrap gap-3">
-                {product.sizes?.map(size => (
-                  <button
-                    key={size}
-                    onClick={() => setSelectedSize(size)}
-                    className={cn(
-                      "w-14 h-14 flex items-center justify-center text-xs font-bold border transition-all",
-                      selectedSize === size ? "bg-black text-white border-black" : "bg-transparent text-black border-gray-200 hover:border-black"
-                    )}
-                  >
-                    {size}
-                  </button>
-                ))}
+                {[...(product.sizes || [])].sort((a, b) => parseInt(a) - parseInt(b)).map(size => {
+                  const stock = product.sizeStock?.[size] || 0;
+                  const isAvailable = stock > 0;
+                  return (
+                    <button
+                      key={size}
+                      onClick={() => isAvailable && setSelectedSize(size)}
+                      disabled={!isAvailable}
+                      className={cn(
+                        "w-14 h-14 flex items-center justify-center text-xs font-bold border transition-all",
+                        selectedSize === size ? "bg-black text-white border-black" : "bg-transparent text-black border-gray-200 hover:border-black",
+                        !isAvailable && "opacity-30 cursor-not-allowed line-through"
+                      )}
+                    >
+                      {size}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

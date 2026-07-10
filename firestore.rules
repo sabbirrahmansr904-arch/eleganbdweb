@@ -56,13 +56,13 @@ service cloud.firestore {
         data.customerId is string && 
         data.items is list && data.items.size() > 0 && data.items.size() <= 50 &&
         data.total is number && data.total >= 0 &&
-        data.status is string && data.status.matches('^(?i)(pending|processing|shipped|delivered|cancelled|printed|hold|returned)$');
+        data.status is string && data.status.matches('^(?i)(pending|processing|shipped|delivered|cancelled|printed|hold|returned|qc)$');
     }
 
     match /orders/{orderId} {
-      allow read: if isSignedIn() && (isAdmin() || resource.data.customerId == request.auth.uid);
+      allow get: if true;
       allow list: if isSignedIn() && (isAdmin() || resource.data.customerId == request.auth.uid);
-      allow create: if isSignedIn() && isValidId(orderId) && isValidOrder(incoming()) && incoming().customerId == request.auth.uid;
+      allow create: if isValidId(orderId) && isValidOrder(incoming());
       allow update: if isSignedIn() && isValidId(orderId) && (
         (isAdmin() && isValidOrder(incoming())) ||
         (
@@ -172,9 +172,45 @@ service cloud.firestore {
         (!data.keys().contains('wishlist') || data.wishlist is list);
     }
 
+    function isValidCoupon(data) {
+      return data.keys().hasAll(['code', 'discountType', 'discountValue', 'active']) &&
+        data.code is string && data.code.size() > 0 && data.code.size() <= 100 &&
+        data.discountType is string && data.discountType.matches('^(percentage|fixed)$') &&
+        data.discountValue is number && data.discountValue > 0 &&
+        data.active is bool &&
+        (!data.keys().contains('expiryDate') || (data.expiryDate is string && data.expiryDate.size() <= 100)) &&
+        (!data.keys().contains('createdAt') || data.createdAt is number);
+    }
+
+    function isValidSmsLog(data) {
+      return data.keys().hasAll(['phone', 'message', 'status', 'timestamp']) &&
+        data.phone is string && data.phone.size() > 0 && data.phone.size() <= 50 &&
+        data.message is string && data.message.size() > 0 && data.message.size() <= 1000 &&
+        data.status is string && data.status.size() <= 100 &&
+        data.timestamp is number &&
+        (!data.keys().contains('sentAt') || (data.sentAt is string && data.sentAt.size() <= 100));
+    }
+
     match /users/{userId} {
       allow read: if isSignedIn() && userId == request.auth.uid;
       allow write: if isSignedIn() && userId == request.auth.uid;
+    }
+
+    match /coupons/{couponId} {
+      allow read, list: if true;
+      allow create, update: if isAdmin() && isValidId(couponId) && isValidCoupon(incoming());
+      allow delete: if isAdmin() && isValidId(couponId);
+    }
+
+    match /coupon_configs/{configId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sms_logs/{logId} {
+      allow read, list: if isAdmin();
+      allow create: if isValidId(logId) && isValidSmsLog(incoming());
+      allow update, delete: if false;
     }
   }
 }

@@ -34,7 +34,7 @@ import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
 
 const SHIRT_SIZES = ['M', 'L', 'XL', 'XXL'];
-const PANT_SIZES = ['30', '32', '34', '36', '38', '40'];
+const PANT_SIZES = ['28', '30', '32', '34', '36', '38', '40'];
 
 export default function AdminAddProduct() {
   const navigate = useNavigate();
@@ -123,7 +123,7 @@ export default function AdminAddProduct() {
 
   const getSizesForCategory = () => {
     const cat = selectedCategory.toLowerCase();
-    if (cat.includes('pant')) return ['30', '32', '34', '36', '38'];
+    if (cat.includes('pant')) return PANT_SIZES;
     if (cat.includes('shirt')) return ['M', 'L', 'XL', 'XXL'];
     return ['40', '42', '44', '46', '48', '50', '52', '54', '56', '58', '60', '62', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL', '7XL', '8XL', '9XL', '10XL', '11XL'];
   };

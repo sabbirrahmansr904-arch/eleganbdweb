@@ -18,6 +18,22 @@ interface BrandingContextType {
   comboOfferBannerUrl: string;
   showShowcase: boolean;
   categoryImages: Record<string, string>;
+  
+  // Design properties
+  showAnnouncementBar: boolean;
+  announcementMessage: string;
+  showCountdownBanner: boolean;
+  showHeroBanner: boolean;
+  facebookUrl: string;
+  instagramUrl: string;
+  youtubeUrl: string;
+  tiktokUrl: string;
+  shippingInsideDhaka: number;
+  shippingOutsideDhaka: number;
+  shippingFreeAfter: number;
+  primaryDeliveryDistrict: string;
+  aboutText: string;
+
   setLogoUrl: (url: string) => void;
   setSizeChartUrl: (url: string) => void;
   setCollectionsBannerUrl: (url: string) => void;
@@ -27,6 +43,21 @@ interface BrandingContextType {
   setComboOfferBannerUrl: (url: string) => void;
   setShowShowcase: (show: boolean) => void;
   setCategoryImageUrl: (category: string, url: string) => void;
+
+  // Setters for design properties
+  setShowAnnouncementBar: (show: boolean) => void;
+  setAnnouncementMessage: (msg: string) => void;
+  setShowCountdownBanner: (show: boolean) => void;
+  setShowHeroBanner: (show: boolean) => void;
+  setFacebookUrl: (url: string) => void;
+  setInstagramUrl: (url: string) => void;
+  setYoutubeUrl: (url: string) => void;
+  setTiktokUrl: (url: string) => void;
+  setShippingInsideDhaka: (fee: number) => void;
+  setShippingOutsideDhaka: (fee: number) => void;
+  setShippingFreeAfter: (val: number) => void;
+  setPrimaryDeliveryDistrict: (val: string) => void;
+  setAboutText: (text: string) => void;
 }
 
 const DEFAULT_LOGO = "https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=500&auto=format";
@@ -36,6 +67,9 @@ const DEFAULT_HERO_BANNER = "https://images.unsplash.com/photo-1490481651871-ab6
 const DEFAULT_FEATURE_BANNER = "https://images.unsplash.com/photo-1563124803-db51591028f1?q=80&w=2000&auto=format";
 const DEFAULT_POLO_BANNER = "https://images.unsplash.com/photo-1581655353564-df123a1eb820?q=80&w=2000&auto=format";
 const DEFAULT_COMBO_OFFER_BANNER = "https://storage.googleapis.com/genai-studio-artifacts-storage/1600-tl-combo-offer-image.png";
+
+const DEFAULT_ANNOUNCEMENT_MSG = "আজকের অফার ফরমাল প্যান্ট ৩ পিস অর্ডার করলে ডেলিভারি চার্জ ফ্রি";
+const DEFAULT_ABOUT_TEXT = "Premium minimalist fashion for the modern individual.";
 
 const BrandingContext = createContext<BrandingContextType | undefined>(undefined);
 
@@ -126,8 +160,145 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return cached ? JSON.parse(cached) : {};
   });
 
+  // New design properties states
+  const [showAnnouncementBar, setShowAnnouncementBarState] = useState<boolean>(() => {
+    const cached = localStorage.getItem('eleganbd_branding');
+    if (cached) {
+      try {
+        const val = JSON.parse(cached).showAnnouncementBar;
+        return val !== undefined ? val : false;
+      } catch (e) { return false; }
+    }
+    return false;
+  });
+
+  const [announcementMessage, setAnnouncementMessageState] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_branding');
+    if (cached) {
+      try {
+        return JSON.parse(cached).announcementMessage || DEFAULT_ANNOUNCEMENT_MSG;
+      } catch (e) { return DEFAULT_ANNOUNCEMENT_MSG; }
+    }
+    return DEFAULT_ANNOUNCEMENT_MSG;
+  });
+
+  const [showCountdownBanner, setShowCountdownBannerState] = useState<boolean>(() => {
+    const cached = localStorage.getItem('eleganbd_branding');
+    if (cached) {
+      try {
+        const val = JSON.parse(cached).showCountdownBanner;
+        return val !== undefined ? val : false;
+      } catch (e) { return false; }
+    }
+    return false;
+  });
+
+  const [showHeroBanner, setShowHeroBannerState] = useState<boolean>(() => {
+    const cached = localStorage.getItem('eleganbd_branding');
+    if (cached) {
+      try {
+        const val = JSON.parse(cached).showHeroBanner;
+        return val !== undefined ? val : false;
+      } catch (e) { return false; }
+    }
+    return false;
+  });
+
+  const [facebookUrl, setFacebookUrlState] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_branding');
+    if (cached) {
+      try {
+        return JSON.parse(cached).facebookUrl || '';
+      } catch (e) { return ''; }
+    }
+    return '';
+  });
+
+  const [instagramUrl, setInstagramUrlState] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_branding');
+    if (cached) {
+      try {
+        return JSON.parse(cached).instagramUrl || '';
+      } catch (e) { return ''; }
+    }
+    return '';
+  });
+
+  const [youtubeUrl, setYoutubeUrlState] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_branding');
+    if (cached) {
+      try {
+        return JSON.parse(cached).youtubeUrl || '';
+      } catch (e) { return ''; }
+    }
+    return '';
+  });
+
+  const [tiktokUrl, setTiktokUrlState] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_branding');
+    if (cached) {
+      try {
+        return JSON.parse(cached).tiktokUrl || '';
+      } catch (e) { return ''; }
+    }
+    return '';
+  });
+
+  const [shippingInsideDhaka, setShippingInsideDhakaState] = useState<number>(() => {
+    const cached = localStorage.getItem('eleganbd_branding');
+    if (cached) {
+      try {
+        const val = JSON.parse(cached).shippingInsideDhaka;
+        return val !== undefined ? Number(val) : 80;
+      } catch (e) { return 80; }
+    }
+    return 80;
+  });
+
+  const [shippingOutsideDhaka, setShippingOutsideDhakaState] = useState<number>(() => {
+    const cached = localStorage.getItem('eleganbd_branding');
+    if (cached) {
+      try {
+        const val = JSON.parse(cached).shippingOutsideDhaka;
+        return val !== undefined ? Number(val) : 130;
+      } catch (e) { return 130; }
+    }
+    return 130;
+  });
+
+  const [shippingFreeAfter, setShippingFreeAfterState] = useState<number>(() => {
+    const cached = localStorage.getItem('eleganbd_branding');
+    if (cached) {
+      try {
+        const val = JSON.parse(cached).shippingFreeAfter;
+        return val !== undefined ? Number(val) : 0;
+      } catch (e) { return 0; }
+    }
+    return 0;
+  });
+
+  const [primaryDeliveryDistrict, setPrimaryDeliveryDistrictState] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_branding');
+    if (cached) {
+      try {
+        return JSON.parse(cached).primaryDeliveryDistrict || '';
+      } catch (e) { return ''; }
+    }
+    return '';
+  });
+
+  const [aboutText, setAboutTextState] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_branding');
+    if (cached) {
+      try {
+        return JSON.parse(cached).aboutText || DEFAULT_ABOUT_TEXT;
+      } catch (e) { return DEFAULT_ABOUT_TEXT; }
+    }
+    return DEFAULT_ABOUT_TEXT;
+  });
+
   useEffect(() => {
-    // 1. Listen for Branding Config (Logo, Size Chart, etc)
+    // 1. Listen for Branding Config (Logo, Size Chart, and new design fields)
     const brandingRef = doc(db, 'config', 'branding');
     const unsubBranding = onSnapshot(brandingRef, (snap) => {
       if (snap.exists()) {
@@ -136,6 +307,21 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (data.sizeChartUrl) setSizeChartUrlState(data.sizeChartUrl);
         if (data.showShowcase !== undefined) setShowShowcaseState(data.showShowcase);
         
+        // Load design properties if defined
+        if (data.showAnnouncementBar !== undefined) setShowAnnouncementBarState(data.showAnnouncementBar);
+        if (data.announcementMessage !== undefined) setAnnouncementMessageState(data.announcementMessage);
+        if (data.showCountdownBanner !== undefined) setShowCountdownBannerState(data.showCountdownBanner);
+        if (data.showHeroBanner !== undefined) setShowHeroBannerState(data.showHeroBanner);
+        if (data.facebookUrl !== undefined) setFacebookUrlState(data.facebookUrl);
+        if (data.instagramUrl !== undefined) setInstagramUrlState(data.instagramUrl);
+        if (data.youtubeUrl !== undefined) setYoutubeUrlState(data.youtubeUrl);
+        if (data.tiktokUrl !== undefined) setTiktokUrlState(data.tiktokUrl);
+        if (data.shippingInsideDhaka !== undefined) setShippingInsideDhakaState(Number(data.shippingInsideDhaka));
+        if (data.shippingOutsideDhaka !== undefined) setShippingOutsideDhakaState(Number(data.shippingOutsideDhaka));
+        if (data.shippingFreeAfter !== undefined) setShippingFreeAfterState(Number(data.shippingFreeAfter));
+        if (data.primaryDeliveryDistrict !== undefined) setPrimaryDeliveryDistrictState(data.primaryDeliveryDistrict);
+        if (data.aboutText !== undefined) setAboutTextState(data.aboutText);
+
         // Update cache
         const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
         localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, ...data }));
@@ -290,8 +476,104 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     updateFirestore('categories', { images: newImages });
   };
 
+  const setShowAnnouncementBar = (show: boolean) => {
+    setShowAnnouncementBarState(show);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
+    localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, showAnnouncementBar: show }));
+    updateFirestore('branding', { showAnnouncementBar: show });
+  };
+
+  const setAnnouncementMessage = (msg: string) => {
+    setAnnouncementMessageState(msg);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
+    localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, announcementMessage: msg }));
+    updateFirestore('branding', { announcementMessage: msg });
+  };
+
+  const setShowCountdownBanner = (show: boolean) => {
+    setShowCountdownBannerState(show);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
+    localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, showCountdownBanner: show }));
+    updateFirestore('branding', { showCountdownBanner: show });
+  };
+
+  const setShowHeroBanner = (show: boolean) => {
+    setShowHeroBannerState(show);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
+    localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, showHeroBanner: show }));
+    updateFirestore('branding', { showHeroBanner: show });
+  };
+
+  const setFacebookUrl = (url: string) => {
+    setFacebookUrlState(url);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
+    localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, facebookUrl: url }));
+    updateFirestore('branding', { facebookUrl: url });
+  };
+
+  const setInstagramUrl = (url: string) => {
+    setInstagramUrlState(url);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
+    localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, instagramUrl: url }));
+    updateFirestore('branding', { instagramUrl: url });
+  };
+
+  const setYoutubeUrl = (url: string) => {
+    setYoutubeUrlState(url);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
+    localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, youtubeUrl: url }));
+    updateFirestore('branding', { youtubeUrl: url });
+  };
+
+  const setTiktokUrl = (url: string) => {
+    setTiktokUrlState(url);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
+    localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, tiktokUrl: url }));
+    updateFirestore('branding', { tiktokUrl: url });
+  };
+
+  const setShippingInsideDhaka = (fee: number) => {
+    setShippingInsideDhakaState(fee);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
+    localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, shippingInsideDhaka: fee }));
+    updateFirestore('branding', { shippingInsideDhaka: fee });
+  };
+
+  const setShippingOutsideDhaka = (fee: number) => {
+    setShippingOutsideDhakaState(fee);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
+    localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, shippingOutsideDhaka: fee }));
+    updateFirestore('branding', { shippingOutsideDhaka: fee });
+  };
+
+  const setShippingFreeAfter = (val: number) => {
+    setShippingFreeAfterState(val);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
+    localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, shippingFreeAfter: val }));
+    updateFirestore('branding', { shippingFreeAfter: val });
+  };
+
+  const setPrimaryDeliveryDistrict = (val: string) => {
+    setPrimaryDeliveryDistrictState(val);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
+    localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, primaryDeliveryDistrict: val }));
+    updateFirestore('branding', { primaryDeliveryDistrict: val });
+  };
+
+  const setAboutText = (text: string) => {
+    setAboutTextState(text);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
+    localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, aboutText: text }));
+    updateFirestore('branding', { aboutText: text });
+  };
+
   return (
-    <BrandingContext.Provider value={{ logoUrl, sizeChartUrl, collectionsBannerUrl, heroBannerUrl, featureBannerUrl, poloBannerUrl, comboOfferBannerUrl, showShowcase, categoryImages, setLogoUrl, setSizeChartUrl, setCollectionsBannerUrl, setHeroBannerUrl, setFeatureBannerUrl, setPoloBannerUrl, setComboOfferBannerUrl, setShowShowcase, setCategoryImageUrl }}>
+    <BrandingContext.Provider value={{ 
+      logoUrl, sizeChartUrl, collectionsBannerUrl, heroBannerUrl, featureBannerUrl, poloBannerUrl, comboOfferBannerUrl, showShowcase, categoryImages, 
+      showAnnouncementBar, announcementMessage, showCountdownBanner, showHeroBanner, facebookUrl, instagramUrl, youtubeUrl, tiktokUrl, shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter, primaryDeliveryDistrict, aboutText,
+      setLogoUrl, setSizeChartUrl, setCollectionsBannerUrl, setHeroBannerUrl, setFeatureBannerUrl, setPoloBannerUrl, setComboOfferBannerUrl, setShowShowcase, setCategoryImageUrl,
+      setShowAnnouncementBar, setAnnouncementMessage, setShowCountdownBanner, setShowHeroBanner, setFacebookUrl, setInstagramUrl, setYoutubeUrl, setTiktokUrl, setShippingInsideDhaka, setShippingOutsideDhaka, setShippingFreeAfter, setPrimaryDeliveryDistrict, setAboutText
+    }}>
       {children}
     </BrandingContext.Provider>
   );

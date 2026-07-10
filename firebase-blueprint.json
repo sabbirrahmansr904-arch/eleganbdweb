@@ -130,6 +130,35 @@
         "wishlist": { "type": "array", "items": { "type": "string" } }
       },
       "required": ["id", "email"]
+    },
+    "Coupon": {
+      "title": "Coupon",
+      "description": "A discount coupon / promo code",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "discountType": { "type": "string", "enum": ["percentage", "fixed"] },
+        "discountValue": { "type": "number" },
+        "expiryDate": { "type": "string" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["code", "discountType", "discountValue", "active"]
+    },
+    "SmsLog": {
+      "title": "SmsLog",
+      "description": "A log of SMS sent",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "phone": { "type": "string" },
+        "message": { "type": "string" },
+        "status": { "type": "string" },
+        "sentAt": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["phone", "message", "status", "timestamp"]
     }
   },
   "firestore": {
@@ -168,6 +197,14 @@
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/User" },
       "description": "User profiles and wishlist (read own, write own)"
+    },
+    "/coupons/{couponId}": {
+      "schema": { "$ref": "#/entities/Coupon" },
+      "description": "Discount coupons (read/list all, write admin)"
+    },
+    "/sms_logs/{logId}": {
+      "schema": { "$ref": "#/entities/SmsLog" },
+      "description": "Logs of sent SMS messages (create all, read/list admin)"
     }
   }
 }

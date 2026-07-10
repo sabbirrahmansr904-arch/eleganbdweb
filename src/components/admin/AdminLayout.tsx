@@ -6,34 +6,34 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { 
-  LayoutDashboard, 
-  Archive,
-  List,
-  PlusSquare,
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  ShoppingCart, 
-  Users, 
+  Home,
+  Users,
   FileText,
-  Settings, 
-  Image as ImageIcon,
-  Image,
+  ShoppingCart,
+  Folder,
+  ShoppingBag,
+  Paintbrush,
+  Palette,
+  File,
+  Layout,
+  Globe,
+  Megaphone,
+  Tag,
+  Search,
+  MessageSquare,
+  Phone,
+  CreditCard,
+  Truck,
+  User,
+  Settings,
+  Download,
+  HelpCircle,
+  MessageCircle,
   LogOut, 
   Menu, 
   X, 
   Bell,
-  Search,
-  Moon,
-  Layout,
-  User,
-  CheckSquare,
-  BarChart3,
-  Database,
-  ShoppingBag,
-  History,
-  AlertCircle,
-  RefreshCw,
-  ExternalLink
+  Moon
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -49,43 +49,53 @@ export default function AdminLayout() {
 
   const menuGroups = [
     {
-      title: 'OVERVIEW',
       items: [
-        { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
-        { name: 'My Account', path: '/admin/settings', icon: User },
-        { name: 'Stock Check', path: '/admin/inventory', icon: CheckSquare },
-      ]
-    },
-    {
-      title: 'INVENTORY',
-      items: [
-        { name: 'Overview', path: '/admin/inventory', icon: BarChart3 },
-        { name: 'Master Table', path: '/admin/categories', icon: Database },
-        { name: 'Product List', path: '/admin/products', icon: ShoppingBag },
-        { name: 'Add Product', path: '/admin/add-product', icon: PlusSquare },
-        { name: 'Stock In', path: '/admin/stock-in', icon: ArrowDownToLine },
-        { name: 'Stock Out', path: '/admin/stock-out', icon: ArrowUpFromLine },
-        { name: 'Inventory Log', path: '/admin/inventory-log', icon: History },
-      ]
-    },
-    {
-      title: 'ORDER MANAGEMENT',
-      items: [
-        { name: 'Orders', path: '/admin/orders', icon: ShoppingCart },
-        { name: 'Issues', path: '/admin/issues', icon: AlertCircle },
-        { name: 'Exchanges', path: '/admin/exchanges', icon: RefreshCw },
+        { name: 'Dashboard', path: '/admin', icon: Home },
         { name: 'Customers', path: '/admin/customers', icon: Users },
+        { name: 'Orders', path: '/admin/orders', icon: FileText },
+        { name: 'Categories', path: '/admin/categories', icon: Folder },
+        { name: 'Products', path: '/admin/products', icon: ShoppingBag },
       ]
     },
     {
-      title: 'SYSTEM',
       items: [
-        { name: 'Media', path: '/admin/media', icon: ImageIcon },
-        { name: 'Banners', path: '/admin/banners', icon: Image },
-        { name: 'Visit Storefront', path: '/', icon: ExternalLink },
+        { name: 'Design', path: '/admin/banners', icon: Paintbrush },
+      ]
+    },
+    {
+      items: [
+        { name: 'Pixel & Analytics', path: '/admin/settings?tab=Pixel & Analytics', icon: Megaphone },
+        { name: 'Coupons', path: '/admin/settings?tab=Coupons', icon: Tag },
+        { name: 'SEO / Console', path: '/admin/settings?tab=SEO / Console', icon: Search },
+        { name: 'SMS', path: '/admin/settings?tab=SMS', icon: MessageSquare },
+        { name: 'Auto Call', path: '/admin/settings?tab=Auto Call', icon: Phone, badge: 'SOON' },
+      ]
+    },
+    {
+      items: [
+        { name: 'Payments', path: '/admin/settings?tab=Payments', icon: CreditCard },
+      ]
+    },
+    {
+      items: [
+        { name: 'Profile', path: '/admin/settings?tab=Profile', icon: User },
+        { name: 'Managers', path: '/admin/settings?tab=Managers', icon: Users },
+        { name: 'Settings', path: '/admin/settings?tab=Settings', icon: Settings },
+        { name: 'Import / Export', path: '/admin/settings?tab=Import / Export', icon: Download },
       ]
     }
   ];
+
+  const getIsActive = (itemPath: string) => {
+    if (itemPath.includes('?')) {
+      const [pathPart, queryPart] = itemPath.split('?');
+      const params = new URLSearchParams(queryPart);
+      const tabVal = params.get('tab');
+      const currentTabVal = new URLSearchParams(location.search).get('tab');
+      return location.pathname === pathPart && tabVal === currentTabVal;
+    }
+    return location.pathname === itemPath || (itemPath !== '/admin' && itemPath !== '/' && location.pathname.startsWith(itemPath));
+  };
 
   const handleLogout = () => {
     toast.success('Signed out successfully.');
@@ -113,30 +123,30 @@ export default function AdminLayout() {
         {isMobileOpen && (
           <>
             <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsMobileOpen(false)}
-              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] lg:hidden"
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               onClick={() => setIsMobileOpen(false)}
+               className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] lg:hidden"
             />
             <motion.aside
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-72 bg-white z-[70] lg:hidden flex flex-col shadow-2xl border-r border-[#F0F2F5]"
+               initial={{ x: '-100%' }}
+               animate={{ x: 0 }}
+               exit={{ x: '-100%' }}
+               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+               className="fixed inset-y-0 left-0 w-72 bg-white z-[70] lg:hidden flex flex-col shadow-2xl border-r border-[#F0F2F5]"
             >
               <div className="h-20 flex items-center justify-between px-6 border-b border-[#F0F2F5] bg-white text-black">
                 <Link to="/" onClick={() => setIsMobileOpen(false)} className="shrink-0 flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-xl bg-[#E04622] flex items-center justify-center text-white font-serif text-lg font-black shrink-0 shadow-sm shadow-[#E04622]/20">
+                  <div className="w-10 h-10 rounded-xl bg-[#E01E22] flex items-center justify-center text-white font-sans text-xl font-bold shrink-0 shadow-sm">
                     E
                   </div>
                   <div className="flex flex-col text-left">
-                    <span className="font-extrabold tracking-tight text-sm uppercase text-gray-950 leading-none">
-                      Elegan BD Admin
+                    <span className="font-bold tracking-tight text-sm text-gray-900 leading-none">
+                      Elegan BD
                     </span>
-                    <span className="text-[9px] uppercase tracking-widest font-black text-gray-400 mt-1">
-                      Secure Console
+                    <span className="text-[10px] text-gray-400 mt-1">
+                      eleganbd.zobity.com
                     </span>
                   </div>
                 </Link>
@@ -144,37 +154,44 @@ export default function AdminLayout() {
                   <X size={20} />
                 </button>
               </div>
-              <nav className="flex-1 py-6 px-4 space-y-6 overflow-y-auto no-scrollbar bg-white">
+              <nav className="flex-1 py-4 px-4 space-y-4 overflow-y-auto no-scrollbar bg-white">
                 {menuGroups.map((group, gIdx) => (
-                  <div key={gIdx} className="space-y-1.5">
-                    <p className="px-3 text-[9px] font-black text-gray-400 tracking-[0.18em] uppercase mb-2 leading-none">{group.title}</p>
-                    {group.items.map((item) => {
-                      const isActive = location.pathname === item.path || (item.path !== '/admin' && item.path !== '/' && location.pathname.startsWith(item.path));
-                      const Icon = item.icon;
-                      return (
-                        <Link
-                          key={item.name}
-                          to={item.path}
-                          onClick={() => setIsMobileOpen(false)}
-                          className={cn(
-                            "flex items-center space-x-3.5 px-3 py-2.5 rounded-xl transition-all font-semibold text-xs tracking-tight",
-                            isActive 
-                              ? "bg-[#FFF1EF] text-[#D83A1F] shadow-xs" 
-                              : "text-[#62758A] hover:text-[#0C1421] hover:bg-[#F8FAFC]"
-                          )}
-                        >
-                          <Icon size={17} strokeWidth={isActive ? 2.5 : 2} className={cn(isActive ? "text-[#D83A1F]" : "text-[#7EA0B6]")} />
-                          <span>{item.name}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
+                  <React.Fragment key={gIdx}>
+                    {gIdx > 0 && <hr className="border-gray-100 my-2" />}
+                    <div className="space-y-1">
+                      {group.items.map((item) => {
+                        const isActive = getIsActive(item.path);
+                        const Icon = item.icon;
+                        return (
+                          <Link
+                            key={item.name}
+                            to={item.path}
+                            onClick={() => setIsMobileOpen(false)}
+                            className={cn(
+                              "flex items-center space-x-3.5 px-3 py-2.5 rounded-xl transition-all font-semibold text-xs tracking-tight",
+                              isActive 
+                                ? "bg-[#4F46E5] text-white shadow-xs" 
+                                : "text-gray-600 hover:text-black hover:bg-gray-50"
+                            )}
+                          >
+                            <Icon size={17} strokeWidth={isActive ? 2.5 : 1.8} className={cn(isActive ? "text-white" : "text-gray-500")} />
+                            <span className="flex-1 text-left">{item.name}</span>
+                            {item.badge && (
+                              <span className="text-[10px] bg-[#EEF2FF] text-[#4F46E5] px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                                {item.badge}
+                              </span>
+                            )}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </React.Fragment>
                 ))}
               </nav>
-              <div className="p-4 border-t border-white/10">
+              <div className="p-4 border-t border-gray-100 bg-white">
                 <button 
                   onClick={handleLogout}
-                  className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-red-400 transition-colors font-medium text-sm"
+                  className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-red-500 transition-colors font-medium text-sm"
                 >
                   <LogOut size={18} strokeWidth={2} />
                   <span>Logout</span>
@@ -188,73 +205,110 @@ export default function AdminLayout() {
       {/* Desktop Sidebar */}
       <aside 
         className={cn(
-          "hidden lg:flex flex-col bg-white border-r border-[#F0F2F5] transition-all duration-300 shrink-0 z-50 shadow-[4px_0_24px_rgba(0,0,0,0.015)]",
+          "hidden lg:flex flex-col bg-white border-r border-[#EFF2F6] transition-all duration-300 shrink-0 z-50 shadow-[4px_0_24px_rgba(0,0,0,0.008)]",
           isSidebarOpen ? "w-64" : "w-20"
         )}
       >
-        <div className="h-20 flex items-center px-6 border-b border-[#F0F2F5] overflow-hidden bg-white shrink-0">
+        <div className="h-20 flex items-center justify-between px-6 border-b border-[#EFF2F6] overflow-hidden bg-white shrink-0">
           <Link to="/" className="shrink-0 flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-[#E04622] flex items-center justify-center text-white font-serif text-lg font-black shrink-0 shadow-sm shadow-[#E04622]/20">
+            <div className="w-10 h-10 rounded-xl bg-[#E01E22] flex items-center justify-center text-white font-sans text-xl font-bold shrink-0 shadow-sm">
               E
             </div>
             {isSidebarOpen && (
-              <div className="flex flex-col">
-                <span className="font-extrabold tracking-tight text-sm uppercase text-gray-950 leading-none">
-                  Elegan BD Admin
+              <div className="flex flex-col text-left">
+                <span className="font-bold tracking-tight text-sm text-gray-900 leading-none">
+                  Elegan BD
                 </span>
-                <span className="text-[9px] uppercase tracking-widest font-black text-gray-400 mt-1">
-                  Secure Console
+                <span className="text-[10px] text-gray-400 mt-1">
+                  eleganbd.zobity.com
                 </span>
               </div>
             )}
           </Link>
+          
+          {isSidebarOpen && (
+            <div className="relative shrink-0 flex items-center">
+              <span className="relative inline-block">
+                <Bell size={18} className="text-gray-400 hover:text-black transition-colors cursor-pointer" />
+                <span className="absolute -top-1.5 -right-2 bg-red-500 text-[8px] font-bold text-white px-1 py-0.25 rounded-full leading-none scale-90">
+                  9+
+                </span>
+              </span>
+            </div>
+          )}
         </div>
 
-        <nav className="flex-1 py-6 px-3.5 space-y-7 overflow-y-auto no-scrollbar">
+        <nav className="flex-1 py-4 px-3.5 space-y-4 overflow-y-auto no-scrollbar bg-white">
           {menuGroups.map((group, gIdx) => (
-            <div key={gIdx} className="space-y-1.5">
-              {isSidebarOpen && (
-                 <p className="px-3 text-[9px] font-black text-gray-400 tracking-[0.18em] uppercase mb-2 leading-none">{group.title}</p>
-              )}
-              {group.items.map((item) => {
-                const isActive = location.pathname === item.path || (item.path !== '/admin' && item.path !== '/' && location.pathname.startsWith(item.path));
-                const Icon = item.icon;
-                
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.path}
-                    className={cn(
-                      "flex items-center space-x-3.5 px-3 py-2.5 rounded-xl transition-all group relative font-semibold text-[13px] tracking-tight",
-                      isActive 
-                        ? "bg-[#FFF1EF] text-[#D83A1F] shadow-sm shadow-[#D83A1F]/5" 
-                        : "text-[#62758A] hover:text-[#0C1421] hover:bg-[#F8FAFC]"
-                    )}
-                  >
-                    <Icon size={17} strokeWidth={isActive ? 2.5 : 2} className={cn(isActive ? "text-[#D83A1F]" : "text-[#7EA0B6]")} />
-                    {isSidebarOpen && (
-                      <span className="truncate">{item.name}</span>
-                    )}
-                    {!isSidebarOpen && (
-                      <div className="absolute left-full ml-4 px-3 py-1.5 bg-white text-black text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg border border-gray-100">
-                        {item.name}
-                      </div>
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
+            <React.Fragment key={gIdx}>
+              {gIdx > 0 && isSidebarOpen && <hr className="border-gray-100 my-2" />}
+              <div className="space-y-1">
+                {group.items.map((item) => {
+                  const isActive = getIsActive(item.path);
+                  const Icon = item.icon;
+                  
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.path}
+                      className={cn(
+                        "flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-all group relative font-semibold text-xs tracking-tight",
+                        isActive 
+                          ? "bg-[#4F46E5] text-white shadow-xs" 
+                          : "text-gray-600 hover:text-black hover:bg-gray-50"
+                      )}
+                    >
+                      <Icon size={17} strokeWidth={isActive ? 2.5 : 1.8} className={cn(isActive ? "text-white" : "text-gray-500")} />
+                      {isSidebarOpen && (
+                        <span className="truncate flex-1 text-left">{item.name}</span>
+                      )}
+                      {isSidebarOpen && item.badge && (
+                        <span className="text-[9px] bg-[#EEF2FF] text-[#4F46E5] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider shrink-0">
+                          {item.badge}
+                        </span>
+                      )}
+                      {!isSidebarOpen && (
+                        <div className="absolute left-full ml-4 px-3 py-1.5 bg-white text-black text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg border border-gray-100">
+                          {item.name}
+                        </div>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </React.Fragment>
           ))}
         </nav>
 
-        <div className="p-3 border-t border-gray-100">
-          <button 
-            onClick={handleLogout}
-            className="w-full flex items-center space-x-3 px-3 py-3 rounded-xl text-gray-500 hover:text-red-600 hover:bg-gray-50 transition-colors font-medium text-sm"
-          >
-            <LogOut size={18} strokeWidth={2} />
-            {isSidebarOpen && <span>Logout</span>}
-          </button>
+        {/* Profile Card at bottom left */}
+        <div className="p-3.5 border-t border-[#EFF2F6] bg-white">
+          {isSidebarOpen ? (
+            <div className="flex items-center justify-between bg-[#F8FAFC] border border-gray-100 p-2.5 rounded-xl">
+              <div className="flex items-center space-x-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-[#E0E5ED] text-black font-extrabold text-xs flex items-center justify-center border border-white shrink-0">
+                  S
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-black text-[#0C1421] leading-none truncate">Sabbir</p>
+                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-1 leading-none truncate">LOGISTIC EXECU...</p>
+                </div>
+              </div>
+              <button 
+                onClick={handleLogout}
+                className="p-1.5 hover:bg-red-50 hover:text-red-500 rounded-lg text-gray-400 transition-all shrink-0"
+                title="Logout"
+              >
+                <LogOut size={15} strokeWidth={2.5} />
+              </button>
+            </div>
+          ) : (
+            <button 
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center py-3 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+            >
+              <LogOut size={18} strokeWidth={2} />
+            </button>
+          )}
         </div>
       </aside>
 
