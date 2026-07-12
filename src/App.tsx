@@ -37,6 +37,7 @@ import CustomerDashboard from './pages/CustomerDashboard';
 import ProductList from './pages/ProductList';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
+import { MetaPixel } from './components/MetaPixel';
 
 // Admin Pages
 import AdminLogin from './pages/admin/AdminLogin';
@@ -60,7 +61,7 @@ import FixSizes from './pages/admin/FixSizes';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requireAdmin = true }: { children: React.ReactNode, requireAdmin?: boolean }) => {
-  const { currentUser, isAdmin, loading } = useAuth();
+  const { currentUser, customerUser, isAdmin, loading } = useAuth();
 
   if (loading) return (
     <div className="h-screen flex items-center justify-center bg-white text-black font-bold uppercase tracking-widest text-xs">
@@ -68,12 +69,17 @@ const ProtectedRoute = ({ children, requireAdmin = true }: { children: React.Rea
     </div>
   );
 
-  if (!currentUser) {
-    return <Navigate to="/admin/login" replace />;
-  }
-
-  if (requireAdmin && !isAdmin) {
-    return <Navigate to="/" replace />;
+  if (requireAdmin) {
+    if (!currentUser) {
+      return <Navigate to="/admin/login" replace />;
+    }
+    if (!isAdmin) {
+      return <Navigate to="/" replace />;
+    }
+  } else {
+    if (!currentUser && !customerUser) {
+      return <Navigate to="/" replace />;
+    }
   }
 
   return <>{children}</>;
@@ -153,6 +159,7 @@ function App() {
                         <div className="min-h-screen bg-white selection:bg-black/10 selection:text-black">
                           <Toaster position="top-center" reverseOrder={false} />
                           <PixelTracker />
+                          <MetaPixel />
                           <AppRoutes />
                         </div>
                       </Router>

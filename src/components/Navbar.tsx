@@ -14,6 +14,7 @@ import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import SearchOverlay from './SearchOverlay';
+import LoginModal from './LoginModal';
 
 import { useCart } from '../contexts/CartContext';
 
@@ -25,6 +26,7 @@ export default function Navbar() {
   const { currentUser, customerUser, logoutCustomer, isAdmin, signInWithGoogle, signOut } = useAuth();
   const { categories } = useCategories();
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
@@ -41,6 +43,7 @@ export default function Navbar() {
   useEffect(() => {
     setIsOpen(false);
     setIsSearchOpen(false);
+    setIsLoginOpen(false);
   }, [location]);
 
   const navLinks = [
@@ -52,17 +55,9 @@ export default function Navbar() {
     navLinks.push({ name: 'Admin Panel', path: '/admin' });
   }
 
-  const handleAuthClick = async () => {
-    if (currentUser) {
-      await signOut();
-      navigate('/');
-    } else {
-      await signInWithGoogle();
-    }
-  };
-
   return (
     <>
+      <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
       {showAnnouncementBar && (
         <div className="bg-brand-gold text-black text-center py-2 px-4 text-[10px] md:text-xs font-black uppercase tracking-[0.15em] relative z-[60]">
           {announcementMessage}
@@ -128,18 +123,18 @@ export default function Navbar() {
               <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1 rounded-full text-white">
                 <div className="flex flex-col text-right">
                   <span className="text-[7.5px] uppercase tracking-widest text-white/50 font-black">Verified Client</span>
-                  <span className="text-[9.5px] font-mono font-black text-brand-gold leading-none">{customerUser.phone}</span>
+                  <span className="text-[9.5px] font-mono font-black text-brand-gold leading-none">{customerUser.email}</span>
                 </div>
                 <button 
                   onClick={logoutCustomer}
                   className="p-1 text-[8.5px] font-black uppercase tracking-wider text-red-400 hover:text-red-300 transition-colors ml-1 cursor-pointer"
-                  title="Logout Phone Session"
+                  title="Logout Email Session"
                 >
                   Logout
                 </button>
               </div>
             ) : (
-              <button onClick={handleAuthClick} className="flex items-center gap-2 text-white hover:text-brand-gold transition-colors p-2" title="Sign In">
+              <button onClick={() => setIsLoginOpen(true)} className="flex items-center gap-2 text-white hover:text-brand-gold transition-colors p-2" title="Sign In">
                 <User size={22} strokeWidth={1.5} />
                 <span className="hidden lg:inline text-[10px] font-black uppercase tracking-widest">Login</span>
               </button>
@@ -282,7 +277,7 @@ export default function Navbar() {
                     <div className="py-3 border-b border-white/10 text-left space-y-2">
                       <div className="flex items-center gap-2 text-brand-gold">
                         <User size={18} strokeWidth={1.5} />
-                        <span className="text-xs font-mono font-black">{customerUser.phone} (Verified)</span>
+                        <span className="text-xs font-mono font-black">{customerUser.email} (Verified)</span>
                       </div>
                       <button
                         onClick={() => {
@@ -291,7 +286,7 @@ export default function Navbar() {
                         }}
                         className="text-xs font-black uppercase tracking-widest text-red-400 hover:text-red-300 flex items-center gap-2 cursor-pointer"
                       >
-                        <LogOut size={16} /> Log Out Phone
+                        <LogOut size={16} /> Log Out Session
                       </button>
                     </div>
                   ) : (

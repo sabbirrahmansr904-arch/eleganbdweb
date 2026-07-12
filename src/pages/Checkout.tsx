@@ -26,7 +26,7 @@ export default function Checkout() {
   const navigate = useNavigate();
   const { addOrder } = useOrders();
   const { products, updateProduct } = useProducts();
-  const { currentUser, customerUser, loginCustomer } = useAuth();
+  const { currentUser, customerUser } = useAuth();
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
@@ -394,8 +394,8 @@ export default function Checkout() {
       return;
     }
 
-    // Check if customer is logged in / authenticated with the correct phone number
-    const isVerified = (currentUser !== null) || (customerUser !== null && customerUser.phone === formData.phone.trim());
+    // Check if customer is logged in / authenticated with the correct email
+    const isVerified = (currentUser !== null) || (customerUser !== null && customerUser.email === formData.email.trim());
     
     if (!isVerified) {
       // Force phone login and verification first

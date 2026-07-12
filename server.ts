@@ -3,8 +3,13 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
+import admin from 'firebase-admin';
 
 dotenv.config();
+
+admin.initializeApp();
+console.log('Admin object:', admin);
+const db = admin.firestore();
 
 async function startServer() {
   const app = express();
@@ -18,6 +23,83 @@ async function startServer() {
       res.status(413).json({ error: 'Request entity too large' });
     } else {
       next(err);
+    }
+  });
+
+  // API route to send OTP
+  app.post("/api/send-otp", async (req, res) => {
+    const { email } = req.body;
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    await db.collection('otps').doc(email).set({
+      otp,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      return res.status(500).json({ error: "Email configuration missing" });
+    }
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: "Your OTP for Elegan BD",
+        text: `Your OTP is: ${otp}`,
+      });
+      res.json({ success: true });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Failed to send email" });
+    }
+  });
+
+  // API route to verify OTP
+  app.post("/api/verify-otp", async (req, res) => {
+    const { email, otp } = req.body;
+    const doc = await db.collection('otps').doc(email).get();
+    if (!doc.exists || doc.data()?.otp !== otp) {
+      return res.status(400).json({ error: "Invalid OTP" });
+    }
+    await db.collection('otps').doc(email).delete();
+    res.json({ success: true });
+  });
+
+  // API route to send Meta Conversion API event
+  app.post("/api/meta-conversion-event", async (req, res) => {
+    const { eventName, eventData, userData } = req.body;
+    const token = process.env.META_CONVERSION_API_TOKEN;
+    const pixelId = process.env.META_PIXEL_ID;
+    
+    if (!token || !pixelId) {
+      return res.status(500).json({ error: "Meta configuration missing" });
+    }
+
+    try {
+      const response = await fetch(`https://graph.facebook.com/v19.0/${pixelId}/events?access_token=${token}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data: [{
+            event_name: eventName,
+            event_time: Math.floor(Date.now() / 1000),
+            user_data: userData,
+            custom_data: eventData
+          }]
+        })
+      });
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Failed to send event to Meta" });
     }
   });
 

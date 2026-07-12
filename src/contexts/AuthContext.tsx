@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, signInWithPopup, GoogleAuthProvider, signOut as firebaseSignOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { User, signInWithPopup, GoogleAuthProvider, signOut as firebaseSignOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface AuthContextType {
   currentUser: User | null;
-  customerUser: { phone: string; name?: string } | null;
-  loginCustomer: (phone: string, name?: string) => void;
+  customerUser: { email: string } | null;
+  sendOtp: (email: string) => Promise<void>;
+  verifyOtp: (email: string, otp: string) => Promise<void>;
   logoutCustomer: () => void;
   isAdmin: boolean;
   loading: boolean;
@@ -21,7 +22,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [customerUser, setCustomerUser] = useState<{ phone: string; name?: string } | null>(() => {
+  const [customerUser, setCustomerUser] = useState<{ email: string } | null>(() => {
     try {
       const saved = localStorage.getItem('elegan_customer_user');
       return saved ? JSON.parse(saved) : null;
@@ -32,8 +33,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const loginCustomer = (phone: string, name?: string) => {
-    const user = { phone, name };
+  const sendOtp = async (email: string) => {
+    await fetch('/api/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+  };
+
+  const verifyOtp = async (email: string, otp: string) => {
+    const res = await fetch('/api/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp }),
+    });
+    if (!res.ok) throw new Error('Invalid OTP');
+    
+    const user = { email };
     setCustomerUser(user);
     localStorage.setItem('elegan_customer_user', JSON.stringify(user));
   };
@@ -120,7 +136,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider value={{ 
       currentUser, 
       customerUser, 
-      loginCustomer, 
+      sendOtp,
+      verifyOtp,
       logoutCustomer, 
       isAdmin, 
       loading, 
