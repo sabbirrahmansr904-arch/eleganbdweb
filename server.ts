@@ -3,13 +3,14 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
-import admin from 'firebase-admin';
+import { initializeApp, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
 
 dotenv.config();
 
-admin.initializeApp();
-console.log('Admin object:', admin);
-const db = admin.firestore();
+initializeApp();
+const db = getFirestore();
 
 async function startServer() {
   const app = express();
@@ -33,7 +34,7 @@ async function startServer() {
     
     await db.collection('otps').doc(email).set({
       otp,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     });
 
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
