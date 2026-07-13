@@ -26,26 +26,48 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const categoriesCol = collection(db, 'categories');
-    const unsubscribe = onSnapshot(categoriesCol, (snapshot) => {
-      const data: Category[] = [];
-      snapshot.forEach(doc => {
-        data.push({ ...doc.data() as Category, id: doc.id });
-      });
+    const fetchCategories = async () => {
+      setLoading(true);
+      try {
+        const cached = localStorage.getItem('eleganbd_categories');
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed)) {
+              setCategories(parsed);
+              setLoading(false);
+              return;
+            } else {
+              // Invalid cache format (object instead of array), clear it
+              localStorage.removeItem('eleganbd_categories');
+            }
+          } catch (e) {
+            localStorage.removeItem('eleganbd_categories');
+          }
+        }
 
-      if (data.length > 0) {
-        setCategories(data);
-      } else {
+        const categoriesCol = collection(db, 'categories');
+        const snapshot = await getDocs(categoriesCol);
+        const data: Category[] = [];
+        snapshot.forEach(doc => {
+          data.push({ ...doc.data() as Category, id: doc.id });
+        });
+
+        if (data.length > 0) {
+          setCategories(data);
+          localStorage.setItem('eleganbd_categories', JSON.stringify(data));
+        } else {
+          setCategories(DEFAULT_CATEGORIES);
+        }
+      } catch (err) {
+        console.error("Category sync error:", err);
         setCategories(DEFAULT_CATEGORIES);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    }, (err) => {
-      console.error("Category sync error:", err);
-      setCategories(DEFAULT_CATEGORIES);
-      setLoading(false);
-    });
+    };
 
-    return () => unsubscribe();
+    fetchCategories();
   }, []);
 
   const addCategory = async (category: Category) => {

@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckoutFormData, Order } from '../types';
 import { formatPrice, cn } from '../lib/utils';
+import { DISTRICT_THANAS } from '../data/locations';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useOrders } from '../contexts/OrderContext';
 import { useProducts } from '../contexts/ProductContext';
@@ -45,11 +46,12 @@ export default function Checkout() {
   const [verificationError, setVerificationError] = useState('');
   const [otpLoading, setOtpLoading] = useState(false);
   
-  const [formData, setFormData] = useState<CheckoutFormData & { orderNote: string }>({
+  const [formData, setFormData] = useState<CheckoutFormData & { orderNote: string; thana: string }>({
     fullName: '',
     email: '',
     address: '',
-    city: 'Dhaka',
+    city: '',
+    thana: '',
     phone: '',
     paymentMethod: 'cod',
     transactionId: '',
@@ -313,6 +315,25 @@ export default function Checkout() {
       
       addOrder(newOrder);
 
+      // Save/Update customer information
+      const saveCustomer = async () => {
+        try {
+          const customerRef = doc(db, 'customers', formData.phone.trim());
+          await setDoc(customerRef, {
+            name: formData.fullName,
+            email: formData.email,
+            phone: formData.phone.trim(),
+            address: formData.address,
+            lastOrderDate: new Date().toISOString(),
+            totalSpent: total, // For now, setting it, later can be updated to accumulate
+            totalOrders: 1 // For now, setting it
+          }, { merge: true });
+        } catch (err) {
+          console.error("Error saving customer:", err);
+        }
+      };
+      saveCustomer();
+
       // SMS sending logic simulation
       const sendSmsNotification = async () => {
         try {
@@ -393,15 +414,6 @@ export default function Checkout() {
       toast.error("Your cart is empty. Please add items before checking out.");
       return;
     }
-
-    // Check if customer is logged in / authenticated with the correct email
-    const isVerified = (currentUser !== null) || (customerUser !== null && customerUser.email === formData.email.trim());
-    
-    if (!isVerified) {
-      // Force phone login and verification first
-      handleSendOtp();
-      return;
-    }
     
     submitOrder();
   };
@@ -442,135 +454,123 @@ export default function Checkout() {
         >
           <ArrowLeft size={16} />
         </button>
-        <h1 className="text-xl md:text-2xl font-black text-[#0C1421] tracking-tight uppercase">CHECKOUT</h1>
+        <h1 className="text-xl md:text-2xl font-black text-[#1e3a8a] tracking-tight uppercase">CHECKOUT</h1>
       </div>
       <form onSubmit={handleSubmit} className="space-y-10">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         
-        {/* Left Side: Dynamic Checkout Card */}
-        <div className="border border-gray-100/80 bg-white p-5 md:p-10 rounded-3xl shadow-sm">
+        {/* Left Side: Shipping Information & Payment Method */}
+        <div className="lg:col-span-2 space-y-6">
             
             {/* Step 1: Shipping Information */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-3">
-                <span className="w-7 h-7 rounded-full bg-[#0C1421] text-white flex items-center justify-center font-black text-xs shrink-0 shadow-sm font-mono">1</span>
-                <h2 className="text-sm font-black uppercase tracking-[0.15em] text-[#0C1421]">SHIPPING INFORMATION</h2>
-              </div>
-
-              {/* Grid holding inputs */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-3">
+            <div className="border border-gray-100/80 bg-white p-5 md:p-8 rounded-3xl shadow-sm">
+              <h2 className="text-lg font-black mb-6 text-[#1e3a8a]">Checkout</h2>
                 
-                {/* Full name input */}
-                <div className="text-left">
-                  <label className="block text-[9.5px] font-extrabold uppercase tracking-widest text-[#62758A] mb-2">FULL NAME</label>
-                  <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                    <input
-                      required
-                      type="text"
-                      name="fullName"
-                      value={formData.fullName}
-                      onChange={handleInputChange}
-                      placeholder="John Doe"
-                      className="w-full pl-11 pr-4 py-4 rounded-2xl border border-gray-200/90 hover:border-gray-300 bg-gray-50/10 focus:outline-none focus:ring-2 focus:ring-[#0C1421]/10 focus:border-[#0C1421] text-sm font-bold text-[#0C1421] placeholder-gray-400 transition-all shadow-3xs"
-                    />
+                <div className="space-y-5">
+                  
+                  {/* Full name input */}
+                  <div className="text-left">
+                    <div className="relative">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                      <input
+                        required
+                        type="text"
+                        name="fullName"
+                        value={formData.fullName}
+                        onChange={handleInputChange}
+                        placeholder="Your name"
+                        className="w-full pl-12 pr-4 py-4 rounded-2xl border border-gray-200/90 focus:outline-none focus:ring-1 focus:ring-[#1e3a8a] text-sm font-bold text-[#1e3a8a] placeholder-gray-400 transition-all shadow-3xs"
+                      />
+                    </div>
                   </div>
-                </div>
 
-                {/* Phone number input */}
-                <div className="text-left">
-                  <label className="block text-[9.5px] font-extrabold uppercase tracking-widest text-[#62758A] mb-2">PHONE NUMBER</label>
-                  <div className="relative">
-                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                    <input
-                      required
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      placeholder="01XXXXXXXXX"
-                      className="w-full pl-11 pr-4 py-4 rounded-2xl border border-gray-200/90 hover:border-gray-300 bg-gray-50/10 focus:outline-none focus:ring-2 focus:ring-[#0C1421]/10 focus:border-[#0C1421] text-sm font-bold text-[#0C1421] placeholder-gray-400 transition-all shadow-3xs"
-                    />
+                  {/* Phone number input */}
+                  <div className="text-left">
+                    <div className="relative">
+                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                      <input
+                        required
+                        type="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        placeholder="Phone number"
+                        className="w-full pl-12 pr-4 py-4 rounded-2xl border border-gray-200/90 focus:outline-none focus:ring-1 focus:ring-[#1e3a8a] text-sm font-bold text-[#1e3a8a] placeholder-gray-400 transition-all shadow-3xs"
+                      />
+                    </div>
                   </div>
-                </div>
 
-                {/* Email input */}
-                <div className="text-left">
-                  <label className="block text-[9.5px] font-extrabold uppercase tracking-widest text-[#62758A] mb-2">EMAIL (OPTIONAL)</label>
-                  <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      placeholder="john@example.com"
-                      className="w-full pl-11 pr-4 py-4 rounded-2xl border border-gray-200/90 hover:border-gray-300 bg-gray-50/10 focus:outline-none focus:ring-2 focus:ring-[#0C1421]/10 focus:border-[#0C1421] text-sm font-bold text-[#0C1421] placeholder-gray-400 transition-all shadow-3xs"
-                    />
+                  {/* City select dropdown */}
+                  <div className="text-left">
+                    <div className="relative">
+                      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                      <select
+                        required
+                        name="city"
+                        value={formData.city}
+                        onChange={(e) => {
+                          handleInputChange(e);
+                          setFormData(prev => ({ ...prev, thana: '' }));
+                        }}
+                        className="w-full pl-12 pr-10 py-4 rounded-2xl border border-gray-200/90 focus:outline-none focus:ring-1 focus:ring-[#1e3a8a] text-sm font-bold text-[#1e3a8a] transition-all shadow-3xs appearance-none cursor-pointer"
+                      >
+                        <option value="">Select district</option>
+                        {Object.keys(DISTRICT_THANAS).map(district => (
+                          <option key={district} value={district}>{district}</option>
+                        ))}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-[#1e3a8a]">
+                        <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
+                          <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                        </svg>
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                {/* City select dropdown */}
-                <div className="text-left">
-                  <label className="block text-[9.5px] font-extrabold uppercase tracking-widest text-[#62758A] mb-2">SELECT ZILA (DISTRICT)</label>
-                  <div className="relative">
-                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                    <select
-                      required
-                      name="city"
-                      value={formData.city}
-                      onChange={handleInputChange}
-                      className="w-full pl-11 pr-10 py-4 rounded-2xl border border-gray-200/90 hover:border-gray-300 bg-gray-50/10 focus:outline-none focus:ring-2 focus:ring-[#0C1421]/10 focus:border-[#0C1421] text-sm font-bold text-[#0C1421] transition-all shadow-3xs appearance-none cursor-pointer"
-                    >
-                      <option value="Dhaka">Dhaka (Inside Dhaka 80 TK)</option>
-                      <option value="Outside Dhaka">Outside Dhaka (130 TK)</option>
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-[#0C1421]">
-                      <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
-                        <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                      </svg>
+                  {/* Thana select dropdown */}
+                  <div className="text-left">
+                    <div className="relative">
+                      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                      <select
+                        required
+                        name="thana"
+                        value={formData.thana}
+                        onChange={handleInputChange}
+                        className="w-full pl-12 pr-10 py-4 rounded-2xl border border-gray-200/90 focus:outline-none focus:ring-1 focus:ring-[#1e3a8a] text-sm font-bold text-[#1e3a8a] transition-all shadow-3xs appearance-none cursor-pointer"
+                      >
+                        <option value="">Select thana</option>
+                        {formData.city && DISTRICT_THANAS[formData.city]?.map(thana => (
+                          <option key={thana} value={thana}>{thana}</option>
+                        ))}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-[#1e3a8a]">
+                        <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
+                          <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Address full textarea */}
+                  <div className="text-left">
+                    <div className="relative">
+                      <MapPin className="absolute left-4 top-5 text-gray-400" size={16} />
+                      <textarea
+                        required
+                        rows={3}
+                        name="address"
+                        value={formData.address}
+                        onChange={handleInputChange}
+                        placeholder="Address (house, road, area)"
+                        className="w-full pl-12 pr-4 py-4 rounded-2xl border border-gray-200/90 focus:outline-none focus:ring-1 focus:ring-[#1e3a8a] text-sm font-bold text-[#1e3a8a] placeholder-gray-400 transition-all shadow-3xs resize-none"
+                      />
                     </div>
                   </div>
                 </div>
-
-                {/* Address full textarea */}
-                <div className="md:col-span-2 text-left">
-                  <label className="block text-[9.5px] font-extrabold uppercase tracking-widest text-[#62758A] mb-2">FULL SHIPPING ADDRESS</label>
-                  <div className="relative">
-                    <MapPin className="absolute left-4 top-5 text-gray-400" size={16} />
-                    <textarea
-                      required
-                      rows={3}
-                      name="address"
-                      value={formData.address}
-                      onChange={handleInputChange}
-                      placeholder="House #, Road #, Area, City"
-                      className="w-full pl-11 pr-4 py-4 rounded-2xl border border-gray-200/90 hover:border-gray-300 bg-gray-50/10 focus:outline-none focus:ring-2 focus:ring-[#0C1421]/10 focus:border-[#0C1421] text-sm font-bold text-[#0C1421] placeholder-gray-400 transition-all shadow-3xs resize-none"
-                    />
-                  </div>
-                </div>
-
-                {/* Delivery details / Special Instructions */}
-                <div className="md:col-span-2 text-left">
-                  <label className="block text-[9.5px] font-extrabold uppercase tracking-widest text-[#62758A] mb-2">ORDER NOTE (OPTIONAL)</label>
-                  <div className="relative">
-                    <FileText className="absolute left-4 top-5 text-gray-400" size={16} />
-                    <textarea
-                      rows={2.5}
-                      name="orderNote"
-                      value={formData.orderNote}
-                      onChange={handleInputChange}
-                      placeholder="Any special instructions for delivery..."
-                      className="w-full pl-11 pr-4 py-4 rounded-2xl border border-gray-200/90 hover:border-gray-300 bg-gray-50/10 focus:outline-none focus:ring-2 focus:ring-[#0C1421]/10 focus:border-[#0C1421] text-sm font-bold text-[#0C1421] placeholder-gray-400 transition-all shadow-3xs resize-none"
-                    />
-                  </div>
-                </div>
-
-              </div>
             </div>
 
             {/* Step 2: Payment Method */}
-            <div className="space-y-6 pt-2">
+            <div className="border border-gray-100/80 bg-white p-5 md:p-10 rounded-3xl shadow-sm space-y-6">
               <div className="flex items-center gap-3">
                 <span className="w-7 h-7 rounded-full bg-[#0C1421] text-white flex items-center justify-center font-black text-xs shrink-0 shadow-sm font-mono">2</span>
                 <h2 className="text-sm font-black uppercase tracking-[0.15em] text-[#0C1421]">PAYMENT METHOD</h2>
@@ -596,19 +596,13 @@ export default function Checkout() {
                       className="absolute opacity-0"
                     />
                     <div className="flex items-center gap-3">
-                      <Coins size={18} className="text-[#0C1421] shrink-0" />
+                      <Coins size={18} className="text-emerald-600 shrink-0" />
                       <div className="flex flex-col text-left">
-                        <span className="text-[10.5px] font-black uppercase tracking-wider text-[#0C1421]">Cash on Delivery</span>
-                        <span className="text-[8.5px] font-bold text-[#62758A] mt-0.5 uppercase tracking-wide">Pay on delivery</span>
+                        <span className="text-[10.5px] font-black uppercase tracking-wider text-[#0C1421] flex items-center gap-1.5 flex-wrap">
+                          CASH ON DELIVERY 
+                          <span className="text-emerald-600 font-extrabold text-[11px] font-sans tracking-normal">(COD)</span>
+                        </span>
                       </div>
-                    </div>
-                    <div className={cn(
-                      "w-4 h-4 rounded-full border flex items-center justify-center bg-white shrink-0 shadow-3xs",
-                      formData.paymentMethod === 'cod' ? "border-[#0C1421]" : "border-gray-300"
-                    )}>
-                      {formData.paymentMethod === 'cod' && (
-                        <div className="w-2.5 h-2.5 rounded-full bg-[#0C1421] animate-scale-in" />
-                      )}
                     </div>
                   </label>
                 )}
@@ -630,20 +624,23 @@ export default function Checkout() {
                       className="absolute opacity-0"
                     />
                     <div className="flex items-center gap-3">
-                      {/* Mono text styling logo representation as requested "icon black color thakbe" */}
-                      <div className="w-5.5 h-5.5 rounded-md bg-[#0C1421] flex items-center justify-center text-white shrink-0 text-[10px] font-black tracking-tighter shadow-sm">bK</div>
-                      <div className="flex flex-col text-left">
-                        <span className="text-[10.5px] font-black uppercase tracking-wider text-[#0C1421]">bKash Wallet</span>
-                        <span className="text-[8.5px] font-bold text-[#62758A] mt-0.5 uppercase tracking-wide">Manual SendMoney</span>
+                      <div className="w-6.5 h-6.5 rounded-lg overflow-hidden flex items-center justify-center bg-white shrink-0 shadow-3xs border border-pink-100 relative">
+                        <img 
+                          src="https://upload.wikimedia.org/wikipedia/commons/7/7a/BKash_Logo.svg" 
+                          alt="bKash" 
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-contain p-0.5"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const fb = e.currentTarget.parentElement?.querySelector('.fallback-bkash') as HTMLElement;
+                            if (fb) fb.style.display = 'flex';
+                          }}
+                        />
+                        <div className="fallback-bkash hidden absolute inset-0 bg-[#D12053] items-center justify-center text-white text-[9px] font-black">bK</div>
                       </div>
-                    </div>
-                    <div className={cn(
-                      "w-4 h-4 rounded-full border flex items-center justify-center bg-white shrink-0 shadow-3xs",
-                      formData.paymentMethod === 'bkash' ? "border-[#0C1421]" : "border-gray-300"
-                    )}>
-                      {formData.paymentMethod === 'bkash' && (
-                        <div className="w-2.5 h-2.5 rounded-full bg-[#0C1421] animate-scale-in" />
-                      )}
+                      <div className="flex flex-col text-left">
+                        <span className="text-[10.5px] font-black uppercase tracking-wider text-[#0C1421]">bKash</span>
+                      </div>
                     </div>
                   </label>
                 )}
@@ -665,20 +662,23 @@ export default function Checkout() {
                       className="absolute opacity-0"
                     />
                     <div className="flex items-center gap-3">
-                      {/* Mono text styling representation as requested "icon black color thakbe" */}
-                      <div className="w-5.5 h-5.5 rounded-md bg-[#0C1421] flex items-center justify-center text-white shrink-0 text-[10px] font-black tracking-tighter shadow-sm">Ng</div>
-                      <div className="flex flex-col text-left">
-                        <span className="text-[10.5px] font-black uppercase tracking-wider text-[#0C1421]">Nagad Direct</span>
-                        <span className="text-[8.5px] font-bold text-[#62758A] mt-0.5 uppercase tracking-wide">Manual SendMoney</span>
+                      <div className="w-6.5 h-6.5 rounded-lg overflow-hidden flex items-center justify-center bg-white shrink-0 shadow-3xs border border-orange-100 relative">
+                        <img 
+                          src="https://upload.wikimedia.org/wikipedia/commons/1/1b/Nagad_logo.png" 
+                          alt="Nagad" 
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-contain p-0.5"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const fb = e.currentTarget.parentElement?.querySelector('.fallback-nagad') as HTMLElement;
+                            if (fb) fb.style.display = 'flex';
+                          }}
+                        />
+                        <div className="fallback-nagad hidden absolute inset-0 bg-[#F47216] items-center justify-center text-white text-[9px] font-black">Ng</div>
                       </div>
-                    </div>
-                    <div className={cn(
-                      "w-4 h-4 rounded-full border flex items-center justify-center bg-white shrink-0 shadow-3xs",
-                      formData.paymentMethod === 'nagad' ? "border-[#0C1421]" : "border-gray-300"
-                    )}>
-                      {formData.paymentMethod === 'nagad' && (
-                        <div className="w-2.5 h-2.5 rounded-full bg-[#0C1421] animate-scale-in" />
-                      )}
+                      <div className="flex flex-col text-left">
+                        <span className="text-[10.5px] font-black uppercase tracking-wider text-[#0C1421]">Nagad</span>
+                      </div>
                     </div>
                   </label>
                 )}
@@ -721,35 +721,7 @@ export default function Checkout() {
                 )}
               </AnimatePresence>
             </div>
-            
-            {/* Huge Confirmation Action Button */}
-            <div className="pt-2">
-              <button
-                disabled={isProcessing}
-                type="submit"
-                className={cn(
-                  "w-full py-5 text-xs uppercase tracking-[0.2em] font-black transition-all duration-300 rounded-2xl flex items-center justify-center cursor-pointer shadow-md",
-                  isProcessing 
-                    ? "bg-gray-200 text-gray-500 cursor-not-allowed" 
-                    : "bg-[#0C1421] text-white hover:bg-emerald-600 shadow-xl shadow-[#0C1421]/5"
-                )}
-              >
-                {isProcessing ? (
-                  <div className="flex items-center justify-center space-x-2">
-                    <div className="w-4 h-4 border-2 border-gray-400 border-t-gray-700 rounded-full animate-spin" />
-                    <span>Processing Order...</span>
-                  </div>
-                ) : (
-                  `CONFIRM & PLACE ORDER — ${formatPrice(total, currency, rate)}`
-                )}
-              </button>
-              
-              <span className="text-center text-gray-500/85 uppercase tracking-[0.15em] text-[9.5px] font-black mt-4 block">
-                ESTIMATED DELIVERY: 24-48 HOURS
-              </span>
-            </div>
-
-          </div>
+        </div>
         
         {/* Right Side: Order Summary Card */}
         <div className="border border-gray-100/80 bg-white p-5 md:p-10 rounded-3xl shadow-sm space-y-8">
@@ -838,7 +810,7 @@ export default function Checkout() {
             )}
             
             <div className="flex justify-between items-center">
-              <span>SHIPPING ({isInsideDhaka ? 'DHAKA' : 'OUTSIDE DHAKA'})</span>
+              <span>SHIPPING ({isInsideDhaka ? 'DHAKA' : 'টাকার বাহিরে'})</span>
               <span className="text-[#0C1421] font-bold font-mono">{formatPrice(shipping, currency, rate)}</span>
             </div>
             
@@ -859,7 +831,7 @@ export default function Checkout() {
                 "w-full py-5 text-xs uppercase tracking-[0.2em] font-black transition-all duration-300 rounded-2xl flex items-center justify-center cursor-pointer shadow-md",
                 isProcessing 
                   ? "bg-gray-200 text-gray-500 cursor-not-allowed" 
-                  : "bg-[#0C1421] text-white hover:bg-emerald-600 shadow-xl shadow-[#0C1421]/5"
+                  : "bg-[#1e3a8a] text-white hover:bg-blue-700 shadow-xl shadow-[#1e3a8a]/5"
               )}
             >
               {isProcessing ? (

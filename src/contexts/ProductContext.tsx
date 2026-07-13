@@ -65,8 +65,18 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   useEffect(() => {
     const fetchProducts = async () => {
+      // Check for cache first
+      const cached = localStorage.getItem('eleganbd_products');
+      const lastFetched = localStorage.getItem('eleganbd_products_last_fetched');
+      const ONE_HOUR = 60 * 60 * 1000;
+      
+      if (cached && lastFetched && (Date.now() - parseInt(lastFetched) < ONE_HOUR)) {
+        setLoading(false);
+        return;
+      }
+
       try {
-        // Try to fetch from Firestore first
+        setLoading(true);
         const productsCol = collection(db, 'products');
         const snapshot = await getDocs(productsCol);
         
@@ -75,7 +85,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const data = doc.data() as Product;
           prodData.push({
             ...data,
-            id: doc.id, // Ensure ID matches doc ID
+            id: doc.id,
             stock: data.stock || 0,
             images: data.images || [],
             sizes: data.sizes || [],
@@ -105,23 +115,13 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
              return { ...p, category };
           });
           setProducts(normalizedData);
-          try {
-            localStorage.setItem('eleganbd_products', JSON.stringify(normalizedData));
-          } catch (e) {
-            // Storage full - try clearing it first
-            localStorage.clear();
-            try {
-              localStorage.setItem('eleganbd_products', JSON.stringify(normalizedData));
-            } catch (e2) {
-              console.warn("Storage quota exceeded even after clear");
-            }
-          }
+          localStorage.setItem('eleganbd_products', JSON.stringify(normalizedData));
+          localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
         }
       } catch (err: any) {
         if (!err?.message?.includes('resource-exhausted') && !err?.message?.includes('Quota limit exceeded')) {
           console.error("Product fetch error:", err);
         }
-        // Fallback to local storage if firestore fails is already handled by initial state
       } finally {
         setLoading(false);
       }

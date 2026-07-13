@@ -156,7 +156,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   });
 
   const [categoryImages, setCategoryImagesState] = useState<Record<string, string>>(() => {
-    const cached = localStorage.getItem('eleganbd_categories');
+    const cached = localStorage.getItem('eleganbd_category_images_map');
     return cached ? JSON.parse(cached) : {};
   });
 
@@ -298,110 +298,65 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   });
 
   useEffect(() => {
-    // 1. Listen for Branding Config (Logo, Size Chart, and new design fields)
-    const brandingRef = doc(db, 'config', 'branding');
-    const unsubBranding = onSnapshot(brandingRef, (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        if (data.logoUrl) setLogoUrlState(data.logoUrl);
-        if (data.sizeChartUrl) setSizeChartUrlState(data.sizeChartUrl);
-        if (data.showShowcase !== undefined) setShowShowcaseState(data.showShowcase);
-        
-        // Load design properties if defined
-        if (data.showAnnouncementBar !== undefined) setShowAnnouncementBarState(data.showAnnouncementBar);
-        if (data.announcementMessage !== undefined) setAnnouncementMessageState(data.announcementMessage);
-        if (data.showCountdownBanner !== undefined) setShowCountdownBannerState(data.showCountdownBanner);
-        if (data.showHeroBanner !== undefined) setShowHeroBannerState(data.showHeroBanner);
-        if (data.facebookUrl !== undefined) setFacebookUrlState(data.facebookUrl);
-        if (data.instagramUrl !== undefined) setInstagramUrlState(data.instagramUrl);
-        if (data.youtubeUrl !== undefined) setYoutubeUrlState(data.youtubeUrl);
-        if (data.tiktokUrl !== undefined) setTiktokUrlState(data.tiktokUrl);
-        if (data.shippingInsideDhaka !== undefined) setShippingInsideDhakaState(Number(data.shippingInsideDhaka));
-        if (data.shippingOutsideDhaka !== undefined) setShippingOutsideDhakaState(Number(data.shippingOutsideDhaka));
-        if (data.shippingFreeAfter !== undefined) setShippingFreeAfterState(Number(data.shippingFreeAfter));
-        if (data.primaryDeliveryDistrict !== undefined) setPrimaryDeliveryDistrictState(data.primaryDeliveryDistrict);
-        if (data.aboutText !== undefined) setAboutTextState(data.aboutText);
+    const fetchBranding = async () => {
+      try {
+        // 1. Fetch Branding Config
+        const brandingRef = doc(db, 'config', 'branding');
+        const brandingSnap = await getDoc(brandingRef);
+        if (brandingSnap.exists()) {
+          const data = brandingSnap.data();
+          if (data.logoUrl) setLogoUrlState(data.logoUrl);
+          if (data.sizeChartUrl) setSizeChartUrlState(data.sizeChartUrl);
+          if (data.showShowcase !== undefined) setShowShowcaseState(data.showShowcase);
+          
+          if (data.showAnnouncementBar !== undefined) setShowAnnouncementBarState(data.showAnnouncementBar);
+          if (data.announcementMessage !== undefined) setAnnouncementMessageState(data.announcementMessage);
+          if (data.showCountdownBanner !== undefined) setShowCountdownBannerState(data.showCountdownBanner);
+          if (data.showHeroBanner !== undefined) setShowHeroBannerState(data.showHeroBanner);
+          if (data.facebookUrl !== undefined) setFacebookUrlState(data.facebookUrl);
+          if (data.instagramUrl !== undefined) setInstagramUrlState(data.instagramUrl);
+          if (data.youtubeUrl !== undefined) setYoutubeUrlState(data.youtubeUrl);
+          if (data.tiktokUrl !== undefined) setTiktokUrlState(data.tiktokUrl);
+          if (data.shippingInsideDhaka !== undefined) setShippingInsideDhakaState(Number(data.shippingInsideDhaka));
+          if (data.shippingOutsideDhaka !== undefined) setShippingOutsideDhakaState(Number(data.shippingOutsideDhaka));
+          if (data.shippingFreeAfter !== undefined) setShippingFreeAfterState(Number(data.shippingFreeAfter));
+          if (data.primaryDeliveryDistrict !== undefined) setPrimaryDeliveryDistrictState(data.primaryDeliveryDistrict);
+          if (data.aboutText !== undefined) setAboutTextState(data.aboutText);
 
-        // Update cache
-        const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
-        localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, ...data }));
+          const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
+          localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, ...data }));
+        }
+
+        // 2. Fetch Banners
+        const bannerKeys = ['hero', 'collections', 'feature', 'polo', 'combo_offer'];
+        for (const key of bannerKeys) {
+            const snap = await getDoc(doc(db, 'config', `banner_${key}`));
+            if (snap.exists()) {
+                const url = snap.data().url;
+                const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
+                localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, [`${key}BannerUrl`]: url }));
+                if (key === 'hero') setHeroBannerUrlState(url);
+                if (key === 'collections') setCollectionsBannerUrlState(url);
+                if (key === 'feature') setFeatureBannerUrlState(url);
+                if (key === 'polo') setPoloBannerUrlState(url);
+                if (key === 'combo_offer') setComboOfferBannerUrlState(url);
+            }
+        }
+
+        // 3. Fetch Category Images
+        const catRef = doc(db, 'config', 'categories');
+        const catSnap = await getDoc(catRef);
+        if (catSnap.exists()) {
+          const images = catSnap.data().images || {};
+          setCategoryImagesState(images);
+          localStorage.setItem('eleganbd_category_images_map', JSON.stringify(images));
+        }
+      } catch (err) {
+        console.error("Branding sync error:", err);
       }
-    }, (err) => {
-      if (!err.message.includes('resource-exhausted')) console.error("Branding listener error:", err);
-    });
-
-    // 2. Listen for Large Banners
-    const heroRef = doc(db, 'config', 'banner_hero');
-    const unsubHero = onSnapshot(heroRef, (snap) => {
-      if (snap.exists()) {
-        const url = snap.data().url;
-        setHeroBannerUrlState(url);
-        const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
-        localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, heroBannerUrl: url }));
-      }
-    });
-
-    const collectionsRef = doc(db, 'config', 'banner_collections');
-    const unsubCollections = onSnapshot(collectionsRef, (snap) => {
-      if (snap.exists()) {
-        const url = snap.data().url;
-        setCollectionsBannerUrlState(url);
-        const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
-        localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, collectionsBannerUrl: url }));
-      }
-    });
-
-    const featureRef = doc(db, 'config', 'banner_feature');
-    const unsubFeature = onSnapshot(featureRef, (snap) => {
-      if (snap.exists()) {
-        const url = snap.data().url;
-        setFeatureBannerUrlState(url);
-        const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
-        localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, featureBannerUrl: url }));
-      }
-    });
-
-    const poloRef = doc(db, 'config', 'banner_polo');
-    const unsubPolo = onSnapshot(poloRef, (snap) => {
-      if (snap.exists()) {
-        const url = snap.data().url;
-        setPoloBannerUrlState(url);
-        const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
-        localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, poloBannerUrl: url }));
-      }
-    });
-
-    const comboOfferRef = doc(db, 'config', 'banner_combo_offer');
-    const unsubComboOffer = onSnapshot(comboOfferRef, (snap) => {
-      if (snap.exists()) {
-        const url = snap.data().url;
-        setComboOfferBannerUrlState(url);
-        const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
-        localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, comboOfferBannerUrl: url }));
-      }
-    });
-
-    // 3. Listen for Category Images
-    const catRef = doc(db, 'config', 'categories');
-    const unsubCats = onSnapshot(catRef, (snap) => {
-      if (snap.exists()) {
-        const images = snap.data().images || {};
-        setCategoryImagesState(images);
-        localStorage.setItem('eleganbd_categories', JSON.stringify(images));
-      }
-    }, (err) => {
-        if (!err.message.includes('resource-exhausted')) console.error("Categories listener error:", err);
-    });
-
-    return () => {
-      unsubBranding();
-      unsubHero();
-      unsubCollections();
-      unsubFeature();
-      unsubPolo();
-      unsubComboOffer();
-      unsubCats();
     };
+
+    fetchBranding();
   }, []);
 
   const updateFirestore = async (path: string, data: any) => {
@@ -472,7 +427,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const setCategoryImageUrl = (category: string, url: string) => {
     const newImages = { ...categoryImages, [category]: url };
     setCategoryImagesState(newImages);
-    localStorage.setItem('eleganbd_categories', JSON.stringify(newImages));
+    localStorage.setItem('eleganbd_category_images_map', JSON.stringify(newImages));
     updateFirestore('categories', { images: newImages });
   };
 

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Banner } from '../types';
-import { collection, onSnapshot, doc, setDoc, deleteDoc, query } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, query, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import toast from 'react-hot-toast';
 
@@ -17,20 +17,28 @@ export function BannerProvider({ children }: { children: React.ReactNode }) {
   const [banners, setBanners] = useState<Banner[]>([]);
 
   useEffect(() => {
-    const q = query(collection(db, 'banners'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const bannerList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Banner[];
-      setBanners(bannerList);
-    }, (error) => {
-      if (!error.message.includes('resource-exhausted')) {
-        console.error("Banner listener error:", error);
-      }
-    });
+    const fetchBanners = async () => {
+      try {
+        const cached = localStorage.getItem('eleganbd_banners');
+        if (cached) {
+          setBanners(JSON.parse(cached));
+          return;
+        }
 
-    return () => unsubscribe();
+        const q = query(collection(db, 'banners'));
+        const snapshot = await getDocs(q);
+        const bannerList = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Banner[];
+        setBanners(bannerList);
+        localStorage.setItem('eleganbd_banners', JSON.stringify(bannerList));
+      } catch (error) {
+        console.error("Banner fetch error:", error);
+      }
+    };
+
+    fetchBanners();
   }, []);
 
   const addBanner = async (banner: Omit<Banner, 'id'>) => {

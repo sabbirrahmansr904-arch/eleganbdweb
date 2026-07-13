@@ -58,16 +58,16 @@ const ProductList = () => {
   const categoryTitle = category ? category.replace(/-/g, ' ').toUpperCase() : 'ALL PRODUCTS';
 
   return (
-    <div className="pt-4 md:pt-8 pb-20 px-6">
+    <div className="pt-2 md:pt-4 pb-20 px-6">
       <div className="max-w-7xl mx-auto">
         {/* Breadcrumbs & Header */}
-        <div className="mb-8 text-center">
-          <nav className="flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest text-gray-400 mb-4">
+        <div className="mb-4 text-center">
+          <nav className="flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest text-gray-400 mb-2">
             <Link to="/" className="hover:text-brand-gold">Home</Link>
             <span>/</span>
             <span className="text-black font-bold">{categoryTitle}</span>
           </nav>
-          <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase text-black">
+          <h1 className="text-4xl md:text-6xl font-black italic tracking-tighter uppercase text-blue-600">
             {categoryTitle}
           </h1>
           <p className="text-[10px] text-gray-400 uppercase tracking-[0.3em] font-bold mt-2">

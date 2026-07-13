@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   Mail, 
@@ -14,16 +14,36 @@ import {
   Filter,
   MoreVertical
 } from 'lucide-react';
-import { MOCK_CUSTOMERS } from '../../constants';
 import { formatPrice } from '../../lib/utils';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import toast from 'react-hot-toast';
+import { db } from '../../lib/firebase';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 
 export default function AdminCustomers() {
   const { currency, rate } = useCurrency();
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredCustomers = MOCK_CUSTOMERS.filter(customer => 
+  useEffect(() => {
+    const q = query(collection(db, 'customers'), orderBy('lastOrderDate', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const customersData: any[] = [];
+      snapshot.forEach(doc => {
+        customersData.push({ id: doc.id, ...doc.data() });
+      });
+      setCustomers(customersData);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching customers:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const filteredCustomers = customers.filter(customer => 
     customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     customer.phone.includes(searchTerm)
@@ -32,12 +52,17 @@ export default function AdminCustomers() {
   const handleAction = (name: string) => {
     toast.success(`Accessing profile for ${name}...`);
   };
+
+  if (loading) {
+    return <div className="p-8 text-center text-sm font-bold text-gray-500">Loading customers...</div>;
+  }
+
   return (
     <div className="space-y-8 font-sans">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 bg-gray-50 p-8 rounded-3xl border border-gray-100 shadow-sm transition-all hover:bg-gray-100/50">
         <div>
           <h1 className="text-3xl font-black text-black italic tracking-tighter uppercase">Customer Directory</h1>
-          <p className="text-[10px] text-gray-400 mt-2 uppercase tracking-[0.2em] font-black">{filteredCustomers.length} Registered Identities</p>
+          <p className="text-[10px] text-gray-400 mt-2 uppercase tracking-[0.2em] font-black">{customers.length} Registered Identities</p>
         </div>
       </div>
 
@@ -49,7 +74,7 @@ export default function AdminCustomers() {
           </div>
           <div>
             <p className="text-[10px] uppercase tracking-widest text-gray-400 font-black mb-1">Total Profiles</p>
-            <p className="text-2xl font-black text-black italic tracking-tighter">124</p>
+            <p className="text-2xl font-black text-black italic tracking-tighter">{customers.length}</p>
           </div>
         </div>
         <div className="bg-white p-8 border border-gray-100 rounded-2xl flex items-center space-x-6 shadow-sm group hover:border-black transition-all">
@@ -58,7 +83,7 @@ export default function AdminCustomers() {
           </div>
           <div>
             <p className="text-[10px] uppercase tracking-widest text-gray-400 font-black mb-1">Active Interaction</p>
-            <p className="text-2xl font-black text-black italic tracking-tighter">86%</p>
+            <p className="text-2xl font-black text-black italic tracking-tighter">{customers.length > 0 ? '100%' : '0%'}</p>
           </div>
         </div>
         <div className="bg-white p-8 border border-gray-100 rounded-2xl flex items-center space-x-6 shadow-sm group hover:border-brand-gold/50 transition-all">
@@ -67,7 +92,7 @@ export default function AdminCustomers() {
           </div>
           <div>
             <p className="text-[10px] uppercase tracking-widest text-gray-400 font-black mb-1">Avg. Retention</p>
-            <p className="text-2xl font-black text-black italic tracking-tighter">{formatPrice(185, currency, rate)}</p>
+            <p className="text-2xl font-black text-black italic tracking-tighter">{customers.length > 0 ? formatPrice(customers.reduce((sum, c) => sum + c.totalSpent, 0) / customers.length, currency, rate) : '0'}</p>
           </div>
         </div>
       </div>
@@ -112,7 +137,7 @@ export default function AdminCustomers() {
                   <td className="px-10 py-8">
                     <div className="flex items-center space-x-5">
                       <div className="w-12 h-12 bg-gray-50 text-black rounded-2xl flex items-center justify-center font-black italic text-lg border border-gray-100 shadow-sm group-hover:bg-black group-hover:text-white transition-all transform group-hover:rotate-6">
-                        {customer.name.charAt(0)}
+                        {customer.name?.charAt(0) || '?'}
                       </div>
                       <div className="space-y-1">
                         <h4 className="text-sm font-black text-black uppercase italic tracking-tighter group-hover:text-brand-gold transition-colors">{customer.name}</h4>
@@ -133,13 +158,13 @@ export default function AdminCustomers() {
                     </div>
                   </td>
                   <td className="px-6 py-8 text-center">
-                    <span className="bg-gray-50 text-black border border-gray-100 px-4 py-1.5 rounded-xl text-[10px] font-black font-mono shadow-sm group-hover:bg-black group-hover:text-white group-hover:border-black transition-all">{customer.totalOrders}</span>
+                    <span className="bg-gray-50 text-black border border-gray-100 px-4 py-1.5 rounded-xl text-[10px] font-black font-mono shadow-sm group-hover:bg-black group-hover:text-white group-hover:border-black transition-all">{customer.totalOrders || 0}</span>
                   </td>
                   <td className="px-6 py-8">
-                    <span className="text-sm font-black text-black italic tracking-tighter">{formatPrice(customer.totalSpent, currency, rate)}</span>
+                    <span className="text-sm font-black text-black italic tracking-tighter">{formatPrice(customer.totalSpent || 0, currency, rate)}</span>
                   </td>
                   <td className="px-6 py-8">
-                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">{new Date(customer.lastOrderDate).toLocaleDateString()}</p>
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">{customer.lastOrderDate ? new Date(customer.lastOrderDate).toLocaleDateString() : 'N/A'}</p>
                   </td>
                   <td className="px-10 py-8 text-right">
                     <button 
