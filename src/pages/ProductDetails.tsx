@@ -24,6 +24,7 @@ const ProductDetails = () => {
   const { shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter } = useBranding();
   
   const product = products.find(p => p.id === id);
+  const isBag = (product?.category || '').toLowerCase().includes('bag');
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState('');
   const [quantity, setQuantity] = useState(1);
@@ -31,7 +32,7 @@ const ProductDetails = () => {
   const [isQuickOrderOpen, setIsQuickOrderOpen] = useState(false);
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
   const [isHovering, setIsHovering] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
 
   // New conversion features states
   const [selectedShippingArea, setSelectedShippingArea] = useState<'dhaka' | 'outside'>('dhaka');
@@ -84,10 +85,10 @@ const ProductDetails = () => {
   const handleWhatsAppOrder = () => {
     if (!product) return;
     if (!selectedSize) {
-      toast.error('দয়া করে সাইজ সিলেক্ট করুন (Please select a size first)');
+      toast.error(isBag ? 'দয়া করে QN সিলেক্ট করুন (Please select QN first)' : 'দয়া করে সাইজ সিলেক্ট করুন (Please select a size first)');
       return;
     }
-    const message = `হ্যালো EleganBD! আমি এই প্রোডাক্টটি অর্ডার করতে চাই:\n\n*প্রোডাক্ট:* ${product.name}\n*সাইজ:* ${selectedSize}\n*মূল্য:* ${formatPrice(product.price, currency, rate)}\n\nলিঙ্ক: ${window.location.href}`;
+    const message = `হ্যালো EleganBD! আমি এই প্রোডাক্টটি অর্ডার করতে চাই:\n\n*প্রোডাক্ট:* ${product.name}\n*${isBag ? 'QN' : 'সাইজ'}:* ${selectedSize}\n*মূল্য:* ${formatPrice(product.price, currency, rate)}\n\nলিঙ্ক: ${window.location.href}`;
     const url = `https://wa.me/8801619835133?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
   };
@@ -333,17 +334,19 @@ const ProductDetails = () => {
             {/* Size Selector */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-black">
-                <h4 className="text-[11px] font-black uppercase tracking-widest">Select Size</h4>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => setShowFitAssistant(true)}
-                    className="text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-800 underline decoration-dotted cursor-pointer flex items-center gap-1 bg-transparent border-0 outline-none"
-                  >
-                    ✨ Fit Assistant
-                  </button>
-                  <span className="text-gray-300">|</span>
-                  <Link to="/size-guide" className="text-[10px] font-bold uppercase tracking-widest text-brand-gold hover:text-black underline decoration-dotted">Size Guide</Link>
-                </div>
+                <h4 className="text-[11px] font-black uppercase tracking-widest">{isBag ? 'Select QN' : 'Select Size'}</h4>
+                {!isBag && (
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => setShowFitAssistant(true)}
+                      className="text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-800 underline decoration-dotted cursor-pointer flex items-center gap-1 bg-transparent border-0 outline-none"
+                    >
+                      ✨ Fit Assistant
+                    </button>
+                    <span className="text-gray-300">|</span>
+                    <Link to="/size-guide" className="text-[10px] font-bold uppercase tracking-widest text-brand-gold hover:text-black underline decoration-dotted">Size Guide</Link>
+                  </div>
+                )}
               </div>
               <div className="flex flex-wrap gap-2">
                 {[...(product.sizes || [])].sort((a, b) => parseInt(a) - parseInt(b)).map(size => {
@@ -475,11 +478,33 @@ const ProductDetails = () => {
 
             {/* Description Section */}
             {product.description && (
-              <div className="space-y-2 pt-4 border-t border-gray-100">
-                <h4 className="text-[11px] font-black uppercase tracking-widest text-black">Product Details</h4>
-                <div className="bg-[#f8fafc] border border-gray-200/60 rounded-xl p-4 md:p-5 text-gray-700 text-xs md:text-[13px] leading-relaxed whitespace-pre-line font-medium font-sans">
-                  {product.description}
-                </div>
+              <div className="pt-4 border-t border-gray-100">
+                <button 
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="w-full flex items-center justify-between py-2 cursor-pointer group"
+                >
+                  <h4 className="text-[11px] font-black uppercase tracking-widest text-black group-hover:text-brand-gold transition-colors">Description</h4>
+                  <ChevronDown size={16} className={cn("text-gray-400 transition-transform duration-300", isExpanded ? "rotate-180" : "rotate-0")} />
+                </button>
+                
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: "easeInOut" }}
+                      className="overflow-hidden"
+                    >
+                      <div className="pb-6 pt-2">
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-4">Product overview and details</p>
+                        <div className="text-gray-500 text-xs md:text-[13px] leading-[1.8] whitespace-pre-line font-medium font-sans">
+                          {product.description}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             )}
 

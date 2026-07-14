@@ -34,12 +34,14 @@ import { formatPrice, cn } from '../../lib/utils';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { useProducts } from '../../contexts/ProductContext';
 import { useOrders } from '../../contexts/OrderContext';
+import { useInventory } from '../../contexts/InventoryContext';
 import { format, subDays } from 'date-fns';
 import toast from 'react-hot-toast';
 
 export default function AdminDashboard(): React.JSX.Element {
   const { products } = useProducts();
   const { orders } = useOrders();
+  const { transactions } = useInventory();
   const { currency, rate } = useCurrency();
   const [daysRange, setDaysRange] = useState<7 | 30 | 90 | 365>(30);
 
@@ -216,6 +218,12 @@ export default function AdminDashboard(): React.JSX.Element {
   const displayLatestOrders = latestOrders;
   const displayStockAlerts = stockAlerts;
   const displayBestSellers = bestSellers;
+
+  const recentInventory = useMemo(() => {
+    return [...transactions]
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, 5);
+  }, [transactions]);
 
   // 7. Time series data for Insights
   const rangeOrders = useMemo(() => {
@@ -541,7 +549,6 @@ export default function AdminDashboard(): React.JSX.Element {
         </div>
 
       </div>
-
       {/* 6. BEST SELLING PRODUCTS & STOCK ALERTS ROW */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
@@ -631,6 +638,63 @@ export default function AdminDashboard(): React.JSX.Element {
 
       </div>
 
+      {/* 5. RECENT STOCK MOVEMENTS (PROOF) */}
+      <div className="bg-white rounded-[20px] p-6 border border-[#EFF2F6] shadow-xs">
+        <div className="flex justify-between items-center mb-5">
+          <h3 className="text-base font-black text-black tracking-tight uppercase tracking-wide">Recent Stock Movements (Proof)</h3>
+          <Link to="/admin/inventory-log" className="text-xs text-indigo-600 font-black hover:underline uppercase tracking-wider flex items-center gap-1">
+            <span>View detailed audit</span>
+            <ArrowRight size={14} />
+          </Link>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-[#EFF2F6]">
+                <th className="pb-3 px-2 text-left">Time</th>
+                <th className="pb-3 px-2 text-left">Product</th>
+                <th className="pb-3 px-2 text-left">Qty</th>
+                <th className="pb-3 px-2 text-left">Type</th>
+                <th className="pb-3 px-2 text-left">Reason/Note</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#EFF2F6]">
+              {recentInventory.length > 0 ? recentInventory.map((t, i) => (
+                <tr key={i} className="text-xs">
+                  <td className="py-3 px-2 font-bold text-gray-500 whitespace-nowrap">
+                    {new Date(t.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </td>
+                  <td className="py-3 px-2">
+                    <p className="font-black text-black">{t.productName}</p>
+                    <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{t.sku}</p>
+                  </td>
+                  <td className="py-3 px-2 font-black text-black">
+                    {t.type === 'in' ? '+' : '-'}{t.totalQuantity}
+                  </td>
+                  <td className="py-3 px-2">
+                    <span className={cn(
+                      "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest",
+                      t.type === 'in' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-red-50 text-red-600 border border-red-100"
+                    )}>
+                      {t.type}
+                    </span>
+                  </td>
+                  <td className="py-3 px-2 text-gray-400 font-bold truncate max-w-[200px]">
+                    {t.notes || t.authorizedBy || 'Manual'}
+                  </td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan={5} className="py-10 text-center text-gray-400 font-bold text-xs uppercase tracking-widest">
+                    No recent movements detected
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

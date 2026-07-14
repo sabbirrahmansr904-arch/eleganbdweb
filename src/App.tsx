@@ -152,9 +152,9 @@ function App() {
         <BannerProvider>
           <CategoryProvider>
             <ProductProvider>
-              <OrderProvider>
-                <CurrencyProvider>
-                  <InventoryProvider>
+              <InventoryProvider>
+                <OrderProvider>
+                  <CurrencyProvider>
                     <CartProvider>
                       <Router>
                         <ScrollToTop />
@@ -166,9 +166,9 @@ function App() {
                         </div>
                       </Router>
                     </CartProvider>
-                  </InventoryProvider>
-                </CurrencyProvider>
-              </OrderProvider>
+                  </CurrencyProvider>
+                </OrderProvider>
+              </InventoryProvider>
             </ProductProvider>
           </CategoryProvider>
         </BannerProvider>

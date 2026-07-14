@@ -20,6 +20,7 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
   const { addOrder } = useOrders();
   const { updateProduct } = useProducts();
   const { shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter } = useBranding();
+  const isBag = (product.category || '').toLowerCase().includes('bag');
   
   const [step, setStep] = useState<'form' | 'success'>('form');
   const [selectedSize, setSelectedSize] = useState(product.sizes[0] || '');
@@ -35,7 +36,7 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSize) {
-      toast.error('Please select a size');
+      toast.error(isBag ? 'Please select QN' : 'Please select a size');
       return;
     }
 
@@ -128,7 +129,7 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
 
                   {/* Size Selector */}
                   <div>
-                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-2">Select Size</label>
+                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-2">{isBag ? 'Select QN' : 'Select Size'}</label>
                     <div className="flex flex-wrap gap-2">
                       {product.sizes.map(size => (
                         <button

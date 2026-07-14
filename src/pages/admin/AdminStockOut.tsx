@@ -38,11 +38,11 @@ interface StockOutRow {
 const AVAILABLE_SIZES = [
   '28', '30', '32', '34', '36', '38', '40', '42', '44', '46',
   '48', '50', '52', '54', '56', '58', '60', '62',
-  'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL'
+  'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL', 'QN'
 ];
 
 // Default selected sizes as seen on the user's screenshot
-const DEFAULT_SELECTED_SIZES = ['30', '32', '34', '36', '38', '40', 'M', 'L', 'XL', '2XL'];
+const DEFAULT_SELECTED_SIZES = ['30', '32', '34', '36', '38', '40', 'M', 'L', 'XL', '2XL', 'QN'];
 
 export default function AdminStockOut() {
   const { products, updateProduct } = useProducts();

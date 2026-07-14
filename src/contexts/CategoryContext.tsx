@@ -26,53 +26,51 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchCategories = async () => {
-      setLoading(true);
+    const categoriesCol = collection(db, 'categories');
+    
+    // Initial load from cache to avoid flicker
+    const cached = localStorage.getItem('eleganbd_categories');
+    if (cached) {
       try {
-        const cached = localStorage.getItem('eleganbd_categories');
-        if (cached) {
-          try {
-            const parsed = JSON.parse(cached);
-            if (Array.isArray(parsed)) {
-              setCategories(parsed);
-              setLoading(false);
-              return;
-            } else {
-              // Invalid cache format (object instead of array), clear it
-              localStorage.removeItem('eleganbd_categories');
-            }
-          } catch (e) {
-            localStorage.removeItem('eleganbd_categories');
-          }
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          setCategories(parsed);
+          setLoading(false);
         }
-
-        const categoriesCol = collection(db, 'categories');
-        const snapshot = await getDocs(categoriesCol);
-        const data: Category[] = [];
-        snapshot.forEach(doc => {
-          data.push({ ...doc.data() as Category, id: doc.id });
-        });
-
-        if (data.length > 0) {
-          setCategories(data);
-          localStorage.setItem('eleganbd_categories', JSON.stringify(data));
-        } else {
-          setCategories(DEFAULT_CATEGORIES);
-        }
-      } catch (err) {
-        console.error("Category sync error:", err);
-        setCategories(DEFAULT_CATEGORIES);
-      } finally {
-        setLoading(false);
+      } catch (e) {
+        localStorage.removeItem('eleganbd_categories');
       }
-    };
+    }
 
-    fetchCategories();
+    const unsubscribe = onSnapshot(categoriesCol, (snapshot) => {
+      const data: Category[] = [];
+      snapshot.forEach(doc => {
+        data.push({ ...doc.data() as Category, id: doc.id });
+      });
+
+      if (data.length > 0) {
+        setCategories(data);
+        localStorage.setItem('eleganbd_categories', JSON.stringify(data));
+      } else if (!cached) {
+        setCategories(DEFAULT_CATEGORIES);
+      }
+      setLoading(false);
+    }, (error) => {
+      console.error("Category sync error:", error);
+      if (!cached) {
+        setCategories(DEFAULT_CATEGORIES);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const addCategory = async (category: Category) => {
     try {
       await setDoc(doc(db, 'categories', category.id), category);
+      // Optimistic update
+      setCategories(prev => [...prev, category]);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `categories/${category.id}`);
     }
@@ -81,6 +79,8 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const updateCategory = async (updatedCategory: Category) => {
     try {
       await setDoc(doc(db, 'categories', updatedCategory.id), updatedCategory, { merge: true });
+      // Optimistic update
+      setCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c));
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `categories/${updatedCategory.id}`);
     }
@@ -89,6 +89,8 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const deleteCategory = async (id: string) => {
     try {
       await deleteDoc(doc(db, 'categories', id));
+      // Optimistic update
+      setCategories(prev => prev.filter(c => c.id !== id));
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `categories/${id}`);
     }

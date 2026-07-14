@@ -47,14 +47,14 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [isAdmin, authLoading]);
 
   const addTransaction = async (trans: Omit<StockTransaction, 'id' | 'timestamp'>) => {
-    const id = Date.now().toString();
+    const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const timestamp = Date.now();
     const newTrans: StockTransaction = {
+      authorizedBy: 'Admin',
+      notes: '',
       ...trans,
       id,
       timestamp,
-      authorizedBy: 'Admin', // Default or from context
-      notes: ''
     };
 
     try {

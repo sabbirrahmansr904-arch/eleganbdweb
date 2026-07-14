@@ -74,10 +74,18 @@ export default function AdminAddProduct() {
       setShowNewCategoryInput(false);
       return;
     }
-    const slug = newCategoryName.trim().toLowerCase().replace(/\s+/g, '-');
+    
+    const trimmedName = newCategoryName.trim();
+    // Check for duplicates
+    if (categories.some(cat => cat.name.toLowerCase() === trimmedName.toLowerCase())) {
+      toast.error('This category already exists');
+      return;
+    }
+
+    const slug = trimmedName.toLowerCase().replace(/\s+/g, '-');
     const newCat = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: newCategoryName.trim(),
+      id: `cat-${Date.now()}`,
+      name: trimmedName,
       slug,
       image: '',
       description: ''
@@ -88,8 +96,9 @@ export default function AdminAddProduct() {
       setNewCategoryName('');
       setShowNewCategoryInput(false);
       toast.success('Category added successfully');
-    } catch (err) {
-      toast.error('Failed to add category');
+    } catch (err: any) {
+      console.error('Error adding category:', err);
+      toast.error(err?.message || 'Failed to add category');
     }
   };
 
@@ -123,6 +132,7 @@ export default function AdminAddProduct() {
 
   const getSizesForCategory = () => {
     const cat = selectedCategory.toLowerCase();
+    if (cat.includes('bag')) return ['QN'];
     if (cat.includes('pant')) return PANT_SIZES;
     if (cat.includes('shirt')) return ['M', 'L', 'XL', 'XXL'];
     return ['40', '42', '44', '46', '48', '50', '52', '54', '56', '58', '60', '62', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL', '7XL', '8XL', '9XL', '10XL', '11XL'];
@@ -238,7 +248,8 @@ export default function AdminAddProduct() {
         await addProduct(productData);
         toast.success('Product added successfully');
       }
-      navigate(`/product/${productData.id}`);
+      // Stay in admin panel - redirect to product list instead of public preview
+      navigate('/admin/products');
     } catch (err) {
       toast.error(isEditMode ? 'Failed to update product' : 'Failed to add product');
     }
@@ -370,7 +381,35 @@ export default function AdminAddProduct() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-400 block ml-1">Description</label>
+              <div className="flex items-center justify-between ml-1">
+                <label className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-400 block">Description</label>
+                <button 
+                  type="button"
+                  onClick={() => {
+                    const textarea = document.querySelector('textarea[name="description"]') as HTMLTextAreaElement;
+                    if (textarea) {
+                      const template = `Product overview and details:
+• Experience unmatched smoothness and comfort that makes you feel confident. With our Cotton Solid Shirt, you get the goodness of the finest carbon cotton. Precisely stitched for a tailored fit, this full-sleeve shirt ensures you look polished from AM to PM. Known for its lightweight feel and versatility, it’s available in 12 timeless shades and multiple sizes. Pick yours today and elevate your wardrobe with timeless elegance!
+
+Size & Fit:
+• Every Shirt is tailored with regular fit over years of testing.
+• Our model (Height: 6ft, Chest: 40") is wearing a Large size.
+• Please refer to the size chart for more accuracy.
+
+Wash Care:
+• Normal machine wash
+• Do not use bleach, fabric softener
+• Iron on low temperature
+• Air dry or low tumble dry`;
+                      textarea.value = template;
+                      // Trigger React's onChange if needed, but since it's defaultValue it might work
+                    }
+                  }}
+                  className="text-[9px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-1 hover:text-emerald-600 transition-colors"
+                >
+                  ✨ Use Template
+                </button>
+              </div>
               <div className="border border-gray-100 rounded-2xl overflow-hidden bg-[#fcfdfe]">
                 {/* Mock Rich Text Toolbar */}
                 <div className="flex items-center gap-2 p-3 border-b border-gray-100 bg-white">
@@ -537,7 +576,9 @@ export default function AdminAddProduct() {
 
           <div className="bg-gray-50/50 rounded-2xl p-6 border border-gray-50">
             <div className="p-1 bg-white rounded-xl w-fit mb-8 border border-gray-100 shadow-sm">
-               <div className="px-5 py-2 bg-blue-50 text-blue-500 rounded-lg text-[9px] font-black uppercase tracking-widest">Size</div>
+               <div className="px-5 py-2 bg-blue-50 text-blue-500 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                 {selectedCategory.toLowerCase().includes('bag') ? 'QN' : 'Size'}
+               </div>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4">

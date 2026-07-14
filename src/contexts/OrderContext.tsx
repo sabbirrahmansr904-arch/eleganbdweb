@@ -8,6 +8,8 @@ import { Order } from '../types';
 import { db } from '../lib/firebase';
 import { collection, doc, setDoc, deleteDoc, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
+import { useProducts } from './ProductContext';
+import { useInventory } from './InventoryContext';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 
 interface OrderContextType {
@@ -29,6 +31,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
   const { currentUser, isAdmin } = useAuth();
+  const { products, updateProduct } = useProducts();
+  const { addTransaction } = useInventory();
   const isInitialLoad = useRef(true);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -150,6 +154,36 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       };
       const cleaned = removeUndefined(newOrder);
       await setDoc(doc(db, 'orders', order.id), cleaned);
+
+      // Automatically reduce stock and log inventory transactions
+      for (const item of order.items) {
+        const product = products.find(p => p.id === item.id);
+        if (product) {
+          const updatedSizeStock = { ...(product.sizeStock || {}) };
+          const currentSizeStock = updatedSizeStock[item.selectedSize] || 0;
+          updatedSizeStock[item.selectedSize] = Math.max(0, currentSizeStock - item.quantity);
+          
+          const updatedTotalStock = Math.max(0, (product.stock || 0) - item.quantity);
+          
+          await updateProduct({
+            ...product,
+            sizeStock: updatedSizeStock,
+            stock: updatedTotalStock
+          });
+
+          // Log transaction for each item as proof of "Stock Out"
+          await addTransaction({
+            type: 'out',
+            sku: product.sku || product.id,
+            productName: product.name,
+            quantities: { [item.selectedSize]: item.quantity },
+            totalQuantity: item.quantity,
+            category: product.category,
+            authorizedBy: 'Order System',
+            notes: `Order #${order.id.slice(-6)}`
+          });
+        }
+      }
     } catch(e) {
       handleFirestoreError(e, OperationType.CREATE, `orders/${order.id}`);
     }

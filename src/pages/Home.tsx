@@ -50,6 +50,11 @@ const Home = () => {
     return cat === 'formal shirt' || cat === 'formal-shirt' || cat === 'premium formal shirt' || cat === 'premium-formal-shirt';
   }).slice(0, 8);
 
+  const womanBags = products.filter(p => {
+    const cat = (p.category || '').toLowerCase().trim();
+    return cat.includes('woman bag') || cat.includes('woman-bag') || cat.includes('women bag');
+  }).slice(0, 8);
+
   const poloTshirts = products.filter(p => {
     const cat = (p.category || '').toLowerCase().trim();
     return cat === 'polo t-shirt' || cat === 'polo-t-shirt' || cat === 'polo t shirt';
@@ -129,6 +134,7 @@ const Home = () => {
             { name: 'SHIRT', link: '/category/formal-shirt' },
             { name: 'PANT', link: '/category/formal-pant' },
             { name: 'CHECK SHIRT', link: '/category/premium-shirt' },
+            { name: 'WOMAN BAG', link: '/category/woman-bag' },
             { name: 'ALL', link: '/category/all' }
           ].map((item) => (
             <Link 
@@ -218,6 +224,27 @@ const Home = () => {
               <div className="mt-8 flex justify-center">
                 <Link to="/category/formal-shirt" className="text-[10px] font-black uppercase tracking-[0.3em] text-black hover:text-brand-gold transition-colors flex items-center gap-2">
                   View All Formal Shirts <ArrowRight size={14} />
+                </Link>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Woman Bags */}
+        {womanBags.length > 0 && (
+          <section className="py-10 bg-gray-50">
+            <div className="max-w-7xl mx-auto px-4">
+              <div className="mb-6 text-center">
+                <h3 className="text-xl md:text-3xl font-black italic tracking-tighter uppercase text-black">Woman Bags</h3>
+              </div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {womanBags.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+              <div className="mt-8 flex justify-center">
+                <Link to="/category/woman-bag" className="text-[10px] font-black uppercase tracking-[0.3em] text-black hover:text-brand-gold transition-colors flex items-center gap-2">
+                  View All Woman Bags <ArrowRight size={14} />
                 </Link>
               </div>
             </div>

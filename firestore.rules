@@ -88,17 +88,6 @@ service cloud.firestore {
         data.active is bool;
     }
 
-    function isValidCategory(data) {
-      return data.keys().hasAll(['name', 'slug']) &&
-        data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
-        data.slug is string && data.slug.size() > 0 && data.slug.size() <= 100 &&
-        (!data.keys().contains('image') || (data.image is string && data.image.size() <= 1000)) &&
-        (!data.keys().contains('description') || (data.description is string && data.description.size() <= 1000)) &&
-        (!data.keys().contains('id') || (data.id is string && data.id.size() <= 128)) &&
-        (!data.keys().contains('isMega') || data.isMega is bool) &&
-        (!data.keys().contains('order') || data.order is number);
-    }
-
     match /banners/{bannerId} {
       allow read: if true;
       allow list: if true;
@@ -148,6 +137,12 @@ service cloud.firestore {
       allow read, list: if isAdmin();
       allow create: if isAdmin() && isValidId(transactionId) && isValidStockTransaction(incoming());
       allow update, delete: if false;
+    }
+
+    function isValidCategory(data) {
+      return data.keys().hasAll(['name', 'slug']) &&
+        data.name is string && data.name.size() > 0 &&
+        data.slug is string && data.slug.size() > 0;
     }
 
     match /categories/{categoryId} {

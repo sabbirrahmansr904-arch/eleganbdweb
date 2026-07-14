@@ -93,6 +93,25 @@ export default function AdminCategories(): React.JSX.Element {
     }
 
     try {
+      // Check for duplicates
+      const nameExists = categories.some(cat => 
+        cat.name.toLowerCase() === formData.name.trim().toLowerCase() && 
+        (modalType === 'add' || cat.id !== editingCategory?.id)
+      );
+      const slugExists = categories.some(cat => 
+        cat.slug.toLowerCase() === formData.slug.trim().toLowerCase() && 
+        (modalType === 'add' || cat.id !== editingCategory?.id)
+      );
+
+      if (nameExists) {
+        toast.error('A category with this name already exists');
+        return;
+      }
+      if (slugExists) {
+        toast.error('A category with this slug already exists');
+        return;
+      }
+
       if (modalType === 'add') {
         const newId = `cat-${Date.now()}`;
         const newCategory: Category = {
@@ -117,8 +136,9 @@ export default function AdminCategories(): React.JSX.Element {
         toast.success('Category updated successfully');
       }
       setIsModalOpen(false);
-    } catch (error) {
-      toast.error('Failed to save category');
+    } catch (error: any) {
+      console.error('Error saving category:', error);
+      toast.error(error?.message || 'Failed to save category');
     }
   };
 
@@ -128,8 +148,9 @@ export default function AdminCategories(): React.JSX.Element {
       await deleteCategory(id);
       toast.success('Category deleted successfully');
       setDeleteConfirmId(null);
-    } catch (error) {
-      toast.error('Failed to delete category');
+    } catch (error: any) {
+      console.error('Error deleting category:', error);
+      toast.error(error?.message || 'Failed to delete category');
     }
   };
 

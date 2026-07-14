@@ -34,9 +34,9 @@ export default function FloatingWhatsApp() {
             href="https://wa.me/8801619835133"
             target="_blank"
             rel="noopener noreferrer"
-            className="w-14 h-14 bg-green-500 rounded-full flex items-center justify-center text-white shadow-2xl hover:bg-green-600 transition-colors shadow-green-500/30"
+            className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center text-white shadow-2xl hover:bg-green-600 transition-colors shadow-green-500/30"
           >
-            <MessageCircle size={28} />
+            <MessageCircle size={24} />
           </a>
         </motion.div>
       )}

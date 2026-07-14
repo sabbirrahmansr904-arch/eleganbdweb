@@ -16,13 +16,14 @@ interface QuickViewModalProps {
 export default function QuickViewModal({ product, isOpen, onClose }: QuickViewModalProps) {
   const { currency, rate } = useCurrency();
   const { addToCart } = useCart();
+  const isBag = (product.category || '').toLowerCase().includes('bag');
   const [selectedSize, setSelectedSize] = useState(product.sizes[0] || '');
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
 
   const handleAddToCart = () => {
     if (!selectedSize) {
-      toast.error('Please select a size');
+      toast.error(isBag ? 'Please select QN' : 'Please select a size');
       return;
     }
     addToCart(product, selectedSize, quantity);
@@ -107,7 +108,7 @@ export default function QuickViewModal({ product, isOpen, onClose }: QuickViewMo
 
                 {/* Sizes */}
                 <div className="space-y-3">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest">Select Size</h4>
+                  <h4 className="text-[10px] font-black uppercase tracking-widest">{isBag ? 'Select QN' : 'Select Size'}</h4>
                   <div className="flex flex-wrap gap-2">
                     {product.sizes.map(size => (
                       <button

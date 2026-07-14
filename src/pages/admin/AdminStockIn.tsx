@@ -37,11 +37,11 @@ interface StockInRow {
 // Complete set of standard sizes supported in the store
 const AVAILABLE_SIZES = [
   '28', '30', '32', '34', '36', '38', '40', '42', '44', '46',
-  'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL'
+  'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL', 'QN'
 ];
 
 // Pant sizes on the website are: 30, 32, 34, 36, 38, 40 (and alphabetical sizes for shirts/jerseys)
-const DEFAULT_SELECTED_SIZES = ['30', '32', '34', '36', '38', '40', 'M', 'L', 'XL', '2XL'];
+const DEFAULT_SELECTED_SIZES = ['30', '32', '34', '36', '38', '40', 'M', 'L', 'XL', '2XL', 'QN'];
 
 export default function AdminStockIn() {
   const { products, updateProduct } = useProducts();
