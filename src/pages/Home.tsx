@@ -7,15 +7,27 @@ import { useCategories } from '../contexts/CategoryContext';
 import { useBanners } from '../contexts/BannerContext';
 import { useBranding } from '../contexts/BrandingContext';
 import ProductCard from '../components/ProductCard';
+import ReviewsCarousel from '../components/ReviewsCarousel';
 import { cn } from '../lib/utils';
 
 const Home = () => {
   const { products, loading: productsLoading } = useProducts();
   const { categories } = useCategories();
   const { banners } = useBanners();
-  const { heroBannerUrl, collectionsBannerUrl, featureBannerUrl, poloBannerUrl, showHeroBanner, showCountdownBanner } = useBranding();
+  const { heroBannerUrl, subHeroBannerUrl, collectionsBannerUrl, featureBannerUrl, poloBannerUrl, showHeroBanner, showCountdownBanner, categoryImages } = useBranding();
   
-  const activeHeroBanners = banners.filter(b => b.active && b.type === 'hero');
+  const activeHeroBannersFromDb = banners.filter(b => b.active && b.type === 'hero');
+  const activeHeroBanners = activeHeroBannersFromDb.length > 0 ? activeHeroBannersFromDb.slice(0, 1) : [
+    {
+      id: 'default-hero-1',
+      active: true,
+      type: 'hero',
+      image: heroBannerUrl || 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2000&auto=format',
+      title: 'Premium Men\'s Fashion',
+      link: '/category/all'
+    }
+  ];
+
   const [currentBanner, setCurrentBanner] = React.useState(0);
 
   React.useEffect(() => {
@@ -48,7 +60,7 @@ const Home = () => {
     <div className="flex flex-col min-h-screen bg-white">
       {/* Hero Banner Carousel Section */}
       {showHeroBanner && activeHeroBanners.length > 0 && (
-        <section className="relative h-[45vh] md:h-[75vh] bg-gray-900 overflow-hidden">
+        <section className="relative w-full bg-gray-50 overflow-hidden">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentBanner}
@@ -56,39 +68,20 @@ const Home = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.8 }}
-              className="absolute inset-0"
+              className="w-full"
             >
               <img 
                 src={activeHeroBanners[currentBanner].image} 
                 alt={activeHeroBanners[currentBanner].title || "Hero Banner"} 
-                className="w-full h-full object-cover"
+                className="w-full h-auto block select-none pointer-events-none"
                 referrerPolicy="no-referrer"
               />
-              <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-center p-6">
-                <div className="max-w-2xl space-y-4">
-                  {activeHeroBanners[currentBanner].title && (
-                    <h1 className="text-3xl md:text-6xl font-black italic uppercase tracking-tighter text-white">
-                      {activeHeroBanners[currentBanner].title}
-                    </h1>
-                  )}
-                  {activeHeroBanners[currentBanner].link && (
-                    <div className="pt-4">
-                      <Link 
-                        to={activeHeroBanners[currentBanner].link}
-                        className="inline-block bg-white text-black px-6 md:px-8 py-3 text-[10px] font-black uppercase tracking-[0.25em] hover:bg-brand-gold hover:text-white transition-all shadow-lg"
-                      >
-                        Shop Collection
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              </div>
             </motion.div>
           </AnimatePresence>
           
           {/* Slider Indicators */}
           {activeHeroBanners.length > 1 && (
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2.5 z-10">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2.5 z-10">
               {activeHeroBanners.map((_, idx) => (
                 <button
                   key={idx}
@@ -104,43 +97,51 @@ const Home = () => {
         </section>
       )}
 
-      {/* Countdown Timer Promo Banner */}
-      {showCountdownBanner && (
-        <section className="bg-black text-white py-8 border-b border-white/10 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-brand-gold/10 blur-[100px] rounded-full pointer-events-none" />
-          <div className="max-w-7xl mx-auto px-6 relative z-10 flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
-            <div>
-              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-gold">Flash Deal of the Day</span>
-              <h2 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter mt-1">HURRY! LIMITED TIME OFFER</h2>
-              <p className="text-xs text-gray-400 mt-2 uppercase tracking-wide">Premium minimal fashion on hot demand!</p>
-            </div>
-            
-            <div className="flex gap-4 md:gap-6 text-center">
-              <div className="bg-white/5 border border-white/10 rounded-xl p-3 min-w-[70px] backdrop-blur-xs">
-                <span className="text-xl md:text-2xl font-black text-brand-gold">02</span>
-                <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Hours</p>
-              </div>
-              <div className="bg-white/5 border border-white/10 rounded-xl p-3 min-w-[70px] backdrop-blur-xs">
-                <span className="text-xl md:text-2xl font-black text-brand-gold">45</span>
-                <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Mins</p>
-              </div>
-              <div className="bg-white/5 border border-white/10 rounded-xl p-3 min-w-[70px] backdrop-blur-xs">
-                <span className="text-xl md:text-2xl font-black text-brand-gold">18</span>
-                <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Secs</p>
-              </div>
-            </div>
-            
-            <div>
-              <Link
-                to="/category/all"
-                className="inline-block bg-brand-gold text-black px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all rounded-lg"
-              >
-                Order Now
-              </Link>
-            </div>
+
+
+      {/* Secondary Hero Banner */}
+      {subHeroBannerUrl && (
+        <section className="max-w-7xl mx-auto px-4 py-4 md:py-6">
+          <div className="relative w-full overflow-hidden rounded-2xl shadow-sm border border-gray-100">
+            <img 
+              src={subHeroBannerUrl} 
+              alt="Secondary Promotion Banner" 
+              className="w-full h-auto block select-none pointer-events-none"
+              referrerPolicy="no-referrer"
+            />
           </div>
         </section>
       )}
+
+      {/* Explore Our Top Collections Catalog */}
+      <section className="max-w-7xl mx-auto px-4 py-8 md:py-12">
+        <div className="text-center mb-10">
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-gold">Discover Style</span>
+          <h2 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter mt-1 text-[#5551FF]">
+            Explore Our Top Collections
+          </h2>
+          <div className="w-16 h-0.5 bg-black mx-auto mt-3 rounded-full" />
+        </div>
+
+        {/* Textual Navigation Underline Bar exactly like the user's second screenshot */}
+        <div className="border-b border-gray-100 pb-4 flex flex-wrap justify-center gap-6 md:gap-12 text-xs font-black tracking-[0.2em] uppercase">
+          {[
+            { name: 'SHIRT', link: '/category/formal-shirt' },
+            { name: 'PANT', link: '/category/formal-pant' },
+            { name: 'CHECK SHIRT', link: '/category/premium-shirt' },
+            { name: 'ALL', link: '/category/all' }
+          ].map((item) => (
+            <Link 
+              key={item.name}
+              to={item.link}
+              className="relative py-2 text-gray-500 hover:text-black transition-colors group"
+            >
+              <span>{item.name}</span>
+              <span className="absolute bottom-0 left-0 w-0 h-[2px] bg-black transition-all duration-300 group-hover:w-full" />
+            </Link>
+          ))}
+        </div>
+      </section>
       
       {/* Category Sections */}
       <div className="space-y-4 pt-4">
@@ -149,7 +150,7 @@ const Home = () => {
           <section className="py-10 bg-white">
             <div className="max-w-7xl mx-auto px-4">
               <div className="mb-6 text-center">
-                <h3 className="text-xl md:text-3xl font-black italic tracking-tighter uppercase text-black">Formal Pants</h3>
+                <h3 className="text-xl md:text-3xl font-black italic tracking-tighter uppercase text-[#5551FF]">Formal Pants</h3>
               </div>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {formalPants.map((product) => (
@@ -164,6 +165,8 @@ const Home = () => {
             </div>
           </section>
         )}
+
+
 
         {/* Polo T-shirts */}
         {poloTshirts.length > 0 && (
@@ -186,12 +189,26 @@ const Home = () => {
           </section>
         )}
 
+        {/* Intermediate Promo Banner 2 - Feature Collection */}
+        {featureBannerUrl && (
+          <section className="max-w-7xl mx-auto px-4 py-4 md:py-6">
+            <div className="relative w-full overflow-hidden rounded-2xl shadow-sm">
+              <img 
+                src={featureBannerUrl} 
+                alt="Feature Collection" 
+                className="w-full h-auto block select-none pointer-events-none"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+          </section>
+        )}
+
         {/* Formal Shirts */}
         {formalShirts.length > 0 && (
           <section className="py-10 bg-white">
             <div className="max-w-7xl mx-auto px-4">
               <div className="mb-6 text-center">
-                <h3 className="text-xl md:text-3xl font-black italic tracking-tighter uppercase text-black">Formal Shirts</h3>
+                <h3 className="text-xl md:text-3xl font-black italic tracking-tighter uppercase text-[#5551FF]">Formal Shirts</h3>
               </div>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {formalShirts.map((product) => (
@@ -206,6 +223,9 @@ const Home = () => {
             </div>
           </section>
         )}
+
+        {/* Customer Reviews & Testimonials section */}
+        <ReviewsCarousel />
       </div>
     </div>
   );

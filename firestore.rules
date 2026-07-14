@@ -93,7 +93,10 @@ service cloud.firestore {
         data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
         data.slug is string && data.slug.size() > 0 && data.slug.size() <= 100 &&
         (!data.keys().contains('image') || (data.image is string && data.image.size() <= 1000)) &&
-        (!data.keys().contains('description') || (data.description is string && data.description.size() <= 1000));
+        (!data.keys().contains('description') || (data.description is string && data.description.size() <= 1000)) &&
+        (!data.keys().contains('id') || (data.id is string && data.id.size() <= 128)) &&
+        (!data.keys().contains('isMega') || data.isMega is bool) &&
+        (!data.keys().contains('order') || data.order is number);
     }
 
     match /banners/{bannerId} {

@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckoutFormData, Order } from '../types';
-import { formatPrice, cn } from '../lib/utils';
+import { formatPrice, cn, calculateCartSubtotal, getCartPriceBreakdown } from '../lib/utils';
 import { DISTRICT_THANAS } from '../data/locations';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useOrders } from '../contexts/OrderContext';
@@ -183,11 +183,14 @@ export default function Checkout() {
     }
   };
 
-  const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const breakdown = getCartPriceBreakdown(items);
+  const subtotal = breakdown.subtotal;
   const isInsideDhaka = formData.city === 'Dhaka';
                         
-  // Set shipping dynamically from admin design settings
-  const baseShipping = isInsideDhaka ? shippingInsideDhaka : shippingOutsideDhaka;
+  // Set shipping dynamically from admin design settings, defaulting to 70 and 130 as per customer requirements
+  const insideDhakaFee = shippingInsideDhaka !== undefined ? shippingInsideDhaka : 70;
+  const outsideDhakaFee = shippingOutsideDhaka !== undefined ? shippingOutsideDhaka : 130;
+  const baseShipping = isInsideDhaka ? insideDhakaFee : outsideDhakaFee;
   const shipping = (shippingFreeAfter > 0 && subtotal >= shippingFreeAfter) ? 0 : baseShipping;
   const discountAmount = discountType === 'percentage'
     ? (subtotal * discount) / 100
@@ -797,6 +800,16 @@ export default function Checkout() {
 
           {/* Pricing detailed breakdown */}
           <div className="pt-6 border-t border-gray-150 space-y-4 text-[11px] font-bold text-[#62758A] uppercase tracking-widest">
+            {breakdown.hasCombo && (
+              <div className="flex justify-between items-center text-indigo-600 bg-indigo-50/50 border border-indigo-100 p-3 rounded-2xl normal-case tracking-normal mb-1">
+                <div className="flex items-center gap-1.5 text-left text-xs font-semibold">
+                  <span className="bg-[#4F46E5] text-white px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">COMBO OFFER</span>
+                  <span>3-Shirt Promo Price Active!</span>
+                </div>
+                <span className="font-mono text-xs font-black text-[#4F46E5]">-{formatPrice(breakdown.savings, currency, rate)}</span>
+              </div>
+            )}
+            
             <div className="flex justify-between items-center">
               <span>SUBTOTAL</span>
               <span className="text-[#0C1421] font-bold font-mono">{formatPrice(subtotal, currency, rate)}</span>

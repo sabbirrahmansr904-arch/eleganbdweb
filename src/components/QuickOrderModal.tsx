@@ -187,7 +187,7 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
                            onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
                            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 outline-none focus:border-brand-gold text-sm font-medium"
                         >
-                            <option value="Dhaka">Inside Dhaka (80 TK)</option>
+                            <option value="Dhaka">Inside Dhaka (70 TK)</option>
                             <option value="Outside Dhaka">Outside Dhaka (130 TK)</option>
                         </select>
                     </div>

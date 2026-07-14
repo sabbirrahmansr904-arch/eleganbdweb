@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { StockTransaction } from '../types';
 import { db } from '../lib/firebase';
-import { collection, onSnapshot, doc, setDoc, query, orderBy, limit } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 import { useAuth } from './AuthContext';
 
@@ -20,30 +20,30 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const { isAdmin, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    if (authLoading || !isAdmin) {
-      setTransactions([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    const q = query(collection(db, 'inventory_transactions'), orderBy('timestamp', 'desc'), limit(100));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const transData: StockTransaction[] = [];
-      snapshot.forEach(doc => {
-        transData.push({ ...doc.data() as StockTransaction, id: doc.id });
-      });
-      setTransactions(transData);
-      setLoading(false);
-    }, (error) => {
-      // Don't toast for permission errors if they just logged out or similar
-      if (!error.message.includes('insufficient permissions')) {
-        handleFirestoreError(error, OperationType.LIST, 'inventory_transactions');
+    const fetchTransactions = async () => {
+      if (authLoading || !isAdmin) {
+        setTransactions([]);
+        setLoading(false);
+        return;
       }
-      setLoading(false);
-    });
 
-    return () => unsubscribe();
+      setLoading(true);
+      try {
+        const q = query(collection(db, 'inventory_transactions'), orderBy('timestamp', 'desc'), limit(100));
+        const snapshot = await getDocs(q);
+        const transData: StockTransaction[] = [];
+        snapshot.forEach(doc => {
+          transData.push({ ...doc.data() as StockTransaction, id: doc.id });
+        });
+        setTransactions(transData);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.LIST, 'inventory_transactions');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTransactions();
   }, [isAdmin, authLoading]);
 
   const addTransaction = async (trans: Omit<StockTransaction, 'id' | 'timestamp'>) => {

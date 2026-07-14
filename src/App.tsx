@@ -52,6 +52,7 @@ import AdminBanners from './pages/admin/AdminBanners';
 import AdminStockIn from './pages/admin/AdminStockIn';
 import AdminStockOut from './pages/admin/AdminStockOut';
 import AdminInventoryOverview from './pages/admin/AdminInventoryOverview';
+import AdminMasterTable from './pages/admin/AdminMasterTable';
 import AdminInventoryLog from './pages/admin/AdminInventoryLog';
 import AdminCategories from './pages/admin/AdminCategories';
 import AdminExchanges from './pages/admin/AdminExchanges';
@@ -128,6 +129,7 @@ function AppRoutes() {
           <Route path="stock-in" element={<AdminStockIn />} />
           <Route path="stock-out" element={<AdminStockOut />} />
           <Route path="inventory" element={<AdminInventoryOverview />} />
+          <Route path="master-table" element={<AdminMasterTable />} />
           <Route path="inventory-log" element={<AdminInventoryLog />} />
           <Route path="categories" element={<AdminCategories />} />
           <Route path="exchanges" element={<AdminExchanges />} />

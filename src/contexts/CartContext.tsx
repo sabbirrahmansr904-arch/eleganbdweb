@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Product } from '../types';
+import { calculateCartSubtotal } from '../lib/utils';
 
 interface CartItem {
   id: string;
@@ -15,6 +16,8 @@ interface CartContextType {
   updateQuantity: (itemId: string, qty: number) => void;
   clearCart: () => void;
   total: number;
+  isCartOpen: boolean;
+  setIsCartOpen: (open: boolean) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -24,6 +27,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cached = localStorage.getItem('eleganbd_cart');
     return cached ? JSON.parse(cached) : [];
   });
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('eleganbd_cart', JSON.stringify(items));
@@ -41,6 +45,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return [...prev, { id: `${product.id}-${size}-${Date.now()}`, product, selectedSize: size, quantity: qty }];
     });
+    setIsCartOpen(true);
   };
 
   const removeFromCart = (itemId: string) => {
@@ -57,10 +62,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearCart = () => setItems([]);
 
-  const total = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const total = calculateCartSubtotal(items);
 
   return (
-    <CartContext.Provider value={{ items, addToCart, removeFromCart, updateQuantity, clearCart, total }}>
+    <CartContext.Provider value={{ items, addToCart, removeFromCart, updateQuantity, clearCart, total, isCartOpen, setIsCartOpen }}>
       {children}
     </CartContext.Provider>
   );

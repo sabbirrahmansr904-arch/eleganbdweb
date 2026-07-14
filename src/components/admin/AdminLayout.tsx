@@ -33,19 +33,47 @@ import {
   Menu, 
   X, 
   Bell,
-  Moon
+  Moon,
+  Store,
+  Table
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBranding } from '../../contexts/BrandingContext';
+import { useOrders } from '../../contexts/OrderContext';
+import { useProducts } from '../../contexts/ProductContext';
 import toast from 'react-hot-toast';
 
 export default function AdminLayout() {
   const { logoUrl } = useBranding();
+  const { orders } = useOrders();
+  const { products } = useProducts();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+
+  const unreadCount = React.useMemo(() => {
+    const ids: string[] = [];
+    orders.forEach(order => {
+      ids.push(`order-${order.id}`);
+      if (order.status === 'QC') ids.push(`order-qc-${order.id}`);
+      if (order.issueType) ids.push(`order-issue-${order.id}`);
+    });
+    products.forEach(product => {
+      ids.push(`product-${product.id}`);
+    });
+
+    let readIds: string[] = [];
+    try {
+      const saved = localStorage.getItem('eleganbd_read_notifications');
+      readIds = saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      readIds = [];
+    }
+
+    return ids.filter(id => !readIds.includes(id)).length;
+  }, [orders, products]);
 
   const menuGroups = [
     {
@@ -55,31 +83,25 @@ export default function AdminLayout() {
         { name: 'Orders', path: '/admin/orders', icon: FileText },
         { name: 'Categories', path: '/admin/categories', icon: Folder },
         { name: 'Products', path: '/admin/products', icon: ShoppingBag },
+        { name: 'Master Table', path: '/admin/master-table', icon: Table },
       ]
     },
     {
       items: [
-        { name: 'Design', path: '/admin/banners', icon: Paintbrush },
+        { name: 'General', path: '/admin/settings?tab=General', icon: Store },
+        { name: 'Branding', path: '/admin/settings?tab=Branding', icon: Palette },
+        { name: 'Banners', path: '/admin/banners', icon: Globe },
+        { name: 'Notifications', path: '/admin/notifications', icon: Bell },
       ]
     },
     {
       items: [
         { name: 'Pixel & Analytics', path: '/admin/settings?tab=Pixel & Analytics', icon: Megaphone },
-        { name: 'Coupons', path: '/admin/settings?tab=Coupons', icon: Tag },
-        { name: 'SEO / Console', path: '/admin/settings?tab=SEO / Console', icon: Search },
-        { name: 'SMS', path: '/admin/settings?tab=SMS', icon: MessageSquare },
-        { name: 'Auto Call', path: '/admin/settings?tab=Auto Call', icon: Phone, badge: 'SOON' },
-      ]
-    },
-    {
-      items: [
         { name: 'Payments', path: '/admin/settings?tab=Payments', icon: CreditCard },
       ]
     },
     {
       items: [
-        { name: 'Profile', path: '/admin/settings?tab=Profile', icon: User },
-        { name: 'Managers', path: '/admin/settings?tab=Managers', icon: Users },
         { name: 'Settings', path: '/admin/settings?tab=Settings', icon: Settings },
         { name: 'Import / Export', path: '/admin/settings?tab=Import / Export', icon: Download },
       ]
@@ -228,12 +250,14 @@ export default function AdminLayout() {
           
           {isSidebarOpen && (
             <div className="relative shrink-0 flex items-center">
-              <span className="relative inline-block">
+              <Link to="/admin/notifications" className="relative inline-block group">
                 <Bell size={18} className="text-gray-400 hover:text-black transition-colors cursor-pointer" />
-                <span className="absolute -top-1.5 -right-2 bg-red-500 text-[8px] font-bold text-white px-1 py-0.25 rounded-full leading-none scale-90">
-                  9+
-                </span>
-              </span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1.5 -right-2 bg-red-500 text-[8px] font-bold text-white px-1 py-0.25 rounded-full leading-none scale-90">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </Link>
             </div>
           )}
         </div>
@@ -280,36 +304,7 @@ export default function AdminLayout() {
           ))}
         </nav>
 
-        {/* Profile Card at bottom left */}
-        <div className="p-3.5 border-t border-[#EFF2F6] bg-white">
-          {isSidebarOpen ? (
-            <div className="flex items-center justify-between bg-[#F8FAFC] border border-gray-100 p-2.5 rounded-xl">
-              <div className="flex items-center space-x-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-full bg-[#E0E5ED] text-black font-extrabold text-xs flex items-center justify-center border border-white shrink-0">
-                  S
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-black text-[#0C1421] leading-none truncate">Sabbir</p>
-                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-1 leading-none truncate">LOGISTIC EXECU...</p>
-                </div>
-              </div>
-              <button 
-                onClick={handleLogout}
-                className="p-1.5 hover:bg-red-50 hover:text-red-500 rounded-lg text-gray-400 transition-all shrink-0"
-                title="Logout"
-              >
-                <LogOut size={15} strokeWidth={2.5} />
-              </button>
-            </div>
-          ) : (
-            <button 
-              onClick={handleLogout}
-              className="w-full flex items-center justify-center py-3 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
-            >
-              <LogOut size={18} strokeWidth={2} />
-            </button>
-          )}
-        </div>
+
       </aside>
 
       {/* Main Content */}
@@ -343,7 +338,11 @@ export default function AdminLayout() {
               className="relative p-2 text-gray-400 hover:text-black bg-gray-50 rounded-xl transition-colors border border-gray-100"
             >
               <Bell size={18} />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-[8px] font-bold text-white px-1.5 py-0.5 rounded-full leading-none scale-90">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </Link>
             <div className="h-8 w-[1px] bg-gray-100 mx-2 hidden sm:block"></div>
             <div className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity">

@@ -13,6 +13,7 @@ interface BrandingContextType {
   sizeChartUrl: string;
   collectionsBannerUrl: string;
   heroBannerUrl: string;
+  subHeroBannerUrl: string;
   featureBannerUrl: string;
   poloBannerUrl: string;
   comboOfferBannerUrl: string;
@@ -38,6 +39,7 @@ interface BrandingContextType {
   setSizeChartUrl: (url: string) => void;
   setCollectionsBannerUrl: (url: string) => void;
   setHeroBannerUrl: (url: string) => void;
+  setSubHeroBannerUrl: (url: string) => void;
   setFeatureBannerUrl: (url: string) => void;
   setPoloBannerUrl: (url: string) => void;
   setComboOfferBannerUrl: (url: string) => void;
@@ -64,11 +66,12 @@ const DEFAULT_LOGO = "https://images.unsplash.com/photo-1614850523296-d8c1af93d4
 const DEFAULT_SIZE_CHART = "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=1000";
 const DEFAULT_COLLECTIONS_BANNER = "https://images.unsplash.com/photo-1441991271612-42177c385b00?q=80&w=2000&auto=format";
 const DEFAULT_HERO_BANNER = "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2000&auto=format";
+const DEFAULT_SUB_HERO_BANNER = "https://images.unsplash.com/photo-1544441893-675973e31985?q=80&w=2000&auto=format";
 const DEFAULT_FEATURE_BANNER = "https://images.unsplash.com/photo-1563124803-db51591028f1?q=80&w=2000&auto=format";
 const DEFAULT_POLO_BANNER = "https://images.unsplash.com/photo-1581655353564-df123a1eb820?q=80&w=2000&auto=format";
 const DEFAULT_COMBO_OFFER_BANNER = "https://storage.googleapis.com/genai-studio-artifacts-storage/1600-tl-combo-offer-image.png";
 
-const DEFAULT_ANNOUNCEMENT_MSG = "আজকের অফার ফরমাল প্যান্ট ৩ পিস অর্ডার করলে ডেলিভারি চার্জ ফ্রি";
+const DEFAULT_ANNOUNCEMENT_MSG = "🔥 Special Combo Deal: Buy 3 Shirts for Only ৳1,799";
 const DEFAULT_ABOUT_TEXT = "Premium minimalist fashion for the modern individual.";
 
 const BrandingContext = createContext<BrandingContextType | undefined>(undefined);
@@ -112,6 +115,16 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       } catch (e) { return DEFAULT_HERO_BANNER; }
     }
     return DEFAULT_HERO_BANNER;
+  });
+
+  const [subHeroBannerUrl, setSubHeroBannerUrlState] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_banners_large');
+    if (cached) {
+      try {
+        return JSON.parse(cached).subHeroBannerUrl || DEFAULT_SUB_HERO_BANNER;
+      } catch (e) { return DEFAULT_SUB_HERO_BANNER; }
+    }
+    return DEFAULT_SUB_HERO_BANNER;
   });
 
   const [featureBannerUrl, setFeatureBannerUrlState] = useState<string>(() => {
@@ -187,10 +200,10 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (cached) {
       try {
         const val = JSON.parse(cached).showCountdownBanner;
-        return val !== undefined ? val : false;
-      } catch (e) { return false; }
+        return val !== undefined ? val : true;
+      } catch (e) { return true; }
     }
-    return false;
+    return true;
   });
 
   const [showHeroBanner, setShowHeroBannerState] = useState<boolean>(() => {
@@ -198,10 +211,10 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (cached) {
       try {
         const val = JSON.parse(cached).showHeroBanner;
-        return val !== undefined ? val : false;
-      } catch (e) { return false; }
+        return val !== undefined ? val : true;
+      } catch (e) { return true; }
     }
-    return false;
+    return true;
   });
 
   const [facebookUrl, setFacebookUrlState] = useState<string>(() => {
@@ -249,10 +262,10 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (cached) {
       try {
         const val = JSON.parse(cached).shippingInsideDhaka;
-        return val !== undefined ? Number(val) : 80;
-      } catch (e) { return 80; }
+        return val !== undefined ? Number(val) : 70;
+      } catch (e) { return 70; }
     }
-    return 80;
+    return 70;
   });
 
   const [shippingOutsideDhaka, setShippingOutsideDhakaState] = useState<number>(() => {
@@ -328,14 +341,15 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
 
         // 2. Fetch Banners
-        const bannerKeys = ['hero', 'collections', 'feature', 'polo', 'combo_offer'];
+        const bannerKeys = ['hero', 'sub_hero', 'collections', 'feature', 'polo', 'combo_offer'];
         for (const key of bannerKeys) {
             const snap = await getDoc(doc(db, 'config', `banner_${key}`));
             if (snap.exists()) {
                 const url = snap.data().url;
                 const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
-                localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, [`${key}BannerUrl`]: url }));
+                localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, [`${key === 'sub_hero' ? 'subHero' : key}BannerUrl`]: url }));
                 if (key === 'hero') setHeroBannerUrlState(url);
+                if (key === 'sub_hero') setSubHeroBannerUrlState(url);
                 if (key === 'collections') setCollectionsBannerUrlState(url);
                 if (key === 'feature') setFeatureBannerUrlState(url);
                 if (key === 'polo') setPoloBannerUrlState(url);
@@ -394,6 +408,13 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
     localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, heroBannerUrl: url }));
     updateFirestore('banner_hero', { url });
+  };
+
+  const setSubHeroBannerUrl = (url: string) => {
+    setSubHeroBannerUrlState(url);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
+    localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, subHeroBannerUrl: url }));
+    updateFirestore('banner_sub_hero', { url });
   };
 
   const setFeatureBannerUrl = (url: string) => {
@@ -524,9 +545,9 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   return (
     <BrandingContext.Provider value={{ 
-      logoUrl, sizeChartUrl, collectionsBannerUrl, heroBannerUrl, featureBannerUrl, poloBannerUrl, comboOfferBannerUrl, showShowcase, categoryImages, 
+      logoUrl, sizeChartUrl, collectionsBannerUrl, heroBannerUrl, subHeroBannerUrl, featureBannerUrl, poloBannerUrl, comboOfferBannerUrl, showShowcase, categoryImages, 
       showAnnouncementBar, announcementMessage, showCountdownBanner, showHeroBanner, facebookUrl, instagramUrl, youtubeUrl, tiktokUrl, shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter, primaryDeliveryDistrict, aboutText,
-      setLogoUrl, setSizeChartUrl, setCollectionsBannerUrl, setHeroBannerUrl, setFeatureBannerUrl, setPoloBannerUrl, setComboOfferBannerUrl, setShowShowcase, setCategoryImageUrl,
+      setLogoUrl, setSizeChartUrl, setCollectionsBannerUrl, setHeroBannerUrl, setSubHeroBannerUrl, setFeatureBannerUrl, setPoloBannerUrl, setComboOfferBannerUrl, setShowShowcase, setCategoryImageUrl,
       setShowAnnouncementBar, setAnnouncementMessage, setShowCountdownBanner, setShowHeroBanner, setFacebookUrl, setInstagramUrl, setYoutubeUrl, setTiktokUrl, setShippingInsideDhaka, setShippingOutsideDhaka, setShippingFreeAfter, setPrimaryDeliveryDistrict, setAboutText
     }}>
       {children}

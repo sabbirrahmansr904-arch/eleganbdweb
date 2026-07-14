@@ -4,7 +4,7 @@
  */
 
 import { Link, useNavigate } from 'react-router-dom';
-import { formatPrice, cn } from '../lib/utils';
+import { formatPrice, cn, calculateCartSubtotal, getCartPriceBreakdown } from '../lib/utils';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useCart } from '../contexts/CartContext';
 import { Trash2, Minus, Plus, ArrowLeft, ArrowRight } from 'lucide-react';
@@ -14,8 +14,8 @@ export default function Cart() {
   const { items, updateQuantity, removeFromCart } = useCart();
   const { currency, rate } = useCurrency();
   const navigate = useNavigate();
-  const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-  const shipping = subtotal > 200 ? 0 : 25;
+  const breakdown = getCartPriceBreakdown(items);
+  const subtotal = breakdown.subtotal;
 
   if (items.length === 0) {
     return (
@@ -107,24 +107,32 @@ export default function Cart() {
             <h2 className="text-2xl font-serif mb-8 border-b border-brand-ink/10 pb-4">Order Summary</h2>
             
             <div className="space-y-6 mb-8 text-xs uppercase tracking-widest">
+              {breakdown.hasCombo && (
+                <div className="text-indigo-600 bg-indigo-50 border border-indigo-100 p-3 rounded-lg normal-case tracking-normal mb-4">
+                  <div className="flex justify-between items-center mb-1 font-bold">
+                    <span className="text-[9px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded">COMBO OFFERS</span>
+                    <span>-{formatPrice(breakdown.savings, currency, rate)}</span>
+                  </div>
+                  <p className="text-[10px] font-medium text-indigo-600">3-Shirt Promo Price Active!</p>
+                </div>
+              )}
+
               <div className="flex justify-between">
                 <span className="text-brand-ink/60">Subtotal</span>
                 <span className="font-bold">{formatPrice(subtotal, currency, rate)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-brand-ink/60">Shipping</span>
-                <span className="font-bold">{shipping === 0 ? 'Complimentary' : formatPrice(shipping, currency, rate)}</span>
+                <span className="font-bold text-[10px] text-right">
+                  Dhaka: ৳70<br />
+                  Outside: ৳130
+                </span>
               </div>
-              {shipping > 0 && (
-                <p className="text-[9px] normal-case italic text-brand-ink/40">
-                  Complimentary express shipping on orders over {formatPrice(200, currency, rate)}.
-                </p>
-              )}
             </div>
 
             <div className="pt-6 border-t border-brand-ink/20 mb-10 flex justify-between items-end">
               <span className="text-sm uppercase tracking-widest font-bold">Total</span>
-              <span className="text-2xl md:text-3xl font-serif">{formatPrice(subtotal + shipping, currency, rate)}</span>
+              <span className="text-2xl md:text-3xl font-serif">{formatPrice(subtotal, currency, rate)}</span>
             </div>
 
             <button

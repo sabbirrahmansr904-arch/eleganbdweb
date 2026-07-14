@@ -30,7 +30,7 @@ import {
   Coins
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useBranding } from '../../contexts/BrandingContext';
 import { useProducts } from '../../contexts/ProductContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -53,6 +53,8 @@ export default function AdminSettings() {
     setCollectionsBannerUrl, 
     heroBannerUrl, 
     setHeroBannerUrl,
+    subHeroBannerUrl,
+    setSubHeroBannerUrl,
     featureBannerUrl,
     setFeatureBannerUrl,
     poloBannerUrl,
@@ -68,6 +70,10 @@ export default function AdminSettings() {
 
   const [activeTab, setActiveTab ] = useState('General');
   const [tempLogo, setTempLogo] = useState(logoUrl);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    setter: (url: string) => void;
+    name: string;
+  } | null>(null);
   const [tempSizeChart, setTempSizeChart] = useState(sizeChartUrl);
   const allCategories = Array.from(new Set(products.map(p => p.category)));
 
@@ -81,6 +87,7 @@ export default function AdminSettings() {
   const [pixelConfig, setPixelConfig] = useState({
     facebookPixelId: '',
     facebookAccessToken: '',
+    facebookTestCode: '',
     googleAnalyticsId: '',
     googleAnalyticsSecret: '',
     gtmId: '',
@@ -100,6 +107,7 @@ export default function AdminSettings() {
         setPixelConfig({
           facebookPixelId: data.facebookPixelId || '',
           facebookAccessToken: data.facebookAccessToken || '',
+          facebookTestCode: data.facebookTestCode || '',
           googleAnalyticsId: data.googleAnalyticsId || '',
           googleAnalyticsSecret: data.googleAnalyticsSecret || '',
           gtmId: data.gtmId || '',
@@ -506,8 +514,9 @@ export default function AdminSettings() {
       let updatedFields = {};
       if (section === 'facebook') {
         updatedFields = {
-          facebookPixelId: pixelConfig.facebookPixelId.trim(),
-          facebookAccessToken: pixelConfig.facebookAccessToken.trim(),
+          facebookPixelId: (pixelConfig.facebookPixelId || '').trim(),
+          facebookAccessToken: (pixelConfig.facebookAccessToken || '').trim(),
+          facebookTestCode: (pixelConfig.facebookTestCode || '').trim(),
         };
       } else if (section === 'google_analytics') {
         updatedFields = {
@@ -623,10 +632,7 @@ export default function AdminSettings() {
   };
 
   const handleDeleteBanner = (setter: (url: string) => void, name: string) => {
-    if (window.confirm(`Are you sure you want to delete the ${name}?`)) {
-      setter('');
-      toast.success(`${name} deleted.`);
-    }
+    setDeleteConfirm({ setter, name });
   };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -693,8 +699,6 @@ export default function AdminSettings() {
     { name: 'Banners', icon: Globe },
     { name: 'Notifications', icon: Bell },
     { name: 'Pixel & Analytics', icon: Megaphone },
-    { name: 'Coupons', icon: Ticket },
-    { name: 'SMS', icon: MessageSquare },
     { name: 'Payments', icon: CreditCard },
     ...(isSuperAdmin ? [{ name: 'Admin Access', icon: Lock }] : [])
   ];
@@ -783,7 +787,7 @@ export default function AdminSettings() {
             <div className="space-y-12 max-w-3xl relative z-10 font-sans">
               <div className="space-y-8">
                 <div className="flex justify-between items-center border-b border-gray-100 pb-6">
-                  <h3 className="serif text-2xl text-black italic tracking-tighter uppercase">Identity Profile</h3>
+                  <h3 className="serif text-2xl text-black italic tracking-tighter uppercase">Store Profile</h3>
                   <Store size={20} className="text-brand-gold" />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -1071,6 +1075,53 @@ export default function AdminSettings() {
                           <div className="p-6">
                             <p className="text-[10px] uppercase tracking-[0.2em] font-black text-black italic">Primary Vanguard</p>
                             <p className="text-[9px] text-brand-gold font-bold uppercase tracking-widest mt-2">REAL-TIME PROPAGATION ACTIVE</p>
+                          </div>
+                      </div>
+
+                      <div className="bg-gray-50 border border-gray-100 p-3 rounded-3xl group relative overflow-hidden shadow-sm font-sans">
+                          <div className="aspect-video bg-white rounded-2xl relative border-2 border-dashed border-gray-100 hover:border-black transition-all flex items-center justify-center overflow-hidden">
+                            {subHeroBannerUrl ? (
+                                <img src={subHeroBannerUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" alt="Secondary Hero Banner" />
+                            ) : (
+                                <div className="text-gray-200 flex flex-col items-center gap-3">
+                                    <ImageIcon size={32} />
+                                    <span className="text-[9px] uppercase tracking-widest font-black">NULL STATE</span>
+                                </div>
+                            )}
+                            
+                            <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm gap-3">
+                                <label className="bg-white text-black px-8 py-4 text-[10px] uppercase tracking-[0.2em] font-black hover:bg-black hover:text-white transition-all cursor-pointer flex items-center gap-3 rounded-2xl shadow-2xl">
+                                    <Upload size={18} />
+                                    <span>Secondary Replace</span>
+                                    <input 
+                                        type="file" 
+                                        accept="image/*" 
+                                        className="hidden" 
+                                        onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                try {
+                                                    const result = await compressImage(file, 1600, 900, 0.8);
+                                                    setSubHeroBannerUrl(result);
+                                                    toast.success('Secondary hero banner updated.');
+                                                } catch (err) {
+                                                    toast.error('Processing failure.');
+                                                }
+                                            }
+                                        }} 
+                                    />
+                                </label>
+                                <button 
+                                  onClick={() => handleDeleteBanner(setSubHeroBannerUrl, 'Secondary Hero Banner')}
+                                  className="p-4 bg-red-600 text-white rounded-2xl hover:bg-red-700 transition-all font-black uppercase tracking-widest text-[10px]"
+                               >
+                                  <Trash2 size={18} />
+                               </button>
+                            </div>
+                          </div>
+                          <div className="p-6">
+                            <p className="text-[10px] uppercase tracking-[0.2em] font-black text-black italic">Secondary Hero Banner</p>
+                            <p className="text-[9px] text-brand-gold font-bold uppercase tracking-widest mt-2">SHOWS DIRECTLY UNDER HERO BANNER</p>
                           </div>
                       </div>
 
@@ -1375,13 +1426,12 @@ export default function AdminSettings() {
               {/* Header Title with Check Button */}
               <div className="flex justify-between items-center border-b border-gray-100 pb-5">
                 <div>
-                  <h3 className="serif text-3xl text-black italic tracking-tighter uppercase font-black text-left">Pixel & Analytics</h3>
-                  <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest font-bold text-left">Configure client tracking mechanisms and signals</p>
+                  <h3 className="text-xl text-black tracking-tight font-bold text-left">Pixel & Analytics</h3>
                 </div>
                 <button 
                   onClick={handleCheckPixels}
                   disabled={isCheckingPixels}
-                  className="flex items-center gap-2 px-5 py-2.5 border border-gray-200 bg-white hover:bg-gray-50 text-xs font-bold rounded-xl transition-all cursor-pointer shadow-3xs"
+                  className="flex items-center gap-2 px-5 py-2 border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-3xs text-gray-700"
                 >
                   <RefreshCw size={14} className={cn("text-gray-500", isCheckingPixels && "animate-spin")} />
                   <span>Check</span>
@@ -1389,236 +1439,105 @@ export default function AdminSettings() {
               </div>
 
               {/* Pro Upgrade Promotion Box */}
-              <div className="p-6 bg-slate-50/50 border border-gray-150 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-3xs hover:border-indigo-200 transition-all">
+              <div className="p-4 bg-white border border-gray-200 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-3xs hover:border-indigo-100 transition-all">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
-                    <Sparkles className="w-6 h-6 text-indigo-600 animate-pulse" />
+                  <div className="w-12 h-12 rounded-2xl bg-[#FFFBEB] border border-amber-200 flex items-center justify-center text-amber-500 shrink-0">
+                    <Sparkles className="w-5 h-5 text-amber-500" />
                   </div>
-                  <div className="text-left">
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-sm font-extrabold text-slate-900">Pixel & Analytics</span>
-                      <span className="px-2 py-0.5 text-[8px] font-black uppercase tracking-wider bg-indigo-600 text-white rounded">PRO</span>
-                    </div>
-                    <p className="text-[11px] text-gray-500 mt-0.5 font-medium leading-relaxed">
-                      Unlock conversion APIs, checkout funnels, and real-time server telemetry.
-                    </p>
+                  <div className="text-left flex items-center gap-3">
+                    <span className="px-2 py-0.5 text-[10px] font-black tracking-wider bg-[#4F46E5] text-white rounded">PRO</span>
+                    <span className="text-sm font-bold text-slate-900">Pixel & Analytics</span>
                   </div>
                 </div>
                 <button 
                   onClick={() => {
                     toast.success("Upgrade Initiated! Pro subscription activated for testing.");
                   }}
-                  className="w-full md:w-auto px-6 py-3 bg-[#4F46E5] text-white text-[11px] uppercase tracking-widest font-black rounded-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transform-gpu"
+                  className="w-full md:w-auto px-6 py-2.5 bg-[#4F46E5] text-white text-xs font-bold rounded-lg hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 shadow-xs"
                 >
                   <span>Upgrade</span>
                   <span className="text-xs font-bold">→</span>
                 </button>
               </div>
 
-              {/* Grid with Tracking Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-2">
-                {/* 1. Facebook Pixel Card */}
-                <div className="bg-white border border-gray-150 rounded-2xl p-6 space-y-6 shadow-3xs flex flex-col justify-between hover:border-gray-300 transition-all">
-                  <div className="space-y-5">
-                    <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-                      <h4 className="text-sm font-extrabold text-slate-900 tracking-tight">Facebook Pixel</h4>
-                      <div className="flex gap-2">
-                        {pixelConfig.facebookPixelId ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-emerald-50 text-emerald-600 border border-emerald-100">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            Connected
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-gray-50 text-gray-400 border border-gray-150">
-                            <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-                            Not connected
-                          </span>
-                        )}
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-indigo-50 text-indigo-600 border border-indigo-100">
-                          <Lock size={10} />
-                          Locked
-                        </span>
-                      </div>
-                    </div>
-                    <div className="space-y-4">
+              {/* Facebook Pixel Card */}
+              <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-3xs flex flex-col justify-between hover:border-gray-300 transition-all">
+                {/* Card Header */}
+                <div className="flex justify-between items-center bg-gray-50/50 border-b border-gray-100 px-6 py-4">
+                  <h4 className="text-sm font-bold text-slate-900 tracking-tight">Facebook Pixel</h4>
+                  <div className="flex gap-2">
+                    {pixelConfig.facebookPixelId ? (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-600 border border-emerald-100">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        Connected
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-500 border border-gray-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                        Not connected
+                      </span>
+                    )}
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#E0E7FF] text-[#4338CA] border border-indigo-150">
+                      <Lock size={10} />
+                      Locked
+                    </span>
+                  </div>
+                </div>
+
+                {/* Card Body */}
+                <div className="p-6 space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Left Column */}
+                    <div className="space-y-6">
                       <div className="space-y-2 text-left">
-                        <label className="text-[10px] uppercase font-black text-gray-400 tracking-widest block">Pixel ID</label>
+                        <label className="text-xs font-semibold text-gray-900 block">Pixel ID</label>
                         <input 
                           type="text" 
                           value={pixelConfig.facebookPixelId}
                           onChange={(e) => setPixelConfig({ ...pixelConfig, facebookPixelId: e.target.value })}
                           placeholder="1234567890123456" 
-                          className="w-full bg-gray-50/50 border border-gray-150 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-indigo-600 transition-all text-sm font-mono text-black"
+                          className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 outline-none focus:border-indigo-500 transition-all text-sm text-black"
                         />
                       </div>
+
                       <div className="space-y-2 text-left">
-                        <label className="text-[10px] uppercase font-black text-gray-400 tracking-widest block">Conversion API token</label>
+                        <label className="text-xs font-semibold text-gray-900 block">Test Event Code (optional)</label>
+                        <input 
+                          type="text" 
+                          value={pixelConfig.facebookTestCode || ''}
+                          onChange={(e) => setPixelConfig({ ...pixelConfig, facebookTestCode: e.target.value })}
+                          placeholder="TEST1234" 
+                          className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 outline-none focus:border-indigo-500 transition-all text-sm text-black"
+                        />
+                        <p className="text-xs text-gray-500 font-medium leading-relaxed mt-2 text-left">
+                          Meta Events Manager → Test Events tab থেকে code copy করে এখানে paste করুন। Server events তখন Test Events tab-এ live দেখাবে। Testing শেষে field-টা খালি করে Save দিন।
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Right Column */}
+                    <div className="space-y-6">
+                      <div className="space-y-2 text-left">
+                        <label className="text-xs font-semibold text-gray-900 block">Conversion API token</label>
                         <input 
                           type="text" 
                           value={pixelConfig.facebookAccessToken}
                           onChange={(e) => setPixelConfig({ ...pixelConfig, facebookAccessToken: e.target.value })}
                           placeholder="EAAB..." 
-                          className="w-full bg-gray-50/50 border border-gray-150 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-indigo-600 transition-all text-sm font-mono text-black"
+                          className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 outline-none focus:border-indigo-500 transition-all text-sm text-black"
                         />
                       </div>
                     </div>
                   </div>
-                  <div className="flex justify-end pt-4">
+
+                  {/* Save Button */}
+                  <div className="flex justify-end pt-4 border-t border-gray-100">
                     <button 
                       onClick={() => handleSavePixelSection('facebook')}
                       disabled={isSavingPixel['facebook']}
-                      className="px-6 py-2.5 bg-[#4F46E5] hover:bg-indigo-700 text-white disabled:opacity-50 transition-all text-xs font-black uppercase tracking-widest rounded-xl flex items-center gap-2"
+                      className="px-6 py-2 bg-[#A5B4FC] hover:bg-indigo-400 text-white disabled:opacity-50 transition-all text-xs font-bold uppercase tracking-wider rounded-lg flex items-center gap-2"
                     >
                       {isSavingPixel['facebook'] ? (
-                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      ) : "Save"}
-                    </button>
-                  </div>
-                </div>
-
-                {/* 2. Google Analytics 4 Card */}
-                <div className="bg-white border border-gray-150 rounded-2xl p-6 space-y-6 shadow-3xs flex flex-col justify-between hover:border-gray-300 transition-all">
-                  <div className="space-y-5">
-                    <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-                      <h4 className="text-sm font-extrabold text-slate-900 tracking-tight">Google Analytics 4</h4>
-                      {pixelConfig.googleAnalyticsId ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-emerald-50 text-emerald-600 border border-emerald-100">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          Connected
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-gray-50 text-gray-400 border border-gray-150">
-                          <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-                          Not connected
-                        </span>
-                      )}
-                    </div>
-                    <div className="space-y-4">
-                      <div className="space-y-2 text-left">
-                        <label className="text-[10px] uppercase font-black text-gray-400 tracking-widest block">Measurement ID</label>
-                        <input 
-                          type="text" 
-                          value={pixelConfig.googleAnalyticsId}
-                          onChange={(e) => setPixelConfig({ ...pixelConfig, googleAnalyticsId: e.target.value })}
-                          placeholder="G-XXXXXXXXXX" 
-                          className="w-full bg-gray-50/50 border border-gray-150 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-indigo-600 transition-all text-sm font-mono text-black"
-                        />
-                      </div>
-                      <div className="space-y-2 text-left">
-                        <label className="text-[10px] uppercase font-black text-gray-400 tracking-widest block">API secret</label>
-                        <input 
-                          type="text" 
-                          value={pixelConfig.googleAnalyticsSecret}
-                          onChange={(e) => setPixelConfig({ ...pixelConfig, googleAnalyticsSecret: e.target.value })}
-                          placeholder="API Secret Token" 
-                          className="w-full bg-gray-50/50 border border-gray-150 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-indigo-600 transition-all text-sm font-mono text-black"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex justify-end pt-4">
-                    <button 
-                      onClick={() => handleSavePixelSection('google_analytics')}
-                      disabled={isSavingPixel['google_analytics']}
-                      className="px-6 py-2.5 bg-[#4F46E5] hover:bg-indigo-700 text-white disabled:opacity-50 transition-all text-xs font-black uppercase tracking-widest rounded-xl flex items-center gap-2"
-                    >
-                      {isSavingPixel['google_analytics'] ? (
-                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      ) : "Save"}
-                    </button>
-                  </div>
-                </div>
-
-                {/* 3. Google Tag Manager Card */}
-                <div className="bg-white border border-gray-150 rounded-2xl p-6 space-y-6 shadow-3xs flex flex-col justify-between hover:border-gray-300 transition-all">
-                  <div className="space-y-5">
-                    <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-                      <h4 className="text-sm font-extrabold text-slate-900 tracking-tight">Google Tag Manager</h4>
-                      {pixelConfig.gtmId ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-emerald-50 text-emerald-600 border border-emerald-100">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          Connected
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-gray-50 text-gray-400 border border-gray-150">
-                          <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-                          Not connected
-                        </span>
-                      )}
-                    </div>
-                    <div className="space-y-4">
-                      <div className="space-y-2 text-left">
-                        <label className="text-[10px] uppercase font-black text-gray-400 tracking-widest block">Container ID</label>
-                        <input 
-                          type="text" 
-                          value={pixelConfig.gtmId}
-                          onChange={(e) => setPixelConfig({ ...pixelConfig, gtmId: e.target.value })}
-                          placeholder="GTM-XXXXXXX" 
-                          className="w-full bg-gray-50/50 border border-gray-150 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-indigo-600 transition-all text-sm font-mono text-black"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex justify-end pt-4">
-                    <button 
-                      onClick={() => handleSavePixelSection('gtm')}
-                      disabled={isSavingPixel['gtm']}
-                      className="px-6 py-2.5 bg-[#4F46E5] hover:bg-indigo-700 text-white disabled:opacity-50 transition-all text-xs font-black uppercase tracking-widest rounded-xl flex items-center gap-2"
-                    >
-                      {isSavingPixel['gtm'] ? (
-                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      ) : "Save"}
-                    </button>
-                  </div>
-                </div>
-
-                {/* 4. Google Ads Card */}
-                <div className="bg-white border border-gray-150 rounded-2xl p-6 space-y-6 shadow-3xs flex flex-col justify-between hover:border-gray-300 transition-all">
-                  <div className="space-y-5">
-                    <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-                      <h4 className="text-sm font-extrabold text-slate-900 tracking-tight">Google Ads</h4>
-                      {pixelConfig.googleAdsId ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-emerald-50 text-emerald-600 border border-emerald-100">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          Connected
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-gray-50 text-gray-400 border border-gray-150">
-                          <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-                          Not connected
-                        </span>
-                      )}
-                    </div>
-                    <div className="space-y-4">
-                      <div className="space-y-2 text-left">
-                        <label className="text-[10px] uppercase font-black text-gray-400 tracking-widest block">Conversion ID</label>
-                        <input 
-                          type="text" 
-                          value={pixelConfig.googleAdsId}
-                          onChange={(e) => setPixelConfig({ ...pixelConfig, googleAdsId: e.target.value })}
-                          placeholder="AW-XXXXXXXXXX" 
-                          className="w-full bg-gray-50/50 border border-gray-150 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-indigo-600 transition-all text-sm font-mono text-black"
-                        />
-                      </div>
-                      <div className="space-y-2 text-left">
-                        <label className="text-[10px] uppercase font-black text-gray-400 tracking-widest block">Conversion label</label>
-                        <input 
-                          type="text" 
-                          value={pixelConfig.googleAdsLabel}
-                          onChange={(e) => setPixelConfig({ ...pixelConfig, googleAdsLabel: e.target.value })}
-                          placeholder="Conversion Label" 
-                          className="w-full bg-gray-50/50 border border-gray-150 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-indigo-600 transition-all text-sm font-mono text-black"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex justify-end pt-4">
-                    <button 
-                      onClick={() => handleSavePixelSection('google_ads')}
-                      disabled={isSavingPixel['google_ads']}
-                      className="px-6 py-2.5 bg-[#4F46E5] hover:bg-indigo-700 text-white disabled:opacity-50 transition-all text-xs font-black uppercase tracking-widest rounded-xl flex items-center gap-2"
-                    >
-                      {isSavingPixel['google_ads'] ? (
                         <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       ) : "Save"}
                     </button>
@@ -2381,6 +2300,53 @@ export default function AdminSettings() {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteConfirm && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setDeleteConfirm(null)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-xs"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white border border-gray-100 p-8 rounded-xl max-w-sm w-full text-center relative shadow-xl z-20"
+            >
+              <div className="w-16 h-16 bg-red-50 text-red-500 rounded-xl flex items-center justify-center mx-auto mb-6 shadow-xs border border-red-100">
+                <Trash2 size={28} />
+              </div>
+              <h3 className="text-base font-bold text-gray-900 uppercase tracking-wider mb-2">Delete {deleteConfirm.name}?</h3>
+              <p className="text-gray-400 text-[10px] leading-relaxed mb-6 font-medium">
+                Are you sure you want to delete the {deleteConfirm.name}? This action can be undone by re-uploading a new image asset.
+              </p>
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setDeleteConfirm(null)}
+                  className="flex-1 py-3 text-[10px] uppercase tracking-wider font-bold bg-gray-50 text-gray-400 hover:text-black transition-all rounded-lg border border-gray-100 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => {
+                    deleteConfirm.setter('');
+                    toast.success(`${deleteConfirm.name} deleted.`);
+                    setDeleteConfirm(null);
+                  }}
+                  className="flex-1 py-3 text-[10px] uppercase tracking-wider font-bold bg-black text-white hover:bg-gray-800 transition-all rounded-lg shadow-sm cursor-pointer"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
 
   );

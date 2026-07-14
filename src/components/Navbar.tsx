@@ -19,7 +19,7 @@ import LoginModal from './LoginModal';
 import { useCart } from '../contexts/CartContext';
 
 export default function Navbar() {
-  const { items } = useCart();
+  const { items, setIsCartOpen } = useCart();
   const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const { currency, setCurrency } = useCurrency();
   const { logoUrl, showAnnouncementBar, announcementMessage } = useBranding();
@@ -55,12 +55,31 @@ export default function Navbar() {
     navLinks.push({ name: 'Admin Panel', path: '/admin' });
   }
 
+  const handleCartClick = () => {
+    if (location.pathname === '/cart' || location.pathname === '/checkout') {
+      navigate('/cart');
+    } else {
+      setIsCartOpen(true);
+    }
+  };
+
   return (
     <>
       <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
       {showAnnouncementBar && (
-        <div className="bg-brand-gold text-black text-center py-2 px-4 text-[10px] md:text-xs font-black uppercase tracking-[0.15em] relative z-[60]">
-          {announcementMessage}
+        <div className="bg-brand-gold text-black py-2 overflow-hidden whitespace-nowrap relative z-[60] border-b border-black/5">
+          <motion.div
+            initial={{ x: "0%" }}
+            animate={{ x: "-100%" }}
+            transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+            className="flex items-center gap-10 min-w-max"
+          >
+            {[...Array(10)].map((_, i) => (
+              <span key={i} className="text-[10px] md:text-xs font-black uppercase tracking-[0.15em] text-blue-600">
+                {announcementMessage}
+              </span>
+            ))}
+          </motion.div>
         </div>
       )}
       <nav
@@ -140,7 +159,10 @@ export default function Navbar() {
               </button>
             )}
 
-            <Link to="/cart" className="relative group p-2 text-white hover:text-brand-gold transition-colors">
+            <button 
+              onClick={handleCartClick} 
+              className="relative group p-2 text-white hover:text-brand-gold transition-colors"
+            >
               <ShoppingBag size={22} strokeWidth={1.5} />
               {cartCount > 0 && (
                 <span className="absolute top-1 right-0 w-4 h-4 bg-brand-gold text-white text-[8px] rounded-full flex items-center justify-center font-black">
@@ -148,7 +170,7 @@ export default function Navbar() {
                 </span>
               )}
               <span className="hidden lg:inline-block ml-2 text-[10px] font-black uppercase tracking-widest translate-y-[1px]">Bag</span>
-            </Link>
+            </button>
           </div>
         </div>
 
@@ -164,7 +186,7 @@ export default function Navbar() {
               ALL COLLECTION
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-brand-gold transition-all group-hover:w-full" />
             </Link>
-            {categories.map((cat) => (
+            {Array.isArray(categories) && categories.map((cat) => (
               <Link 
                 key={cat.id}
                 to={`/category/${cat.name.toLowerCase().replace(/\s+/g, '-')}`}
@@ -227,7 +249,7 @@ export default function Navbar() {
                     <ChevronRight size={14} className="text-white/20 group-hover:text-brand-gold transition-colors" />
                   </Link>
 
-                  {categories.map((cat) => (
+                  {Array.isArray(categories) && categories.map((cat) => (
                     <Link
                       key={cat.id}
                       to={`/category/${cat.name.toLowerCase().replace(/\s+/g, '-')}`}
