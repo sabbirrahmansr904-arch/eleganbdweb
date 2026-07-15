@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Heart, Share2, Maximize2, ChevronRight, Truck, RotateCcw, ShieldCheck, Star, MessageSquare, Send, User, Banknote, Sparkles, X } from 'lucide-react';
+import { ShoppingCart, Heart, Share2, Maximize2, ChevronRight, ChevronDown, Truck, RotateCcw, ShieldCheck, Star, MessageSquare, Send, User, Banknote, Sparkles, X } from 'lucide-react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useProducts } from '../contexts/ProductContext';
 import { useCart } from '../contexts/CartContext';
