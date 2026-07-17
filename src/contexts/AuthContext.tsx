@@ -10,6 +10,8 @@ interface AuthContextType {
   verifyOtp: (email: string, otp: string) => Promise<void>;
   logoutCustomer: () => void;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
+  permissions: string[];
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (e: string, p: string) => Promise<void>;
@@ -31,6 +33,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   });
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   const sendOtp = async (email: string) => {
@@ -60,22 +64,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const isSuperAdminEmail = (email: string | null) => 
-    email === 'sabbirrahmansr904@gmail.com';
+    !email ? false : [
+      'sabbirrahmansr904@gmail.com',
+      'eleganbd.ltd@gmail.com',
+      'elegantbd.ltd@gmail.com',
+      'eleganbd@gmail.com',
+      'elegantbd@gmail.com'
+    ].includes(email.toLowerCase());
 
   const refreshAdminStatus = async () => {
     if (auth.currentUser) {
-      if (isSuperAdminEmail(auth.currentUser.email)) {
+      const superStatus = isSuperAdminEmail(auth.currentUser.email);
+      setIsSuperAdmin(superStatus);
+      if (superStatus) {
         setIsAdmin(true);
+        setPermissions(['dashboard', 'customers', 'orders', 'products', 'issues', 'masterTable', 'finance', 'settings']);
       } else {
         try {
-          const adminDoc = await getDoc(doc(db, 'admins', auth.currentUser.uid));
-          setIsAdmin(adminDoc.exists());
+          const adminRef = doc(db, 'admins', auth.currentUser.uid);
+          const adminDoc = await getDoc(adminRef);
+          if (adminDoc.exists()) {
+            setIsAdmin(true);
+            setPermissions(adminDoc.data()?.permissions || []);
+          } else if (auth.currentUser.email) {
+            const inviteDoc = await getDoc(doc(db, 'admin_invites', auth.currentUser.email.toLowerCase()));
+            if (inviteDoc.exists()) {
+              const inviteData = inviteDoc.data();
+              await setDoc(adminRef, {
+                role: 'admin',
+                email: auth.currentUser.email,
+                permissions: inviteData.permissions || [],
+                updatedAt: Date.now()
+              });
+              setIsAdmin(true);
+              setPermissions(inviteData.permissions || []);
+            } else {
+              setIsAdmin(false);
+              setPermissions([]);
+            }
+          } else {
+            setIsAdmin(false);
+            setPermissions([]);
+          }
         } catch (e) {
           setIsAdmin(false);
+          setPermissions([]);
         }
       }
     } else {
       setIsAdmin(false);
+      setIsSuperAdmin(false);
+      setPermissions([]);
     }
   };
 
@@ -83,10 +122,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       setCurrentUser(user);
       if (user) {
+        const superStatus = isSuperAdminEmail(user.email);
+        setIsSuperAdmin(superStatus);
         // Check admin
         try {
-          if (isSuperAdminEmail(user.email)) {
+          if (superStatus) {
             setIsAdmin(true);
+            setPermissions(['dashboard', 'customers', 'orders', 'products', 'issues', 'masterTable', 'finance', 'settings']);
             // Ensure admin document exists
             const adminRef = doc(db, 'admins', user.uid);
             const adminDoc = await getDoc(adminRef);
@@ -94,21 +136,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               await setDoc(adminRef, { 
                 role: 'super-admin', 
                 email: user.email,
+                permissions: ['dashboard', 'customers', 'orders', 'products', 'issues', 'masterTable', 'finance', 'settings'],
                 updatedAt: Date.now() 
               });
             }
           } else {
-            const adminDoc = await getDoc(doc(db, 'admins', user.uid));
-            setIsAdmin(adminDoc.exists());
+            const adminRef = doc(db, 'admins', user.uid);
+            const adminDoc = await getDoc(adminRef);
+            if (adminDoc.exists()) {
+              setIsAdmin(true);
+              setPermissions(adminDoc.data()?.permissions || []);
+            } else if (user.email) {
+              const inviteDoc = await getDoc(doc(db, 'admin_invites', user.email.toLowerCase()));
+              if (inviteDoc.exists()) {
+                const inviteData = inviteDoc.data();
+                await setDoc(adminRef, {
+                  role: 'admin',
+                  email: user.email,
+                  permissions: inviteData.permissions || [],
+                  updatedAt: Date.now()
+                });
+                setIsAdmin(true);
+                setPermissions(inviteData.permissions || []);
+              } else {
+                setIsAdmin(false);
+                setPermissions([]);
+              }
+            } else {
+              setIsAdmin(false);
+              setPermissions([]);
+            }
           }
         } catch (e: any) {
           if (!e?.message?.includes('resource-exhausted') && !e?.message?.includes('Quota limit exceeded')) {
              console.error("Admin check error:", e);
           }
-          setIsAdmin(isSuperAdminEmail(user.email));
+          setIsAdmin(superStatus);
+          setPermissions(superStatus ? ['dashboard', 'customers', 'orders', 'products', 'issues', 'masterTable', 'finance', 'settings'] : []);
         }
       } else {
         setIsAdmin(false);
+        setIsSuperAdmin(false);
+        setPermissions([]);
       }
       setLoading(false);
     });
@@ -139,7 +208,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       sendOtp,
       verifyOtp,
       logoutCustomer, 
-      isAdmin, 
+      isAdmin,
+      isSuperAdmin,
+      permissions,
       loading, 
       signInWithGoogle, 
       signInWithEmail, 

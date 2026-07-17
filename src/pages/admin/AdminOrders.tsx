@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import InvoiceTemplate from '../../components/admin/InvoiceTemplate';
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import { 
@@ -37,6 +38,7 @@ import { formatPrice, cn } from '../../lib/utils';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { useOrders } from '../../contexts/OrderContext';
 import { useProducts } from '../../contexts/ProductContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { Order, CartItem } from '../../types';
 import { useNavigate } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -73,6 +75,7 @@ export default function AdminOrders(): React.JSX.Element {
   const { currency, rate } = useCurrency();
   const { orders, updateOrderStatus, updateOrder, addOrder, deleteOrder } = useOrders();
   const { products } = useProducts();
+  const { isSuperAdmin } = useAuth();
   const navigate = useNavigate();
 
   const changeStatus = async (status: Order['status']) => {
@@ -131,9 +134,23 @@ export default function AdminOrders(): React.JSX.Element {
   const [editAdvancePayment, setEditAdvancePayment] = useState(0);
   const [editNotes, setEditNotes] = useState('');
   const [editInvoiceBy, setEditInvoiceBy] = useState<string>('');
+  
+  // Custom Confirmation Modal State
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void | Promise<void>;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
 
-  // Print paper size selector state
-  const [printPaperSize, setPrintPaperSize] = useState<'A4' | 'A5'>('A4');
+  // Invoice Preview Modal States
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
 
   // Issue Conversation Modal States
   const [issueConversationOrder, setIssueConversationOrder] = useState<Order | null>(null);
@@ -839,6 +856,10 @@ export default function AdminOrders(): React.JSX.Element {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-24 font-sans text-gray-900 px-4 md:px-8">
+      {invoiceOrder && createPortal(
+        <InvoiceTemplate order={invoiceOrder} preview={false} />,
+        document.body
+      )}
       
       {/* Brand & Page Header matching screenshot */}
       <div className="flex items-center justify-between pt-4 border-b border-gray-100 pb-4">
@@ -966,6 +987,34 @@ export default function AdminOrders(): React.JSX.Element {
               <span className="text-xs font-bold uppercase tracking-wider">{selectedOrderIds.length} orders highlighted</span>
             </div>
             <div className="flex gap-2">
+              {isSuperAdmin && (
+                <button 
+                  onClick={() => {
+                    const count = selectedOrderIds.length;
+                    setDeleteConfirm({
+                      isOpen: true,
+                      title: 'Delete Selected Orders?',
+                      message: `Are you sure you want to PERMANENTLY DELETE ${count} highlighted orders? This will remove them from the database forever and cannot be undone.`,
+                      onConfirm: async () => {
+                        try {
+                          toast.loading(`Deleting ${count} orders...`, { id: 'bulk-delete' });
+                          await Promise.all(selectedOrderIds.map(id => deleteOrder(id)));
+                          toast.success(`Deleted ${count} orders successfully`, { id: 'bulk-delete' });
+                          setSelectedOrderIds([]);
+                        } catch (err: any) {
+                          console.error('[AdminOrders Bulk] Delete failed:', err);
+                          toast.error('Failed to delete some orders', { id: 'bulk-delete' });
+                        } finally {
+                          setDeleteConfirm(prev => ({ ...prev, isOpen: false }));
+                        }
+                      }
+                    });
+                  }}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] tracking-wider uppercase rounded-lg transition-all cursor-pointer"
+                >
+                  Delete
+                </button>
+              )}
               <button 
                 onClick={() => {
                   toast.success(`Authorized Pathao dispatch sheets for ${selectedOrderIds.length} records!`);
@@ -1007,6 +1056,7 @@ export default function AdminOrders(): React.JSX.Element {
                 <th className="py-3 px-4 font-semibold text-left">Payment</th>
                 <th className="py-3 px-4 font-semibold text-left">Status</th>
                 <th className="py-3 px-6 font-semibold text-right">Total</th>
+                <th className="py-3 px-6 font-semibold text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 bg-white">
@@ -1101,13 +1151,146 @@ export default function AdminOrders(): React.JSX.Element {
                         </span>
                       </td>
 
-                      {/* Total & Chevron right */}
+                      {/* Total */}
                       <td className="py-4 px-6 text-right">
-                        <div className="flex items-center justify-end gap-3.5">
-                          <span className="text-sm font-bold text-gray-900 font-mono">
-                            ৳{Number(order.total || 0).toLocaleString()}
-                          </span>
-                          <ChevronRight size={16} className="text-gray-400 group-hover:text-gray-700 transition-colors" />
+                        <span className="text-sm font-bold text-gray-900 font-mono">
+                          ৳{Number(order.total || 0).toLocaleString()}
+                        </span>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-4 px-6">
+                        <div className="flex items-center justify-center">
+                          <div className="flex items-center gap-0.5 bg-[#F8FAFC] p-1 rounded-xl border border-[#EDF2F7] shadow-sm">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedOrder(order);
+                              }} 
+                              title="View Details"
+                              className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
+                            >
+                              <Eye size={15} className="stroke-[2.5]" />
+                            </button>
+                            
+                            <div className="w-[1px] h-4 bg-[#E2E8F0] mx-0.5" />
+                            
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIssueConversationOrder(order);
+                              }} 
+                              title="Order Issues"
+                              className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
+                            >
+                              <MessageSquare size={15} className="stroke-[2.5]" />
+                            </button>
+                            
+                            <div className="w-[1px] h-4 bg-[#E2E8F0] mx-0.5" />
+                            
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setInvoiceOrder(order);
+                                setShowInvoiceModal(true);
+                              }} 
+                              title="Print Invoice"
+                              className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
+                            >
+                              <Printer size={15} className="stroke-[2.5]" />
+                            </button>
+                            
+                            <div className="w-[1px] h-4 bg-[#E2E8F0] mx-0.5" />
+                            
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedOrder(order);
+                                setEditName(order.customerName || '');
+                                setEditPhone(order.phone || '');
+                                setEditAddress(order.address || '');
+                                setEditCity(order.city || '');
+                                setEditStatus(order.status || 'Pending');
+                                setEditDeliveryCharge(order.deliveryCharge ?? 100);
+                                setEditDiscount((order as any).discount ?? 0);
+                                setEditAdvancePayment((order as any).advancePayment ?? 0);
+                                setEditNotes((order as any).notes || '');
+                                setEditInvoiceBy(order.invoiceBy || '');
+                                setIsEditingDetails(true);
+                              }} 
+                              title="Edit Order"
+                              className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
+                            >
+                              <Tag size={15} className="stroke-[2.5]" />
+                            </button>
+                            
+                            <div className="w-[1px] h-4 bg-[#E2E8F0] mx-0.5" />
+                            
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStatusChange(order.id, 'Processing');
+                              }} 
+                              title="Mark as Paid/Processing"
+                              className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
+                            >
+                              <DollarSign size={15} className="stroke-[2.5]" />
+                            </button>
+                            
+                            <div className="w-[1px] h-4 bg-[#E2E8F0] mx-0.5" />
+                            
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStatusChange(order.id, 'Shipped');
+                              }} 
+                              title="Dispatch/Ship"
+                              className="p-2 hover:bg-emerald-50 hover:shadow-sm rounded-lg transition-all text-emerald-500 hover:text-emerald-600 cursor-pointer"
+                            >
+                              <Send size={15} className="stroke-[2.5]" />
+                            </button>
+
+                            {isSuperAdmin && (
+                              <>
+                                <div className="w-[1px] h-4 bg-[#E2E8F0] mx-0.5" />
+                                
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    
+                                    const orderId = order.id;
+                                    const shortId = orderId.slice(-6);
+                                    
+                                    setDeleteConfirm({
+                                      isOpen: true,
+                                      title: `Delete Order #${shortId}?`,
+                                      message: `Are you sure you want to PERMANENTLY DELETE Order #${shortId}? This cannot be undone.`,
+                                      onConfirm: async () => {
+                                        try {
+                                          console.log(`[AdminOrders] Triggering delete for: ${orderId}`);
+                                          const deletePromise = deleteOrder(orderId);
+                                          toast.promise(deletePromise, {
+                                            loading: 'Deleting...',
+                                            success: 'Order deleted',
+                                            error: (err) => `Failed: ${err.message || 'Permission denied'}`
+                                          });
+                                          await deletePromise;
+                                        } catch (err: any) {
+                                          console.error(`[AdminOrders] Table Delete Catch:`, err);
+                                        } finally {
+                                          setDeleteConfirm(prev => ({ ...prev, isOpen: false }));
+                                        }
+                                      }
+                                    });
+                                  }} 
+                                  title="Delete Order"
+                                  className="p-2 hover:bg-rose-100 rounded-lg transition-all text-rose-500 hover:text-rose-700 cursor-pointer flex items-center justify-center relative z-10"
+                                >
+                                  <Trash2 size={16} className="stroke-[2.5]" />
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -2342,32 +2525,10 @@ export default function AdminOrders(): React.JSX.Element {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {/* Paper size configuration and print actions */}
-                  <div className="flex items-center gap-1 border border-gray-200 bg-white rounded-lg p-0.5 mr-1 text-[10px] font-bold">
-                    <button 
-                      onClick={() => setPrintPaperSize('A4')}
-                      className={cn(
-                        "px-2 py-1 rounded cursor-pointer transition-all",
-                        printPaperSize === 'A4' ? 'bg-black text-white' : 'text-gray-500 hover:bg-gray-50'
-                      )}
-                    >
-                      A4
-                    </button>
-                    <button 
-                      onClick={() => setPrintPaperSize('A5')}
-                      className={cn(
-                        "px-2 py-1 rounded cursor-pointer transition-all",
-                        printPaperSize === 'A5' ? 'bg-black text-white' : 'text-gray-500 hover:bg-gray-50'
-                      )}
-                    >
-                      A5
-                    </button>
-                  </div>
-
                   <button 
                     onClick={() => {
-                      window.focus();
-                      window.print();
+                      setInvoiceOrder(selectedOrder);
+                      setShowInvoiceModal(true);
                     }}
                     className="flex items-center gap-1.5 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-bold text-xs py-1.5 px-3 rounded-lg transition-all cursor-pointer shadow-3xs"
                   >
@@ -3034,40 +3195,50 @@ export default function AdminOrders(): React.JSX.Element {
               {/* Bottom Print and Edit Action triggers */}
               {!isEditingDetails && (
                 <div className="p-4 px-6 border-t border-gray-200 bg-white flex flex-col sm:flex-row gap-3 shrink-0">
-                  {/* Print invoice configuration paper size options */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">PAPER SIZE:</span>
-                    <button 
-                      onClick={() => setPrintPaperSize('A4')}
-                      className={cn(
-                        "text-[10px] font-extrabold px-3 py-1 rounded-lg border cursor-pointer transition-all",
-                        printPaperSize === 'A4' ? 'bg-black text-white border-transparent' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
-                      )}
-                    >
-                      A4 Size
-                    </button>
-                    <button 
-                      onClick={() => setPrintPaperSize('A5')}
-                      className={cn(
-                        "text-[10px] font-extrabold px-3 py-1 rounded-lg border cursor-pointer transition-all",
-                        printPaperSize === 'A5' ? 'bg-black text-white border-transparent' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
-                      )}
-                    >
-                      A5 Size
-                    </button>
-                  </div>
-                  
                   <div className="sm:ml-auto flex gap-3 w-full sm:w-auto">
                     <button 
                       onClick={() => {
-                        window.focus();
-                        window.print();
+                        setInvoiceOrder(selectedOrder);
+                        setShowInvoiceModal(true);
                       }}
                       className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-[#0C1421] hover:bg-black text-white font-bold text-xs py-2.5 px-6 rounded-xl transition-all cursor-pointer shadow-md"
                     >
                       <Printer size={13} />
-                      <span>Print Invoice ({printPaperSize})</span>
+                      <span>Print Invoice (A5)</span>
                     </button>
+                    {isSuperAdmin && (
+                      <button 
+                        onClick={() => {
+                          const orderId = selectedOrder.id;
+                          const shortId = orderId.slice(-6);
+                          setDeleteConfirm({
+                            isOpen: true,
+                            title: `Delete Order #${shortId}?`,
+                            message: `Are you sure you want to PERMANENTLY DELETE Order #${shortId}? This will remove it from the database forever and cannot be undone.`,
+                            onConfirm: async () => {
+                              try {
+                                const deletePromise = deleteOrder(orderId);
+                                toast.promise(deletePromise, {
+                                  loading: 'Deleting order...',
+                                  success: 'Order deleted successfully',
+                                  error: (err) => `Delete failed: ${err.message || 'Permission denied'}`
+                                });
+                                await deletePromise;
+                                setSelectedOrder(null);
+                              } catch (err: any) {
+                                console.error('[AdminOrders Modal] Delete Catch:', err);
+                              } finally {
+                                setDeleteConfirm(prev => ({ ...prev, isOpen: false }));
+                              }
+                            }
+                          });
+                        }}
+                        className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs py-2.5 px-6 rounded-xl transition-all cursor-pointer shadow-lg shadow-rose-100"
+                      >
+                        <Trash2 size={14} />
+                        <span>Delete Order</span>
+                      </button>
+                    )}
                     <button 
                       onClick={() => {
                         setEditName(selectedOrder.customerName || '');
@@ -3096,237 +3267,206 @@ export default function AdminOrders(): React.JSX.Element {
         )}
       </AnimatePresence>
 
-      {/* Print-only Style Injection (Rendered in #root so it is always parsed) */}
-      {selectedOrder && (
-        <style dangerouslySetInnerHTML={{ __html: `
-          #print-invoice-area {
-            display: none !important;
-          }
-          @media print {
-            html, body {
-              background: white !important;
-              color: black !important;
-              width: 100% !important;
-              height: auto !important;
-              overflow: visible !important;
-              margin: 0 !important;
-              padding: 0 !important;
-            }
-            /* Hide all components by default */
-            body > *:not(#print-invoice-area) {
-              display: none !important;
-            }
-            /* Show ONLY the print area and its elements */
-            #print-invoice-area {
-              display: block !important;
-              position: absolute !important;
-              left: 0 !important;
-              top: 0 !important;
-              width: 100% !important;
-              margin: 0 !important;
-              box-sizing: border-box !important;
-              ${printPaperSize === 'A5' ? `
-                padding: 8mm !important;
-                max-width: 134mm !important;
-                font-size: 10px !important;
-              ` : `
-                padding: 10mm !important;
-                max-width: 800px !important;
-                font-size: 11px !important;
-              `}
-            }
-            /* Hide default browser page headers / footers if possible */
-            @page {
-              size: ${printPaperSize === 'A5' ? 'A5 portrait' : 'portrait'};
-              margin: ${printPaperSize === 'A5' ? '6mm' : '15mm'};
-            }
-            ${printPaperSize === 'A5' ? `
-              /* A5-specific overrides to make it compact */
-              #print-invoice-area .text-3xl {
-                font-size: 1.45rem !important;
-              }
-              #print-invoice-area .text-xl {
-                font-size: 1.1rem !important;
-              }
-              #print-invoice-area .h-14 {
-                height: 2.25rem !important;
-              }
-              #print-invoice-area .h-9 {
-                height: 1.85rem !important;
-              }
-              #print-invoice-area .py-3 {
-                padding-top: 0.45rem !important;
-                padding-bottom: 0.45rem !important;
-              }
-              #print-invoice-area .mb-6 {
-                margin-bottom: 0.8rem !important;
-              }
-              #print-invoice-area .my-6 {
-                margin-top: 0.8rem !important;
-                margin-bottom: 0.8rem !important;
-              }
-              #print-invoice-area .mt-20 {
-                margin-top: 2.5rem !important;
-              }
-              #print-invoice-area table {
-                margin-top: 0.5rem !important;
-                margin-bottom: 0.5rem !important;
-              }
-              #print-invoice-area td {
-                padding-top: 0.25rem !important;
-                padding-bottom: 0.25rem !important;
-              }
-            ` : ''}
-          }
-        ` }} />
-      )}
+      {/* Invoice Preview Modal */}
+      <AnimatePresence>
+        {showInvoiceModal && invoiceOrder && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 m-0 font-sans">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setShowInvoiceModal(false);
+                setInvoiceOrder(null);
+              }}
+              className="absolute inset-0 bg-black/70 backdrop-blur-xs"
+            />
+            
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-[20px] w-full max-w-[170mm] overflow-hidden shadow-2xl relative z-10 border border-gray-200 flex flex-col max-h-[92vh]"
+            >
+              {/* Header with actions */}
+              <div className="p-4 px-6 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Printer size={16} className="text-gray-700" />
+                  <span className="font-bold text-gray-800 text-xs uppercase tracking-wider">Invoice Preview</span>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      const invoiceElement = document.getElementById('invoice-to-print');
+                      if (!invoiceElement) {
+                        return;
+                      }
 
-      {/* Print-only Invoice Area exactly matching memo layout */}
-      {selectedOrder && createPortal(
-        <div id="print-invoice-area" className="bg-white text-black p-10 font-sans max-w-[800px] mx-auto text-left leading-normal">
+                      // Create a hidden iframe
+                      const iframe = document.createElement('iframe');
+                      iframe.style.position = 'fixed';
+                      iframe.style.right = '0';
+                      iframe.style.bottom = '0';
+                      iframe.style.width = '0';
+                      iframe.style.height = '0';
+                      iframe.style.border = '0';
+                      document.body.appendChild(iframe);
 
-          {/* Top Header Grid: Logo & Invoice details */}
-          <div className="flex justify-between items-start mb-6">
-            <div className="flex flex-col">
-              {/* Elegant Logo Design: Elegan (Black), BD (Light Silver) */}
-              <div className="flex items-baseline font-black tracking-tight text-3xl">
-                <span className="text-black uppercase">Elegan</span>
-                <span className="text-[#A3A3A3] ml-1.5 uppercase">BD</span>
+                      const iframeDoc = iframe.contentWindow?.document || iframe.contentDocument;
+                      if (!iframeDoc) {
+                        return;
+                      }
+
+                      iframeDoc.open();
+                      iframeDoc.write(`
+                        <!DOCTYPE html>
+                        <html>
+                          <head>
+                            <title>Print Invoice</title>
+                            <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
+                            <script src="https://cdn.tailwindcss.com"></script>
+                            <script>
+                              tailwind.config = {
+                                theme: {
+                                  extend: {
+                                    colors: {
+                                      gray: {
+                                        150: '#eceff1',
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            </script>
+                            <style>
+                              @page {
+                                size: A5 portrait;
+                                margin: 0;
+                              }
+                              body {
+                                margin: 0;
+                                padding: 0;
+                                background-color: #ffffff !important;
+                                color: #111827 !important;
+                                -webkit-print-color-adjust: exact !important;
+                                print-color-adjust: exact !important;
+                              }
+                              #invoice-to-print {
+                                font-family: 'Plus Jakarta Sans', sans-serif !important;
+                                width: 148mm !important;
+                                min-h-[210mm] !important;
+                                padding: 12mm 10mm 10mm 10mm !important;
+                                box-sizing: border-box !important;
+                                display: block !important;
+                              }
+                              .font-serif-luxury {
+                                font-family: 'Cormorant Garamond', serif !important;
+                              }
+                              .font-mono-numbers {
+                                font-family: 'JetBrains Mono', monospace !important;
+                              }
+                            </style>
+                          </head>
+                          <body class="bg-white">
+                            <div id="invoice-to-print">
+                              ${invoiceElement.innerHTML}
+                            </div>
+                            <script>
+                              window.onload = function() {
+                                window.focus();
+                                setTimeout(function() {
+                                  window.print();
+                                  setTimeout(function() {
+                                    window.parent.document.body.removeChild(window.frameElement);
+                                  }, 1500);
+                                }, 500);
+                              };
+                            </script>
+                          </body>
+                        </html>
+                      `);
+                      iframeDoc.close();
+                    }}
+                    className="bg-[#0C1421] hover:bg-black text-white font-black text-xs px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-md hover:shadow-lg"
+                  >
+                    <Printer size={13} />
+                    <span>Print Now</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowInvoiceModal(false);
+                      setInvoiceOrder(null);
+                    }}
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-extrabold text-xs px-4 py-2 rounded-xl transition-all cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
-              <span className="text-[10px] font-black tracking-[0.25em] text-[#9CA3AF] uppercase mt-1 leading-none font-sans">
-                LIVE YOUR LIFE
-              </span>
-              <span className="text-[9px] font-semibold text-[#6B7280] leading-normal mt-2.5 max-w-xs block font-sans">
-                Dhaka Mirpur-6, 1216 | 01631496122
-              </span>
-            </div>
 
-            <div className="text-right flex flex-col items-end">
-              <span className="text-xl font-extrabold text-black font-mono tracking-tight block">
-                {selectedOrder.id}
-              </span>
-              <span className="text-[10px] font-bold text-gray-500 font-mono tracking-wider block mt-1">
-                {(() => {
-                  const dateObj = new Date(selectedOrder.createdAt);
-                  return `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${String(dateObj.getFullYear()).slice(-2)}`;
-                })()}
-              </span>
-            </div>
+              {/* Scrollable body containing the preview sheet */}
+              <div className="p-6 overflow-y-auto flex justify-center bg-gray-100/50 max-h-[calc(92vh-70px)]">
+                <div className="bg-white rounded-lg shadow-lg border border-gray-100">
+                  <InvoiceTemplate order={invoiceOrder} preview={true} />
+                </div>
+              </div>
+            </motion.div>
           </div>
+        )}
+      </AnimatePresence>
 
-          {/* Barcode representation */}
-          <div className="flex flex-col items-start mt-2 mb-6">
-            <div className="flex items-center gap-[1.5px] h-9">
-              {[2, 4, 1, 3, 2, 1, 4, 1, 3, 2, 4, 1, 2, 3, 1, 4, 2, 1, 3, 2, 4, 1, 3, 2, 1, 4, 1, 3, 2, 4, 1, 2, 3, 2, 1, 4, 1].map((w, idx) => (
-                <div key={idx} className="bg-black h-full" style={{ width: `${w}px` }} />
-              ))}
-            </div>
-            <span className="text-[10px] font-semibold text-gray-500 font-mono tracking-[0.25em] mt-1 pr-1 pl-0.5">
-              {selectedOrder.id}
-            </span>
+      {/* Custom Confirmation Modal */}
+      <AnimatePresence>
+        {deleteConfirm.isOpen && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setDeleteConfirm(prev => ({ ...prev, isOpen: false }))}
+              className="absolute inset-0 bg-black/60 backdrop-blur-xs"
+            />
+            
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative bg-white rounded-3xl p-6 shadow-2xl max-w-md w-full border border-gray-100 overflow-hidden text-center"
+            >
+              <div className="mx-auto w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-500 mb-4">
+                <Trash2 size={24} className="stroke-[2.5]" stroke="currentColor" />
+              </div>
+              
+              <h3 className="text-lg font-black text-gray-900 tracking-tight">
+                {deleteConfirm.title}
+              </h3>
+              
+              <p className="text-sm text-gray-500 mt-2 leading-relaxed">
+                {deleteConfirm.message}
+              </p>
+              
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirm(prev => ({ ...prev, isOpen: false }))}
+                  className="flex-1 py-2.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-800 font-extrabold text-xs rounded-xl transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await deleteConfirm.onConfirm();
+                  }}
+                  className="flex-1 py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl transition-all cursor-pointer shadow-lg shadow-rose-100"
+                >
+                  Confirm Delete
+                </button>
+              </div>
+            </motion.div>
           </div>
-
-          {/* Thin separator line */}
-          <div className="border-t border-black my-4" />
-
-          {/* Customer Summary & Order Details */}
-          <div className="grid grid-cols-2 gap-8 text-left text-[11px] leading-relaxed mb-6 font-sans">
-            <div>
-              <span className="text-[9px] font-black tracking-widest text-[#9CA3AF] uppercase block mb-1">Customer Summary</span>
-              <span className="text-[13px] font-extrabold text-black block mb-1">{selectedOrder.customerName}</span>
-              <span className="text-black block font-mono font-bold mb-1">{selectedOrder.phone}</span>
-              <span className="text-[#4A5568] block leading-relaxed font-semibold">
-                {selectedOrder.address}, {selectedOrder.city}
-              </span>
-            </div>
-            <div className="text-right">
-              <span className="text-[9px] font-black tracking-widest text-[#9CA3AF] uppercase block mb-1">Order Details</span>
-              <div className="space-y-1 text-black font-semibold">
-                <p><span className="text-[#718096] font-normal">Ref:</span> <strong className="font-extrabold font-mono text-xs">{selectedOrder.id}</strong></p>
-                <p><span className="text-[#718096] font-normal">Partner:</span> <strong className="font-extrabold">N/A</strong></p>
-                <p><span className="text-[#718096] font-normal">By:</span> <strong className="font-extrabold">{getInvoiceBy(selectedOrder)}</strong></p>
-              </div>
-            </div>
-          </div>
-
-          {/* Itemized Table */}
-          <table className="w-full text-left text-[11px] border-collapse my-6 font-sans">
-            <thead>
-              <tr className="border-y border-black font-black text-[9px] text-[#2D3748] uppercase tracking-wider h-9">
-                <th className="text-left py-2 font-black">Description</th>
-                <th className="text-center py-2 w-16 font-black animate-none">Qty</th>
-                <th className="text-right py-2 w-24 font-black">Price</th>
-                <th className="text-right py-2 w-24 font-black pr-2">Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-150">
-              {selectedOrder.items.map((it, index) => (
-                <tr key={index} className="h-14 font-semibold text-black">
-                  <td className="py-3 text-left leading-normal">
-                    <span className="font-extrabold text-black block">{it.name}</span>
-                    <span className="text-[9px] text-gray-500 block mt-1 font-mono">
-                      Size: {it.selectedSize || 'Free Size'} | SKU: {it.sku || `CB ${it.id.slice(-3)}`}
-                    </span>
-                  </td>
-                  <td className="py-3 text-center font-mono font-bold text-xs">{it.quantity}</td>
-                  <td className="py-3 text-right font-mono text-gray-600">{formatPrice(it.price, currency, rate)}</td>
-                  <td className="py-3 text-right font-mono text-black font-extrabold pr-2">{formatPrice(it.price * it.quantity, currency, rate)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {/* Pricing Details & Calculations */}
-          <div className="flex justify-end mt-4 font-sans">
-            <div className="w-72 text-[11px] space-y-1.5 text-[#4A5568] font-semibold">
-              <div className="flex justify-between">
-                <span>Subtotal</span>
-                <span className="font-mono text-black font-bold">
-                  {formatPrice(selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0), currency, rate)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Delivery Charge (+)</span>
-                <span className="font-mono text-black font-bold">
-                  {formatPrice(editDeliveryCharge, currency, rate)}
-                </span>
-              </div>
-              <div className="flex justify-between text-rose-600">
-                <span>Discount (-)</span>
-                <span className="font-mono font-bold">
-                  -{formatPrice(editDiscount, currency, rate)}
-                </span>
-              </div>
-              <div className="flex justify-between text-emerald-600">
-                <span>Advance Payment (-) [{selectedOrder.paymentMethod.toUpperCase()}]</span>
-                <span className="font-mono font-bold">
-                  -{formatPrice(editAdvancePayment, currency, rate)}
-                </span>
-              </div>
-              <div className="border-t border-black my-2" />
-              <div className="flex justify-between items-baseline pt-1">
-                <span className="text-[10px] font-black uppercase text-black">Collectable</span>
-                <span className="text-xl font-extrabold font-mono text-black leading-none">
-                  {formatPrice(Math.max(0, selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0) + editDeliveryCharge - editDiscount - editAdvancePayment), currency, rate)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Print Footer centered */}
-          <div className="border-t border-gray-100 mt-20 pt-4 text-center font-sans">
-            <span className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-[0.2em] font-mono block">
-              GENERATED VIA ELEGAN BD - LIVE YOUR LIFE
-            </span>
-            <span className="text-[8px] font-semibold text-[#A3A3A3] uppercase tracking-[0.1em] font-mono block mt-1">
-              THANK YOU FOR CHOOSING US
-            </span>
-          </div>
-
-        </div>,
-        document.body
-      )}
-
+        )}
+      </AnimatePresence>
     </div>
   );
 }

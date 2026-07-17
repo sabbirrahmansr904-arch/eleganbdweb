@@ -228,7 +228,7 @@ export default function AdminMasterTable(): React.JSX.Element {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 pb-12 font-sans text-[#0C1421] bg-white p-6 md:p-8 rounded-[24px] border border-gray-150">
+    <div className="max-w-7xl mx-auto space-y-6 pb-12 font-sans text-[#0C1421] bg-white p-6 md:p-8 rounded-[24px]">
       
       {/* Top Title & Quick Stock Card */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-100 pb-6">
@@ -527,6 +527,7 @@ export default function AdminMasterTable(): React.JSX.Element {
                                     <input
                                       autoFocus
                                       type="number"
+                                      step="any"
                                       value={editingCell.value}
                                       onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
                                       onKeyDown={(e) => {
@@ -556,6 +557,7 @@ export default function AdminMasterTable(): React.JSX.Element {
                                     <input
                                       autoFocus
                                       type="number"
+                                      step="any"
                                       placeholder="No discount"
                                       value={editingCell.value}
                                       onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}

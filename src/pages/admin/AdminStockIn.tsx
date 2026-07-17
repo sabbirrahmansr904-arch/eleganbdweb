@@ -21,7 +21,7 @@ import {
   AlertTriangle,
   Info
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { useProducts } from '../../contexts/ProductContext';
 import { useInventory } from '../../contexts/InventoryContext';
 import { useAuth } from '../../contexts/AuthContext';

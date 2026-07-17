@@ -8,7 +8,7 @@ import { formatPrice, cn, calculateCartSubtotal, getCartPriceBreakdown } from '.
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useCart } from '../contexts/CartContext';
 import { Trash2, Minus, Plus, ArrowLeft, ArrowRight } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function Cart() {
   const { items, updateQuantity, removeFromCart } = useCart();

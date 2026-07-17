@@ -8,7 +8,11 @@ service cloud.firestore {
     function isSignedIn() { return request.auth != null; }
     function isAdmin() { 
       return isSignedIn() && (
-        request.auth.token.email == 'sabbirrahmansr904@gmail.com' ||
+        ('email' in request.auth.token && request.auth.token.email != null && request.auth.token.email.lower() == 'sabbirrahmansr904@gmail.com') ||
+        ('email' in request.auth.token && request.auth.token.email != null && request.auth.token.email.lower() == 'eleganbd.ltd@gmail.com') ||
+        ('email' in request.auth.token && request.auth.token.email != null && request.auth.token.email.lower() == 'elegantbd.ltd@gmail.com') ||
+        ('email' in request.auth.token && request.auth.token.email != null && request.auth.token.email.lower() == 'eleganbd@gmail.com') ||
+        ('email' in request.auth.token && request.auth.token.email != null && request.auth.token.email.lower() == 'elegantbd@gmail.com') ||
         exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       ); 
     }
@@ -214,6 +218,26 @@ service cloud.firestore {
       allow read, list: if isAdmin();
       allow create: if true;
       allow update, delete: if false;
+    }
+
+    match /partners/{partnerId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /partner_transactions/{txId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /expenses/{expenseId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /bank_accounts/{accountId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /bank_transactions/{txId} {
+      allow read, write: if isAdmin();
     }
   }
 }

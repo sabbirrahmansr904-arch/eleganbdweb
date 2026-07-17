@@ -24,9 +24,10 @@ import {
   Star,
   CheckCircle2,
   Save,
-  Trash2
+  Trash2,
+  ExternalLink
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { useProducts } from '../../contexts/ProductContext';
 import { useCategories } from '../../contexts/CategoryContext';
 import { Product } from '../../types';
@@ -248,7 +249,7 @@ export default function AdminAddProduct() {
         await addProduct(productData);
         toast.success('Product added successfully');
       }
-      // Stay in admin panel - redirect to product list instead of public preview
+      // Stay in admin panel - redirect back to products list
       navigate('/admin/products');
     } catch (err) {
       toast.error(isEditMode ? 'Failed to update product' : 'Failed to add product');
@@ -278,7 +279,17 @@ export default function AdminAddProduct() {
             </p>
           </div>
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-3">
+          {isEditMode && (
+            <button 
+              type="button"
+              onClick={() => window.open(`/product/${editId}`, '_blank')}
+              className="px-6 py-2.5 bg-white border border-gray-100 text-gray-500 rounded-xl text-[11px] font-black uppercase tracking-widest hover:text-black hover:shadow-md transition-all flex items-center gap-2"
+            >
+              <ExternalLink size={16} />
+              Preview on Website
+            </button>
+          )}
           <button 
             type="submit"
             form="product-form"
@@ -437,15 +448,15 @@ Wash Care:
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <label className="text-[9px] font-black uppercase tracking-[0.1em] text-red-500 block ml-1">Cost (৳)</label>
-                <input name="cost" type="number" defaultValue={initialData.cost} placeholder="0" className="w-full bg-[#fcfdfe] border border-gray-100 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 outline-none focus:border-blue-200" />
+                <input name="cost" type="number" step="any" defaultValue={initialData.cost} placeholder="0" className="w-full bg-[#fcfdfe] border border-gray-100 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 outline-none focus:border-blue-200" />
               </div>
               <div className="space-y-2">
                 <label className="text-[9px] font-black uppercase tracking-[0.1em] text-emerald-500 block ml-1">Price (৳)</label>
-                <input name="price" type="number" defaultValue={initialData.price} placeholder="0" required className="w-full bg-[#fcfdfe] border border-gray-100 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 outline-none focus:border-blue-200" />
+                <input name="price" type="number" step="any" defaultValue={initialData.price} placeholder="0" required className="w-full bg-[#fcfdfe] border border-gray-100 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 outline-none focus:border-blue-200" />
               </div>
               <div className="space-y-2">
                 <label className="text-[9px] font-black uppercase tracking-[0.1em] text-orange-400 block ml-1">Regular (৳)</label>
-                <input name="regularPrice" type="number" defaultValue={initialData.regularPrice} placeholder="None" className="w-full bg-[#fcfdfe] border border-gray-100 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 outline-none focus:border-blue-200" />
+                <input name="regularPrice" type="number" step="any" defaultValue={initialData.regularPrice} placeholder="None" className="w-full bg-[#fcfdfe] border border-gray-100 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 outline-none focus:border-blue-200" />
               </div>
             </div>
           </div>

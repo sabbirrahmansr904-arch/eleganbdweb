@@ -132,3 +132,51 @@ export interface Review {
   comment: string;
   createdAt: number;
 }
+
+export interface Partner {
+  id: string;
+  name: string;
+  investment: number;
+  sharePercent: number;
+  withdrawn: number;
+}
+
+export interface PartnerTransaction {
+  id: string;
+  partnerId: string;
+  partnerName: string;
+  type: 'investment' | 'withdrawal' | 'profit_share';
+  amount: number;
+  date: number;
+  notes?: string;
+}
+
+export interface BankAccount {
+  id: string;
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  balance: number;
+  branch?: string;
+}
+
+export interface BankTransaction {
+  id: string;
+  accountId: string;
+  type: 'deposit' | 'withdraw' | 'transfer';
+  amount: number;
+  date: number;
+  reference?: string;
+  notes?: string;
+}
+
+export interface Expense {
+  id: string;
+  description: string;
+  category: string;
+  amount: number;
+  date: number;
+  notes?: string;
+  authorizedBy?: string;
+}
+

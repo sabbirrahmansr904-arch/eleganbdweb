@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { ShoppingBag, ChevronRight, Zap, Star, ShieldCheck, ArrowRight, Truck, RotateCcw, Banknote, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProducts } from '../contexts/ProductContext';

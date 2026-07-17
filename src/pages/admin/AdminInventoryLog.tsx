@@ -12,7 +12,7 @@ import {
   User,
   MessageSquare
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { useInventory } from '../../contexts/InventoryContext';
 import { cn } from '../../lib/utils';
 

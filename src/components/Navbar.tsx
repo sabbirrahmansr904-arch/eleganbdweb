@@ -11,7 +11,7 @@ import { useBranding } from '../contexts/BrandingContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useCategories } from '../contexts/CategoryContext';
 import { cn } from '../lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 import SearchOverlay from './SearchOverlay';
 import LoginModal from './LoginModal';

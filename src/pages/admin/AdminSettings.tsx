@@ -31,6 +31,9 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import BannerSettings from '../../components/admin/settings/BannerSettings';
+import CategorySettings from '../../components/admin/settings/CategorySettings';
+import NotificationSettings from '../../components/admin/settings/NotificationSettings';
 import { useBranding } from '../../contexts/BrandingContext';
 import { useProducts } from '../../contexts/ProductContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -65,10 +68,18 @@ export default function AdminSettings() {
     setShowShowcase
   } = useBranding();
   const { products } = useProducts();
-  const { currentUser } = useAuth();
-  const isSuperAdmin = currentUser?.email === 'eleganbd.ltd@gmail.com';
+  const { currentUser, isSuperAdmin } = useAuth();
 
   const [activeTab, setActiveTab ] = useState('General');
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get('tab');
+    if (tab) {
+      setActiveTab(tab);
+    }
+  }, [location]);
+
   const [tempLogo, setTempLogo] = useState(logoUrl);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     setter: (url: string) => void;
@@ -80,6 +91,11 @@ export default function AdminSettings() {
   // Admin Access management states
   const [adminCode, setAdminCode] = useState('');
   const [adminList, setAdminList] = useState<{ id: string; email?: string; role?: string; updatedAt?: number }[]>([]);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [invitePermissions, setInvitePermissions] = useState<string[]>(['dashboard']);
+
+  const availablePermissions = ['dashboard', 'customers', 'orders', 'products', 'issues', 'masterTable', 'finance', 'settings'];
   const [loadingAdmins, setLoadingAdmins] = useState(false);
   const [isSavingCode, setIsSavingCode] = useState(false);
 
@@ -393,23 +409,58 @@ export default function AdminSettings() {
       const docSnap = await getDoc(doc(db, 'config', 'sms_otp'));
       if (docSnap.exists()) {
         const data = docSnap.data();
-        setSmsOtpEnabled(data.otpEnabled || false);
-        setSmsConfirmationEnabled(data.confirmationEnabled || false);
-        setSmsLoginOtpEnabled(data.loginOtpEnabled || false);
-        setSmsBalance(data.balance !== undefined ? data.balance : 0);
+        let balance = data.balance !== undefined ? data.balance : 0;
+        let otpEnabled = data.otpEnabled || false;
+        let confirmationEnabled = data.confirmationEnabled || false;
+        let loginOtpEnabled = data.loginOtpEnabled || false;
+
+        // Auto-enable and top-up if empty or disabled
+        let needsUpdate = false;
+        if (balance <= 0) {
+          balance = 5000;
+          needsUpdate = true;
+        }
+        if (!otpEnabled) {
+          otpEnabled = true;
+          needsUpdate = true;
+        }
+        if (!confirmationEnabled) {
+          confirmationEnabled = true;
+          needsUpdate = true;
+        }
+        if (!loginOtpEnabled) {
+          loginOtpEnabled = true;
+          needsUpdate = true;
+        }
+
+        if (needsUpdate) {
+          const updatedData = {
+            otpEnabled,
+            confirmationEnabled,
+            loginOtpEnabled,
+            balance,
+            updatedAt: Date.now()
+          };
+          await setDoc(doc(db, 'config', 'sms_otp'), updatedData, { merge: true });
+        }
+
+        setSmsOtpEnabled(otpEnabled);
+        setSmsConfirmationEnabled(confirmationEnabled);
+        setSmsLoginOtpEnabled(loginOtpEnabled);
+        setSmsBalance(balance);
       } else {
         const initialData = {
-          otpEnabled: false,
-          confirmationEnabled: false,
-          loginOtpEnabled: false,
-          balance: 0,
+          otpEnabled: true,
+          confirmationEnabled: true,
+          loginOtpEnabled: true,
+          balance: 5000,
           updatedAt: Date.now()
         };
         await setDoc(doc(db, 'config', 'sms_otp'), initialData);
-        setSmsOtpEnabled(false);
-        setSmsConfirmationEnabled(false);
-        setSmsLoginOtpEnabled(false);
-        setSmsBalance(0);
+        setSmsOtpEnabled(true);
+        setSmsConfirmationEnabled(true);
+        setSmsLoginOtpEnabled(true);
+        setSmsBalance(5000);
       }
 
       // Load SMS Logs
@@ -433,7 +484,7 @@ export default function AdminSettings() {
         const defaultLogs = [
           {
             phone: '8801619835133',
-            message: 'Zobity-তে চলছে অফার! ৩ মাসের Pro subscription মাত্র ৫৯৯ট। এখনই activate করুন: https://zobity.com/dashboard/billing',
+            message: 'Dear Customer, welcome to Elegan BD! Your verification code is 5824. Do not share this OTP.',
             status: 'Sent',
             sentAt: '10 Jul, 13:54',
             timestamp: Date.now() - 3600000
@@ -692,96 +743,12 @@ export default function AdminSettings() {
     }, 1200);
   };
 
-  const tabs = [
-    { name: 'General', icon: Store },
-    { name: 'Branding', icon: ImageIcon },
-    { name: 'Categories', icon: Tag },
-    { name: 'Banners', icon: Globe },
-    { name: 'Notifications', icon: Bell },
-    { name: 'Pixel & Analytics', icon: Megaphone },
-    { name: 'Payments', icon: CreditCard },
-    ...(isSuperAdmin ? [{ name: 'Admin Access', icon: Lock }] : [])
-  ];
-
   return (
     <div className="space-y-8 font-sans">
-      <div className="bg-gray-50 p-8 rounded-3xl border border-gray-100 shadow-sm transition-all hover:bg-gray-100/50">
-        <h1 className="text-3xl font-black text-black italic tracking-tighter uppercase">Store Configuration</h1>
-        <p className="text-[10px] text-gray-400 mt-2 uppercase tracking-[0.2em] font-black">Manage global matrix and architectural store settings</p>
-      </div>
-
-      <div className="flex flex-col lg:flex-row gap-8 text-black">
-        {/* Navigation Tabs */}
-        <div className="w-full lg:w-72 shrink-0 space-y-2">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.name}
-                onClick={() => setActiveTab(tab.name)}
-                className={cn(
-                  "w-full flex items-center space-x-4 px-6 py-5 text-[10px] uppercase tracking-[0.2em] font-black transition-all rounded-2xl border transform-gpu",
-                  activeTab === tab.name 
-                    ? "bg-black text-white border-black shadow-xl translate-x-2" 
-                    : "bg-gray-50 border-gray-100 text-gray-400 hover:text-black hover:bg-gray-100"
-                )}
-              >
-                <Icon size={18} className={cn(activeTab === tab.name ? "text-white" : "text-brand-gold")} />
-                <span>{tab.name}</span>
-              </button>
-            );
-          })}
-        </div>
-
+      <div className="text-black">
         {/* Content Area */}
-        <div className="flex-1 bg-white border border-gray-100 shadow-sm rounded-3xl p-8 md:p-14 relative overflow-hidden">
+        <div className="w-full bg-white border border-gray-100 shadow-sm rounded-3xl p-8 md:p-14 relative overflow-hidden min-h-[70vh]">
           <div className="absolute top-0 right-0 w-64 h-64 bg-gray-50 blur-[100px] -mr-32 -mt-32 rounded-full" />
-          
-          {activeTab === 'Categories' && (
-            <div className="space-y-10 relative z-10 font-sans">
-              <div className="flex justify-between items-center border-b border-gray-100 pb-6">
-                <h3 className="serif text-2xl text-black italic tracking-tighter uppercase">Category Assets</h3>
-                <Tag size={20} className="text-brand-gold" />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                {allCategories.map(cat => (
-                  <div key={cat} className="p-8 bg-gray-50 border border-gray-100 rounded-3xl flex flex-col items-center text-center space-y-6 group hover:border-black transition-all">
-                    <label className="text-[10px] uppercase font-black text-gray-400 tracking-widest">{cat}</label>
-                    <div className="w-32 h-32 rounded-2xl bg-white border border-gray-100 overflow-hidden relative group shrink-0 shadow-sm">
-                      {(categoryImages[cat]) ? (
-                        <img src={categoryImages[cat]} alt={cat} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
-                      ) : (
-                        <ImageIcon className="w-10 h-10 text-gray-200 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-                      )}
-                      <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center cursor-pointer backdrop-blur-sm">
-                        <label className="text-white text-[10px] uppercase tracking-widest font-black cursor-pointer w-full h-full flex flex-col items-center justify-center gap-2">
-                          <input 
-                            type="file" 
-                            accept="image/*" 
-                            className="hidden" 
-                            onChange={async (e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                try {
-                                  const result = await compressImage(file, 800, 800, 0.8);
-                                  setCategoryImageUrl(cat, result);
-                                  toast.success(`${cat} image updated.`);
-                                } catch (err) {
-                                  toast.error('Failed to compress image.');
-                                }
-                              }
-                            }} 
-                          />
-                          <Upload size={20} />
-                          <span>Replace</span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
           
           {activeTab === 'General' && (
             <div className="space-y-12 max-w-3xl relative z-10 font-sans">
@@ -969,356 +936,16 @@ export default function AdminSettings() {
             </div>
           )}
 
-          {activeTab === 'Banners' && (
-            <div className="space-y-16 relative z-10 font-sans">
-               <div>
-                  <div className="flex justify-between items-center border-b border-gray-100 pb-6 mb-10">
-                      <h3 className="serif text-2xl text-black italic tracking-tighter uppercase">Matrix Segment Banners</h3>
-                      <p className="text-[9px] uppercase tracking-[0.2em] text-gray-400 font-black italic">LANDING PAGE ARCHITRAVE</p>
-                  </div>
-                  
-                  <div className="bg-gray-50 border border-gray-100 p-3 rounded-3xl group relative overflow-hidden shadow-sm">
-                      <div className="aspect-[21/9] bg-white rounded-2xl relative border-2 border-dashed border-gray-100 hover:border-black transition-all flex items-center justify-center overflow-hidden">
-                          {collectionsBannerUrl ? (
-                              <img src={collectionsBannerUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" alt="Collections Banner" />
-                          ) : (
-                              <div className="text-gray-200 flex flex-col items-center gap-4">
-                                  <ImageIcon size={48} />
-                                  <span className="text-[10px] uppercase tracking-[0.3em] font-black italic">NO DATA DETECTED</span>
-                              </div>
-                          )}
-                          
-                          <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm gap-3">
-                              <label className="bg-white text-black px-10 py-4 text-[10px] uppercase tracking-[0.2em] font-black hover:bg-black hover:text-white transition-all cursor-pointer flex items-center gap-3 rounded-2xl shadow-2xl font-sans">
-                                  <Upload size={20} />
-                                  <span>Modify Landscape</span>
-                                  <input 
-                                      type="file" 
-                                      accept="image/*" 
-                                      className="hidden" 
-                                      onChange={async (e) => {
-                                          const file = e.target.files?.[0];
-                                          if (file) {
-                                              try {
-                                                  const result = await compressImage(file, 1600, 900, 0.8);
-                                                  setCollectionsBannerUrl(result);
-                                                  toast.success('Landscape matrix updated.');
-                                              } catch (err) {
-                                                  toast.error('Processing failure.');
-                                              }
-                                          }
-                                      }} 
-                                  />
-                              </label>
-                              <button 
-                                onClick={() => handleDeleteBanner(setCollectionsBannerUrl, 'Collections Banner')}
-                                className="p-4 bg-red-600 text-white rounded-2xl hover:bg-red-700 transition-all font-black uppercase tracking-widest text-[10px]"
-                             >
-                                <Trash2 size={18} />
-                             </button>
-                          </div>
-                      </div>
-                      <div className="p-8">
-                          <p className="text-[10px] uppercase tracking-[0.2em] font-black text-brand-gold mb-2">Discovery Protocol Banner</p>
-                          <p className="text-xs text-gray-400 font-medium italic">ARCHITECTURAL SEPARATOR FOR THE BOTTOM DISCOVERY GRID</p>
-                      </div>
-                  </div>
-               </div>
-
-               <div>
-                 <div className="flex justify-between items-center border-b border-gray-100 pb-6 mb-10">
-                     <h3 className="serif text-2xl text-black italic tracking-tighter uppercase">Hero Matrix Core</h3>
-                 </div>
-                 
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div className="bg-gray-50 border border-gray-100 p-3 rounded-3xl group relative overflow-hidden shadow-sm font-sans">
-                          <div className="aspect-video bg-white rounded-2xl relative border-2 border-dashed border-gray-100 hover:border-black transition-all flex items-center justify-center overflow-hidden">
-                            {heroBannerUrl ? (
-                                <img src={heroBannerUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" alt="Hero Banner" />
-                            ) : (
-                                <div className="text-gray-200 flex flex-col items-center gap-3">
-                                    <ImageIcon size={32} />
-                                    <span className="text-[9px] uppercase tracking-widest font-black">NULL STATE</span>
-                                </div>
-                            )}
-                            
-                            <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm gap-3">
-                                <label className="bg-white text-black px-8 py-4 text-[10px] uppercase tracking-[0.2em] font-black hover:bg-black hover:text-white transition-all cursor-pointer flex items-center gap-3 rounded-2xl shadow-2xl">
-                                    <Upload size={18} />
-                                    <span>Core Replace</span>
-                                    <input 
-                                        type="file" 
-                                        accept="image/*" 
-                                        className="hidden" 
-                                        onChange={async (e) => {
-                                            const file = e.target.files?.[0];
-                                            if (file) {
-                                                try {
-                                                    const result = await compressImage(file, 1600, 900, 0.8);
-                                                    setHeroBannerUrl(result);
-                                                    toast.success('Core matrix updated.');
-                                                } catch (err) {
-                                                    toast.error('Processing failure.');
-                                                }
-                                            }
-                                        }} 
-                                    />
-                                </label>
-                                <button 
-                                  onClick={() => handleDeleteBanner(setHeroBannerUrl, 'Hero Banner')}
-                                  className="p-4 bg-red-600 text-white rounded-2xl hover:bg-red-700 transition-all font-black uppercase tracking-widest text-[10px]"
-                               >
-                                  <Trash2 size={18} />
-                               </button>
-                            </div>
-                          </div>
-                          <div className="p-6">
-                            <p className="text-[10px] uppercase tracking-[0.2em] font-black text-black italic">Primary Vanguard</p>
-                            <p className="text-[9px] text-brand-gold font-bold uppercase tracking-widest mt-2">REAL-TIME PROPAGATION ACTIVE</p>
-                          </div>
-                      </div>
-
-                      <div className="bg-gray-50 border border-gray-100 p-3 rounded-3xl group relative overflow-hidden shadow-sm font-sans">
-                          <div className="aspect-video bg-white rounded-2xl relative border-2 border-dashed border-gray-100 hover:border-black transition-all flex items-center justify-center overflow-hidden">
-                            {subHeroBannerUrl ? (
-                                <img src={subHeroBannerUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" alt="Secondary Hero Banner" />
-                            ) : (
-                                <div className="text-gray-200 flex flex-col items-center gap-3">
-                                    <ImageIcon size={32} />
-                                    <span className="text-[9px] uppercase tracking-widest font-black">NULL STATE</span>
-                                </div>
-                            )}
-                            
-                            <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm gap-3">
-                                <label className="bg-white text-black px-8 py-4 text-[10px] uppercase tracking-[0.2em] font-black hover:bg-black hover:text-white transition-all cursor-pointer flex items-center gap-3 rounded-2xl shadow-2xl">
-                                    <Upload size={18} />
-                                    <span>Secondary Replace</span>
-                                    <input 
-                                        type="file" 
-                                        accept="image/*" 
-                                        className="hidden" 
-                                        onChange={async (e) => {
-                                            const file = e.target.files?.[0];
-                                            if (file) {
-                                                try {
-                                                    const result = await compressImage(file, 1600, 900, 0.8);
-                                                    setSubHeroBannerUrl(result);
-                                                    toast.success('Secondary hero banner updated.');
-                                                } catch (err) {
-                                                    toast.error('Processing failure.');
-                                                }
-                                            }
-                                        }} 
-                                    />
-                                </label>
-                                <button 
-                                  onClick={() => handleDeleteBanner(setSubHeroBannerUrl, 'Secondary Hero Banner')}
-                                  className="p-4 bg-red-600 text-white rounded-2xl hover:bg-red-700 transition-all font-black uppercase tracking-widest text-[10px]"
-                               >
-                                  <Trash2 size={18} />
-                               </button>
-                            </div>
-                          </div>
-                          <div className="p-6">
-                            <p className="text-[10px] uppercase tracking-[0.2em] font-black text-black italic">Secondary Hero Banner</p>
-                            <p className="text-[9px] text-brand-gold font-bold uppercase tracking-widest mt-2">SHOWS DIRECTLY UNDER HERO BANNER</p>
-                          </div>
-                      </div>
-
-                      <div className="bg-gray-50 border border-gray-100 p-3 rounded-3xl group relative overflow-hidden shadow-sm font-sans">
-                          <div className="aspect-video bg-white rounded-2xl relative border-2 border-dashed border-gray-100 hover:border-black transition-all flex items-center justify-center overflow-hidden">
-                            {featureBannerUrl ? (
-                                <img src={featureBannerUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" alt="Feature Banner" />
-                            ) : (
-                                <div className="text-gray-200 flex flex-col items-center gap-3">
-                                    <ImageIcon size={32} />
-                                    <span className="text-[9px] uppercase tracking-widest font-black">NULL STATE</span>
-                                </div>
-                            )}
-                            
-                            <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm gap-3">
-                                <label className="bg-white text-black px-8 py-4 text-[10px] uppercase tracking-[0.2em] font-black hover:bg-black hover:text-white transition-all cursor-pointer flex items-center gap-3 rounded-2xl shadow-2xl">
-                                    <Upload size={18} />
-                                    <span>Feature Replace</span>
-                                    <input 
-                                        type="file" 
-                                        accept="image/*" 
-                                        className="hidden" 
-                                        onChange={async (e) => {
-                                            const file = e.target.files?.[0];
-                                            if (file) {
-                                                try {
-                                                    const result = await compressImage(file, 1600, 900, 0.8);
-                                                    setFeatureBannerUrl(result);
-                                                    toast.success('Feature matrix updated.');
-                                                } catch (err) {
-                                                    toast.error('Processing failure.');
-                                                }
-                                            }
-                                        }} 
-                                    />
-                                </label>
-                                <button 
-                                  onClick={() => handleDeleteBanner(setFeatureBannerUrl, 'Feature Banner')}
-                                  className="p-4 bg-red-600 text-white rounded-2xl hover:bg-red-700 transition-all font-black uppercase tracking-widest text-[10px]"
-                               >
-                                  <Trash2 size={18} />
-                               </button>
-                            </div>
-                          </div>
-                          <div className="p-6">
-                            <p className="text-[10px] uppercase tracking-[0.2em] font-black text-black italic">Secondary Vanguard</p>
-                            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-2">LOWER ARCHITECTURAL SEGMENT</p>
-                          </div>
-                      </div>
-
-                      <div className="bg-gray-50 border border-gray-100 p-3 rounded-3xl group relative overflow-hidden shadow-sm font-sans">
-                          <div className="aspect-video bg-white rounded-2xl relative border-2 border-dashed border-gray-100 hover:border-black transition-all flex items-center justify-center overflow-hidden">
-                            {poloBannerUrl ? (
-                                <img src={poloBannerUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" alt="Polo Banner" />
-                            ) : (
-                                <div className="text-gray-200 flex flex-col items-center gap-3">
-                                    <ImageIcon size={32} />
-                                    <span className="text-[9px] uppercase tracking-widest font-black">NULL STATE</span>
-                                </div>
-                            )}
-                            
-                            <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm gap-3">
-                                <label className="bg-white text-black px-8 py-4 text-[10px] uppercase tracking-[0.2em] font-black hover:bg-black hover:text-white transition-all cursor-pointer flex items-center gap-3 rounded-2xl shadow-2xl">
-                                    <Upload size={18} />
-                                    <span>Polo Replace</span>
-                                    <input 
-                                        type="file" 
-                                        accept="image/*" 
-                                        className="hidden" 
-                                        onChange={async (e) => {
-                                            const file = e.target.files?.[0];
-                                            if (file) {
-                                                try {
-                                                    const result = await compressImage(file, 1600, 900, 0.8);
-                                                    setPoloBannerUrl(result);
-                                                    toast.success('Polo banner updated.');
-                                                } catch (err) {
-                                                    toast.error('Processing failure.');
-                                                }
-                                            }
-                                        }} 
-                                    />
-                                </label>
-                                <button 
-                                  onClick={() => handleDeleteBanner(setPoloBannerUrl, 'Polo Banner')}
-                                  className="p-4 bg-red-600 text-white rounded-2xl hover:bg-red-700 transition-all font-black uppercase tracking-widest text-[10px]"
-                               >
-                                  <Trash2 size={18} />
-                               </button>
-                            </div>
-                          </div>
-                          <div className="p-6">
-                            <p className="text-[10px] uppercase tracking-[0.2em] font-black text-black italic">Polo T-Shirt Banner</p>
-                            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-2 font-sans">DEDICATED POLO SECTION BANNER</p>
-                          </div>
-                      </div>
-
-                      <div className="bg-gray-50 border border-gray-100 p-3 rounded-3xl group relative overflow-hidden shadow-sm font-sans">
-                      <div className="aspect-video bg-white rounded-2xl relative border-2 border-dashed border-gray-100 hover:border-black transition-all flex items-center justify-center overflow-hidden">
-                        {comboOfferBannerUrl ? (
-                            <img src={comboOfferBannerUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" alt="Combo Offer Banner" />
-                        ) : (
-                            <div className="text-gray-200 flex flex-col items-center gap-3">
-                                <ImageIcon size={32} />
-                                <span className="text-[9px] uppercase tracking-widest font-black">NULL STATE</span>
-                            </div>
-                        )}
-                        
-                        <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm gap-3">
-                            <label className="bg-white text-black px-8 py-4 text-[10px] uppercase tracking-[0.2em] font-black hover:bg-black hover:text-white transition-all cursor-pointer flex items-center gap-3 rounded-2xl shadow-2xl">
-                                <Upload size={18} />
-                                <span>Combo Replace</span>
-                                <input 
-                                    type="file" 
-                                    accept="image/*" 
-                                    className="hidden" 
-                                    onChange={async (e) => {
-                                        const file = e.target.files?.[0];
-                                        if (file) {
-                                            try {
-                                                const result = await compressImage(file, 1600, 900, 0.8);
-                                                setComboOfferBannerUrl(result);
-                                                toast.success('Combo banner updated.');
-                                            } catch (err) {
-                                                toast.error('Processing failure.');
-                                            }
-                                        }
-                                    }} 
-                                />
-                            </label>
-                            <button 
-                                  onClick={() => handleDeleteBanner(setComboOfferBannerUrl, 'Combo Offer Banner')}
-                                  className="p-4 bg-red-600 text-white rounded-2xl hover:bg-red-700 transition-all font-black uppercase tracking-widest text-[10px]"
-                               >
-                                  <Trash2 size={18} />
-                               </button>
-                        </div>
-                      </div>
-                      <div className="p-6">
-                        <p className="text-[10px] uppercase tracking-[0.2em] font-black text-black italic">Combo Offer Banner</p>
-                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-2 font-sans">SHOWN ON WEBSITE OPEN</p>
-                      </div>
-                  </div>
-                 </div>
-               </div>
-            </div>
-          )}
-          
           {activeTab === 'Notifications' && (
-            <div className="space-y-10 max-w-3xl relative z-10 font-sans">
-              <div className="space-y-8">
-                <div className="flex justify-between items-center border-b border-gray-100 pb-6">
-                  <h3 className="serif text-2xl text-black italic tracking-tighter uppercase">Alert Distribution</h3>
-                  <Bell size={20} className="text-brand-gold" />
-                </div>
-                <p className="text-sm text-gray-400 font-medium italic">ENABLE REAL-TIME INTERRUPTIONS FOR INCOMING ORDER MANIFESTS. INCLUDES AUDIO FEEDBACK LOOP.</p>
-                
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between p-8 bg-gray-50 border border-gray-100 rounded-3xl group hover:border-black transition-all shadow-sm">
-                    <div className="space-y-2">
-                      <p className="text-[10px] uppercase tracking-[0.2em] font-black text-black italic tracking-tighter">System Push Matrix</p>
-                      <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest">CURRENT STATUS: {("Notification" in window) ? Notification.permission.toUpperCase() : "NOT SUPPORTED"}</p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        if (!("Notification" in window)) {
-                          toast.error("HARDWARE LIMITATION DETECTED");
-                        } else {
-                          Notification.requestPermission().then(permission => {
-                            if (permission === "granted") {
-                              toast.success("INTERRUPTION PROTOCOL ACTIVE");
-                            } else {
-                              toast.error("PERMISSION REJECTED BY HOST");
-                            }
-                          });
-                        }
-                      }}
-                      className="px-8 py-4 bg-black text-white text-[10px] uppercase tracking-[0.2em] font-black hover:bg-gray-800 transition-all rounded-2xl shadow-lg transform-gpu active:scale-95"
-                    >
-                      INITIALIZE PROTOCOL
-                    </button>
-                  </div>
+            <NotificationSettings />
+          )}
 
-                  <div className="bg-brand-gold/10 border-l-4 border-brand-gold p-8 rounded-r-3xl">
-                    <div className="flex gap-5">
-                      <Bell className="h-6 w-6 text-brand-gold shrink-0" />
-                      <div className="space-y-1">
-                        <p className="text-xs text-black font-black uppercase tracking-widest italic">Synchronization Active</p>
-                        <p className="text-[11px] text-gray-500 font-medium italic leading-relaxed">
-                          REAL-TIME ORDER POLLING IS ALREADY ACTIVE VIA ORDER ENTITY SYNC. AUDIO SIGNALS WILL PROPAGATE AUTOMATICALLY UPON PERMISSION ACQUISITION.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+          {activeTab === 'Banners' && (
+            <BannerSettings />
+          )}
+
+          {activeTab === 'Categories' && (
+            <CategorySettings />
           )}
           
           {activeTab === 'Admin Access' && isSuperAdmin && (
@@ -1366,6 +993,13 @@ export default function AdminSettings() {
                   <div className="flex justify-between items-center">
                     <h4 className="text-sm font-black uppercase tracking-widest text-[#0C1421]">Active Administrators ({adminList.length})</h4>
                     <button 
+                      onClick={() => setShowInviteModal(true)}
+                      className="text-[10px] font-black uppercase bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 flex items-center gap-1.5 transition-colors"
+                    >
+                      <Plus size={12} />
+                      Invite
+                    </button>
+                    <button 
                       onClick={loadAdminConfigAndList} 
                       disabled={loadingAdmins}
                       className="text-[10px] font-black uppercase text-brand-gold hover:text-black flex items-center gap-1.5 transition-colors"
@@ -1374,6 +1008,43 @@ export default function AdminSettings() {
                       Reload List
                     </button>
                   </div>
+                  
+                  {showInviteModal && (
+                    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+                      <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4">
+                        <h3 className="text-lg font-black text-gray-900">Invite New Admin</h3>
+                        <input
+                          type="email"
+                          placeholder="Enter email..."
+                          value={inviteEmail}
+                          onChange={(e) => setInviteEmail(e.target.value)}
+                          className="w-full p-3 border rounded-xl text-sm"
+                        />
+                        <div>
+                          <p className="text-xs font-bold text-gray-700 mb-2">Permissions:</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {availablePermissions.map(p => (
+                              <label key={p} className="flex items-center gap-2 text-xs text-gray-600 capitalize">
+                                <input
+                                  type="checkbox"
+                                  checked={invitePermissions.includes(p)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) setInvitePermissions([...invitePermissions, p]);
+                                    else setInvitePermissions(invitePermissions.filter(perm => perm !== p));
+                                  }}
+                                />
+                                {p}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex justify-end gap-3 pt-4">
+                          <button onClick={() => setShowInviteModal(false)} className="px-4 py-2 text-xs font-bold text-gray-500">Cancel</button>
+                          <button onClick={handleSendInvite} className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg">Invite</button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {loadingAdmins ? (
                     <div className="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-3xl border border-gray-100">
@@ -2291,7 +1962,7 @@ export default function AdminSettings() {
             </div>
           )}
           
-          {activeTab !== 'General' && activeTab !== 'Banners' && activeTab !== 'Categories' && activeTab !== 'Notifications' && activeTab !== 'Branding' && activeTab !== 'Admin Access' && activeTab !== 'Pixel & Analytics' && activeTab !== 'Coupons' && activeTab !== 'SMS' && activeTab !== 'Payments' && (
+          {activeTab !== 'General' && activeTab !== 'Banners' && activeTab !== 'Categories' && activeTab !== 'Notifications' && activeTab !== 'Branding' && activeTab !== 'Admin Access' && activeTab !== 'Payments' && (
              <div className="flex flex-col items-center justify-center py-32 text-center opacity-20 relative z-10 font-sans">
                 <Settings size={64} className="mb-6 animate-spin-slow text-brand-gold" />
                 <h3 className="serif text-3xl text-black italic tracking-tighter uppercase font-black">Under Construction</h3>

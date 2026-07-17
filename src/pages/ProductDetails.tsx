@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { ShoppingCart, Heart, Share2, Maximize2, ChevronRight, ChevronDown, Truck, RotateCcw, ShieldCheck, Star, MessageSquare, Send, User, Banknote, Sparkles, X } from 'lucide-react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useProducts } from '../contexts/ProductContext';
@@ -25,6 +25,7 @@ const ProductDetails = () => {
   
   const product = products.find(p => p.id === id);
   const isBag = (product?.category || '').toLowerCase().includes('bag');
+  const isFormalShirt = (product?.category || '').toLowerCase().includes('formal');
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState('');
   const [quantity, setQuantity] = useState(1);
@@ -475,6 +476,40 @@ const ProductDetails = () => {
                 )}
               </div>
             </div>
+
+            {/* Formal Shirt Specs Box */}
+            {isFormalShirt && (
+              <div className="bg-white border border-gray-100 rounded-3xl p-6 mb-6 shadow-sm">
+                <h3 className="text-[11px] font-black uppercase tracking-widest text-black mb-4 flex items-center gap-2">
+                  <Sparkles size={16} className="text-brand-gold" />
+                  Technical Specifications
+                </h3>
+                <div className="grid grid-cols-2 gap-y-4 gap-x-8">
+                  {product.fabric && (
+                    <div className="space-y-1">
+                      <p className="text-[9px] text-gray-400 font-black uppercase tracking-[0.2em]">Material</p>
+                      <p className="text-[12px] font-bold text-black uppercase tracking-tight">{product.fabric}</p>
+                    </div>
+                  )}
+                  {product.fitType && (
+                    <div className="space-y-1">
+                      <p className="text-[9px] text-gray-400 font-black uppercase tracking-[0.2em]">Silhouette</p>
+                      <p className="text-[12px] font-bold text-black uppercase tracking-tight">{product.fitType}</p>
+                    </div>
+                  )}
+                  {product.sku && (
+                    <div className="space-y-1">
+                      <p className="text-[9px] text-gray-400 font-black uppercase tracking-[0.2em]">Reference SKU</p>
+                      <p className="text-[12px] font-bold text-black uppercase tracking-tight">{product.sku}</p>
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    <p className="text-[9px] text-gray-400 font-black uppercase tracking-[0.2em]">Category</p>
+                    <p className="text-[12px] font-bold text-black uppercase tracking-tight">{product.category}</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Description Section */}
             {product.description && (

@@ -4,7 +4,7 @@
  */
 
 import { MessageCircle } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { useState, useEffect } from 'react';
 
 export default function FloatingWhatsApp() {
@@ -34,9 +34,9 @@ export default function FloatingWhatsApp() {
             href="https://wa.me/8801619835133"
             target="_blank"
             rel="noopener noreferrer"
-            className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center text-white shadow-2xl hover:bg-green-600 transition-colors shadow-green-500/30"
+            className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white shadow-2xl hover:bg-green-600 transition-colors shadow-green-500/30"
           >
-            <MessageCircle size={24} />
+            <MessageCircle size={20} />
           </a>
         </motion.div>
       )}

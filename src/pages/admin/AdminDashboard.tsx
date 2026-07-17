@@ -40,51 +40,16 @@ import toast from 'react-hot-toast';
 
 export default function AdminDashboard(): React.JSX.Element {
   const { products } = useProducts();
-  const { orders } = useOrders();
+  const { orders, loading } = useOrders();
   const { transactions } = useInventory();
   const { currency, rate } = useCurrency();
   const [daysRange, setDaysRange] = useState<7 | 30 | 90 | 365>(30);
 
-  // Fallback orders exactly matching the screenshot scenario
-  const effectiveOrders = useMemo(() => {
-    if (orders.length > 0) return orders;
-    return [
-      {
-        id: 'ORD-69839693',
-        customerName: 'Akash Miah',
-        total: 1020,
-        status: 'Pending' as const,
-        createdAt: subDays(new Date(), 2).toISOString(),
-        items: [
-          { id: 'p1', name: "Man's Formal Pant - White", price: 1020, quantity: 1, selectedSize: '32', images: [] }
-        ]
-      },
-      {
-        id: 'ORD-66755812',
-        customerName: 'Akash Sumaiya',
-        total: 1320,
-        status: 'Delivered' as const,
-        createdAt: subDays(new Date(), 1).toISOString(),
-        items: [
-          { id: 'p1', name: "Man's Formal Pant - White", price: 1100, quantity: 1, selectedSize: '30', images: [] }
-        ]
-      }
-    ];
-  }, [orders]);
+  // Use the actual orders from database
+  const effectiveOrders = orders;
 
-  // Fallback products if none exist
-  const effectiveProducts = useMemo(() => {
-    if (products.length > 0) return products;
-    return [
-      {
-        id: 'p1',
-        name: "Man's Formal Pant - White",
-        price: 1100,
-        stock: 5,
-        images: ['https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?q=80&w=200&auto=format']
-      }
-    ];
-  }, [products]);
+  // Use actual products from database
+  const effectiveProducts = products;
 
   // 1. Total Sales Last 7 Days
   const totalSalesLast7Days = useMemo(() => {
@@ -276,6 +241,15 @@ export default function AdminDashboard(): React.JSX.Element {
   const handleExport = () => {
     toast.success('Sales and analytics metrics exported successfully.');
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-[400px] flex flex-col items-center justify-center gap-2 font-sans bg-[#FBFBFD] rounded-[20px] p-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4F46E5]"></div>
+        <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">লোড হচ্ছে...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-12 font-sans bg-[#FBFBFD] min-h-screen text-black antialiased">

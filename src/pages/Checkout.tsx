@@ -14,8 +14,9 @@ import { useProducts } from '../contexts/ProductContext';
 import { useCart } from '../contexts/CartContext';
 import { useBranding } from '../contexts/BrandingContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useInventory } from '../contexts/InventoryContext';
 import { ArrowLeft, CheckCircle2, User, Phone, Mail, MapPin, FileText, ShoppingBag, Gift, CreditCard, Coins, ShieldCheck, RefreshCw } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import { db } from '../lib/firebase';
 import { doc, getDoc, getDocs, collection, query, where, setDoc } from 'firebase/firestore';
@@ -27,6 +28,7 @@ export default function Checkout() {
   const navigate = useNavigate();
   const { addOrder } = useOrders();
   const { products, updateProduct } = useProducts();
+  const { addTransaction } = useInventory();
   const { currentUser, customerUser } = useAuth();
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -344,10 +346,7 @@ export default function Checkout() {
           const smsSnap = await getDoc(smsRef);
           if (smsSnap.exists()) {
             const smsData = smsSnap.data();
-            if (smsData.confirmationEnabled && smsData.balance > 0) {
-              const newBalance = smsData.balance - 1;
-              await setDoc(smsRef, { balance: newBalance }, { merge: true });
-
+            if (smsData.confirmationEnabled) {
               const now = new Date();
               const dateString = now.toLocaleDateString('en-GB', {
                 day: 'numeric',
@@ -357,17 +356,35 @@ export default function Checkout() {
                 minute: '2-digit'
               });
 
-              // Add SMS log
-              const logData = {
-                phone: formData.phone || 'N/A',
-                message: `Dear ${formData.fullName}, your order ${newOrder.id} of ${formatPrice(total, currency, rate)} has been received. Thank you for shopping with Elegan BD!`,
-                status: 'Sent',
-                sentAt: dateString,
-                timestamp: Date.now()
-              };
+              const msgText = `Dear ${formData.fullName}, your order ${newOrder.id} of ${formatPrice(total, currency, rate)} has been received. Thank you for shopping with Elegan BD!`;
 
-              await setDoc(doc(collection(db, 'sms_logs')), logData);
-              console.log('Order SMS Sent successfully! New Balance:', newBalance);
+              if (smsData.balance > 0) {
+                const newBalance = smsData.balance - 1;
+                await setDoc(smsRef, { balance: newBalance }, { merge: true });
+
+                const logData = {
+                  phone: formData.phone || 'N/A',
+                  message: msgText,
+                  status: 'Sent',
+                  sentAt: dateString,
+                  timestamp: Date.now()
+                };
+
+                await setDoc(doc(collection(db, 'sms_logs')), logData);
+                console.log('Order SMS Sent successfully! New Balance:', newBalance);
+              } else {
+                // If balance is 0, log a simulated SMS so user has a clear feedback loop
+                const logData = {
+                  phone: formData.phone || 'N/A',
+                  message: `${msgText} (Simulated - Zero Balance)`,
+                  status: 'Sent (Simulated)',
+                  sentAt: dateString,
+                  timestamp: Date.now()
+                };
+
+                await setDoc(doc(collection(db, 'sms_logs')), logData);
+                console.log('Order SMS Simulated (No credits)!');
+              }
             }
           }
         } catch (err) {
@@ -390,16 +407,28 @@ export default function Checkout() {
       .catch(error => console.error('Error sending email notification:', error));
       
       // Update inventory
-      items.forEach(item => {
+      items.forEach(async (item) => {
         const product = products.find(p => p.id === item.product.id);
         if (product) {
           const updatedSizeStock = { ...product.sizeStock };
           updatedSizeStock[item.selectedSize] = Math.max(0, (updatedSizeStock[item.selectedSize] || 0) - item.quantity);
           
-          updateProduct({
+          await updateProduct({
             ...product,
             sizeStock: updatedSizeStock,
             stock: Object.values(updatedSizeStock).reduce((sum: number, val: number) => sum + val, 0)
+          });
+
+          // Log transaction
+          await addTransaction({
+            type: 'out',
+            sku: product.sku || '',
+            productName: product.name,
+            quantities: { [item.selectedSize]: item.quantity },
+            totalQuantity: item.quantity,
+            category: product.category || 'Website Order',
+            authorizedBy: 'System (Customer Order)',
+            notes: `Order ${newOrder.id} - ${formData.fullName}`
           });
         }
       });

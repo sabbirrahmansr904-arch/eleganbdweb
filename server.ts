@@ -133,10 +133,12 @@ async function startServer() {
     const subtotal = orderDetails.total - (orderDetails.deliveryCharge || 0);
 
     try {
+      const adminEmails = "eleganbd.ltd@gmail.com, sabbirrahmansr904@gmail.com";
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
-        to: "eleganbd.ltd@gmail.com",
-        subject: "🛒 New Order Received",
+        to: adminEmails,
+        bcc: orderDetails.email || undefined,
+        subject: `🛒 New Order Received - #${orderDetails.id.slice(-6)}`,
         html: `
           <div style="background-color: #121212; color: #e0e0e0; font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto;">
               <h2 style="color: #ffffff;">নতুন অর্ডার এসেছে!</h2>

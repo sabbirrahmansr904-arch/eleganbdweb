@@ -12,7 +12,7 @@
 }
 
 body {
-  @apply bg-white text-black font-sans antialiased;
+  @apply bg-white text-black font-sans antialiased transition-colors duration-200;
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -26,4 +26,100 @@ body {
 ::selection {
   background-color: #ef4444;
   color: white;
+}
+
+/* Dark Mode Overrides */
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #0b0f17 !important;
+  color: #f3f4f6 !important;
+}
+
+html.dark .bg-white,
+html.dark .bg-white\/80 {
+  background-color: #121824 !important;
+}
+
+html.dark .bg-gray-50 {
+  background-color: #182235 !important;
+}
+
+html.dark .bg-gray-100 {
+  background-color: #182235 !important;
+}
+
+html.dark .bg-gray-100\/50 {
+  background-color: #121824 !important;
+}
+
+html.dark .bg-slate-50 {
+  background-color: #182235 !important;
+}
+
+html.dark .bg-[#F8FAFC] {
+  background-color: #0b0f17 !important;
+}
+
+html.dark .bg-slate-100 {
+  background-color: #1e293b !important;
+}
+
+html.dark .text-black,
+html.dark .text-gray-900,
+html.dark .text-slate-900,
+html.dark .text-gray-800,
+html.dark .text-slate-800 {
+  color: #f9fafb !important;
+}
+
+html.dark .text-gray-700,
+html.dark .text-gray-600,
+html.dark .text-slate-700,
+html.dark .text-slate-600 {
+  color: #e5e7eb !important;
+}
+
+html.dark .text-gray-500,
+html.dark .text-gray-400,
+html.dark .text-slate-500,
+html.dark .text-slate-400 {
+  color: #9ca3af !important;
+}
+
+html.dark .border-gray-50,
+html.dark .border-gray-100,
+html.dark .border-gray-200,
+html.dark .border-slate-100,
+html.dark .border-slate-200,
+html.dark .border-[#F0F2F5],
+html.dark .border-[#EFF2F6] {
+  border-color: #1e293b !important;
+}
+
+html.dark input, 
+html.dark select, 
+html.dark textarea {
+  background-color: #182235 !important;
+  color: #f9fafb !important;
+  border-color: #2d3748 !important;
+}
+
+html.dark input::placeholder {
+  color: #6b7280 !important;
+}
+
+html.dark .bg-indigo-50 {
+  background-color: #1e1b4b !important;
+  color: #c7d2fe !important;
+}
+
+html.dark .text-indigo-600 {
+  color: #818cf8 !important;
+}
+
+html.dark .border-indigo-100 {
+  border-color: #312e81 !important;
 }

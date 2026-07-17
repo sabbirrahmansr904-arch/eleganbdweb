@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useProducts } from '../contexts/ProductContext';
 import ProductCard from '../components/ProductCard';
 import { Filter, ChevronDown, SlidersHorizontal, X } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
 const ProductList = () => {

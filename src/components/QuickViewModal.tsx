@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { X, ShoppingBag, Star, ChevronRight, Truck, RotateCcw, ShieldCheck } from 'lucide-react';
 import { Product } from '../types';
 import { useCurrency } from '../contexts/CurrencyContext';

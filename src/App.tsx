@@ -12,6 +12,8 @@ import { CartProvider } from './contexts/CartContext';
 import { InventoryProvider } from './contexts/InventoryContext';
 import { BannerProvider } from './contexts/BannerContext';
 import { CategoryProvider } from './contexts/CategoryContext';
+import { FinanceProvider } from './contexts/FinanceContext';
+import { ExpenseProvider } from './contexts/ExpenseContext';
 
 // Layouts
 import AdminLayout from './components/admin/AdminLayout';
@@ -47,18 +49,17 @@ import AdminProducts from './pages/admin/AdminProducts';
 import AdminAddProduct from './pages/admin/AdminAddProduct';
 import AdminCustomers from './pages/admin/AdminCustomers';
 import AdminSettings from './pages/admin/AdminSettings';
-import AdminNotifications from './pages/admin/AdminNotifications';
-import AdminBanners from './pages/admin/AdminBanners';
 import AdminStockIn from './pages/admin/AdminStockIn';
 import AdminStockOut from './pages/admin/AdminStockOut';
 import AdminInventoryOverview from './pages/admin/AdminInventoryOverview';
 import AdminMasterTable from './pages/admin/AdminMasterTable';
 import AdminInventoryLog from './pages/admin/AdminInventoryLog';
-import AdminCategories from './pages/admin/AdminCategories';
 import AdminExchanges from './pages/admin/AdminExchanges';
 import AdminIssues from './pages/admin/AdminIssues';
 import AdminMedia from './pages/admin/AdminMedia';
 import FixSizes from './pages/admin/FixSizes';
+import AdminFinance from './pages/admin/AdminFinance';
+import AdminExpenses from './pages/admin/AdminExpenses';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requireAdmin = true }: { children: React.ReactNode, requireAdmin?: boolean }) => {
@@ -124,18 +125,17 @@ function AppRoutes() {
           <Route path="edit-product/:id" element={<AdminAddProduct />} />
           <Route path="customers" element={<AdminCustomers />} />
           <Route path="settings" element={<AdminSettings />} />
-          <Route path="notifications" element={<AdminNotifications />} />
-          <Route path="banners" element={<AdminBanners />} />
           <Route path="stock-in" element={<AdminStockIn />} />
           <Route path="stock-out" element={<AdminStockOut />} />
           <Route path="inventory" element={<AdminInventoryOverview />} />
           <Route path="master-table" element={<AdminMasterTable />} />
           <Route path="inventory-log" element={<AdminInventoryLog />} />
-          <Route path="categories" element={<AdminCategories />} />
           <Route path="exchanges" element={<AdminExchanges />} />
           <Route path="issues" element={<AdminIssues />} />
           <Route path="media" element={<AdminMedia />} />
           <Route path="fix-sizes" element={<FixSizes />} />
+          <Route path="finance" element={<AdminFinance />} />
+          <Route path="expenses" element={<AdminExpenses />} />
         </Route>
 
         {/* Catch-all */}
@@ -148,31 +148,35 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <BrandingProvider>
-        <BannerProvider>
-          <CategoryProvider>
-            <ProductProvider>
-              <InventoryProvider>
-                <OrderProvider>
-                  <CurrencyProvider>
-                    <CartProvider>
-                      <Router>
-                        <ScrollToTop />
-                        <div className="min-h-screen bg-white selection:bg-black/10 selection:text-black">
-                          <Toaster position="top-center" reverseOrder={false} />
-                          <PixelTracker />
-                          <MetaPixel />
-                          <AppRoutes />
-                        </div>
-                      </Router>
-                    </CartProvider>
-                  </CurrencyProvider>
-                </OrderProvider>
-              </InventoryProvider>
-            </ProductProvider>
-          </CategoryProvider>
-        </BannerProvider>
-      </BrandingProvider>
+      <FinanceProvider>
+        <ExpenseProvider>
+          <BrandingProvider>
+          <BannerProvider>
+            <CategoryProvider>
+              <ProductProvider>
+                <InventoryProvider>
+                  <OrderProvider>
+                    <CurrencyProvider>
+                      <CartProvider>
+                        <Router>
+                          <ScrollToTop />
+                          <div className="min-h-screen bg-white selection:bg-black/10 selection:text-black">
+                            <Toaster position="top-center" reverseOrder={false} />
+                            <PixelTracker />
+                            <MetaPixel />
+                            <AppRoutes />
+                          </div>
+                        </Router>
+                      </CartProvider>
+                    </CurrencyProvider>
+                  </OrderProvider>
+                </InventoryProvider>
+              </ProductProvider>
+            </CategoryProvider>
+          </BannerProvider>
+        </BrandingProvider>
+        </ExpenseProvider>
+      </FinanceProvider>
     </AuthProvider>
   );
 }

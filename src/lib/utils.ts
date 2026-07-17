@@ -56,8 +56,8 @@ export function calculateCartSubtotal(items: SubtotalItem[]): number {
     const numCombos = Math.floor(totalShirts / 3);
     const remainderShirts = totalShirts % 3;
     
-    // Combo price is 1799 TK for every 3 pieces of shirts
-    const comboPriceTotal = numCombos * 1799;
+    // Combo price is 1999 TK for every 3 pieces of shirts
+    const comboPriceTotal = numCombos * 1999;
     
     // Convert shirt items to list of individual prices
     let individualShirtPrices: number[] = [];

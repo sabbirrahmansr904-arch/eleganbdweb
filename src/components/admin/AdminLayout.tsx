@@ -34,46 +34,148 @@ import {
   X, 
   Bell,
   Moon,
+  Sun,
   Store,
-  Table
+  Table,
+  Lock,
+  CheckSquare,
+  AlertCircle,
+  Package,
+  DollarSign
 } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn, formatPrice } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBranding } from '../../contexts/BrandingContext';
 import { useOrders } from '../../contexts/OrderContext';
 import { useProducts } from '../../contexts/ProductContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useCurrency } from '../../contexts/CurrencyContext';
+import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
 
 export default function AdminLayout() {
   const { logoUrl } = useBranding();
   const { orders } = useOrders();
   const { products } = useProducts();
+  const { currentUser, isSuperAdmin } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
-  const unreadCount = React.useMemo(() => {
-    const ids: string[] = [];
-    orders.forEach(order => {
-      ids.push(`order-${order.id}`);
-      if (order.status === 'QC') ids.push(`order-qc-${order.id}`);
-      if (order.issueType) ids.push(`order-issue-${order.id}`);
-    });
-    products.forEach(product => {
-      ids.push(`product-${product.id}`);
-    });
+  const { currency, rate } = useCurrency();
+  const [showNotifications, setShowNotifications] = useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
 
-    let readIds: string[] = [];
+  const [readIds, setReadIds] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('eleganbd_read_notifications');
-      readIds = saved ? JSON.parse(saved) : [];
+      return saved ? JSON.parse(saved) : [];
     } catch (e) {
-      readIds = [];
+      return [];
     }
+  });
 
-    return ids.filter(id => !readIds.includes(id)).length;
-  }, [orders, products]);
+  React.useEffect(() => {
+    localStorage.setItem('eleganbd_read_notifications', JSON.stringify(readIds));
+  }, [readIds]);
+
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem('eleganbd_dark_mode');
+      return saved === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
+
+  React.useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('eleganbd_dark_mode', String(isDarkMode));
+  }, [isDarkMode]);
+
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const notifications = React.useMemo(() => {
+    const items: Array<{
+      id: string;
+      title: string;
+      message: string;
+      time: Date;
+      icon: React.ElementType;
+      color: string;
+      link: string;
+    }> = [];
+
+    orders.forEach(order => {
+      items.push({
+        id: `order-${order.id}`,
+        title: `New Order Received`,
+        message: `Order #${order.id.slice(-6).toUpperCase()} placed for ${order.items.length} items totaling ${formatPrice(order.total, currency, rate)}.`,
+        time: new Date(order.createdAt),
+        icon: ShoppingBag,
+        color: 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400',
+        link: '/admin/orders'
+      });
+
+      if (order.status === 'QC') {
+        items.push({
+          id: `order-qc-${order.id}`,
+          title: `Order QC Passed`,
+          message: `Order #${order.id.slice(-6).toUpperCase()} (${order.customerName}) has passed Quality Check.`,
+          time: order.updatedAt ? new Date(order.updatedAt) : new Date(order.createdAt),
+          icon: CheckSquare,
+          color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400',
+          link: '/admin/orders'
+        });
+      }
+
+      if (order.issueType) {
+        items.push({
+          id: `order-issue-${order.id}`,
+          title: `Order Issue: ${order.issueType}`,
+          message: `Internal issue raised for Order #${order.id.slice(-6).toUpperCase()} (${order.customerName}).`,
+          time: order.updatedAt ? new Date(order.updatedAt) : new Date(order.createdAt),
+          icon: AlertCircle,
+          color: 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400',
+          link: '/admin/issues'
+        });
+      }
+    });
+
+    products.forEach(product => {
+      const productTime = (product as any).createdAt ? new Date((product as any).createdAt) : new Date();
+      items.push({
+        id: `product-${product.id}`,
+        title: `Product Added/Updated`,
+        message: `${product.name} was recently added or updated in the catalog.`,
+        time: productTime,
+        icon: Package,
+        color: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400',
+        link: '/admin/products'
+      });
+    });
+
+    return items.sort((a, b) => b.time.getTime() - a.time.getTime());
+  }, [orders, products, currency, rate]);
+
+  const unreadCount = React.useMemo(() => {
+    return notifications.filter(n => !readIds.includes(n.id)).length;
+  }, [notifications, readIds]);
 
   const menuGroups = [
     {
@@ -81,29 +183,33 @@ export default function AdminLayout() {
         { name: 'Dashboard', path: '/admin', icon: Home },
         { name: 'Customers', path: '/admin/customers', icon: Users },
         { name: 'Orders', path: '/admin/orders', icon: FileText },
-        { name: 'Categories', path: '/admin/categories', icon: Folder },
+        { name: 'Categories', path: '/admin/settings?tab=Categories', icon: Folder },
         { name: 'Products', path: '/admin/products', icon: ShoppingBag },
+        { name: 'Issues', path: '/admin/issues', icon: MessageCircle },
         { name: 'Master Table', path: '/admin/master-table', icon: Table },
       ]
     },
     {
       items: [
+        { name: 'Settings', path: '/admin/settings', icon: Settings },
         { name: 'General', path: '/admin/settings?tab=General', icon: Store },
         { name: 'Branding', path: '/admin/settings?tab=Branding', icon: Palette },
-        { name: 'Banners', path: '/admin/banners', icon: Globe },
-        { name: 'Notifications', path: '/admin/notifications', icon: Bell },
+        { name: 'Banners', path: '/admin/settings?tab=Banners', icon: Globe },
+        { name: 'Notifications', path: '/admin/settings?tab=Notifications', icon: Bell },
+        { name: 'SMS & OTP', path: '/admin/settings?tab=SMS', icon: Phone },
       ]
     },
     {
       items: [
-        { name: 'Pixel & Analytics', path: '/admin/settings?tab=Pixel & Analytics', icon: Megaphone },
         { name: 'Payments', path: '/admin/settings?tab=Payments', icon: CreditCard },
+        { name: 'Partnership', path: '/admin/finance?tab=partnership', icon: Users },
+        { name: 'Bank', path: '/admin/finance?tab=bank', icon: DollarSign },
+        { name: 'Expenses', path: '/admin/expenses', icon: CreditCard },
       ]
     },
     {
       items: [
-        { name: 'Settings', path: '/admin/settings?tab=Settings', icon: Settings },
-        { name: 'Import / Export', path: '/admin/settings?tab=Import / Export', icon: Download },
+        ...(isSuperAdmin ? [{ name: 'Admin Access', path: '/admin/settings?tab=Admin Access', icon: Lock }] : []),
       ]
     }
   ];
@@ -166,9 +272,6 @@ export default function AdminLayout() {
                   <div className="flex flex-col text-left">
                     <span className="font-bold tracking-tight text-sm text-gray-900 leading-none">
                       Elegan BD
-                    </span>
-                    <span className="text-[10px] text-gray-400 mt-1">
-                      eleganbd.zobity.com
                     </span>
                   </div>
                 </Link>
@@ -241,16 +344,13 @@ export default function AdminLayout() {
                 <span className="font-bold tracking-tight text-sm text-gray-900 leading-none">
                   Elegan BD
                 </span>
-                <span className="text-[10px] text-gray-400 mt-1">
-                  eleganbd.zobity.com
-                </span>
               </div>
             )}
           </Link>
           
           {isSidebarOpen && (
             <div className="relative shrink-0 flex items-center">
-              <Link to="/admin/notifications" className="relative inline-block group">
+              <Link to="/admin/settings?tab=Notifications" className="relative inline-block group" title="Notification Settings">
                 <Bell size={18} className="text-gray-400 hover:text-black transition-colors cursor-pointer" />
                 {unreadCount > 0 && (
                   <span className="absolute -top-1.5 -right-2 bg-red-500 text-[8px] font-bold text-white px-1 py-0.25 rounded-full leading-none scale-90">
@@ -330,20 +430,119 @@ export default function AdminLayout() {
           </div>
 
           <div className="flex items-center space-x-4">
-            <button className="p-2 text-gray-400 hover:text-black bg-gray-50 rounded-xl transition-colors border border-gray-100">
-              <Moon size={18} />
-            </button>
-            <Link 
-              to="/admin/notifications"
-              className="relative p-2 text-gray-400 hover:text-black bg-gray-50 rounded-xl transition-colors border border-gray-100"
+            <button 
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              title={isDarkMode ? "Light Mode" : "Dark Mode"}
+              className="p-2 text-gray-400 hover:text-black bg-gray-50 rounded-xl transition-colors border border-gray-100 cursor-pointer flex items-center justify-center"
             >
-              <Bell size={18} />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-[8px] font-bold text-white px-1.5 py-0.5 rounded-full leading-none scale-90">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
-            </Link>
+              {isDarkMode ? <Sun size={18} className="text-amber-500" /> : <Moon size={18} />}
+            </button>
+            
+            <div className="relative" ref={dropdownRef}>
+              <button 
+                onClick={() => setShowNotifications(!showNotifications)}
+                title="Notifications"
+                className="relative p-2 text-gray-400 hover:text-black bg-gray-50 rounded-xl transition-colors border border-gray-100 cursor-pointer flex items-center justify-center"
+              >
+                <Bell size={18} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-[8px] font-bold text-white px-1.5 py-0.5 rounded-full leading-none scale-90">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              <AnimatePresence>
+                {showNotifications && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 15 }}
+                    className="absolute right-0 mt-3 w-80 sm:w-96 bg-white dark:bg-[#121824] rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden z-[100]"
+                  >
+                    <div className="p-4 bg-gray-50 dark:bg-[#182235] border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Bell size={16} className="text-gray-700 dark:text-gray-300" />
+                        <span className="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">Notifications</span>
+                      </div>
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const allIds = notifications.map(n => n.id);
+                            setReadIds(allIds);
+                            toast.success('All notifications marked as read.');
+                          }}
+                          className="text-[10px] text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-extrabold uppercase tracking-widest transition-colors cursor-pointer bg-transparent border-none"
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="max-h-[360px] overflow-y-auto no-scrollbar py-1">
+                      {notifications.length === 0 ? (
+                        <div className="p-8 text-center text-gray-400 dark:text-gray-500">
+                          <Bell size={32} className="mx-auto mb-3 opacity-30" />
+                          <p className="text-xs">No notifications yet.</p>
+                        </div>
+                      ) : (
+                        notifications.slice(0, 15).map((n) => {
+                          const isRead = readIds.includes(n.id);
+                          const IconComponent = n.icon;
+                          return (
+                            <div 
+                              key={n.id}
+                              onClick={() => {
+                                if (!isRead) {
+                                  setReadIds(prev => [...prev, n.id]);
+                                }
+                                setShowNotifications(false);
+                                navigate(n.link);
+                              }}
+                              className={cn(
+                                "p-3.5 border-b border-gray-50 dark:border-gray-800/50 flex gap-3 hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors cursor-pointer relative",
+                                !isRead && "bg-indigo-50/10 dark:bg-indigo-950/5"
+                              )}
+                            >
+                              {!isRead && (
+                                <div className="absolute top-4 right-4 w-2 h-2 bg-indigo-600 rounded-full" />
+                              )}
+                              <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border border-transparent", n.color)}>
+                                <IconComponent size={15} />
+                              </div>
+                              <div className="flex-1 min-w-0 text-left">
+                                <h4 className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                                  {n.title}
+                                </h4>
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 leading-relaxed">
+                                  {n.message}
+                                </p>
+                                <span className="text-[9px] text-gray-400 dark:text-gray-500 mt-1.5 block font-medium">
+                                  {formatDistanceToNow(n.time, { addSuffix: true })}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    <div className="p-3 bg-gray-50 dark:bg-[#182235] border-t border-gray-100 dark:border-gray-800 text-center">
+                      <button
+                        onClick={() => {
+                          setShowNotifications(false);
+                          navigate('/admin/settings?tab=Notifications');
+                        }}
+                        className="text-[10px] text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white font-black uppercase tracking-widest transition-colors cursor-pointer bg-transparent border-none"
+                      >
+                        View all notification settings
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
             <div className="h-8 w-[1px] bg-gray-100 mx-2 hidden sm:block"></div>
             <div className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity">
               <div className="hidden sm:flex flex-col items-end">

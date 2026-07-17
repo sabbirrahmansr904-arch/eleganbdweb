@@ -109,8 +109,97 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     return cleaned;
   };
 
+  const restoreOrderStock = async (order: Order) => {
+    try {
+      console.log(`[OrderContext] Restoring stock for order: ${order.id}`);
+      for (const item of order.items) {
+        const product = products.find(p => p.id === item.id);
+        if (product) {
+          const updatedSizeStock = { ...(product.sizeStock || {}) };
+          const currentSizeStock = updatedSizeStock[item.selectedSize] || 0;
+          updatedSizeStock[item.selectedSize] = currentSizeStock + item.quantity;
+          
+          const updatedTotalStock = (product.stock || 0) + item.quantity;
+          
+          await updateProduct({
+            ...product,
+            sizeStock: updatedSizeStock,
+            stock: updatedTotalStock
+          });
+
+          // Log transaction for each item as proof of "Stock In"
+          await addTransaction({
+            type: 'in',
+            sku: product.sku || product.id,
+            productName: product.name,
+            quantities: { [item.selectedSize]: item.quantity },
+            totalQuantity: item.quantity,
+            category: product.category,
+            authorizedBy: 'Order System',
+            notes: `Restored: Order #${order.id.slice(-6)} Cancelled/Deleted`
+          });
+        }
+      }
+    } catch (err) {
+      console.error('[OrderContext] Error restoring order stock:', err);
+    }
+  };
+
+  const deductOrderStock = async (order: Order) => {
+    try {
+      console.log(`[OrderContext] Re-deducting stock for order: ${order.id}`);
+      for (const item of order.items) {
+        const product = products.find(p => p.id === item.id);
+        if (product) {
+          const updatedSizeStock = { ...(product.sizeStock || {}) };
+          const currentSizeStock = updatedSizeStock[item.selectedSize] || 0;
+          updatedSizeStock[item.selectedSize] = Math.max(0, currentSizeStock - item.quantity);
+          
+          const updatedTotalStock = Math.max(0, (product.stock || 0) - item.quantity);
+          
+          await updateProduct({
+            ...product,
+            sizeStock: updatedSizeStock,
+            stock: updatedTotalStock
+          });
+
+          // Log transaction for each item as proof of "Stock Out"
+          await addTransaction({
+            type: 'out',
+            sku: product.sku || product.id,
+            productName: product.name,
+            quantities: { [item.selectedSize]: item.quantity },
+            totalQuantity: item.quantity,
+            category: product.category,
+            authorizedBy: 'Order System',
+            notes: `Re-deducted: Order #${order.id.slice(-6)} Restored status`
+          });
+        }
+      }
+    } catch (err) {
+      console.error('[OrderContext] Error deducting order stock:', err);
+    }
+  };
+
+  const handleStatusChangeStock = async (order: Order, newStatus: Order['status']) => {
+    const isOldRestored = order.status === 'Cancelled' || order.status === 'Returned';
+    const isNewRestored = newStatus === 'Cancelled' || newStatus === 'Returned';
+
+    if (!isOldRestored && isNewRestored) {
+      // Order is now cancelled/returned -> restore stock
+      await restoreOrderStock(order);
+    } else if (isOldRestored && !isNewRestored) {
+      // Order is re-activated from cancelled/returned -> deduct stock
+      await deductOrderStock(order);
+    }
+  };
+
   const updateOrderStatus = async (id: string, status: Order['status']) => {
     try {
+      const order = orders.find(o => o.id === id);
+      if (order) {
+        await handleStatusChangeStock(order, status);
+      }
       const updatedData = { status, updatedAt: Date.now() };
       const cleaned = removeUndefined(updatedData);
       await setDoc(doc(db, 'orders', id), cleaned, { merge: true });
@@ -121,6 +210,12 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
   const updateOrder = async (id: string, data: Partial<Order> & Record<string, any>) => {
     try {
+      if (data.status) {
+        const order = orders.find(o => o.id === id);
+        if (order) {
+          await handleStatusChangeStock(order, data.status);
+        }
+      }
       const updatedData = { ...data, updatedAt: Date.now() };
       const cleaned = removeUndefined(updatedData);
       await setDoc(doc(db, 'orders', id), cleaned, { merge: true });
@@ -130,12 +225,24 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteOrder = async (id: string) => {
-    console.log(`Attempting to delete order: ${id}`);
+    if (!id) {
+      console.error('deleteOrder called without an ID');
+      return;
+    }
+    console.log(`[OrderContext] START: Attempting to delete order: ${id}`);
     try {
-      await deleteDoc(doc(db, 'orders', id));
-      console.log(`Successfully deleted order document: ${id}`);
+      const order = orders.find(o => o.id === id);
+      if (order && order.status !== 'Cancelled' && order.status !== 'Returned') {
+        // If order was active, restore its items to stock on deletion
+        await restoreOrderStock(order);
+      }
+      const orderRef = doc(db, 'orders', id);
+      await deleteDoc(orderRef);
+      console.log(`[OrderContext] SUCCESS: Deleted order document: ${id}`);
+      // Optimistic update
+      setOrders(prev => prev.filter(order => order.id !== id));
     } catch (error) {
-      console.error(`Error deleting order ${id}:`, error);
+      console.error(`[OrderContext] ERROR: Deleting order ${id}:`, error);
       handleFirestoreError(error, OperationType.DELETE, `orders/${id}`);
       throw error;
     }
