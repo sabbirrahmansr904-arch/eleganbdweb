@@ -46,6 +46,7 @@ export interface CartItem extends Product {
 
 export interface Order {
   id: string;
+  invoiceNo?: number;
   customerId: string;
   customerName: string;
   email: string;
@@ -55,7 +56,7 @@ export interface Order {
   items: CartItem[];
   deliveryCharge: number;
   total: number;
-  status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Printed' | 'Hold' | 'Returned' | 'QC';
+  status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Printed' | 'Hold' | 'Returned' | 'QC' | 'ORDER PLACED' | 'PREPARING' | 'PICK UP CANCEL' | 'SUCCESS' | 'PARTIAL DELIVERY';
   paymentMethod: 'cod' | 'bkash' | 'nagad' | 'card';
   transactionId?: string;
   notes?: string;

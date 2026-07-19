@@ -85,27 +85,33 @@ export default function TrackOrder() {
   };
 
   // Status mapping for visual timeline progress indicator
-  const statuses: Order['status'][] = ['Pending', 'Processing', 'Shipped', 'Delivered'];
   const getStatusStepIndex = (status: Order['status']) => {
-    if (status === 'Cancelled') return -1;
-    return statuses.indexOf(status);
+    const s = (status || '').toUpperCase();
+    if (s === 'CANCELLED' || s === 'PICK UP CANCEL' || s === 'HOLD' || s === 'RETURNED') return -1;
+    if (s === 'PENDING' || s === 'ORDER PLACED') return 0;
+    if (s === 'PROCESSING' || s === 'PREPARING') return 1;
+    if (s === 'SHIPPED') return 2;
+    if (s === 'DELIVERED' || s === 'SUCCESS') return 3;
+    return -1;
   };
 
   const currentStepIndex = order ? getStatusStepIndex(order.status) : -1;
 
   const getStatusStyle = (status: Order['status']) => {
-    switch (status) {
-      case 'Delivered':
-        return 'text-emerald-700 bg-emerald-50 border-emerald-200';
-      case 'Shipped':
-        return 'text-amber-700 bg-amber-50 border-amber-200';
-      case 'Processing':
-        return 'text-blue-700 bg-blue-50 border-blue-200';
-      case 'Cancelled':
-        return 'text-rose-700 bg-rose-50 border-rose-200';
-      default:
-        return 'text-indigo-700 bg-indigo-50 border-indigo-200';
+    const s = (status || '').toUpperCase();
+    if (s === 'DELIVERED' || s === 'SUCCESS') {
+      return 'text-emerald-700 bg-emerald-50 border-emerald-200';
     }
+    if (s === 'SHIPPED') {
+      return 'text-amber-700 bg-amber-50 border-amber-200';
+    }
+    if (s === 'PROCESSING' || s === 'PREPARING') {
+      return 'text-blue-700 bg-blue-50 border-blue-200';
+    }
+    if (s === 'CANCELLED' || s === 'PICK UP CANCEL' || s === 'RETURNED') {
+      return 'text-rose-700 bg-rose-50 border-rose-200';
+    }
+    return 'text-indigo-700 bg-indigo-50 border-indigo-200';
   };
 
   return (

@@ -75,6 +75,33 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
+      // Auto-assign sequential Invoice No starting from 1000 for any orders missing them
+      if (isAdmin && ordersData.length > 0) {
+        const assignedInvoices = ordersData
+          .filter(o => typeof o.invoiceNo === 'number')
+          .map(o => o.invoiceNo as number);
+        
+        let highestInvoice = assignedInvoices.length > 0 ? Math.max(...assignedInvoices) : 999;
+        
+        // Filter orders missing invoiceNo, sorted chronologically by creation date (oldest first)
+        const missing = ordersData
+          .filter(o => typeof o.invoiceNo !== 'number')
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+          
+        if (missing.length > 0) {
+          console.log(`[OrderContext] Auto-assigning sequential invoice numbers starting at ${highestInvoice + 1} to ${missing.length} orders...`);
+          Promise.all(missing.map(async (order) => {
+            highestInvoice++;
+            const assignedNo = highestInvoice;
+            try {
+              await setDoc(doc(db, 'orders', order.id), { invoiceNo: assignedNo }, { merge: true });
+            } catch (err) {
+              console.error(`[OrderContext] Error assigning invoiceNo to ${order.id}:`, err);
+            }
+          })).catch(err => console.error("[OrderContext] Migration error:", err));
+        }
+      }
+
       setOrders(ordersData);
       setLoading(false);
       isInitialLoad.current = false;
@@ -253,8 +280,16 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       const targetCustomerId = currentUser
         ? ((isAdmin && order.customerId) ? order.customerId : currentUser.uid)
         : (order.customerId || `GUEST-${Math.floor(Math.random() * 1000)}`);
+        
+      const existingInvoices = orders
+        .filter(o => typeof o.invoiceNo === 'number')
+        .map(o => o.invoiceNo as number);
+      const maxInvoice = existingInvoices.length > 0 ? Math.max(...existingInvoices) : 999;
+      const nextInvoiceNo = maxInvoice + 1;
+
       const newOrder = {
         ...order,
+        invoiceNo: nextInvoiceNo,
         customerId: targetCustomerId,
         createdAt: order.createdAt || new Date().toISOString(),
         updatedAt: Date.now()

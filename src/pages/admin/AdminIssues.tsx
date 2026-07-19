@@ -6,6 +6,16 @@ import { useOrders } from '../../contexts/OrderContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatPrice, cn } from '../../lib/utils';
+import { Order } from '../../types';
+
+const normalizeStatus = (status: string): string => {
+  const s = (status || '').toUpperCase().trim();
+  if (s === 'PENDING') return 'ORDER PLACED';
+  if (s === 'PROCESSING') return 'PREPARING';
+  if (s === 'DELIVERED') return 'SUCCESS';
+  if (s === 'QC') return 'PICK UP CANCEL';
+  return s;
+};
 import { 
   Search, 
   RefreshCw, 
@@ -73,7 +83,7 @@ export default function AdminIssues() {
   const [editPhone, setEditPhone] = useState('');
   const [editAddress, setEditAddress] = useState('');
   const [editCity, setEditCity] = useState('Dhaka');
-  const [editStatus, setEditStatus] = useState<'Pending' | 'QC' | 'Shipped' | 'Delivered' | 'Cancelled'>('Pending');
+  const [editStatus, setEditStatus] = useState<Order['status']>('Pending');
   const [editDeliveryCharge, setEditDeliveryCharge] = useState(100);
   const [editDiscount, setEditDiscount] = useState(0);
   const [editAdvancePayment, setEditAdvancePayment] = useState(0);
@@ -830,15 +840,20 @@ export default function AdminIssues() {
                       <div>
                         <label className="text-[10px] text-gray-400 dark:text-gray-500 font-black uppercase tracking-widest mb-1.5 block">Order Status</label>
                         <select
-                          value={editStatus}
+                          value={normalizeStatus(editStatus)}
                           onChange={(e) => setEditStatus(e.target.value as any)}
-                          className="w-full bg-gray-50 dark:bg-[#182235] border border-gray-200 dark:border-gray-850 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white appearance-none cursor-pointer"
+                          className="w-full bg-gray-50 dark:bg-[#182235] border border-gray-200 dark:border-gray-850 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white appearance-none cursor-pointer uppercase"
                         >
-                          <option value="Pending">Pending</option>
-                          <option value="QC">QC/Confirmed</option>
-                          <option value="Shipped">Shipped</option>
-                          <option value="Delivered">Delivered</option>
-                          <option value="Cancelled">Cancelled</option>
+                          <option value="ORDER PLACED">ORDER PLACED</option>
+                          <option value="PRINTED">PRINTED</option>
+                          <option value="PREPARING">PREPARING</option>
+                          <option value="PICK UP CANCEL">PICK UP CANCEL</option>
+                          <option value="SHIPPED">SHIPPED</option>
+                          <option value="SUCCESS">SUCCESS</option>
+                          <option value="PARTIAL DELIVERY">PARTIAL DELIVERY</option>
+                          <option value="HOLD">HOLD</option>
+                          <option value="RETURNED">RETURNED</option>
+                          <option value="CANCELLED">CANCELLED</option>
                         </select>
                       </div>
 

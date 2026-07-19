@@ -110,10 +110,33 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       } else {
         const list: BankAccount[] = [];
-        snapshot.forEach(doc => {
-          list.push({ ...doc.data() as BankAccount, id: doc.id });
+        let needsMigration = false;
+        snapshot.forEach(docSnap => {
+          const acc = docSnap.data() as BankAccount;
+          if (acc.bankName && (acc.bankName.includes('Dutch-Bangla') || acc.bankName === 'Dutch-Bangla Bank')) {
+            needsMigration = true;
+            list.push({ ...acc, bankName: 'Sonali Bank', id: docSnap.id });
+          } else {
+            list.push({ ...acc, id: docSnap.id });
+          }
         });
         setBankAccounts(list);
+
+        if (needsMigration) {
+          snapshot.forEach(async (docSnap) => {
+            const acc = docSnap.data() as BankAccount;
+            if (acc.bankName && (acc.bankName.includes('Dutch-Bangla') || acc.bankName === 'Dutch-Bangla Bank')) {
+              try {
+                await setDoc(doc(db, 'bank_accounts', docSnap.id), {
+                  ...acc,
+                  bankName: 'Sonali Bank'
+                }, { merge: true });
+              } catch (e) {
+                console.error('Migration failed for bank account:', e);
+              }
+            }
+          });
+        }
       }
     }, (error) => {
       console.error('Error fetching bank accounts:', error);

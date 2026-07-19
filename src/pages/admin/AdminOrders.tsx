@@ -18,6 +18,7 @@ import {
   MapPin,
   Package,
   AlertCircle,
+  AlertTriangle,
   Plus,
   Camera,
   MessageSquare,
@@ -31,7 +32,8 @@ import {
   ShoppingCart,
   Edit3,
   Trash2,
-  DollarSign
+  DollarSign,
+  Clock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatPrice, cn } from '../../lib/utils';
@@ -69,6 +71,15 @@ const formatOrderDateTimeStr = (dateStr: string) => {
   } catch (err) {
     return dateStr;
   }
+};
+
+const normalizeStatus = (status: string): string => {
+  const s = (status || '').toUpperCase().trim();
+  if (s === 'PENDING') return 'ORDER PLACED';
+  if (s === 'PROCESSING') return 'PREPARING';
+  if (s === 'DELIVERED') return 'SUCCESS';
+  if (s === 'QC') return 'PICK UP CANCEL';
+  return s;
 };
 
 export default function AdminOrders(): React.JSX.Element {
@@ -122,6 +133,9 @@ export default function AdminOrders(): React.JSX.Element {
   // Bulk Selection
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
 
+  // Active status dropdown state to match interactive screenshot behaviors
+  const [activeStatusDropdownOrderId, setActiveStatusDropdownOrderId] = useState<string | null>(null);
+
   // Edit Order States
   const [isEditingDetails, setIsEditingDetails] = useState(false);
   const [editName, setEditName] = useState('');
@@ -158,6 +172,9 @@ export default function AdminOrders(): React.JSX.Element {
   const [newUrgency, setNewUrgency] = useState('Normal');
   const [newIssueDesc, setNewIssueDesc] = useState('');
   const [issueReplyText, setIssueReplyText] = useState('');
+  const [isEditingIssueMeta, setIsEditingIssueMeta] = useState(false);
+  const [issueMetaType, setIssueMetaType] = useState('QC');
+  const [issueMetaUrgency, setIssueMetaUrgency] = useState('Normal');
 
   // Create Order Form State
   const [newCustomerName, setNewCustomerName] = useState('');
@@ -196,7 +213,7 @@ export default function AdminOrders(): React.JSX.Element {
     if (order.email?.includes('manual_admin') || order.customerId === 'manual_admin') {
       return 'Office Sale';
     }
-    return 'Website order';
+    return 'Online Store';
   }, []);
 
   // Helper date-time formatter for issues
@@ -281,13 +298,7 @@ export default function AdminOrders(): React.JSX.Element {
     return orders.filter(order => {
       // 1. Status Filter
       if (filterStatus !== 'All') {
-        if (filterStatus === 'QC') {
-          if (order.status !== 'QC' && order.status !== 'Processing' && order.status !== 'Printed') return false;
-        } else if (filterStatus === 'Hold') {
-          if (order.status !== 'Hold') return false;
-        } else {
-          if (order.status !== filterStatus) return false;
-        }
+        if (normalizeStatus(order.status) !== filterStatus) return false;
       }
       
       // 2. Search query match
@@ -298,8 +309,9 @@ export default function AdminOrders(): React.JSX.Element {
         const matchesPhone = order.phone.includes(queryLower);
         const matchesCity = order.city.toLowerCase().includes(queryLower);
         const matchesSKU = order.items.some(it => it.sku?.toLowerCase().includes(queryLower) || it.name.toLowerCase().includes(queryLower));
+        const matchesInvoice = order.invoiceNo !== undefined && String(order.invoiceNo).includes(queryLower);
         
-        if (!matchesId && !matchesClient && !matchesPhone && !matchesCity && !matchesSKU) {
+        if (!matchesId && !matchesClient && !matchesPhone && !matchesCity && !matchesSKU && !matchesInvoice) {
           return false;
         }
       }
@@ -393,25 +405,40 @@ export default function AdminOrders(): React.JSX.Element {
     e.preventDefault();
     if (!issueConversationOrder || !issueReplyText.trim()) return;
     try {
+      const timestampStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
       const newReply = {
         sender: 'admin' as const,
         message: issueReplyText.trim(),
-        timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+        timestamp: timestampStr
       };
+
+      let updatedOrderData: any = {};
       const existingReplies = issueConversationOrder.issueReplies || [];
       const updatedReplies = [...existingReplies, newReply];
+
+      if (!issueConversationOrder.issueType) {
+        // Automatically create/activate issue
+        updatedOrderData = {
+          issueType: 'QC',
+          issueUrgency: 'Normal',
+          issueStatus: 'open' as const,
+          issueReplies: updatedReplies
+        };
+      } else {
+        updatedOrderData = {
+          issueReplies: updatedReplies
+        };
+      }
       
-      await updateOrder(issueConversationOrder.id, {
-        issueReplies: updatedReplies
-      });
+      await updateOrder(issueConversationOrder.id, updatedOrderData);
       
       const updatedOrder = {
         ...issueConversationOrder,
-        issueReplies: updatedReplies
+        ...updatedOrderData
       };
       setIssueConversationOrder(updatedOrder);
       setIssueReplyText('');
-      toast.success('Reply submitted!');
+      toast.success('Reply submitted & issue activated!');
     } catch (err) {
       toast.error('Failed to send reply');
     }
@@ -451,13 +478,17 @@ export default function AdminOrders(): React.JSX.Element {
 
     // Clean any "SCAN-" prefix if they wrote or scanned the exact code
     const searchKey = trimmedId.toLowerCase().replace(/^scan-/i, '');
+    const invoiceNum = parseInt(trimmedId, 10);
+    const searchKeyNum = parseInt(searchKey, 10);
 
-    // Find the order that matches or ends with the ID, or matches the scan code suffix
+    // Find the order that matches or ends with the ID, or matches the scan code suffix, or matches invoice number
     const order = orders.find(o => 
       o.id.toLowerCase() === trimmedId.toLowerCase() || 
       o.id.toLowerCase().endsWith(trimmedId.toLowerCase()) ||
       o.id.toLowerCase().endsWith(searchKey) ||
-      o.id.toLowerCase().slice(-6) === searchKey
+      o.id.toLowerCase().slice(-6) === searchKey ||
+      (typeof o.invoiceNo === 'number' && o.invoiceNo === invoiceNum) ||
+      (typeof o.invoiceNo === 'number' && o.invoiceNo === searchKeyNum)
     );
     
     if (!order) {
@@ -800,51 +831,57 @@ export default function AdminOrders(): React.JSX.Element {
 
   // Status mapping labels and color setups
   const getStatusBadge = (status: Order['status']) => {
-    switch (status) {
-      case 'Delivered': 
-        return {
-          text: 'SUCCESS',
-          class: 'bg-[#EBFDF5] text-[#10B981] border-[#D1FAE5]',
-        };
-      case 'Processing': 
-        return {
-          text: 'PREPARING',
-          class: 'bg-[#EFF6FF] text-[#1D4ED8] border-[#DBEAFE]',
-        };
-      case 'Pending': 
+    const text = normalizeStatus(status);
+    switch (text) {
+      case 'ORDER PLACED':
         return {
           text: 'ORDER PLACED',
-          class: 'bg-[#FAF5FC] text-[#9D27B0] border-[#F3E8FF]',
+          class: 'bg-[#FEF7E0] text-[#B06000] border-[#FEEFC3]',
         };
-      case 'Shipped': 
-        return {
-          text: 'SHIPPED',
-          class: 'bg-[#EFF6FF] text-[#1D4ED8] border-[#DBEAFE]',
-        };
-      case 'Cancelled': 
-        return {
-          text: 'CANCELLED',
-          class: 'bg-[#FFF1F2] text-[#E11D48] border-[#FFE4E6]',
-        };
-      case 'Printed':
+      case 'PRINTED':
         return {
           text: 'PRINTED',
-          class: 'bg-[#FEFCE8] text-[#CA8A04] border-[#FEF08A]',
+          class: 'bg-[#EDE9FE] text-[#6D28D9] border-[#DDD6FE]',
         };
-      case 'Hold':
+      case 'PREPARING':
+        return {
+          text: 'PREPARING',
+          class: 'bg-[#E3F2FD] text-[#0D47A1] border-[#BBDEFB]',
+        };
+      case 'PICK UP CANCEL':
+        return {
+          text: 'PICK UP CANCEL',
+          class: 'bg-[#FFF0F0] text-[#E53E3E] border-[#FED7D7]',
+        };
+      case 'SHIPPED':
+        return {
+          text: 'SHIPPED',
+          class: 'bg-[#EEF2FF] text-[#4F46E5] border-[#C7D2FE]',
+        };
+      case 'SUCCESS':
+        return {
+          text: 'SUCCESS',
+          class: 'bg-[#E6F4EA] text-[#137333] border-[#CEEAD6]',
+        };
+      case 'PARTIAL DELIVERY':
+        return {
+          text: 'PARTIAL DELIVERY',
+          class: 'bg-[#E0F7FA] text-[#006064] border-[#B2EBF2]',
+        };
+      case 'HOLD':
         return {
           text: 'HOLD',
-          class: 'bg-[#FFF7ED] text-[#EA580C] border-[#FED7AA]',
+          class: 'bg-[#FFF5F5] text-[#9B2C2C] border-[#FEB2B2]',
         };
-      case 'Returned':
+      case 'RETURNED':
         return {
           text: 'RETURNED',
-          class: 'bg-[#F1F5F9] text-[#475569] border-[#CBD5E1]',
+          class: 'bg-[#FFF0F0] text-[#E53E3E] border-[#FED7D7]',
         };
-      case 'QC':
+      case 'CANCELLED':
         return {
-          text: 'QC PASSED',
-          class: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+          text: 'CANCELLED',
+          class: 'bg-[#FEE2E2] text-[#DC2626] border-[#FCA5A5]',
         };
       default: 
         return {
@@ -931,25 +968,25 @@ export default function AdminOrders(): React.JSX.Element {
         <div className="flex flex-wrap items-center gap-2">
           {[
             { key: 'All', label: 'All' },
-            { key: 'Pending', label: 'Pending' },
-            { key: 'QC', label: 'Confirmed' },
-            { key: 'Shipped', label: 'Shipped' },
-            { key: 'Delivered', label: 'Delivered' },
-            { key: 'Returned', label: 'Returned' },
-            { key: 'Cancelled', label: 'Cancelled' },
-            { key: 'Hold', label: 'Refunded' },
+            { key: 'ORDER PLACED', label: 'Order Placed' },
+            { key: 'PRINTED', label: 'Printed' },
+            { key: 'PREPARING', label: 'Preparing' },
+            { key: 'PICK UP CANCEL', label: 'Pick Up Cancel' },
+            { key: 'SHIPPED', label: 'Shipped' },
+            { key: 'SUCCESS', label: 'Success' },
+            { key: 'PARTIAL DELIVERY', label: 'Partial Delivery' },
+            { key: 'HOLD', label: 'Hold' },
+            { key: 'RETURNED', label: 'Returned' },
+            { key: 'CANCELLED', label: 'Cancelled' },
           ].map(status => {
             const isActive = filterStatus === status.key;
             
-            // Calculate real count based on current state of database
+            // Calculate real count based on current state of database using normalized statuses
             let count = 0;
-            if (status.key === 'All') count = orders.length;
-            else if (status.key === 'QC') {
-              count = orders.filter(o => o.status === 'QC' || o.status === 'Processing' || o.status === 'Printed').length;
-            } else if (status.key === 'Hold') {
-              count = orders.filter(o => o.status === 'Hold').length;
+            if (status.key === 'All') {
+              count = orders.length;
             } else {
-              count = orders.filter(o => o.status === status.key).length;
+              count = orders.filter(o => normalizeStatus(o.status) === status.key).length;
             }
 
             return (
@@ -1046,23 +1083,41 @@ export default function AdminOrders(): React.JSX.Element {
 
         {/* Table representation */}
         <div className="overflow-x-auto no-scrollbar">
-          <table className="w-full text-left border-collapse min-w-[1000px]">
+          <table className="w-full text-left border-collapse min-w-[1500px]">
             <thead>
-              <tr className="border-b border-gray-100 text-xs font-semibold text-gray-400 h-14 bg-white select-none">
-                <th className="py-3 px-6 font-semibold text-left">Order</th>
+              <tr className="border-b border-gray-100 text-[11px] font-black tracking-wider text-gray-400 h-14 bg-white select-none uppercase">
+                <th className="py-3 px-4 font-semibold text-left w-12">
+                  <input 
+                    type="checkbox" 
+                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                    checked={filteredOrders.length > 0 && selectedOrderIds.length === filteredOrders.length}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedOrderIds(filteredOrders.map(o => o.id));
+                      } else {
+                        setSelectedOrderIds([]);
+                      }
+                    }}
+                  />
+                </th>
                 <th className="py-3 px-4 font-semibold text-left">Date</th>
-                <th className="py-3 px-4 font-semibold text-left">Customer</th>
-                <th className="py-3 px-4 font-semibold text-left">Items</th>
-                <th className="py-3 px-4 font-semibold text-left">Payment</th>
+                <th className="py-3 px-4 font-semibold text-left">Time</th>
+                <th className="py-3 px-4 font-semibold text-left">Order No</th>
+                <th className="py-3 px-4 font-semibold text-left">Invoice By</th>
+                <th className="py-3 px-4 font-semibold text-left">Invoice No</th>
                 <th className="py-3 px-4 font-semibold text-left">Status</th>
-                <th className="py-3 px-6 font-semibold text-right">Total</th>
+                <th className="py-3 px-4 font-semibold text-left">Name</th>
+                <th className="py-3 px-4 font-semibold text-left">Address</th>
+                <th className="py-3 px-4 font-semibold text-left">Number</th>
+                <th className="py-3 px-4 font-semibold text-left">Items</th>
+                <th className="py-3 px-4 font-semibold text-right">Total</th>
                 <th className="py-3 px-6 font-semibold text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 bg-white">
               {filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-24 text-center">
+                  <td colSpan={13} className="py-24 text-center">
                     <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 mx-auto mb-4 border border-gray-150">
                       <AlertCircle className="w-5 h-5 stroke-[1.5]" />
                     </div>
@@ -1072,18 +1127,10 @@ export default function AdminOrders(): React.JSX.Element {
                 </tr>
               ) : (
                 filteredOrders.slice(0, visibleCount).map((order) => {
-                  const dateObj = new Date(order.createdAt);
-                  const dateStr = dateObj.toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                  });
-
-                  // Format Order ID to match screenshot e.g. #ORD-69839693
+                  const dateTime = formatOrderDateTime(order.createdAt);
                   const cleanId = order.id.replace('ORD-', '').replace('#', '');
-                  const orderIdFormatted = `#ORD-${cleanId}`;
 
-                  // Initial letter for customer
+                  // Initial letter for customer avatar
                   const initial = order.customerName ? order.customerName.charAt(0).toUpperCase() : 'A';
 
                   // Format items description
@@ -1091,69 +1138,155 @@ export default function AdminOrders(): React.JSX.Element {
                     ? order.items.map(item => `${item.name}${item.selectedSize ? ` — Pant Size: ${item.selectedSize}` : ''}`).join(', ')
                     : 'No items';
 
-                  const paymentMethod = order.paymentMethod ? order.paymentMethod.toUpperCase() : 'COD';
-
                   return (
                     <tr 
                       key={order.id} 
                       onClick={() => setSelectedOrder(order)}
-                      className="hover:bg-gray-50/50 transition-colors cursor-pointer group h-16 border-b border-gray-100"
+                      className={cn(
+                        "hover:bg-gray-50/50 transition-colors cursor-pointer group h-16 border-b border-gray-100",
+                        order.issueType && order.issueStatus !== 'resolved' && "bg-[#FFF5F5]/30 hover:bg-[#FFF5F5]/50"
+                      )}
                     >
-                      {/* Order ID */}
-                      <td className="py-4 px-6">
-                        <span className="text-sm font-bold text-gray-900 font-sans">
-                          {orderIdFormatted}
-                        </span>
+                      {/* Checkbox */}
+                      <td className="py-4 px-4" onClick={(e) => e.stopPropagation()}>
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                          checked={selectedOrderIds.includes(order.id)}
+                          onChange={() => {
+                            if (selectedOrderIds.includes(order.id)) {
+                              setSelectedOrderIds(selectedOrderIds.filter(id => id !== order.id));
+                            } else {
+                              setSelectedOrderIds([...selectedOrderIds, order.id]);
+                            }
+                          }}
+                        />
                       </td>
 
                       {/* Date */}
-                      <td className="py-4 px-4">
-                        <span className="text-sm text-gray-500 font-sans font-medium">
-                          {dateStr}
-                        </span>
+                      <td className="py-4 px-4 whitespace-nowrap text-sm text-[#475569] font-sans font-medium">
+                        {dateTime.date}
                       </td>
 
-                      {/* Customer */}
+                      {/* Time */}
+                      <td className="py-4 px-4 whitespace-nowrap text-sm text-[#475569] font-sans font-medium">
+                        {dateTime.time}
+                      </td>
+
+                      {/* Order No */}
+                      <td className="py-4 px-4 whitespace-nowrap text-sm font-bold text-gray-900 font-mono-numbers">
+                        {cleanId}
+                      </td>
+
+                      {/* Invoice By */}
+                      <td className="py-4 px-4 whitespace-nowrap text-sm text-[#475569] font-medium">
+                        {getInvoiceBy(order)}
+                      </td>
+
+                      {/* Invoice No & Issue Badges */}
                       <td className="py-4 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 border border-blue-100 font-semibold text-xs flex items-center justify-center shrink-0">
-                            {initial}
-                          </div>
-                          <span className="text-sm font-semibold text-gray-900">
-                            {order.customerName}
+                        <div className="flex flex-col text-left gap-1">
+                          <span className="text-sm font-bold text-gray-900 font-mono-numbers leading-none">
+                            {order.invoiceNo || 1000}
                           </span>
+                          
+                          {order.issueType && (
+                            order.issueStatus === 'resolved' ? (
+                              <span className="inline-flex items-center gap-1 self-start px-2 py-0.5 rounded-full text-[9px] font-black tracking-wide bg-[#E6F4EA] text-[#137333] border border-[#CEEAD6] mt-1">
+                                <CheckCircle2 size={10} className="stroke-[3]" />
+                                SOLVED
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 self-start px-2 py-0.5 rounded-full text-[9px] font-black tracking-wide bg-[#FFF0F0] text-[#EB5757] border border-red-200 mt-1">
+                                <AlertTriangle size={10} className="stroke-[3]" />
+                                ACTIVE
+                              </span>
+                            )
+                          )}
                         </div>
                       </td>
 
+                      {/* Status Dropdown Pill */}
+                      <td className="py-4 px-4 relative" onClick={(e) => e.stopPropagation()}>
+                        <button 
+                          onClick={() => setActiveStatusDropdownOrderId(activeStatusDropdownOrderId === order.id ? null : order.id)}
+                          className={cn(
+                            "inline-flex items-center justify-between gap-1.5 px-3 py-1 text-xs font-semibold rounded-full border cursor-pointer select-none transition-all",
+                            getStatusBadge(order.status).class
+                          )}
+                        >
+                          <span className="uppercase text-[10px] tracking-wider font-extrabold">{normalizeStatus(order.status)}</span>
+                          <ChevronDown size={11} className="stroke-[2.5]" />
+                        </button>
+                        
+                        {activeStatusDropdownOrderId === order.id && (
+                          <>
+                            <div 
+                              className="fixed inset-0 z-30" 
+                              onClick={() => setActiveStatusDropdownOrderId(null)}
+                            />
+                            <div className="absolute left-4 mt-1 w-52 bg-white border border-[#334155] shadow-xl py-0.5 z-40">
+                              {[
+                                { key: 'ORDER PLACED', label: 'ORDER PLACED' },
+                                { key: 'PRINTED', label: 'PRINTED' },
+                                { key: 'PREPARING', label: 'PREPARING' },
+                                { key: 'PICK UP CANCEL', label: 'PICK UP CANCEL' },
+                                { key: 'SHIPPED', label: 'SHIPPED' },
+                                { key: 'SUCCESS', label: 'SUCCESS' },
+                                { key: 'PARTIAL DELIVERY', label: 'PARTIAL DELIVERY' },
+                                { key: 'HOLD', label: 'HOLD' },
+                                { key: 'RETURNED', label: 'RETURNED' },
+                                { key: 'CANCELLED', label: 'CANCELLED' },
+                              ].map(opt => {
+                                const isSelected = normalizeStatus(order.status) === opt.key;
+                                return (
+                                  <button
+                                    key={opt.key}
+                                    onClick={() => {
+                                      handleStatusChange(order.id, opt.key as Order['status']);
+                                      setActiveStatusDropdownOrderId(null);
+                                    }}
+                                    className={cn(
+                                      "w-full text-left px-4 py-2 text-[10px] font-black tracking-wider uppercase select-none transition-colors",
+                                      isSelected 
+                                        ? "bg-[#1976d2] text-white font-extrabold" 
+                                        : "text-[#0f172a] hover:bg-gray-100 font-bold"
+                                    )}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </>
+                        )}
+                      </td>
+
+                      {/* Name */}
+                      <td className="py-4 px-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                        {order.customerName}
+                      </td>
+
+                      {/* Address */}
+                      <td className="py-4 px-4 text-sm text-gray-600 max-w-[220px] truncate" title={order.address}>
+                        {order.address}
+                      </td>
+
+                      {/* Number (Phone) */}
+                      <td className="py-4 px-4 whitespace-nowrap text-sm text-gray-600 font-mono-numbers">
+                        {order.phone}
+                      </td>
+
                       {/* Items */}
-                      <td className="py-4 px-4 max-w-[280px] truncate">
-                        <span className="text-sm text-gray-600 truncate block font-medium" title={itemsSummary}>
+                      <td className="py-4 px-4 max-w-[200px] truncate">
+                        <span className="text-sm text-gray-500 truncate block font-medium" title={itemsSummary}>
                           {itemsSummary}
                         </span>
                       </td>
 
-                      {/* Payment */}
-                      <td className="py-4 px-4">
-                        <span className="inline-flex items-center justify-center px-2.5 py-1 bg-gray-100 border border-gray-200 text-gray-600 text-[10px] font-extrabold rounded-md tracking-wider">
-                          {paymentMethod}
-                        </span>
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-4 px-4">
-                        <span className={cn(
-                          "inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full border",
-                          order.status === 'Pending' && "bg-[#FEF7E0] text-[#B06000] border-[#FEEFC3]",
-                          order.status === 'Delivered' && "bg-[#E6F4EA] text-[#137333] border-[#CEEAD6]",
-                          order.status !== 'Pending' && order.status !== 'Delivered' && "bg-gray-50 text-gray-600 border-gray-200"
-                        )}>
-                          {order.status === 'Pending' ? 'Pending' : (order.status === 'Delivered' ? 'Delivered' : order.status)}
-                        </span>
-                      </td>
-
                       {/* Total */}
-                      <td className="py-4 px-6 text-right">
-                        <span className="text-sm font-bold text-gray-900 font-mono">
+                      <td className="py-4 px-4 text-right whitespace-nowrap">
+                        <span className="text-sm font-bold text-gray-900 font-mono-numbers">
                           ৳{Number(order.total || 0).toLocaleString()}
                         </span>
                       </td>
@@ -1181,9 +1314,17 @@ export default function AdminOrders(): React.JSX.Element {
                                 setIssueConversationOrder(order);
                               }} 
                               title="Order Issues"
-                              className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
+                              className={cn(
+                                "p-2 rounded-lg transition-all cursor-pointer relative",
+                                order.issueType && order.issueStatus !== 'resolved'
+                                  ? "text-rose-600 bg-rose-50 hover:bg-rose-100"
+                                  : "text-[#64748B] hover:text-[#0F172A] hover:bg-white hover:shadow-sm"
+                              )}
                             >
-                              <MessageSquare size={15} className="stroke-[2.5]" />
+                              <MessageSquare size={15} className={cn("stroke-[2.5]", order.issueType && order.issueStatus !== 'resolved' && "animate-pulse")} />
+                              {order.issueType && order.issueStatus !== 'resolved' && (
+                                <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-rose-600 rounded-full border border-white" />
+                              )}
                             </button>
                             
                             <div className="w-[1px] h-4 bg-[#E2E8F0] mx-0.5" />
@@ -2229,19 +2370,19 @@ export default function AdminOrders(): React.JSX.Element {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-[28px] w-full max-w-xl overflow-hidden shadow-2xl relative z-10 border border-[#EFF2F6] flex flex-col text-black font-sans max-h-[92vh]"
+              className="bg-[#E5E9F0] rounded-[32px] w-full max-w-2xl overflow-hidden shadow-2xl relative z-10 flex flex-col text-slate-800 font-sans max-h-[92vh] border border-white/20"
             >
               
               {/* Header block with chat icon, Title, Subtitle and View Order button */}
-              <div className="p-6 border-b border-[#EFF2F6] flex items-center justify-between bg-white shrink-0">
+              <div className="p-6 border-b border-slate-300/30 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3.5">
-                  <div className="w-11 h-11 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-                    <MessageSquare className="w-5 h-5 stroke-[2.2]" />
+                  <div className="w-11 h-11 rounded-full bg-transparent flex items-center justify-center shrink-0">
+                    <MessageSquare className="w-6 h-6 text-indigo-600 stroke-[2.2]" />
                   </div>
                   <div className="text-left">
                     <h2 className="text-base font-black text-[#0D1829] tracking-tight">Order Issue Conversation</h2>
                     <p className="text-[11px] font-bold text-indigo-600/70 font-mono mt-0.5">
-                      Internal discussion thread for Order No: {issueConversationOrder.id.slice(-10).toUpperCase()}
+                      Internal discussion thread for Order No: <span className="text-indigo-600 font-black">{issueConversationOrder.id.slice(-10).toUpperCase()}</span>
                     </p>
                   </div>
                 </div>
@@ -2252,14 +2393,14 @@ export default function AdminOrders(): React.JSX.Element {
                       setSelectedOrder(issueConversationOrder);
                       setIssueConversationOrder(null);
                     }}
-                    className="px-3 py-1.5 bg-[#FFF1EF] border border-[#FFE4E0] text-[#D83A1F] text-[10px] font-extrabold uppercase tracking-widest rounded-xl hover:bg-[#FFE4E0] transition-all flex items-center gap-1.5 shadow-3xs cursor-pointer animate-pulse"
+                    className="px-4 py-1.5 bg-white/60 text-indigo-600 text-[10px] font-extrabold uppercase tracking-widest rounded-full hover:bg-white transition-all flex items-center gap-1.5 shadow-sm cursor-pointer border border-slate-300/20"
                   >
                     <Eye size={12} className="stroke-[2.5]" />
                     View Order
                   </button>
                   <button 
                     onClick={() => setIssueConversationOrder(null)}
-                    className="w-8 h-8 rounded-full bg-[#FAFBFD] hover:bg-gray-150 flex items-center justify-center text-gray-400 hover:text-black transition-all cursor-pointer border border-[#EFF2F6]"
+                    className="w-8 h-8 rounded-full bg-white/60 hover:bg-white flex items-center justify-center text-gray-400 hover:text-black transition-all cursor-pointer border border-slate-300/40 shadow-sm"
                   >
                     <X size={15} className="stroke-[2.5]" />
                   </button>
@@ -2267,219 +2408,340 @@ export default function AdminOrders(): React.JSX.Element {
               </div>
 
               {/* Order quick metadata grid */}
-              <div className="bg-[#FAFBFD] border-b border-[#EFF2F6] p-4 grid grid-cols-2 sm:grid-cols-5 gap-3 shrink-0 text-left">
-                <div className="sm:col-span-2 space-y-0.5">
-                  <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block">Customer Details</span>
-                  <span className="text-[11px] font-black text-gray-800 block truncate">{issueConversationOrder.customerName}</span>
-                  <span className="text-[9px] font-bold text-gray-400 block truncate">{issueConversationOrder.phone}</span>
+              <div className="p-6 border-b border-slate-300/30 grid grid-cols-2 sm:grid-cols-3 gap-y-4 gap-x-4 shrink-0 text-left">
+                <div className="col-span-2 sm:col-span-1 space-y-1">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Customer Details</span>
+                  <span className="text-sm font-black text-slate-900 block truncate">{issueConversationOrder.customerName}</span>
+                  <span className="text-[10px] font-bold text-slate-500 block truncate">
+                    {issueConversationOrder.phone} <span className="mx-1 text-slate-300">•</span> {issueConversationOrder.address || issueConversationOrder.city}
+                  </span>
                 </div>
                 
-                <div className="space-y-0.5">
-                  <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block">Order Status</span>
-                  <div className="flex items-center gap-1">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                    <span className="text-[9px] font-black text-indigo-600 uppercase tracking-wider">
-                      {issueConversationOrder.status === 'QC' ? 'QC PASSED' : (issueConversationOrder.status === 'Pending' ? 'ORDER PLACED' : issueConversationOrder.status.toUpperCase())}
-                    </span>
-                  </div>
-                  <span className="text-[8px] font-extrabold text-gray-400 block truncate">VIA - {issueConversationOrder.paymentMethod.toUpperCase()}</span>
+                <div className="space-y-1">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Order Status</span>
+                  <span className="text-sm font-black text-slate-900 block uppercase">
+                    {issueConversationOrder.status === 'QC' ? 'QC PASSED' : (issueConversationOrder.status === 'Pending' ? 'ORDER PLACED' : issueConversationOrder.status.toUpperCase())}
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-500 block uppercase truncate">VIA {issueConversationOrder.paymentMethod || '-'}</span>
                 </div>
 
-                <div className="space-y-0.5">
-                  <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block">Date & Time</span>
-                  <span className="text-[10px] font-extrabold text-gray-800 block font-mono">
+                <div className="space-y-1">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Date & Time</span>
+                  <span className="text-sm font-black text-slate-900 block font-mono">
                     {formatOrderDateTime(issueConversationOrder.createdAt).date}
                   </span>
-                  <span className="text-[9px] font-bold text-gray-400 block font-mono">
+                  <span className="text-[10px] font-bold text-slate-500 block font-mono">
                     {formatOrderDateTime(issueConversationOrder.createdAt).time}
                   </span>
                 </div>
 
-                <div className="space-y-0.5">
-                  <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block">Collectable</span>
-                  <span className="text-[11px] font-black text-[#D83A1F] block font-mono">
-                    {formatPrice(issueConversationOrder.total)}
+                <div className="col-span-2 space-y-1">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Item Summary</span>
+                  <span className="text-sm font-black text-indigo-600 block">
+                    {issueConversationOrder.items.map(it => `${it.name} (${it.selectedSize} (x${it.quantity}))`).join(', ')}
                   </span>
-                  <span className="text-[8px] font-bold text-gray-400 block truncate uppercase">
-                    {issueConversationOrder.city}
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Collectable</span>
+                  <span className="text-sm font-black text-[#EB5A3C] block font-mono">
+                    {formatPrice(issueConversationOrder.total)}
                   </span>
                 </div>
               </div>
 
-              {/* Items summary ribbon */}
-              <div className="px-6 py-2.5 bg-[#FFF7ED] border-b border-[#FED7AA] text-[10px] text-amber-800 font-bold flex items-center gap-2 text-left shrink-0">
-                <span className="uppercase tracking-widest text-[8px] font-black text-amber-500 shrink-0 bg-white px-1.5 py-0.5 rounded border border-amber-200">Items ({issueConversationOrder.items.reduce((acc, it) => acc + it.quantity, 0)})</span>
-                <span className="truncate">{issueConversationOrder.items.map(it => `${it.name} (${it.selectedSize} x${it.quantity})`).join(', ')}</span>
-              </div>
-
               {/* Modal Body / Chat container */}
-              <div className="flex-1 overflow-y-auto p-6 bg-white flex flex-col min-h-0">
+              <div className="flex-1 overflow-y-auto p-6 flex flex-col min-h-0 bg-[#E5E9F0]">
                 
-                {/* No active issue case */}
-                {!issueConversationOrder.issueType ? (
-                  <div className="my-auto text-center py-6 px-4 border border-dashed border-gray-200 bg-[#FAF9FF] rounded-2xl flex flex-col items-center">
-                    <span className="text-sm font-black text-[#0D1829] uppercase tracking-wider mb-1.5">NO OPEN ISSUES FOUND</span>
-                    <p className="text-[11px] text-gray-400 font-bold max-w-sm mb-6 leading-relaxed">
-                      No issues have been reported for this order yet. Provide a description below to report this order and start an internal conversation thread.
-                    </p>
+                {/* Active Issue Info / Overview Card matching screenshot exactly */}
+                <div className="bg-white rounded-3xl border border-slate-200/60 p-5 mb-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-left">
+                  <div className="space-y-2.5 flex-1 min-w-0">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">ISSUE OVERVIEW</span>
                     
-                    <div className="grid grid-cols-2 gap-3 w-full max-w-md text-left mb-4">
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Issue Type</label>
-                        <select 
-                          value={newIssueType}
-                          onChange={(e) => setNewIssueType(e.target.value)}
-                          className="w-full bg-white border border-gray-200 text-[10px] font-extrabold uppercase tracking-wider rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                    {isEditingIssueMeta ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <select
+                          value={issueMetaType}
+                          onChange={(e) => setIssueMetaType(e.target.value)}
+                          className="bg-white border border-slate-300 text-[10px] font-black rounded-lg px-2.5 py-1.5 outline-none text-slate-800 focus:ring-2 focus:ring-indigo-500/20"
                         >
+                          <option value="QC">QC</option>
                           <option value="Sizing Mismatch">Sizing Mismatch</option>
                           <option value="Delivery Delay">Delivery Delay</option>
                           <option value="Damaged Product">Damaged Product</option>
                           <option value="Payment Issue">Payment Issue</option>
                           <option value="Custom Issue">Custom Issue</option>
                         </select>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Urgency Level</label>
-                        <select 
-                          value={newUrgency}
-                          onChange={(e) => setNewUrgency(e.target.value)}
-                          className="w-full bg-white border border-gray-200 text-[10px] font-extrabold uppercase tracking-wider rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                        <select
+                          value={issueMetaUrgency}
+                          onChange={(e) => setIssueMetaUrgency(e.target.value)}
+                          className="bg-white border border-slate-300 text-[10px] font-black rounded-lg px-2.5 py-1.5 outline-none text-slate-800 focus:ring-2 focus:ring-indigo-500/20"
                         >
                           <option value="Normal">Normal</option>
                           <option value="High">High</option>
                           <option value="Critical">Critical</option>
                         </select>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await updateOrder(issueConversationOrder.id, {
+                                issueType: issueMetaType,
+                                issueUrgency: issueMetaUrgency
+                              });
+                              setIssueConversationOrder({
+                                ...issueConversationOrder,
+                                issueType: issueMetaType,
+                                issueUrgency: issueMetaUrgency
+                              });
+                              setIsEditingIssueMeta(false);
+                              toast.success("Issue parameters updated!");
+                            } catch {
+                              toast.error("Failed to update settings");
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-indigo-700 transition-colors cursor-pointer shadow-3xs"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => setIsEditingIssueMeta(false)}
+                          className="px-3 py-1.5 bg-slate-200 text-slate-700 rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-slate-300 transition-colors cursor-pointer"
+                        >
+                          Cancel
+                        </button>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {/* OPEN ISSUE badge */}
+                        <span className={cn(
+                          "px-2.5 py-1 text-[10px] font-extrabold rounded-full border uppercase tracking-wider flex items-center gap-1.5 shadow-3xs",
+                          !issueConversationOrder.issueType 
+                            ? 'bg-slate-100 text-slate-500 border-slate-200' 
+                            : issueConversationOrder.issueStatus === 'resolved'
+                              ? 'bg-[#E6F4EA] text-[#137333] border-[#CEEAD6]'
+                              : 'bg-[#FCE8E6] text-[#C5221F] border-[#FAD2CF]'
+                        )}>
+                          <span className={cn(
+                            "w-1.5 h-1.5 rounded-full shrink-0", 
+                            !issueConversationOrder.issueType 
+                              ? 'bg-slate-400' 
+                              : issueConversationOrder.issueStatus === 'resolved' 
+                                ? 'bg-[#137333]' 
+                                : 'bg-[#C5221F] animate-pulse'
+                          )} />
+                          {!issueConversationOrder.issueType 
+                            ? 'NO ACTIVE ISSUE' 
+                            : issueConversationOrder.issueStatus === 'resolved' 
+                              ? 'SOLVED' 
+                              : 'OPEN ISSUE'}
+                        </span>
 
-                    <div className="w-full max-w-md text-left mb-5">
-                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Describe the Issue</label>
-                      <textarea 
-                        value={newIssueDesc}
-                        onChange={(e) => setNewIssueDesc(e.target.value)}
-                        placeholder="Provide details about the issue to start an internal conversation..."
-                        className="w-full bg-white border border-gray-200 text-xs font-semibold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 h-24 placeholder:text-gray-300 placeholder:font-normal resize-none"
-                      />
-                    </div>
+                        {/* TYPE badge */}
+                        <span className="px-2.5 py-1 text-[10px] font-extrabold bg-[#FFF9E6] text-[#B06000] border border-[#FCE39E] rounded-full uppercase tracking-wider shadow-3xs">
+                          TYPE: {issueConversationOrder.issueType || 'QC'}
+                        </span>
 
-                    <div className="flex gap-2.5">
+                        {/* URGENCY badge */}
+                        <span className="px-2.5 py-1 text-[10px] font-extrabold bg-[#E8F0FE] text-[#1A73E8] border border-[#D2E3FC] rounded-full uppercase tracking-wider shadow-3xs">
+                          URGENCY: {issueConversationOrder.issueUrgency?.toUpperCase() || 'NORMAL'}
+                        </span>
+
+                        {/* Edit / Pencil button */}
+                        <button 
+                          onClick={() => {
+                            setIssueMetaType(issueConversationOrder.issueType || 'QC');
+                            setIssueMetaUrgency(issueConversationOrder.issueUrgency || 'Normal');
+                            setIsEditingIssueMeta(true);
+                          }}
+                          className="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors border border-slate-200 cursor-pointer shadow-3xs"
+                          title="Edit issue settings"
+                        >
+                          <Edit3 size={11} className="stroke-[2.5]" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right side CTA stack matching exactly the screenshot buttons */}
+                  <div className="flex flex-col gap-2 w-full sm:w-auto shrink-0">
+                    <div className="flex gap-2">
                       <button 
-                        onClick={handleCreateIssue}
-                        className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md hover:shadow-lg flex items-center gap-2 cursor-pointer"
+                        onClick={async () => {
+                          const systemReply = {
+                            sender: 'system' as const,
+                            message: `Rabbi changed issue status to Solved`,
+                            timestamp: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }) + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+                          };
+                          const existingReplies = issueConversationOrder.issueReplies || [];
+                          const updatedReplies = [...existingReplies, systemReply];
+                          await updateOrder(issueConversationOrder.id, {
+                            issueReplies: updatedReplies,
+                            issueStatus: 'resolved'
+                          });
+                          setIssueConversationOrder({
+                            ...issueConversationOrder,
+                            issueStatus: 'resolved',
+                            issueReplies: updatedReplies
+                          });
+                          toast.success("Issue marked as solved!");
+                        }}
+                        className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 bg-[#5E50F9] hover:bg-[#4E40E9] text-white font-extrabold text-[10.5px] rounded-full uppercase tracking-wider transition-all shadow-md cursor-pointer hover:shadow-lg"
                       >
-                        <Plus size={12} /> Create Issue & Start Thread
+                        <Clock size={12} className="stroke-[2.5]" />
+                        READY TO SHIP
                       </button>
 
-                      {issueConversationOrder.status !== 'QC' && (
-                        <button 
-                          onClick={async () => {
-                            await handleStatusChange(issueConversationOrder.id, 'QC');
-                            const updatedOrder = {
-                              ...issueConversationOrder,
-                              status: 'QC' as const
-                            };
-                            setIssueConversationOrder(updatedOrder);
-                          }}
-                          className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md hover:shadow-lg flex items-center gap-2 cursor-pointer"
-                        >
-                          <CheckCircle2 size={12} /> Mark as QC Passed
-                        </button>
-                      )}
+                      <button 
+                        onClick={async () => {
+                          await handleStatusChange(issueConversationOrder.id, 'Cancelled');
+                          const systemReply = {
+                            sender: 'system' as const,
+                            message: `Sabbir requested cancellation`,
+                            timestamp: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }) + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+                          };
+                          const existingReplies = issueConversationOrder.issueReplies || [];
+                          const updatedReplies = [...existingReplies, systemReply];
+                          await updateOrder(issueConversationOrder.id, {
+                            issueReplies: updatedReplies,
+                            status: 'Cancelled'
+                          });
+                          setIssueConversationOrder({
+                            ...issueConversationOrder,
+                            status: 'Cancelled',
+                            issueReplies: updatedReplies
+                          });
+                        }}
+                        className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 bg-[#FFAB00] hover:bg-[#e09600] text-white font-extrabold text-[10.5px] rounded-full uppercase tracking-wider transition-all shadow-md cursor-pointer hover:shadow-lg"
+                      >
+                        <AlertTriangle size={12} className="stroke-[2.5]" />
+                        CANCEL REQUEST
+                      </button>
                     </div>
+
+                    <button 
+                      onClick={() => {
+                        setSelectedOrder(issueConversationOrder);
+                        setIsEditingDetails(true);
+                        setIssueConversationOrder(null);
+                      }}
+                      className="flex items-center justify-center gap-1.5 px-4 py-2 bg-[#0090FF] hover:bg-[#007edb] text-white font-extrabold text-[10.5px] rounded-full uppercase tracking-wider transition-all shadow-md cursor-pointer hover:shadow-lg w-full"
+                    >
+                      <Edit3 size={12} className="stroke-[2.5]" />
+                      EDIT ORDER
+                    </button>
                   </div>
-                ) : (
-                  // Active issue conversation thread layout matching screen visual
-                  <div className="flex flex-col flex-1 min-h-0 text-left">
-                    
-                    {/* Active Issue Info Band */}
-                    <div className="bg-[#FAF9FF] border border-indigo-100 rounded-2xl p-4 mb-4 flex items-center justify-between shrink-0">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-black bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-0.5 rounded uppercase tracking-wider">
-                            {issueConversationOrder.issueType}
-                          </span>
-                          <span className={cn(
-                            "text-[10px] font-black px-2 py-0.5 rounded border uppercase tracking-wider",
-                            issueConversationOrder.issueUrgency === 'Critical' ? 'bg-rose-50 text-rose-700 border-rose-100' : 
-                            issueConversationOrder.issueUrgency === 'High' ? 'bg-amber-50 text-amber-700 border-amber-100' : 
-                            'bg-gray-50 text-gray-700 border-gray-100'
-                          )}>
-                            {issueConversationOrder.issueUrgency || 'Normal'} Urgency
-                          </span>
+                </div>
+
+                {/* Active issue conversation layout */}
+                <div className="flex flex-col flex-1 min-h-0 text-left">
+                  
+                  {/* Chat log messages list */}
+                  <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-1 no-scrollbar min-h-[260px] max-h-[360px] flex flex-col justify-end">
+                    {/* If there are no messages */}
+                    {(!issueConversationOrder.issueReplies || issueConversationOrder.issueReplies.length === 0) ? (
+                      <div className="my-auto text-center py-8 px-4 flex flex-col items-center justify-center w-full">
+                        <div className="w-12 h-12 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center mb-3">
+                          <MessageSquare className="text-indigo-500 w-5 h-5" />
                         </div>
-                        <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-wide">
-                          Current status: <span className="font-extrabold text-indigo-600">{issueConversationOrder.issueStatus?.toUpperCase() || 'OPEN'}</span>
+                        <span className="text-[11px] font-black text-slate-700 uppercase tracking-wider">Start Internal Discussion</span>
+                        <p className="text-[10px] text-slate-500 font-bold max-w-xs mt-1 text-center">
+                          Type your message below and press SEND to activate this order issue thread.
                         </p>
                       </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {issueConversationOrder.issueReplies.map((reply: any, rIdx: number) => {
+                          const isSystemMsg = reply.sender === 'system' || reply.message.startsWith('[System]') || reply.message.includes('changed issue status') || reply.message.includes('updated Type') || reply.message.includes('requested cancellation');
+                          
+                          if (isSystemMsg) {
+                            const cleanMsg = reply.message.replace('[System]', '').trim();
+                            return (
+                              <div key={rIdx} className="flex justify-center my-1.5 w-full">
+                                <div className="bg-slate-200/50 border border-slate-300/40 text-slate-600 text-[10.5px] font-bold py-1.5 px-4 rounded-full flex items-center gap-1.5 shadow-3xs mx-auto">
+                                  <Clock size={11} className="text-slate-400 shrink-0" />
+                                  <span>{cleanMsg} • {reply.timestamp}</span>
+                                </div>
+                              </div>
+                            );
+                          }
 
-                      <div>
-                        {issueConversationOrder.issueStatus === 'resolved' ? (
-                          <button 
-                            onClick={() => handleToggleIssueStatus('open')}
-                            className="px-3 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] font-extrabold uppercase tracking-widest rounded-xl hover:bg-indigo-100 transition-all cursor-pointer shadow-3xs"
-                          >
-                            Reopen Issue
-                          </button>
-                        ) : (
-                          <button 
-                            onClick={() => handleToggleIssueStatus('resolved')}
-                            className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-extrabold uppercase tracking-widest rounded-xl hover:bg-emerald-100 transition-all cursor-pointer shadow-3xs"
-                          >
-                            Mark as Resolved
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                          const isAdminMsg = reply.sender === 'admin';
+                          const senderInitials = isAdminMsg ? 'SA' : (reply.senderName ? reply.senderName.slice(0, 2).toUpperCase() : 'MI');
+                          const senderDisplayName = isAdminMsg ? 'SABBIR' : (reply.senderName || 'MITHELA');
 
-                    {/* Chat log messages list */}
-                    <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-1 no-scrollbar max-h-64">
-                      {(issueConversationOrder.issueReplies || []).map((reply: any, rIdx: number) => {
-                        const isAdminMsg = reply.sender === 'admin';
-                        return (
-                          <div 
-                            key={rIdx} 
-                            className={cn(
-                              "flex flex-col max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed",
-                              isAdminMsg 
-                                ? "bg-indigo-600 text-white ml-auto rounded-tr-none" 
-                                : "bg-gray-100 text-gray-800 mr-auto rounded-tl-none border border-gray-200"
-                            )}
-                          >
-                            <div className="flex items-center justify-between gap-4 mb-1">
-                              <span className="font-extrabold uppercase tracking-widest text-[8px] opacity-75">
-                                {isAdminMsg ? 'Admin Sabbir' : 'Customer Team'}
-                              </span>
-                              <span className="text-[8px] font-semibold opacity-60 font-mono">
-                                {reply.timestamp}
-                              </span>
+                          return (
+                            <div 
+                              key={rIdx} 
+                              className={cn(
+                                "flex items-start gap-2.5 w-full",
+                                isAdminMsg ? "justify-end text-right" : "justify-start text-left"
+                              )}
+                            >
+                              {/* Left Avatar for incoming */}
+                              {!isAdminMsg && (
+                                <div className="w-7 h-7 rounded-full bg-slate-300 border border-slate-400/20 text-slate-700 text-[10px] font-black flex items-center justify-center shrink-0 shadow-sm">
+                                  {senderInitials}
+                                </div>
+                              )}
+
+                              {/* Message bubble */}
+                              <div 
+                                className={cn(
+                                  "flex flex-col max-w-[75%] rounded-[20px] p-3 text-xs leading-relaxed shadow-3xs",
+                                  isAdminMsg 
+                                    ? "bg-[#5E50F9] text-white rounded-tr-none text-left" 
+                                    : "bg-white text-slate-800 border border-slate-200/60 rounded-tl-none text-left"
+                                )}
+                              >
+                                <div className="flex items-center gap-3 mb-1">
+                                  <span className={cn(
+                                    "font-black uppercase tracking-widest text-[8px]",
+                                    isAdminMsg ? "text-indigo-100" : "text-slate-400"
+                                  )}>
+                                    {senderDisplayName}
+                                  </span>
+                                  <span className={cn(
+                                    "text-[8px] font-bold font-mono",
+                                    isAdminMsg ? "text-indigo-200" : "text-slate-400"
+                                  )}>
+                                    {reply.timestamp}
+                                  </span>
+                                </div>
+                                <p className="font-semibold">{reply.message}</p>
+                              </div>
+
+                              {/* Right Avatar for outgoing */}
+                              {isAdminMsg && (
+                                <div className="w-7 h-7 rounded-full bg-[#5E50F9] border border-indigo-400/20 text-white text-[10px] font-black flex items-center justify-center shrink-0 shadow-sm">
+                                  {senderInitials}
+                                </div>
+                              )}
                             </div>
-                            <p className="font-semibold text-left">{reply.message}</p>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Chat reply typing input and controls */}
-                    <form onSubmit={handleSendIssueReply} className="border-t border-gray-100 pt-3 flex gap-2 shrink-0">
-                      <input 
-                        type="text" 
-                        value={issueReplyText}
-                        onChange={(e) => setIssueReplyText(e.target.value)}
-                        placeholder={issueConversationOrder.issueStatus === 'resolved' ? "This conversation is resolved. Reopen to reply." : "Type reply to thread..."}
-                        disabled={issueConversationOrder.issueStatus === 'resolved'}
-                        className="flex-1 bg-[#F8FAFC] border border-gray-100 text-xs font-semibold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-50"
-                      />
-                      <button 
-                        type="submit"
-                        disabled={issueConversationOrder.issueStatus === 'resolved' || !issueReplyText.trim()}
-                        className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md disabled:opacity-50 disabled:pointer-events-none cursor-pointer flex items-center gap-1.5"
-                      >
-                        <Send size={11} /> Send
-                      </button>
-                    </form>
-
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                )}
+
+                  {/* Chat reply typing input and controls */}
+                  <form onSubmit={handleSendIssueReply} className="border-t border-slate-300/30 pt-4 flex gap-3 shrink-0">
+                    <input 
+                      type="text" 
+                      value={issueReplyText}
+                      onChange={(e) => setIssueReplyText(e.target.value)}
+                      placeholder="Type your message here..."
+                      className="flex-1 bg-white border border-slate-300/50 text-xs font-semibold rounded-2xl px-5 py-3.5 outline-none focus:ring-2 focus:ring-[#5E50F9]/20 focus:border-[#5E50F9] text-slate-800 placeholder:text-slate-400"
+                    />
+                    <button 
+                      type="submit"
+                      disabled={!issueReplyText.trim()}
+                      className="px-8 py-3.5 bg-[#8C82FC] hover:bg-[#7267FC] text-white text-xs font-black uppercase tracking-wider rounded-2xl transition-all shadow-md disabled:opacity-50 disabled:pointer-events-none cursor-pointer flex items-center justify-center gap-1.5 shrink-0"
+                    >
+                      SEND
+                    </button>
+                  </form>
+
+                </div>
               </div>
 
             </motion.div>
@@ -2503,763 +2765,499 @@ export default function AdminOrders(): React.JSX.Element {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-[#F8FAFC] rounded-[24px] w-full max-w-4xl overflow-hidden shadow-2xl relative z-10 border border-gray-200 flex flex-col text-black font-sans max-h-[95vh]"
+              className="bg-[#E5E9F0] rounded-[32px] w-full max-w-4xl overflow-hidden shadow-2xl relative z-10 border border-white/40 flex flex-col text-slate-800 font-sans max-h-[92vh]"
             >
               
-              {/* Header block with Order Name, Status, and Total Price */}
-              <div className="p-4 px-6 border-b border-gray-200 bg-white flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => {
-                      setSelectedOrder(null);
-                      setIsEditingDetails(false);
-                    }}
-                    className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-500 hover:text-black transition-all cursor-pointer border border-gray-200"
-                  >
-                    <X size={16} />
-                  </button>
-                  <div className="text-left">
-                    <h2 className="text-sm font-bold text-gray-950 leading-tight">Order #ORD-{selectedOrder.id}</h2>
-                    <p className="text-xs text-gray-400 mt-0.5">{selectedOrder.customerName} · {formatOrderDate(selectedOrder.createdAt)}</p>
+              {isEditingDetails ? (
+                <>
+                  {/* Header block for edit details */}
+                  <div className="p-6 border-b border-slate-300/40 flex items-center justify-between shrink-0 bg-[#E5E9F0]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                        <Edit3 className="w-5 h-5 stroke-[2.2]" />
+                      </div>
+                      <div className="text-left">
+                        <h2 className="text-base font-black text-[#0D1829] tracking-tight">Edit Order Details</h2>
+                        <p className="text-xs text-slate-500 font-bold">Modifying order record #ORD-{selectedOrder.id}</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setIsEditingDetails(false)}
+                      className="w-8 h-8 rounded-full bg-white/60 hover:bg-white flex items-center justify-center text-gray-400 hover:text-black transition-all cursor-pointer border border-slate-300/40 shadow-sm"
+                    >
+                      <X size={15} className="stroke-[2.5]" />
+                    </button>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => {
-                      setInvoiceOrder(selectedOrder);
-                      setShowInvoiceModal(true);
-                    }}
-                    className="flex items-center gap-1.5 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-bold text-xs py-1.5 px-3 rounded-lg transition-all cursor-pointer shadow-3xs"
-                  >
-                    <Printer size={13} className="text-gray-500" />
-                    <span>Print invoice</span>
-                  </button>
-                </div>
-              </div>
+                  {/* Scrollable container for Form */}
+                  <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#E5E9F0] no-scrollbar">
+                    <div className="space-y-4 text-left bg-white rounded-2xl border border-slate-200/60 p-6 shadow-sm">
+                      <div className="border-b border-gray-150 pb-2 flex justify-between items-center">
+                        <div>
+                          <h3 className="text-xs font-black uppercase text-indigo-600 tracking-wider">Modify Order Record</h3>
+                          <p className="text-[10px] text-gray-400 font-semibold mt-0.5">Edit customer details, logistics parameters, and notes below.</p>
+                        </div>
+                        {isSuperAdmin && (
+                          <button 
+                            onClick={() => {
+                              const orderId = selectedOrder.id;
+                              const shortId = orderId.slice(-6);
+                              setDeleteConfirm({
+                                isOpen: true,
+                                title: `Delete Order #${shortId}?`,
+                                message: `Are you sure you want to PERMANENTLY DELETE Order #${shortId}? This will remove it from the database forever and cannot be undone.`,
+                                onConfirm: async () => {
+                                  try {
+                                    const deletePromise = deleteOrder(orderId);
+                                    toast.promise(deletePromise, {
+                                      loading: 'Deleting order...',
+                                      success: 'Order deleted successfully',
+                                      error: (err) => `Delete failed: ${err.message || 'Permission denied'}`
+                                    });
+                                    await deletePromise;
+                                    setSelectedOrder(null);
+                                  } catch (err: any) {
+                                    console.error('[AdminOrders Modal] Delete Catch:', err);
+                                  } finally {
+                                    setDeleteConfirm(prev => ({ ...prev, isOpen: false }));
+                                  }
+                                }
+                              });
+                            }}
+                            className="flex items-center gap-1.5 bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs py-2 px-4 rounded-xl transition-all cursor-pointer shadow-md"
+                          >
+                            <Trash2 size={13} />
+                            <span>Delete Order</span>
+                          </button>
+                        )}
+                      </div>
 
-              {/* Status and Total top indicator panel */}
-              <div className="bg-white p-4 px-6 border-b border-gray-150 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-2">
-                  <span className={cn(
-                    "px-3 py-1 text-xs font-bold rounded border uppercase tracking-wider",
-                    selectedOrder.status === 'Delivered' ? 'bg-[#E6F4EA] text-[#137333] border-[#CEEAD6]' :
-                    selectedOrder.status === 'Cancelled' ? 'bg-[#FCE8E6] text-[#C5221F] border-[#FAD2CF]' :
-                    selectedOrder.status === 'Shipped' ? 'bg-[#E8F0FE] text-[#1A73E8] border-[#D2E3FC]' :
-                    selectedOrder.status === 'Pending' ? 'bg-[#FFF9E6] text-[#B06000] border-[#FCE39E]' :
-                    selectedOrder.status === 'QC' ? 'bg-[#E0F7FA] text-[#006064] border-[#B2EBF2]' :
-                    'bg-[#EEF2FF] text-[#4F46E5] border-[#C7D2FE]'
-                  )}>
-                    {selectedOrder.status === 'QC' ? 'Confirmed' : selectedOrder.status}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">TOTAL</span>
-                  <span className="text-xl font-extrabold text-gray-950">
-                    ৳ {formatPrice(selectedOrder.total, currency, rate)}
-                  </span>
-                </div>
-              </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Customer Name</label>
+                          <input 
+                            type="text" 
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Phone Number</label>
+                          <input 
+                            type="text" 
+                            value={editPhone}
+                            onChange={(e) => setEditPhone(e.target.value)}
+                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
+                          />
+                        </div>
+                      </div>
 
-              {/* Scrollable Container */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar">
-                
-                {isEditingDetails ? (
-                  /* Inline Edit Mode Form */
-                  <div className="space-y-4 text-left bg-white p-6 rounded-2xl border border-gray-200">
-                    <div className="border-b border-gray-150 pb-2">
-                       <h3 className="text-xs font-black uppercase text-indigo-600 tracking-wider">Modify Order Record</h3>
-                       <p className="text-[10px] text-gray-400 font-semibold mt-0.5">Edit customer details, logistics parameters, and notes below.</p>
-                    </div>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="col-span-2 space-y-1">
+                          <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Postal Address</label>
+                          <input 
+                            type="text" 
+                            value={editAddress}
+                            onChange={(e) => setEditAddress(e.target.value)}
+                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">City</label>
+                          <input 
+                            type="text" 
+                            value={editCity}
+                            onChange={(e) => setEditCity(e.target.value)}
+                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
+                          />
+                        </div>
+                      </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-4 gap-2">
+                        <div className="space-y-1 col-span-2">
+                          <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Order Status</label>
+                          <select 
+                            value={normalizeStatus(editStatus)}
+                            onChange={(e) => setEditStatus(e.target.value as any)}
+                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white cursor-pointer uppercase"
+                          >
+                            <option value="ORDER PLACED">ORDER PLACED</option>
+                            <option value="PRINTED">PRINTED</option>
+                            <option value="PREPARING">PREPARING</option>
+                            <option value="PICK UP CANCEL">PICK UP CANCEL</option>
+                            <option value="SHIPPED">SHIPPED</option>
+                            <option value="SUCCESS">SUCCESS</option>
+                            <option value="PARTIAL DELIVERY">PARTIAL DELIVERY</option>
+                            <option value="HOLD">HOLD</option>
+                            <option value="RETURNED">RETURNED</option>
+                            <option value="CANCELLED">CANCELLED</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Delivery Fee</label>
+                          <input 
+                            type="number" 
+                            value={editDeliveryCharge}
+                            onChange={(e) => setEditDeliveryCharge(Number(e.target.value))}
+                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Discount</label>
+                          <input 
+                            type="number" 
+                            value={editDiscount}
+                            onChange={(e) => setEditDiscount(Number(e.target.value))}
+                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Advance Paid</label>
+                          <input 
+                            type="number" 
+                            value={editAdvancePayment}
+                            onChange={(e) => setEditAdvancePayment(Number(e.target.value))}
+                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Order Note</label>
+                          <input 
+                            type="text" 
+                            value={editNotes}
+                            onChange={(e) => setEditNotes(e.target.value)}
+                            placeholder="e.g. Agamikal booking dite hobe"
+                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
+                          />
+                        </div>
+                      </div>
+
                       <div className="space-y-1">
-                        <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Customer Name</label>
-                        <input 
-                          type="text" 
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Phone Number</label>
-                        <input 
-                          type="text" 
-                          value={editPhone}
-                          onChange={(e) => setEditPhone(e.target.value)}
-                          className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="col-span-2 space-y-1">
-                        <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Postal Address</label>
-                        <input 
-                          type="text" 
-                          value={editAddress}
-                          onChange={(e) => setEditAddress(e.target.value)}
-                          className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">City</label>
-                        <input 
-                          type="text" 
-                          value={editCity}
-                          onChange={(e) => setEditCity(e.target.value)}
-                          className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-4 gap-2">
-                      <div className="space-y-1 col-span-2">
-                        <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Order Status</label>
+                        <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Invoice By</label>
                         <select 
-                          value={editStatus}
-                          onChange={(e) => setEditStatus(e.target.value as any)}
-                          className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white cursor-pointer"
+                          value={editInvoiceBy}
+                          onChange={(e) => setEditInvoiceBy(e.target.value)}
+                          className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white appearance-none cursor-pointer"
                         >
-                          <option value="Pending">Pending (Placed)</option>
-                          <option value="QC">QC Passed</option>
-                          <option value="Printed">Printed</option>
-                          <option value="Processing">Processing (Preparing)</option>
-                          <option value="Shipped">Shipped</option>
-                          <option value="Delivered">Delivered (Success)</option>
-                          <option value="Hold">Hold</option>
-                          <option value="Returned">Returned</option>
-                          <option value="Cancelled">Cancelled</option>
+                          <option value="Website order">Website order</option>
+                          <option value="Sabbir">Sabbir</option>
+                          <option value="Nasir">Nasir</option>
+                          <option value="Shamiul">Shamiul</option>
+                          <option value="Office Sale">Office Sale</option>
                         </select>
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Delivery Fee</label>
-                        <input 
-                          type="number" 
-                          value={editDeliveryCharge}
-                          onChange={(e) => setEditDeliveryCharge(Number(e.target.value))}
-                          className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Discount</label>
-                        <input 
-                          type="number" 
-                          value={editDiscount}
-                          onChange={(e) => setEditDiscount(Number(e.target.value))}
-                          className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
-                        />
-                      </div>
-                    </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Advance Paid</label>
-                        <input 
-                          type="number" 
-                          value={editAdvancePayment}
-                          onChange={(e) => setEditAdvancePayment(Number(e.target.value))}
-                          className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
-                        />
+                      <div className="pt-4 flex gap-3">
+                        <button 
+                          type="button"
+                          onClick={() => setIsEditingDetails(false)}
+                          className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer"
+                        >
+                          Discard
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={async () => {
+                            const computedSubtotal = selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                            try {
+                              await updateOrder(selectedOrder.id, {
+                                customerName: editName,
+                                phone: editPhone,
+                                address: editAddress,
+                                city: editCity,
+                                status: editStatus,
+                                deliveryCharge: editDeliveryCharge,
+                                discount: editDiscount,
+                                advancePayment: editAdvancePayment,
+                                notes: editNotes,
+                                total: computedSubtotal + editDeliveryCharge - editDiscount,
+                                invoiceBy: editInvoiceBy
+                              });
+                              
+                              setSelectedOrder({
+                                ...selectedOrder,
+                                customerName: editName,
+                                phone: editPhone,
+                                address: editAddress,
+                                city: editCity,
+                                status: editStatus,
+                                deliveryCharge: editDeliveryCharge,
+                                discount: editDiscount,
+                                advancePayment: editAdvancePayment,
+                                notes: editNotes,
+                                total: computedSubtotal + editDeliveryCharge - editDiscount,
+                                invoiceBy: editInvoiceBy
+                              } as any);
+                              
+                              setIsEditingDetails(false);
+                              toast.success("Order records updated beautifully!");
+                            } catch (err) {
+                              toast.error("Failed to persist updated attributes");
+                            }
+                          }}
+                          className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md cursor-pointer"
+                        >
+                          Save Changes
+                        </button>
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Order Note</label>
-                        <input 
-                          type="text" 
-                          value={editNotes}
-                          onChange={(e) => setEditNotes(e.target.value)}
-                          placeholder="e.g. Agamikal booking dite hobe"
-                          className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Invoice By</label>
-                      <select 
-                        value={editInvoiceBy}
-                        onChange={(e) => setEditInvoiceBy(e.target.value)}
-                        className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white appearance-none cursor-pointer"
-                      >
-                        <option value="Website order">Website order</option>
-                        <option value="Sabbir">Sabbir</option>
-                        <option value="Nasir">Nasir</option>
-                        <option value="Shamiul">Shamiul</option>
-                        <option value="Office Sale">Office Sale</option>
-                      </select>
-                    </div>
-
-                    <div className="pt-4 flex gap-3">
-                      <button 
-                        type="button"
-                        onClick={() => setIsEditingDetails(false)}
-                        className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer"
-                      >
-                        Discard
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={async () => {
-                          const computedSubtotal = selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                          try {
-                            await updateOrder(selectedOrder.id, {
-                              customerName: editName,
-                              phone: editPhone,
-                              address: editAddress,
-                              city: editCity,
-                              status: editStatus,
-                              deliveryCharge: editDeliveryCharge,
-                              discount: editDiscount,
-                              advancePayment: editAdvancePayment,
-                              notes: editNotes,
-                              total: computedSubtotal + editDeliveryCharge - editDiscount,
-                              invoiceBy: editInvoiceBy
-                            });
-                            
-                            // Locally rewrite state so it reflects instantly in view
-                            setSelectedOrder({
-                              ...selectedOrder,
-                              customerName: editName,
-                              phone: editPhone,
-                              address: editAddress,
-                              city: editCity,
-                              status: editStatus,
-                              deliveryCharge: editDeliveryCharge,
-                              discount: editDiscount,
-                              advancePayment: editAdvancePayment,
-                              notes: editNotes,
-                              total: computedSubtotal + editDeliveryCharge - editDiscount,
-                              invoiceBy: editInvoiceBy
-                            } as any);
-                            
-                            setIsEditingDetails(false);
-                            toast.success("Order records updated beautifully!");
-                          } catch (err) {
-                            toast.error("Failed to persist updated attributes");
-                          }
-                        }}
-                        className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md cursor-pointer"
-                      >
-                        Save Changes
-                      </button>
                     </div>
                   </div>
-                ) : (
-                  /* Elegant, Multi-column Shopify-Style Layout matching the uploaded screenshot exactly */
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    
-                    {/* Left Column - 2/3 Width: Customer profile & Items breakdown */}
-                    <div className="lg:col-span-2 space-y-6">
-                      
-                      {/* Customer Card */}
-                      <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5 text-left shadow-xs relative">
-                        
-                        {/* Header Row: Customer Status & View Profile */}
-                        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-                          <span className="px-2.5 py-0.5 text-[9px] font-extrabold tracking-wider text-[#475569] bg-[#F1F5F9] border border-gray-200 rounded-full uppercase flex items-center gap-1">
-                            <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></span>
-                            • NEW CUSTOMER
+                </>
+              ) : (
+                <>
+                  {/* Top Header Block matching photo exactly */}
+                  <div className="p-8 pb-4 flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 rounded-2xl bg-[#E8F0FE] text-[#1A73E8] flex items-center justify-center shrink-0 shadow-xs border border-white/40">
+                        <ShoppingCart className="w-7 h-7 stroke-[2.2]" />
+                      </div>
+                      <div className="text-left">
+                        <h2 className="text-xl font-black text-slate-900 tracking-tight leading-none">Order Overview</h2>
+                        <div className="flex items-center gap-3 mt-1.5">
+                          <span className="text-xs font-mono font-bold text-slate-500 tracking-wider">
+                            {(() => {
+                              const dateObj = new Date(selectedOrder.createdAt);
+                              const yy = String(dateObj.getFullYear()).slice(-2);
+                              const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                              const dd = String(dateObj.getDate()).padStart(2, '0');
+                              const lastDigits = selectedOrder.id.replace(/[^0-9]/g, '').slice(-4).padStart(4, '0');
+                              const orderSlug = lastDigits.length >= 4 ? lastDigits : String(parseInt(selectedOrder.id.slice(-4), 36) || 0).slice(-4).padStart(4, '0');
+                              return `${yy}${mm}${dd}${orderSlug}`;
+                            })()}
                           </span>
-                          <button 
-                            onClick={() => toast.success("Redirecting to profile...")}
-                            className="text-xs font-bold text-gray-500 hover:text-black hover:bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1 flex items-center gap-1 bg-white cursor-pointer transition-all"
-                          >
-                            <span>View profile</span>
-                            <ChevronRight size={12} />
-                          </button>
-                        </div>
-
-                        {/* Customer Metrics Grid */}
-                        <div className="grid grid-cols-3 gap-3">
-                          <div className="border border-gray-150 rounded-xl p-3 text-left bg-gray-50/50">
-                            <span className="text-[10px] text-gray-400 font-extrabold uppercase tracking-wider block leading-none">TOTAL ORDERS</span>
-                            <span className="text-base font-bold text-gray-900 mt-2 block font-mono">
-                              {orders.filter(o => o.phone === selectedOrder.phone).length}
-                            </span>
-                          </div>
-                          <div className="border border-gray-150 rounded-xl p-3 text-left bg-gray-50/50">
-                            <span className="text-[10px] text-gray-400 font-extrabold uppercase tracking-wider block leading-none">ACTIVE</span>
-                            <span className="text-base font-bold text-gray-900 mt-2 block font-mono">
-                              {orders.filter(o => o.phone === selectedOrder.phone && ['Pending', 'QC', 'Processing', 'Shipped'].includes(o.status)).length}
-                            </span>
-                          </div>
-                          <div className="border border-gray-150 rounded-xl p-3 text-left bg-gray-50/50">
-                            <span className="text-[10px] text-gray-400 font-extrabold uppercase tracking-wider block leading-none">LIFETIME</span>
-                            <span className="text-base font-bold text-indigo-600 mt-2 block font-mono">
-                              ৳ {formatPrice(orders.filter(o => o.phone === selectedOrder.phone && o.status !== 'Cancelled').reduce((sum, o) => sum + o.total, 0), currency, rate)}
-                            </span>
+                          <div className="flex items-center gap-[1.2px] bg-white px-2 py-1 rounded-md border border-slate-300/40 shrink-0 h-6 select-none" title="Barcode">
+                            {[1, 2, 1, 3, 1, 2, 1, 1, 2, 3, 1, 2, 1, 2, 1, 3, 2, 1, 1, 2, 1, 2, 1, 3, 1, 2].map((w, idx) => (
+                              <div key={idx} className="bg-slate-900 h-full" style={{ width: `${w}px` }} />
+                            ))}
                           </div>
                         </div>
+                      </div>
+                    </div>
 
-                        {/* Customer Profile & Edit Block */}
-                        <div className="flex items-center gap-4 py-3 border-t border-b border-gray-100">
-                          <div className="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-sm shrink-0 border border-indigo-100">
-                            {selectedOrder.customerName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                    <button 
+                      onClick={() => setSelectedOrder(null)}
+                      className="w-10 h-10 rounded-full bg-white/60 hover:bg-white flex items-center justify-center text-slate-400 hover:text-slate-800 transition-all cursor-pointer border border-slate-300/40 shadow-sm animate-fade-in"
+                    >
+                      <X size={18} className="stroke-[2.5]" />
+                    </button>
+                  </div>
+
+                  {/* Scrollable Container with Custom Bento Grid matching screenshot */}
+                  <div className="flex-1 overflow-y-auto px-8 pb-8 space-y-6 no-scrollbar min-h-0">
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      
+                      {/* Customer Identity Floating Card */}
+                      <div className="space-y-2.5">
+                        <div className="flex items-center gap-2 text-indigo-600 font-bold text-xs uppercase tracking-wider text-left pl-1">
+                          <User size={14} className="stroke-[2.5]" />
+                          <span>Customer Identity</span>
+                        </div>
+                        <div className="bg-white rounded-[24px] p-6 shadow-sm border border-white/60 text-left space-y-4 flex-1">
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Name</span>
+                            <span className="text-sm font-black text-slate-900 block leading-tight">{selectedOrder.customerName}</span>
                           </div>
-                          <div className="flex-1 min-w-0">
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Phone</span>
                             <div className="flex items-center gap-2">
-                              <span className="font-extrabold text-gray-950 text-sm block leading-tight">{selectedOrder.customerName}</span>
-                              <button 
-                                onClick={() => {
-                                  setEditName(selectedOrder.customerName || '');
-                                  setEditPhone(selectedOrder.phone || '');
-                                  setEditAddress(selectedOrder.address || '');
-                                  setEditCity(selectedOrder.city || '');
-                                  setEditStatus(selectedOrder.status || 'Pending');
-                                  setEditDeliveryCharge(selectedOrder.deliveryCharge ?? 100);
-                                  setEditDiscount((selectedOrder as any).discount ?? 0);
-                                  setEditAdvancePayment((selectedOrder as any).advancePayment ?? 0);
-                                  setEditNotes((selectedOrder as any).notes || 'Agamikal booking dite hobe');
-                                  setEditInvoiceBy(selectedOrder.invoiceBy || 'Website order');
-                                  setIsEditingDetails(true);
-                                }}
-                                className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-black hover:bg-gray-50 border border-gray-200 rounded-lg px-2 py-0.5 bg-white cursor-pointer transition-all"
-                              >
-                                <Edit3 size={10} />
-                                <span>Edit</span>
-                              </button>
-                            </div>
-                            
-                            {/* Phone number Copy container */}
-                            <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1 text-xs text-gray-800 font-mono w-fit mt-2">
-                              <Phone size={11} className="text-gray-400" />
-                              <span>{selectedOrder.phone}</span>
+                              <span className="text-sm font-black text-slate-900 block font-mono">{selectedOrder.phone}</span>
                               <button 
                                 onClick={() => {
                                   navigator.clipboard.writeText(selectedOrder.phone);
                                   toast.success("Phone number copied!");
                                 }}
-                                className="ml-1 text-gray-400 hover:text-black cursor-pointer"
-                                title="Copy phone"
+                                className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded cursor-pointer transition-all font-sans font-bold"
                               >
-                                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                                </svg>
+                                Copy
                               </button>
                             </div>
                           </div>
-                        </div>
-
-                        {/* CTA Quick Action Buttons */}
-                        <div className="grid grid-cols-2 gap-3 pt-1">
-                          <a 
-                            href={`tel:${selectedOrder.phone}`}
-                            className="flex items-center justify-center gap-2 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 rounded-xl py-2.5 text-xs font-bold text-gray-700 transition-all bg-white"
-                          >
-                            <Phone size={13} className="text-gray-500" />
-                            <span>Call</span>
-                          </a>
-                          <a 
-                            href={`https://wa.me/88${selectedOrder.phone}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-center gap-2 bg-[#00B07C] hover:bg-[#009B6C] text-white rounded-xl py-2.5 text-xs font-bold transition-all shadow-3xs"
-                          >
-                            <MessageSquare size={13} className="text-white fill-current" />
-                            <span>WhatsApp</span>
-                          </a>
-                        </div>
-
-                        {/* Delivery Address with localized Black badges */}
-                        <div className="border-t border-gray-100 pt-4 mt-2 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-black text-gray-400 tracking-wider uppercase flex items-center gap-1.5">
-                              <MapPin size={12} className="text-gray-400" />
-                              <span>DELIVERY ADDRESS</span>
-                            </span>
-                            <button 
-                              onClick={() => {
-                                navigator.clipboard.writeText(selectedOrder.address);
-                                toast.success("Address copied!");
-                              }}
-                              className="text-xs font-bold text-gray-500 hover:text-black border border-gray-200 rounded-lg px-2 py-1 flex items-center gap-1 bg-white cursor-pointer transition-all"
-                            >
-                              <span>Copy Address</span>
-                            </button>
-                          </div>
-
-                          <div className="space-y-2.5 pt-1">
-                            <div className="flex items-center gap-3">
-                              <span className="bg-black text-white text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider font-sans shrink-0 min-w-[64px] text-center">জেলা</span>
-                              <span className="text-sm font-semibold text-gray-900">{selectedOrder.city || 'ঢাকা'}</span>
-                            </div>
-                            
-                            <div className="flex items-center gap-3">
-                              <span className="bg-black text-white text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider font-sans shrink-0 min-w-[64px] text-center">উপজেলা</span>
-                              <span className="text-sm font-semibold text-gray-900">
-                                {selectedOrder.address.split(',').length > 1 ? selectedOrder.address.split(',')[0].trim() : 'মিরপুর'}
-                              </span>
-                            </div>
-                            
-                            <div className="flex items-center gap-3">
-                              <span className="bg-black text-white text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider font-sans shrink-0 min-w-[64px] text-center">ঠিকানা</span>
-                              <span className="text-sm font-semibold text-gray-900">{selectedOrder.address}</span>
-                            </div>
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Address</span>
+                            <span className="text-xs font-bold text-slate-600 leading-relaxed block">{selectedOrder.address || selectedOrder.city}</span>
                           </div>
                         </div>
-
                       </div>
 
-                      {/* Items Card */}
-                      <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4 text-left shadow-xs">
-                        <span className="text-xs font-black text-gray-400 uppercase tracking-widest block border-b border-gray-100 pb-2">Items</span>
-                        
-                        <div className="divide-y divide-gray-100">
-                          {selectedOrder.items.map((it, idx) => {
-                            const matchedProd = products.find(p => p.id === it.id);
-                            const isOutOfStock = matchedProd ? matchedProd.stock <= 0 : false;
-                            const itemImage = it.images && it.images.length > 0 ? it.images[0] : 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=200&q=80';
-
-                            return (
-                              <div key={idx} className="flex items-start justify-between gap-4 py-4 first:pt-1 last:pb-1">
-                                <div className="flex gap-3.5 min-w-0">
-                                  <img 
-                                    src={itemImage} 
-                                    alt={it.name} 
-                                    referrerPolicy="no-referrer"
-                                    className="w-12 h-12 rounded-xl object-cover bg-gray-50 border border-gray-100 shrink-0"
-                                  />
-                                  <div className="min-w-0 text-left">
-                                    <span className="font-extrabold text-gray-950 text-sm block truncate leading-tight">{it.name}</span>
-                                    <div className="flex flex-wrap gap-1.5 mt-1.5 items-center">
-                                      <span className="bg-[#EEF2FF] text-[#4F46E5] text-[10px] font-bold px-2 py-0.5 rounded-md">
-                                        Pant Size: {it.selectedSize || '30'}
-                                      </span>
-                                      {isOutOfStock && (
-                                        <span className="bg-red-50 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-md">
-                                          Out of stock
-                                        </span>
-                                      )}
-                                    </div>
-                                    <span className="text-xs text-gray-400 mt-1 block font-semibold">Qty {it.quantity}</span>
-                                  </div>
-                                </div>
-                                <span className="font-extrabold text-gray-950 text-sm shrink-0 font-mono">
-                                  ৳ {formatPrice(it.price * it.quantity, currency, rate)}
-                                </span>
-                              </div>
-                            );
-                          })}
+                      {/* Logistic Meta Floating Card */}
+                      <div className="space-y-2.5">
+                        <div className="flex items-center gap-2 text-indigo-600 font-bold text-xs uppercase tracking-wider text-left pl-1">
+                          <Package size={14} className="stroke-[2.5]" />
+                          <span>Logistic Meta</span>
                         </div>
-
-                        {/* Pricing details */}
-                        <div className="pt-4 border-t border-gray-100 space-y-2.5 text-sm text-gray-500 font-sans">
-                          <div className="flex justify-between">
-                            <span>Subtotal</span>
-                            <span className="font-bold text-gray-950">
-                              ৳ {formatPrice(selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0), currency, rate)}
+                        <div className="bg-white rounded-[24px] p-6 shadow-sm border border-white/60 text-left grid grid-cols-2 gap-y-4 gap-x-3 flex-1">
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Partner</span>
+                            <span className="text-sm font-black text-slate-900 block truncate leading-tight">
+                              {selectedOrder.partner || selectedOrder.courier || 'Pathao'}
                             </span>
                           </div>
-                          <div className="flex justify-between">
-                            <span>Shipping</span>
-                            <span className="font-bold text-gray-950">
-                              ৳ {formatPrice(selectedOrder.deliveryCharge, currency, rate)}
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Invoice By</span>
+                            <span className="text-sm font-black text-slate-900 block truncate leading-tight">
+                              {getInvoiceBy(selectedOrder)}
                             </span>
                           </div>
-                          <div className="flex justify-between pt-2 border-t border-gray-100 font-extrabold text-gray-950 text-base">
-                            <span>Total</span>
-                            <span className="text-indigo-600 font-extrabold">
-                              ৳ {formatPrice(selectedOrder.total, currency, rate)}
+                          <div className="col-span-2 border-t border-slate-100/80 pt-3">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Invoice No</span>
+                            <span className="text-sm font-black text-indigo-600 font-mono block">
+                              {(() => {
+                                const dateObj = new Date(selectedOrder.createdAt);
+                                const yy = String(dateObj.getFullYear()).slice(-2);
+                                const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                                const dd = String(dateObj.getDate()).padStart(2, '0');
+                                const lastDigits = selectedOrder.id.replace(/[^0-9]/g, '').slice(-4).padStart(4, '0');
+                                const orderSlug = lastDigits.length >= 4 ? lastDigits : String(parseInt(selectedOrder.id.slice(-4), 36) || 0).slice(-4).padStart(4, '0');
+                                return `${yy}${mm}${dd}${orderSlug}`;
+                              })()}
+                            </span>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Status</span>
+                            <span className={cn(
+                              "inline-block px-4 py-1 text-[10px] font-black rounded-full uppercase tracking-wider",
+                              selectedOrder.status === 'Delivered' ? 'bg-[#E6F4EA] text-[#137333]' :
+                              selectedOrder.status === 'Cancelled' ? 'bg-[#FCE8E6] text-[#C5221F]' :
+                              selectedOrder.status === 'Hold' ? 'bg-[#FFF9E6] text-[#B06000]' :
+                              selectedOrder.status === 'QC' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                              'bg-[#ECEAFE] text-[#554BF0]' // Pending / Placing
+                            )}>
+                              {selectedOrder.status === 'QC' ? 'QC PASSED' : (selectedOrder.status === 'Pending' ? 'ORDER PLACED' : selectedOrder.status.toUpperCase())}
                             </span>
                           </div>
                         </div>
-
                       </div>
 
                     </div>
 
-                    {/* Right Column - 1/3 Width: Order status panel & Timeline tracker */}
-                    <div className="lg:col-span-1 space-y-6">
-                      
-                      {/* Order Status & Direct State Mutator Card */}
-                      <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4 text-left shadow-xs">
-                        <span className="text-xs font-black text-gray-400 uppercase tracking-widest block">Order status</span>
-                        
-                        <div className="grid grid-cols-2 gap-2">
-                          {[
-                            { code: 'Pending', label: 'Pending' },
-                            { code: 'QC', label: 'Confirmed' },
-                            { code: 'Shipped', label: 'Shipped' },
-                            { code: 'Delivered', label: 'Delivered' }
-                          ].map((st) => (
-                            <button 
-                              key={st.code}
-                              onClick={() => changeStatus(st.code as any)}
-                              className={cn(
-                                "py-2.5 px-3 text-xs font-extrabold rounded-xl border cursor-pointer text-center transition-all",
-                                selectedOrder.status === st.code
-                                  ? "bg-indigo-600 text-white border-transparent shadow-xs"
-                                  : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
-                              )}
-                            >
-                              {st.label}
-                            </button>
+                    {/* Order Composition Segment */}
+                    <div className="space-y-2.5">
+                      <div className="flex items-center gap-2 text-indigo-600 font-bold text-xs uppercase tracking-wider text-left pl-1">
+                        <ShoppingCart size={14} className="stroke-[2.5]" />
+                        <span>Order Composition</span>
+                      </div>
+                      <div className="bg-white rounded-[24px] p-6 shadow-sm border border-white/60 text-left">
+                        <div className="grid grid-cols-12 gap-2 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-3 mb-3">
+                          <div className="col-span-6">Item</div>
+                          <div className="col-span-2 text-center">Qty</div>
+                          <div className="col-span-2 text-right">Unit</div>
+                          <div className="col-span-2 text-right">Total</div>
+                        </div>
+
+                        <div className="divide-y divide-slate-100/60">
+                          {selectedOrder.items.map((it, idx) => (
+                            <div key={idx} className="grid grid-cols-12 gap-2 py-4 items-center first:pt-0 last:pb-0">
+                              <div className="col-span-6">
+                                <span className="text-sm font-black text-slate-900 block leading-tight">{it.name}</span>
+                                <span className="text-[10px] font-bold text-slate-400 mt-1 block font-mono">
+                                  {it.selectedSize || '30'} | ES {it.id ? it.id.slice(-3).toUpperCase() : '109'}
+                                </span>
+                              </div>
+                              <div className="col-span-2 text-center font-bold text-slate-800 text-sm">
+                                {it.quantity}
+                              </div>
+                              <div className="col-span-2 text-right font-bold text-slate-500 text-sm font-mono">
+                                ৳{formatPrice(it.price, currency, rate)}
+                              </div>
+                              <div className="col-span-2 text-right font-black text-slate-900 text-sm font-mono">
+                                ৳{formatPrice(it.price * it.quantity, currency, rate)}
+                              </div>
+                            </div>
                           ))}
                         </div>
+                      </div>
+                    </div>
+
+                    {/* Finance Totals & Standardized Large Action Trigger block */}
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pt-4 border-t border-slate-300/40 items-end">
+                      
+                      {/* Financial Calculations list on Left Column */}
+                      <div className="md:col-span-7 space-y-2.5 text-left bg-transparent p-1">
+                        <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
+                          <span>Subtotal</span>
+                          <span className="font-bold text-slate-800 font-mono">
+                            ৳{formatPrice(selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0), currency, rate)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
+                          <span>Delivery Charge</span>
+                          <span className="font-bold text-slate-800 font-mono">
+                            ৳{formatPrice(selectedOrder.deliveryCharge || 0, currency, rate)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
+                          <span>Discount</span>
+                          <span className="font-bold text-[#EB5A3C] font-mono">
+                            -৳{formatPrice((selectedOrder as any).discount || 0, currency, rate)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
+                          <span className="uppercase">
+                            Advance Payment ({selectedOrder.paymentMethod === 'cod' ? 'COD' : selectedOrder.paymentMethod.toUpperCase()})
+                          </span>
+                          <span className="font-bold text-[#10B981] font-mono">
+                            ৳{formatPrice((selectedOrder as any).advancePayment || 0, currency, rate)}
+                          </span>
+                        </div>
                         
-                        {/* Secondary Status Options */}
-                        <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-gray-100">
-                          <button 
-                            onClick={() => changeStatus('Returned')}
-                            className="py-2 px-1 text-[10px] font-bold text-pink-600 border border-pink-100 bg-pink-50/20 hover:bg-pink-50 rounded-lg cursor-pointer text-center transition-all"
-                          >
-                            Mark returned
-                          </button>
-                          <button 
-                            onClick={() => changeStatus('Cancelled')}
-                            className="py-2 px-1 text-[10px] font-bold text-red-600 border border-red-100 bg-red-50/20 hover:bg-red-50 rounded-lg cursor-pointer text-center transition-all"
-                          >
-                            Cancel order
-                          </button>
-                          <button 
-                            onClick={() => {
-                              changeStatus('Hold');
-                              toast.success("Order marked as refunded!");
-                            }}
-                            className="py-2 px-1 text-[10px] font-bold text-amber-600 border border-amber-100 bg-amber-50/20 hover:bg-amber-50 rounded-lg cursor-pointer text-center transition-all"
-                          >
-                            Mark refunded
-                          </button>
+                        <div className="flex items-center justify-between pt-4 border-t border-slate-300/40">
+                          <span className="text-sm font-black text-slate-950 uppercase tracking-wider">Collectable</span>
+                          <span className="text-3xl font-black text-slate-900 font-mono tracking-tight">
+                            ৳{formatPrice(
+                              selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 
+                              (selectedOrder.deliveryCharge || 0) - 
+                              ((selectedOrder as any).discount || 0) - 
+                              ((selectedOrder as any).advancePayment || 0),
+                              currency,
+                              rate
+                            )}
+                          </span>
                         </div>
                       </div>
 
-                      {/* Timeline Card */}
-                      <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4 text-left shadow-xs">
-                        <span className="text-xs font-black text-gray-400 uppercase tracking-widest block">Timeline</span>
-                        
-                        <div className="border border-gray-150 bg-gray-50/40 rounded-2xl p-4">
-                          <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-2">
-                            <span className="bg-[#EEF2FF] text-[#4F46E5] text-[9px] font-black tracking-wider px-2 py-0.5 rounded uppercase">ORDER PROGRESS</span>
-                            <span className="text-[10px] text-gray-400 font-bold">Live Status</span>
-                          </div>
-                          
-                          <div className="relative pl-7 space-y-6">
-                            {/* Vertical connecting tracker line */}
-                            <div className="absolute left-[9px] top-1.5 bottom-1.5 w-[2px] bg-indigo-100" />
-                            
-                            {/* Dynamic Timeline Steps */}
-                            {(() => {
-                              const steps = [
-                                {
-                                  title: 'Order Placed',
-                                  description: selectedOrder.status === 'Pending' ? 'In progress' : 'Completed',
-                                  isCompleted: selectedOrder.status !== 'Pending' && !['Cancelled', 'Returned', 'Hold'].includes(selectedOrder.status),
-                                  isActive: true,
-                                },
-                                {
-                                  title: 'Confirmed',
-                                  description: ['QC', 'Processing'].includes(selectedOrder.status) ? 'Preparing' : ['Shipped', 'Delivered'].includes(selectedOrder.status) ? 'Completed' : 'Pending',
-                                  isCompleted: ['Shipped', 'Delivered'].includes(selectedOrder.status),
-                                  isActive: ['QC', 'Processing', 'Shipped', 'Delivered'].includes(selectedOrder.status),
-                                },
-                                {
-                                  title: 'Shipped',
-                                  description: selectedOrder.status === 'Shipped' ? 'On the way' : selectedOrder.status === 'Delivered' ? 'Completed' : 'Pending',
-                                  isCompleted: selectedOrder.status === 'Delivered',
-                                  isActive: ['Shipped', 'Delivered'].includes(selectedOrder.status),
-                                },
-                                {
-                                  title: 'Delivered',
-                                  description: selectedOrder.status === 'Delivered' ? 'Completed' : 'Pending',
-                                  isCompleted: selectedOrder.status === 'Delivered',
-                                  isActive: selectedOrder.status === 'Delivered',
-                                }
-                              ];
-
-                              // Append Terminal States
-                              if (selectedOrder.status === 'Cancelled') {
-                                steps.push({
-                                  title: 'Cancelled',
-                                  description: 'Order Cancelled',
-                                  isCompleted: true,
-                                  isActive: true,
-                                  isError: true,
-                                });
-                              } else if (selectedOrder.status === 'Returned') {
-                                steps.push({
-                                  title: 'Returned',
-                                  description: 'Returned to Sender',
-                                  isCompleted: true,
-                                  isActive: true,
-                                  isWarning: true,
-                                });
-                              } else if (selectedOrder.status === 'Hold') {
-                                steps.push({
-                                  title: 'Refunded (On Hold)',
-                                  description: 'Refunded',
-                                  isCompleted: true,
-                                  isActive: true,
-                                  isWarning: true,
-                                });
-                              }
-
-                              return steps.map((step, idx) => {
-                                let badgeColor = 'bg-white border-gray-200 text-gray-300';
-                                if (step.isActive) {
-                                  if (step.isError) {
-                                    badgeColor = 'bg-red-600 border-red-600 text-white';
-                                  } else if (step.isWarning) {
-                                    badgeColor = 'bg-amber-500 border-amber-500 text-white';
-                                  } else {
-                                    badgeColor = 'bg-[#4F46E5] border-[#4F46E5] text-white';
-                                  }
-                                }
-
-                                return (
-                                  <div key={idx} className="relative">
-                                    <div className={cn(
-                                      "absolute -left-7 w-[20px] h-[20px] rounded-full flex items-center justify-center border text-white transition-all",
-                                      badgeColor
-                                    )}>
-                                      {step.isCompleted ? (
-                                        <svg className="w-2.5 h-2.5 stroke-[3]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                          <polyline points="20 6 9 17 4 12"></polyline>
-                                        </svg>
-                                      ) : step.isActive ? (
-                                        <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                                      ) : (
-                                        <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-                                      )}
-                                    </div>
-                                    <div className="text-left leading-tight">
-                                      <span className="text-xs font-bold text-gray-900 block">{step.title}</span>
-                                      <span className={cn(
-                                        "text-[9px] font-bold block mt-0.5",
-                                        step.isError ? "text-red-600" : step.isWarning ? "text-amber-600" : "text-gray-400"
-                                      )}>
-                                        {step.description}
-                                      </span>
-                                      {idx === 0 && (
-                                        <span className="text-[9px] text-gray-400 block mt-0.5">{formatOrderDateTimeStr(selectedOrder.createdAt)}</span>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              });
-                            })()}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Payment Card */}
-                      <div className="bg-white rounded-2xl border border-gray-200 p-4 flex items-center justify-between shadow-xs">
-                        <div className="flex items-center gap-3 text-left">
-                          <div className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center bg-gray-50 shrink-0">
-                            <svg className="w-4 h-4 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                              <rect x="2" y="5" width="20" height="14" rx="2" />
-                              <line x1="2" y1="10" x2="22" y2="10" />
-                            </svg>
-                          </div>
-                          <div>
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Payment</span>
-                            <span className="text-xs font-bold text-gray-900 mt-0.5 block">
-                              {selectedOrder.paymentMethod === 'cod' ? 'Cash on Delivery' : 
-                               selectedOrder.paymentMethod === 'bkash' ? 'bKash Wallet' :
-                               selectedOrder.paymentMethod === 'nagad' ? 'Nagad Wallet' : 'Card payment'}
-                            </span>
-                          </div>
-                        </div>
-                        <span className="bg-gray-100 text-gray-600 text-[9px] font-bold px-2 py-1 rounded">
-                          Collect on delivery
-                        </span>
-                      </div>
-
-                      {/* Courier Dispatch Card */}
-                      <div className="bg-white rounded-2xl border border-gray-200 p-4 flex items-center justify-between shadow-xs">
-                        <div className="flex items-center gap-3 text-left">
-                          <div className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center bg-gray-50 shrink-0">
-                            <Truck className="w-4 h-4 text-gray-500" />
-                          </div>
-                          <div>
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Send to courier</span>
-                            <span className="text-xs font-bold text-gray-400 mt-0.5 block">No courier connected.</span>
-                          </div>
-                        </div>
+                      {/* Large Button Block on Right Column */}
+                      <div className="md:col-span-5 flex flex-col gap-3">
                         <button 
-                          onClick={() => toast.success("Dispatching setup requested!")}
-                          className="text-[11px] font-bold text-gray-950 hover:text-indigo-600 border border-gray-200 hover:border-indigo-100 rounded-lg px-2.5 py-1 bg-white cursor-pointer transition-all"
+                          onClick={() => {
+                            setInvoiceOrder(selectedOrder);
+                            setShowInvoiceModal(true);
+                          }}
+                          className="w-full py-4 bg-[#0F172A] hover:bg-black text-white font-black text-xs uppercase tracking-widest rounded-[20px] transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center justify-center gap-2 border border-slate-700/30"
                         >
-                          Connect one →
+                          <Printer size={14} className="stroke-[2.5]" />
+                          <span>Print Invoice</span>
+                        </button>
+                        
+                        <button 
+                          onClick={() => {
+                            setEditName(selectedOrder.customerName || '');
+                            setEditPhone(selectedOrder.phone || '');
+                            setEditAddress(selectedOrder.address || '');
+                            setEditCity(selectedOrder.city || '');
+                            setEditStatus(selectedOrder.status || 'Pending');
+                            setEditDeliveryCharge(selectedOrder.deliveryCharge ?? 100);
+                            setEditDiscount((selectedOrder as any).discount ?? 0);
+                            setEditAdvancePayment((selectedOrder as any).advancePayment ?? 0);
+                            setEditNotes((selectedOrder as any).notes || 'Agamikal booking dite hobe');
+                            setEditInvoiceBy(selectedOrder.invoiceBy || 'Website order');
+                            setIsEditingDetails(true);
+                          }}
+                          className="w-full py-4 bg-white/70 hover:bg-white text-slate-800 border border-slate-300/40 font-black text-xs uppercase tracking-widest rounded-[20px] transition-all shadow-sm cursor-pointer flex items-center justify-center gap-2"
+                        >
+                          <Edit3 size={14} className="stroke-[2.5]" />
+                          <span>Edit Details</span>
                         </button>
                       </div>
 
                     </div>
 
                   </div>
-                )}
-
-              </div>
-
-              {/* Bottom Print and Edit Action triggers */}
-              {!isEditingDetails && (
-                <div className="p-4 px-6 border-t border-gray-200 bg-white flex flex-col sm:flex-row gap-3 shrink-0">
-                  <div className="sm:ml-auto flex gap-3 w-full sm:w-auto">
-                    <button 
-                      onClick={() => {
-                        setInvoiceOrder(selectedOrder);
-                        setShowInvoiceModal(true);
-                      }}
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-[#0C1421] hover:bg-black text-white font-bold text-xs py-2.5 px-6 rounded-xl transition-all cursor-pointer shadow-md"
-                    >
-                      <Printer size={13} />
-                      <span>Print Invoice (A5)</span>
-                    </button>
-                    {isSuperAdmin && (
-                      <button 
-                        onClick={() => {
-                          const orderId = selectedOrder.id;
-                          const shortId = orderId.slice(-6);
-                          setDeleteConfirm({
-                            isOpen: true,
-                            title: `Delete Order #${shortId}?`,
-                            message: `Are you sure you want to PERMANENTLY DELETE Order #${shortId}? This will remove it from the database forever and cannot be undone.`,
-                            onConfirm: async () => {
-                              try {
-                                const deletePromise = deleteOrder(orderId);
-                                toast.promise(deletePromise, {
-                                  loading: 'Deleting order...',
-                                  success: 'Order deleted successfully',
-                                  error: (err) => `Delete failed: ${err.message || 'Permission denied'}`
-                                });
-                                await deletePromise;
-                                setSelectedOrder(null);
-                              } catch (err: any) {
-                                console.error('[AdminOrders Modal] Delete Catch:', err);
-                              } finally {
-                                setDeleteConfirm(prev => ({ ...prev, isOpen: false }));
-                              }
-                            }
-                          });
-                        }}
-                        className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs py-2.5 px-6 rounded-xl transition-all cursor-pointer shadow-lg shadow-rose-100"
-                      >
-                        <Trash2 size={14} />
-                        <span>Delete Order</span>
-                      </button>
-                    )}
-                    <button 
-                      onClick={() => {
-                        setEditName(selectedOrder.customerName || '');
-                        setEditPhone(selectedOrder.phone || '');
-                        setEditAddress(selectedOrder.address || '');
-                        setEditCity(selectedOrder.city || '');
-                        setEditStatus(selectedOrder.status || 'Pending');
-                        setEditDeliveryCharge(selectedOrder.deliveryCharge ?? 100);
-                        setEditDiscount((selectedOrder as any).discount ?? 0);
-                        setEditAdvancePayment((selectedOrder as any).advancePayment ?? 0);
-                        setEditNotes((selectedOrder as any).notes || 'Agamikal booking dite hobe');
-                        setEditInvoiceBy(selectedOrder.invoiceBy || 'Website order');
-                        setIsEditingDetails(true);
-                      }}
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-900 border border-gray-200 font-bold text-xs py-2.5 px-6 rounded-xl transition-all cursor-pointer shadow-3xs"
-                    >
-                      <Edit3 size={13} className="text-gray-500" />
-                      <span>Edit Details</span>
-                    </button>
-                  </div>
-                </div>
+                </>
               )}
 
             </motion.div>
