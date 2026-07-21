@@ -3,14 +3,17 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
-import { initializeApp, cert } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-import { FieldValue } from 'firebase-admin/firestore';
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, setDoc, getDoc, deleteDoc } from "firebase/firestore";
+import { createRequire } from "module";
 
 dotenv.config();
 
-initializeApp();
-const db = getFirestore();
+const require = createRequire(import.meta.url);
+const firebaseConfig = require("./firebase-applet-config.json");
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
 
 async function startServer() {
   const app = express();
@@ -32,9 +35,10 @@ async function startServer() {
     const { email } = req.body;
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     
-    await db.collection('otps').doc(email).set({
+    const otpRef = doc(db, 'otps', email);
+    await setDoc(otpRef, {
       otp,
-      createdAt: FieldValue.serverTimestamp(),
+      createdAt: new Date().toISOString(),
     });
 
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
@@ -68,11 +72,12 @@ async function startServer() {
   // API route to verify OTP
   app.post("/api/verify-otp", async (req, res) => {
     const { email, otp } = req.body;
-    const doc = await db.collection('otps').doc(email).get();
-    if (!doc.exists || doc.data()?.otp !== otp) {
+    const otpRef = doc(db, 'otps', email);
+    const otpSnap = await getDoc(otpRef);
+    if (!otpSnap.exists() || otpSnap.data()?.otp !== otp) {
       return res.status(400).json({ error: "Invalid OTP" });
     }
-    await db.collection('otps').doc(email).delete();
+    await deleteDoc(otpRef);
     res.json({ success: true });
   });
 
@@ -120,9 +125,10 @@ async function startServer() {
 
     let adminEmails = "eleganbd.ltd@gmail.com, sabbirrahmansr904@gmail.com";
     try {
-      const configDoc = await db.collection('config').doc('notification_settings').get();
-      if (configDoc.exists) {
-        const data = configDoc.data();
+      const configRef = doc(db, 'config', 'notification_settings');
+      const configSnap = await getDoc(configRef);
+      if (configSnap.exists()) {
+        const data = configSnap.data();
         if (data) {
           if (data.emailAlertsEnabled === false) {
             console.log("Email order alerts are disabled in settings");
