@@ -286,7 +286,7 @@ export default function AdminStockIn() {
   const recentTransactions = transactions.filter(t => t.type === 'in').slice(0, 5);
 
   return (
-    <div className="max-w-[1600px] mx-auto space-y-8 pb-20 font-sans bg-[#F8FAFC]">
+    <div className="max-w-[1600px] mx-auto space-y-8 pb-20 font-sans bg-white">
       
       {/* Visual Header exactly matching the green screenshot styling */}
       <div className="space-y-1">

@@ -393,18 +393,6 @@ export default function Checkout() {
       };
 
       sendSmsNotification();
-
-      // Call new API endpoint to send email
-      fetch('/api/send-order-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ orderDetails: newOrder }),
-      })
-      .then(response => response.json())
-      .then(data => console.log('Email notification status:', data))
-      .catch(error => console.error('Error sending email notification:', error));
       
       // Update inventory
       items.forEach(async (item) => {

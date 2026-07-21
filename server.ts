@@ -114,6 +114,29 @@ async function startServer() {
       console.error("EMAIL_USER or EMAIL_PASS not set");
       return res.status(500).json({ error: "Email configuration missing" });
     }
+
+    let adminEmails = "eleganbd.ltd@gmail.com, sabbirrahmansr904@gmail.com";
+    try {
+      const configDoc = await db.collection('config').doc('notification_settings').get();
+      if (configDoc.exists) {
+        const data = configDoc.data();
+        if (data) {
+          if (data.emailAlertsEnabled === false) {
+            console.log("Email order alerts are disabled in settings");
+            return res.json({ success: true, message: "Email order alerts are disabled" });
+          }
+          if (data.primaryEmail) {
+            adminEmails = data.primaryEmail;
+            if (data.secondaryEmail) {
+              adminEmails += `, ${data.secondaryEmail}`;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Could not load notification settings from Firestore, using default fallbacks", e);
+    }
+
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -133,7 +156,6 @@ async function startServer() {
     const subtotal = orderDetails.total - (orderDetails.deliveryCharge || 0);
 
     try {
-      const adminEmails = "eleganbd.ltd@gmail.com, sabbirrahmansr904@gmail.com";
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: adminEmails,

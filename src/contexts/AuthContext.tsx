@@ -67,6 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     !email ? false : [
       'sabbirrahmansr904@gmail.com',
       'eleganbd.ltd@gmail.com',
+      'shamiulislamatik@gmail.com',
       'elegantbd.ltd@gmail.com',
       'eleganbd@gmail.com',
       'elegantbd@gmail.com'
@@ -124,12 +125,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (user) {
         const superStatus = isSuperAdminEmail(user.email);
         setIsSuperAdmin(superStatus);
-        // Check admin
+        
+        // Admin check logic...
+        let adminStatus = superStatus;
         try {
           if (superStatus) {
             setIsAdmin(true);
             setPermissions(['dashboard', 'customers', 'orders', 'products', 'issues', 'masterTable', 'finance', 'settings']);
-            // Ensure admin document exists
             const adminRef = doc(db, 'admins', user.uid);
             const adminDoc = await getDoc(adminRef);
             if (!adminDoc.exists()) {
@@ -145,6 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const adminDoc = await getDoc(adminRef);
             if (adminDoc.exists()) {
               setIsAdmin(true);
+              adminStatus = true;
               setPermissions(adminDoc.data()?.permissions || []);
             } else if (user.email) {
               const inviteDoc = await getDoc(doc(db, 'admin_invites', user.email.toLowerCase()));
@@ -157,13 +160,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   updatedAt: Date.now()
                 });
                 setIsAdmin(true);
+                adminStatus = true;
                 setPermissions(inviteData.permissions || []);
               } else {
                 setIsAdmin(false);
+                adminStatus = false;
                 setPermissions([]);
               }
             } else {
               setIsAdmin(false);
+              adminStatus = false;
               setPermissions([]);
             }
           }
@@ -172,7 +178,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
              console.error("Admin check error:", e);
           }
           setIsAdmin(superStatus);
+          adminStatus = superStatus;
           setPermissions(superStatus ? ['dashboard', 'customers', 'orders', 'products', 'issues', 'masterTable', 'finance', 'settings'] : []);
+        }
+
+        // Set customerUser if not admin
+        if (!adminStatus && user.email) {
+           const customer = { email: user.email };
+           setCustomerUser(customer);
+           localStorage.setItem('elegan_customer_user', JSON.stringify(customer));
         }
       } else {
         setIsAdmin(false);

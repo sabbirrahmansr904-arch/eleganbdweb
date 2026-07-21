@@ -326,6 +326,20 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           });
         }
       }
+
+      // Automatically send Gmail notification if the order was placed via the website
+      if (newOrder.invoiceBy && newOrder.invoiceBy.toLowerCase().includes('website')) {
+        fetch('/api/send-order-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ orderDetails: newOrder }),
+        })
+        .then(response => response.json())
+        .then(data => console.log('[OrderContext] Email notification status:', data))
+        .catch(error => console.error('[OrderContext] Error sending email notification:', error));
+      }
     } catch(e) {
       handleFirestoreError(e, OperationType.CREATE, `orders/${order.id}`);
     }

@@ -41,7 +41,9 @@ import {
   CheckSquare,
   AlertCircle,
   Package,
-  DollarSign
+  DollarSign,
+  RefreshCw,
+  UserCheck
 } from 'lucide-react';
 import { cn, formatPrice } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -182,7 +184,9 @@ export default function AdminLayout() {
       items: [
         { name: 'Dashboard', path: '/admin', icon: Home },
         { name: 'Customers', path: '/admin/customers', icon: Users },
+        { name: 'Customer Profiler', path: '/admin/customer-profiler', icon: UserCheck },
         { name: 'Orders', path: '/admin/orders', icon: FileText },
+        { name: 'Exchanges', path: '/admin/exchanges', icon: RefreshCw },
         { name: 'Categories', path: '/admin/settings?tab=Categories', icon: Folder },
         { name: 'Products', path: '/admin/products', icon: ShoppingBag },
         { name: 'Issues', path: '/admin/issues', icon: MessageCircle },
@@ -196,7 +200,6 @@ export default function AdminLayout() {
         { name: 'Branding', path: '/admin/settings?tab=Branding', icon: Palette },
         { name: 'Banners', path: '/admin/settings?tab=Banners', icon: Globe },
         { name: 'Notifications', path: '/admin/settings?tab=Notifications', icon: Bell },
-        { name: 'SMS & OTP', path: '/admin/settings?tab=SMS', icon: Phone },
       ]
     },
     {
@@ -245,7 +248,7 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden font-sans text-black">
+    <div className="flex h-screen bg-white overflow-hidden font-sans text-black">
       {/* Mobile Sidebar Overlay */}
       <AnimatePresence>
         {isMobileOpen && (
@@ -408,7 +411,7 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#F8FAFC]">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-white">
         {/* Header */}
         <header className="h-20 bg-white/80 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-6 shrink-0 sticky top-0 z-40">
           <div className="flex items-center space-x-4">
@@ -557,7 +560,7 @@ export default function AdminLayout() {
         </header>
 
         {/* Content Area */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar scroll-smooth">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 no-scrollbar scroll-smooth">
           <Outlet />
         </main>
       </div>

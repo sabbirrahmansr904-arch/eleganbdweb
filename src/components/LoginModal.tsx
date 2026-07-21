@@ -78,13 +78,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                     }}
                     className="w-full flex items-center justify-center gap-3 bg-white text-black p-3 rounded-lg font-black uppercase text-sm hover:bg-brand-gold transition-colors"
                   >
-                    <Mail size={18} /> Admin Login (Google)
-                  </button>
-                  <button
-                    onClick={() => setView('email')}
-                    className="w-full flex items-center justify-center gap-3 bg-white/5 text-white border border-white/10 p-3 rounded-lg font-black uppercase text-sm hover:bg-white/10 transition-colors"
-                  >
-                    <Mail size={18} /> Customer Login (Email)
+                    <Mail size={18} /> Sign In With Google
                   </button>
                 </div>
               ) : view === 'otp' ? (

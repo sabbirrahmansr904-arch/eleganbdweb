@@ -8,11 +8,11 @@ service cloud.firestore {
     function isSignedIn() { return request.auth != null; }
     function isAdmin() { 
       return isSignedIn() && (
-        ('email' in request.auth.token && request.auth.token.email != null && request.auth.token.email.lower() == 'sabbirrahmansr904@gmail.com') ||
-        ('email' in request.auth.token && request.auth.token.email != null && request.auth.token.email.lower() == 'eleganbd.ltd@gmail.com') ||
-        ('email' in request.auth.token && request.auth.token.email != null && request.auth.token.email.lower() == 'elegantbd.ltd@gmail.com') ||
-        ('email' in request.auth.token && request.auth.token.email != null && request.auth.token.email.lower() == 'eleganbd@gmail.com') ||
-        ('email' in request.auth.token && request.auth.token.email != null && request.auth.token.email.lower() == 'elegantbd@gmail.com') ||
+        ('email' in request.auth.token && request.auth.token.email != null && request.auth.token.email.toLower() == 'sabbirrahmansr904@gmail.com') ||
+        ('email' in request.auth.token && request.auth.token.email != null && request.auth.token.email.toLower() == 'eleganbd.ltd@gmail.com') ||
+        ('email' in request.auth.token && request.auth.token.email != null && request.auth.token.email.toLower() == 'elegantbd.ltd@gmail.com') ||
+        ('email' in request.auth.token && request.auth.token.email != null && request.auth.token.email.toLower() == 'eleganbd@gmail.com') ||
+        ('email' in request.auth.token && request.auth.token.email != null && request.auth.token.email.toLower() == 'elegantbd@gmail.com') ||
         exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       ); 
     }
@@ -230,6 +230,10 @@ service cloud.firestore {
     }
 
     match /expenses/{expenseId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /exchanges/{exchangeId} {
       allow read, write: if isAdmin();
     }
 

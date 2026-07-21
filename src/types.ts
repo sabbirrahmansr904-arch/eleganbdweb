@@ -71,6 +71,7 @@ export interface Order {
   courier?: string;
   partner?: string;
   invoiceBy?: string;
+  trackingId?: string;
 }
 
 export interface Customer {

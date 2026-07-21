@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import InvoiceTemplate from '../../components/admin/InvoiceTemplate';
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
@@ -6,6 +6,7 @@ import {
   Search, 
   Eye, 
   FileSpreadsheet,
+  FileText,
   Truck,
   RefreshCw,
   Calendar,
@@ -105,6 +106,9 @@ export default function AdminOrders(): React.JSX.Element {
   const [filterStatus, setFilterStatus] = useState('All');
   const [filterIssue, setFilterIssue] = useState('All'); // All | Issues | No Issues
   const [filterPartner, setFilterPartner] = useState('All'); // All | Online Store | Retail | Al Shahriar Kabir etc
+  const [filterCourier, setFilterCourier] = useState('All');
+  const [filterCreator, setFilterCreator] = useState('All');
+  const [filterDelivery, setFilterDelivery] = useState('All');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   
@@ -168,6 +172,11 @@ export default function AdminOrders(): React.JSX.Element {
 
   // Issue Conversation Modal States
   const [issueConversationOrder, setIssueConversationOrder] = useState<Order | null>(null);
+  const [readyToShipClicked, setReadyToShipClicked] = useState(false);
+
+  useEffect(() => {
+    setReadyToShipClicked(false);
+  }, [issueConversationOrder]);
   const [newIssueType, setNewIssueType] = useState('Normal');
   const [newUrgency, setNewUrgency] = useState('Normal');
   const [newIssueDesc, setNewIssueDesc] = useState('');
@@ -193,6 +202,10 @@ export default function AdminOrders(): React.JSX.Element {
   const [newDiscountAmount, setNewDiscountAmount] = useState(0);
   const [newAdvancePayment, setNewAdvancePayment] = useState(0);
   const [newAdvancePaymentMethod, setNewAdvancePaymentMethod] = useState<'Cash' | 'bKash' | 'Rocket' | 'Nagad' | ''>('');
+  const [newDeliveryPartner, setNewDeliveryPartner] = useState('');
+  const [newTrackingId, setNewTrackingId] = useState('');
+  const [editingTrackingOrderId, setEditingTrackingOrderId] = useState<string | null>(null);
+  const [tempTrackingId, setTempTrackingId] = useState('');
   const [newInternalNote, setNewInternalNote] = useState('');
   const [newDeliveryDate, setNewDeliveryDate] = useState('');
   const [newInvoiceBy, setNewInvoiceBy] = useState<'Sabbir' | 'Nasir' | 'Shamiul' | 'Office Sale'>('Sabbir');
@@ -327,7 +340,26 @@ export default function AdminOrders(): React.JSX.Element {
         if (invoiceBy !== filterPartner) return false;
       }
 
-      // 5. Date Range Filter
+      // 5. Courier filter
+      if (filterCourier !== 'All') {
+        const oCourier = order.courier || (order as any).courierName || 'Pathao';
+        if (oCourier.toLowerCase() !== filterCourier.toLowerCase()) return false;
+      }
+
+      // 6. Creator filter
+      if (filterCreator !== 'All') {
+        const oCreator = order.invoiceBy || order.customerId || 'Online Store';
+        if (oCreator !== filterCreator) return false;
+      }
+
+      // 7. Delivery filter
+      if (filterDelivery !== 'All') {
+        const isDhaka = order.city === 'Dhaka City' || order.city === 'Dhaka';
+        if (filterDelivery === 'Inside Dhaka' && !isDhaka) return false;
+        if (filterDelivery === 'Outside Dhaka' && isDhaka) return false;
+      }
+
+      // 8. Date Range Filter
       if (startDate) {
         const orderDate = new Date(order.createdAt);
         const start = new Date(startDate);
@@ -343,7 +375,34 @@ export default function AdminOrders(): React.JSX.Element {
 
       return true;
     });
-  }, [orders, filterStatus, searchQuery, filterIssue, filterPartner, startDate, endDate, hasActiveIssue, getInvoiceBy]);
+  }, [orders, filterStatus, searchQuery, filterIssue, filterPartner, filterCourier, filterCreator, filterDelivery, startDate, endDate, hasActiveIssue, getInvoiceBy]);
+
+  const uniquePartners = useMemo(() => {
+    const set = new Set<string>();
+    orders.forEach(order => {
+      const val = getInvoiceBy(order);
+      if (val) set.add(val);
+    });
+    return Array.from(set);
+  }, [orders, getInvoiceBy]);
+
+  const uniqueCouriers = useMemo(() => {
+    const set = new Set<string>();
+    orders.forEach(order => {
+      const oCourier = order.courier || (order as any).courierName || 'Pathao';
+      if (oCourier) set.add(oCourier);
+    });
+    return Array.from(set);
+  }, [orders]);
+
+  const uniqueCreators = useMemo(() => {
+    const set = new Set<string>();
+    orders.forEach(order => {
+      const oCreator = order.invoiceBy || order.customerId || 'Online Store';
+      if (oCreator) set.add(oCreator);
+    });
+    return Array.from(set);
+  }, [orders]);
 
   // Bulk actions
   const handleToggleSelect = (id: string) => {
@@ -416,11 +475,11 @@ export default function AdminOrders(): React.JSX.Element {
       const existingReplies = issueConversationOrder.issueReplies || [];
       const updatedReplies = [...existingReplies, newReply];
 
-      if (!issueConversationOrder.issueType) {
-        // Automatically create/activate issue
+      if (!issueConversationOrder.issueType || issueConversationOrder.issueStatus === 'resolved') {
+        // Automatically create/activate or re-activate issue
         updatedOrderData = {
-          issueType: 'QC',
-          issueUrgency: 'Normal',
+          issueType: issueConversationOrder.issueType || 'QC',
+          issueUrgency: issueConversationOrder.issueUrgency || 'Normal',
           issueStatus: 'open' as const,
           issueReplies: updatedReplies
         };
@@ -541,6 +600,12 @@ export default function AdminOrders(): React.JSX.Element {
 
   const handleConfirmPathaoEntry = async () => {
     if (!activeScanOrder) return;
+    
+    // Block Pathao entry if order has an active issue
+    if (activeScanOrder.issueType && activeScanOrder.issueStatus !== 'resolved') {
+      toast.error("Cannot book order with active issue!");
+      return;
+    }
     
     setBookingToPathao(true);
     
@@ -795,7 +860,10 @@ export default function AdminOrders(): React.JSX.Element {
       notes: newInternalNote || '',
       discount: newDiscountAmount,
       advancePayment: newAdvancePayment,
-      invoiceBy: newInvoiceBy
+      invoiceBy: newInvoiceBy,
+      courier: newDeliveryPartner || 'Pathao',
+      partner: newDeliveryPartner || '',
+      trackingId: newTrackingId || ''
     };
 
     try {
@@ -816,6 +884,8 @@ export default function AdminOrders(): React.JSX.Element {
       setNewDiscountAmount(0);
       setNewAdvancePayment(0);
       setNewAdvancePaymentMethod('');
+      setNewDeliveryPartner('');
+      setNewTrackingId('');
       setNewInternalNote('');
       setNewDeliveryDate('');
       setNewInvoiceBy('Sabbir');
@@ -892,124 +962,213 @@ export default function AdminOrders(): React.JSX.Element {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 pb-24 font-sans text-gray-900 px-4 md:px-8">
+    <div className="w-full max-w-none space-y-4 pb-24 font-sans text-gray-900 px-0">
       {invoiceOrder && createPortal(
         <InvoiceTemplate order={invoiceOrder} preview={false} />,
         document.body
       )}
       
-      {/* Brand & Page Header matching screenshot */}
-      <div className="flex items-center justify-between pt-4 border-b border-gray-100 pb-4">
-        <div className="flex flex-col">
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Elegan BD</h1>
-          <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider mt-1">Orders</p>
+      {/* Brand & Page Header matching screenshot EXACTLY */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1 pb-1">
+        <div className="flex items-center gap-3.5">
+          <div className="bg-[#EBF5FF] text-[#2563EB] p-3 rounded-2xl shadow-sm border border-[#D0E7FF]/40 flex items-center justify-center">
+            <ShoppingCart className="w-6 h-6" />
+          </div>
+          <div className="flex flex-col">
+            <h1 className="text-2xl font-black text-[#0F172A] tracking-tight flex items-center gap-2">
+              Orders
+            </h1>
+            <p className="text-[12px] text-[#64748B] font-semibold mt-0.5">
+              Detailed spreadsheet-style order tracking and management.
+            </p>
+          </div>
         </div>
 
-        {/* Global actions row (Subtle, non-intrusive utility panel) */}
-        <div className="flex items-center gap-2">
+        {/* Global Actions Bar matching screenshot */}
+        <div className="flex flex-wrap items-center gap-2.5">
           <button 
             onClick={handleExportCSV}
-            title="Export CSV"
-            className="p-2.5 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 border border-gray-200 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center"
+            className="px-4 py-2.5 bg-[#10B981] hover:bg-[#059669] text-white font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-2"
           >
-            <FileSpreadsheet size={15} />
+            <FileSpreadsheet size={13} className="stroke-[2.5]" />
+            <span>Export All</span>
           </button>
+
           <button 
             onClick={() => setShowCamera(true)}
-            title="Scan Receipt Sheet"
-            className="p-2.5 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 border border-gray-200 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center"
+            className="px-4 py-2.5 bg-[#0D9488] hover:bg-[#0F766E] text-white font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-2"
           >
-            <Camera size={15} />
+            <Truck size={13} className="stroke-[2.5]" />
+            <span>Delivery</span>
           </button>
+
+          <button 
+            onClick={() => {
+              setShowCamera(true);
+              setShowLiveCameraSimulator(true);
+            }}
+            className="p-2.5 bg-[#E6F4EA] hover:bg-[#D4EDDA] text-[#137333] border border-[#CEEAD6] rounded-xl transition-all cursor-pointer shadow-xs flex items-center justify-center"
+            title="Scan Barcode / QR Code"
+          >
+            <Camera size={14} className="stroke-[2.5]" />
+          </button>
+
           <button 
             onClick={handleSyncPathao}
-            title="Sync Pathao Courier"
-            className="p-2.5 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-900 border border-gray-200 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center"
+            className="px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-2"
           >
-            <RefreshCw size={14} />
+            <RefreshCw size={13} className="text-emerald-500 stroke-[2.5]" />
+            <span>Sync Pathao</span>
+          </button>
+
+          <button 
+            onClick={() => setShowCreateModal(true)}
+            className="px-4 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-sm flex items-center gap-2"
+          >
+            <Plus size={13} className="stroke-[3]" />
+            <span>Create Order</span>
           </button>
         </div>
-      </div>
-
-      {/* Main Layout Header containing title and 'Create Order' button */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="text-xl font-bold text-gray-900 tracking-tight">All Orders</h2>
-          <span className="flex items-center justify-center bg-indigo-50 text-indigo-600 font-bold text-xs px-2.5 py-0.5 rounded-full border border-indigo-100 min-w-[24px]">
-            {filteredOrders.length}
-          </span>
-        </div>
-
-        <button 
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white font-semibold text-sm px-4 py-2.5 rounded-xl transition-all shadow-sm shadow-[#4F46E5]/10 active:scale-95"
-        >
-          <Plus size={16} strokeWidth={2.5} />
-          <span>Create Order</span>
-        </button>
       </div>
 
       {/* White outer container for Search, Pills, and Table */}
-      <div className="bg-white rounded-[24px] border border-gray-200 p-6 shadow-[0_4px_30px_rgba(0,0,0,0.015)] space-y-6">
+      <div className="bg-white rounded-2xl border border-gray-200 p-4 md:p-5 shadow-[0_4px_30px_rgba(0,0,0,0.015)] space-y-4">
         
-        {/* Full-width Search Input */}
-        <div className="relative w-full">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 stroke-[2]" />
-          <input 
-            type="text"
-            placeholder=""
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 text-sm font-medium rounded-xl placeholder-gray-400 text-gray-900 focus:ring-2 focus:ring-[#4F46E5]/15 focus:border-[#4F46E5]/40 outline-none transition-all shadow-xs"
-          />
-        </div>
+        {/* Interactive Filters Grid / Bar matching screenshot */}
+        <div className="flex flex-wrap items-center gap-3 bg-[#F8FAFC]/60 p-4 rounded-2xl border border-slate-100">
+          {/* Search Input */}
+          <div className="relative flex-1 min-w-[280px]">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 stroke-[2.5]" />
+            <input 
+              type="text"
+              placeholder="Search Order #, Phone, SKU..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 text-xs font-semibold rounded-xl placeholder-gray-400 text-slate-800 focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+            />
+          </div>
 
-        {/* Status Filter Pills Row */}
-        <div className="flex flex-wrap items-center gap-2">
-          {[
-            { key: 'All', label: 'All' },
-            { key: 'ORDER PLACED', label: 'Order Placed' },
-            { key: 'PRINTED', label: 'Printed' },
-            { key: 'PREPARING', label: 'Preparing' },
-            { key: 'PICK UP CANCEL', label: 'Pick Up Cancel' },
-            { key: 'SHIPPED', label: 'Shipped' },
-            { key: 'SUCCESS', label: 'Success' },
-            { key: 'PARTIAL DELIVERY', label: 'Partial Delivery' },
-            { key: 'HOLD', label: 'Hold' },
-            { key: 'RETURNED', label: 'Returned' },
-            { key: 'CANCELLED', label: 'Cancelled' },
-          ].map(status => {
-            const isActive = filterStatus === status.key;
-            
-            // Calculate real count based on current state of database using normalized statuses
-            let count = 0;
-            if (status.key === 'All') {
-              count = orders.length;
-            } else {
-              count = orders.filter(o => normalizeStatus(o.status) === status.key).length;
-            }
+          {/* Date Picker matching mm/dd/yyyy - mm/dd/yyyy in screenshot */}
+          <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-3xs shrink-0">
+            <div className="relative flex items-center gap-1.5 text-xs text-slate-700 font-semibold">
+              <Calendar size={13} className="text-slate-400" />
+              <input 
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-transparent border-none p-0 text-xs font-bold focus:ring-0 focus:outline-none cursor-pointer w-[105px] text-slate-800"
+                placeholder="mm/dd/yyyy"
+              />
+            </div>
+            <span className="text-slate-300 font-black">—</span>
+            <div className="relative flex items-center gap-1.5 text-xs text-slate-700 font-semibold">
+              <Calendar size={13} className="text-slate-400" />
+              <input 
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="bg-transparent border-none p-0 text-xs font-bold focus:ring-0 focus:outline-none cursor-pointer w-[105px] text-slate-800"
+                placeholder="mm/dd/yyyy"
+              />
+            </div>
+          </div>
 
-            return (
-              <button
-                key={status.key}
-                onClick={() => setFilterStatus(status.key)}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer",
-                  isActive 
-                    ? "bg-indigo-50 border-indigo-200 text-indigo-700 font-bold shadow-xs" 
-                    : "bg-white border-gray-200 text-gray-600 hover:text-gray-900 hover:border-gray-300"
-                )}
-              >
-                <span>{status.label}</span>
-                <span className={cn(
-                  "px-1.5 py-0.5 rounded-full text-[10px] leading-none min-w-[16px] text-center font-bold",
-                  isActive ? "bg-indigo-200/60 text-indigo-800" : "bg-gray-100 text-gray-500"
-                )}>
-                  {count}
-                </span>
-              </button>
-            );
-          })}
+          {/* ISSUES Dropdown */}
+          <div className="relative shrink-0">
+            <select
+              value={filterIssue}
+              onChange={(e) => setFilterIssue(e.target.value)}
+              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-4 pr-9 py-2 text-[11px] font-black tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+            >
+              <option value="All">⚠️ ISSUES: ALL</option>
+              <option value="Issues">⚠️ ISSUES ONLY</option>
+              <option value="No Issues">✔️ NO ISSUES</option>
+            </select>
+            <ChevronDown size={11} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none stroke-[2.5]" />
+          </div>
+
+          {/* STATUS Dropdown */}
+          <div className="relative shrink-0">
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-4 pr-9 py-2 text-[11px] font-black tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+            >
+              <option value="All">📦 STATUS: ALL</option>
+              <option value="ORDER PLACED">ORDER PLACED</option>
+              <option value="PRINTED">PRINTED</option>
+              <option value="PREPARING">PREPARING</option>
+              <option value="PICK UP CANCEL">PICK UP CANCEL</option>
+              <option value="SHIPPED">SHIPPED</option>
+              <option value="SUCCESS">SUCCESS</option>
+              <option value="PARTIAL DELIVERY">PARTIAL DELIVERY</option>
+              <option value="HOLD">HOLD</option>
+              <option value="RETURNED">RETURNED</option>
+              <option value="CANCELLED">CANCELLED</option>
+            </select>
+            <ChevronDown size={11} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none stroke-[2.5]" />
+          </div>
+
+          {/* PARTNER Dropdown */}
+          <div className="relative shrink-0">
+            <select
+              value={filterPartner}
+              onChange={(e) => setFilterPartner(e.target.value)}
+              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-4 pr-9 py-2 text-[11px] font-black tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+            >
+              <option value="All">🤝 PARTNER: ALL</option>
+              {uniquePartners.map(p => (
+                <option key={p} value={p}>{p.toUpperCase()}</option>
+              ))}
+            </select>
+            <ChevronDown size={11} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none stroke-[2.5]" />
+          </div>
+
+          {/* COURIER Dropdown */}
+          <div className="relative shrink-0">
+            <select
+              value={filterCourier}
+              onChange={(e) => setFilterCourier(e.target.value)}
+              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-4 pr-9 py-2 text-[11px] font-black tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+            >
+              <option value="All">🚚 COURIER: ALL</option>
+              <option value="Pathao">PATHAO</option>
+              <option value="Steadfast">STEADFAST</option>
+              {uniqueCouriers.filter(c => c.toLowerCase() !== 'pathao' && c.toLowerCase() !== 'steadfast').map(c => (
+                <option key={c} value={c}>{c.toUpperCase()}</option>
+              ))}
+            </select>
+            <ChevronDown size={11} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none stroke-[2.5]" />
+          </div>
+
+          {/* CREATOR Dropdown */}
+          <div className="relative shrink-0">
+            <select
+              value={filterCreator}
+              onChange={(e) => setFilterCreator(e.target.value)}
+              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-4 pr-9 py-2 text-[11px] font-black tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+            >
+              <option value="All">👤 CREATOR: ALL</option>
+              {uniqueCreators.map(cr => (
+                <option key={cr} value={cr}>{cr.toUpperCase()}</option>
+              ))}
+            </select>
+            <ChevronDown size={11} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none stroke-[2.5]" />
+          </div>
+
+          {/* DELIVERY Dropdown */}
+          <div className="relative shrink-0">
+            <select
+              value={filterDelivery}
+              onChange={(e) => setFilterDelivery(e.target.value)}
+              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-4 pr-9 py-2 text-[11px] font-black tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+            >
+              <option value="All">📍 DELIVERY: ALL</option>
+              <option value="Inside Dhaka">INSIDE DHAKA</option>
+              <option value="Outside Dhaka">OUTSIDE DHAKA</option>
+            </select>
+            <ChevronDown size={11} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none stroke-[2.5]" />
+          </div>
         </div>
 
         {/* Dynamic bulk highlighted actions bar */}
@@ -1082,10 +1241,10 @@ export default function AdminOrders(): React.JSX.Element {
         )}
 
         {/* Table representation */}
-        <div className="overflow-x-auto no-scrollbar">
+        <div className="overflow-x-auto elegant-scrollbar pb-3">
           <table className="w-full text-left border-collapse min-w-[1500px]">
             <thead>
-              <tr className="border-b border-gray-100 text-[11px] font-black tracking-wider text-gray-400 h-14 bg-white select-none uppercase">
+              <tr className="border-b border-slate-100 text-[11px] font-black tracking-wider text-slate-400 h-14 bg-white select-none uppercase">
                 <th className="py-3 px-4 font-semibold text-left w-12">
                   <input 
                     type="checkbox" 
@@ -1100,24 +1259,31 @@ export default function AdminOrders(): React.JSX.Element {
                     }}
                   />
                 </th>
-                <th className="py-3 px-4 font-semibold text-left">Date</th>
-                <th className="py-3 px-4 font-semibold text-left">Time</th>
-                <th className="py-3 px-4 font-semibold text-left">Order No</th>
-                <th className="py-3 px-4 font-semibold text-left">Invoice By</th>
-                <th className="py-3 px-4 font-semibold text-left">Invoice No</th>
-                <th className="py-3 px-4 font-semibold text-left">Status</th>
-                <th className="py-3 px-4 font-semibold text-left">Name</th>
-                <th className="py-3 px-4 font-semibold text-left">Address</th>
-                <th className="py-3 px-4 font-semibold text-left">Number</th>
-                <th className="py-3 px-4 font-semibold text-left">Items</th>
-                <th className="py-3 px-4 font-semibold text-right">Total</th>
-                <th className="py-3 px-6 font-semibold text-center">Actions</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Date</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Time</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Order No</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Invoice By</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Status</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Courier</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Name</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Phone</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Email</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Address</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">SKU</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Size</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Qty</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Subtotal</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Advance</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Collectable</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Note</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Tracking ID</th>
+                <th className="py-3 px-6 font-bold text-center text-slate-500 uppercase tracking-wider text-[10px] sticky right-0 bg-white z-10 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50 bg-white">
+            <tbody className="divide-y divide-slate-100 bg-white">
               {filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="py-24 text-center">
+                  <td colSpan={20} className="py-24 text-center">
                     <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 mx-auto mb-4 border border-gray-150">
                       <AlertCircle className="w-5 h-5 stroke-[1.5]" />
                     </div>
@@ -1143,7 +1309,7 @@ export default function AdminOrders(): React.JSX.Element {
                       key={order.id} 
                       onClick={() => setSelectedOrder(order)}
                       className={cn(
-                        "hover:bg-gray-50/50 transition-colors cursor-pointer group h-16 border-b border-gray-100",
+                        "hover:bg-slate-50/50 transition-colors cursor-pointer group h-16 border-b border-slate-100",
                         order.issueType && order.issueStatus !== 'resolved' && "bg-[#FFF5F5]/30 hover:bg-[#FFF5F5]/50"
                       )}
                     >
@@ -1164,40 +1330,27 @@ export default function AdminOrders(): React.JSX.Element {
                       </td>
 
                       {/* Date */}
-                      <td className="py-4 px-4 whitespace-nowrap text-sm text-[#475569] font-sans font-medium">
+                      <td className="py-4 px-4 whitespace-nowrap text-xs text-[#475569] font-sans font-semibold">
                         {dateTime.date}
                       </td>
 
                       {/* Time */}
-                      <td className="py-4 px-4 whitespace-nowrap text-sm text-[#475569] font-sans font-medium">
+                      <td className="py-4 px-4 whitespace-nowrap text-xs text-[#475569] font-sans font-semibold">
                         {dateTime.time}
                       </td>
 
                       {/* Order No */}
-                      <td className="py-4 px-4 whitespace-nowrap text-sm font-bold text-gray-900 font-mono-numbers">
-                        {cleanId}
-                      </td>
-
-                      {/* Invoice By */}
-                      <td className="py-4 px-4 whitespace-nowrap text-sm text-[#475569] font-medium">
-                        {getInvoiceBy(order)}
-                      </td>
-
-                      {/* Invoice No & Issue Badges */}
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 whitespace-nowrap text-xs">
                         <div className="flex flex-col text-left gap-1">
-                          <span className="text-sm font-bold text-gray-900 font-mono-numbers leading-none">
-                            {order.invoiceNo || 1000}
-                          </span>
-                          
+                          <span className="font-bold text-slate-900 font-mono-numbers">{cleanId}</span>
                           {order.issueType && (
                             order.issueStatus === 'resolved' ? (
-                              <span className="inline-flex items-center gap-1 self-start px-2 py-0.5 rounded-full text-[9px] font-black tracking-wide bg-[#E6F4EA] text-[#137333] border border-[#CEEAD6] mt-1">
+                              <span className="inline-flex items-center gap-1 self-start px-2 py-0.5 rounded-full text-[9px] font-black tracking-wide bg-[#E6F4EA] text-[#137333] border border-[#CEEAD6]">
                                 <CheckCircle2 size={10} className="stroke-[3]" />
                                 SOLVED
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 self-start px-2 py-0.5 rounded-full text-[9px] font-black tracking-wide bg-[#FFF0F0] text-[#EB5757] border border-red-200 mt-1">
+                              <span className="inline-flex items-center gap-1 self-start px-2 py-0.5 rounded-full text-[9px] font-black tracking-wide bg-[#FFF0F0] text-[#EB5757] border border-red-200">
                                 <AlertTriangle size={10} className="stroke-[3]" />
                                 ACTIVE
                               </span>
@@ -1206,16 +1359,21 @@ export default function AdminOrders(): React.JSX.Element {
                         </div>
                       </td>
 
+                      {/* Invoice By */}
+                      <td className="py-4 px-4 whitespace-nowrap text-xs text-[#475569] font-semibold">
+                        {getInvoiceBy(order)}
+                      </td>
+
                       {/* Status Dropdown Pill */}
                       <td className="py-4 px-4 relative" onClick={(e) => e.stopPropagation()}>
                         <button 
                           onClick={() => setActiveStatusDropdownOrderId(activeStatusDropdownOrderId === order.id ? null : order.id)}
                           className={cn(
-                            "inline-flex items-center justify-between gap-1.5 px-3 py-1 text-xs font-semibold rounded-full border cursor-pointer select-none transition-all",
+                            "inline-flex items-center justify-between gap-1.5 px-3 py-1.5 text-[10px] font-extrabold rounded-full border cursor-pointer select-none transition-all shadow-3xs",
                             getStatusBadge(order.status).class
                           )}
                         >
-                          <span className="uppercase text-[10px] tracking-wider font-extrabold">{normalizeStatus(order.status)}</span>
+                          <span className="uppercase tracking-wider">{normalizeStatus(order.status)}</span>
                           <ChevronDown size={11} className="stroke-[2.5]" />
                         </button>
                         
@@ -1225,7 +1383,7 @@ export default function AdminOrders(): React.JSX.Element {
                               className="fixed inset-0 z-30" 
                               onClick={() => setActiveStatusDropdownOrderId(null)}
                             />
-                            <div className="absolute left-4 mt-1 w-52 bg-white border border-[#334155] shadow-xl py-0.5 z-40">
+                            <div className="absolute left-4 mt-1 w-52 bg-white border border-[#E2E8F0] shadow-xl py-0.5 z-40 rounded-xl overflow-hidden">
                               {[
                                 { key: 'ORDER PLACED', label: 'ORDER PLACED' },
                                 { key: 'PRINTED', label: 'PRINTED' },
@@ -1247,10 +1405,10 @@ export default function AdminOrders(): React.JSX.Element {
                                       setActiveStatusDropdownOrderId(null);
                                     }}
                                     className={cn(
-                                      "w-full text-left px-4 py-2 text-[10px] font-black tracking-wider uppercase select-none transition-colors",
+                                      "w-full text-left px-4 py-2 text-[10px] uppercase tracking-wide transition-all cursor-pointer",
                                       isSelected 
-                                        ? "bg-[#1976d2] text-white font-extrabold" 
-                                        : "text-[#0f172a] hover:bg-gray-100 font-bold"
+                                        ? "bg-[#1976d2] text-white font-black" 
+                                        : "text-[#0f172a] hover:bg-slate-50 font-bold"
                                     )}
                                   >
                                     {opt.label}
@@ -1262,37 +1420,133 @@ export default function AdminOrders(): React.JSX.Element {
                         )}
                       </td>
 
+                      {/* Courier */}
+                      <td className="py-4 px-4 whitespace-nowrap text-xs text-slate-700 font-semibold" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-1 bg-[#F1F5F9]/60 hover:bg-[#F1F5F9] px-2.5 py-1.5 rounded-lg border border-slate-200/40 w-fit cursor-pointer">
+                          <span>{order.courier || 'Pathao'}</span>
+                          <ChevronDown size={11} className="text-slate-400 stroke-[2.5]" />
+                        </div>
+                      </td>
+
                       {/* Name */}
-                      <td className="py-4 px-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                        {order.customerName}
+                      <td className="py-4 px-4 text-xs font-bold text-slate-800">
+                        {order.customerName || 'Anonymous Customer'}
+                      </td>
+
+                      {/* Phone */}
+                      <td className="py-4 px-4 whitespace-nowrap text-xs text-slate-600 font-sans font-semibold">
+                        {order.phone || '—'}
+                      </td>
+
+                      {/* Email */}
+                      <td className="py-4 px-4 whitespace-nowrap text-xs text-slate-500 font-medium">
+                        {order.email && order.email !== 'manual_admin' ? order.email : '—'}
                       </td>
 
                       {/* Address */}
-                      <td className="py-4 px-4 text-sm text-gray-600 max-w-[220px] truncate" title={order.address}>
-                        {order.address}
+                      <td className="py-4 px-4 text-xs text-slate-600 font-medium max-w-[250px] truncate" title={order.address}>
+                        {order.address ? `Address: ${order.address}` : '—'}
                       </td>
 
-                      {/* Number (Phone) */}
-                      <td className="py-4 px-4 whitespace-nowrap text-sm text-gray-600 font-mono-numbers">
-                        {order.phone}
+                      {/* SKU */}
+                      <td className="py-4 px-4 whitespace-nowrap text-xs font-bold text-[#2563EB]">
+                        {order.items && order.items.length > 0 
+                          ? order.items.map(item => item.sku || `EP-${item.id?.slice(-4).toUpperCase()}`).join(', ') 
+                          : '—'}
                       </td>
 
-                      {/* Items */}
-                      <td className="py-4 px-4 max-w-[200px] truncate">
-                        <span className="text-sm text-gray-500 truncate block font-medium" title={itemsSummary}>
-                          {itemsSummary}
-                        </span>
+                      {/* Size */}
+                      <td className="py-4 px-4 whitespace-nowrap text-xs">
+                        <div className="flex flex-wrap gap-1">
+                          {order.items && order.items.length > 0 ? (
+                            order.items.map((item, idx) => (
+                              <span key={idx} className="bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 text-[10px] font-black text-slate-700 font-mono">
+                                {item.selectedSize || 'Free'}{item.quantity > 1 ? ` (x${item.quantity})` : ' (x1)'}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </div>
                       </td>
 
-                      {/* Total */}
-                      <td className="py-4 px-4 text-right whitespace-nowrap">
-                        <span className="text-sm font-bold text-gray-900 font-mono-numbers">
-                          ৳{Number(order.total || 0).toLocaleString()}
-                        </span>
+                      {/* Qty */}
+                      <td className="py-4 px-4 text-xs font-extrabold text-slate-800">
+                        {order.items ? order.items.reduce((sum, item) => sum + (item.quantity || 1), 0) : 0}
+                      </td>
+
+                      {/* Subtotal */}
+                      <td className="py-4 px-4 whitespace-nowrap text-xs font-black text-slate-900 font-mono-numbers">
+                        {formatPrice(order.items ? order.items.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0) : 0, currency, rate)}
+                      </td>
+
+                      {/* Advance */}
+                      <td className="py-4 px-4 whitespace-nowrap text-xs font-black text-emerald-600 font-mono-numbers">
+                        {formatPrice(order.advancePayment || 0, currency, rate)}
+                      </td>
+
+                      {/* Collectable */}
+                      <td className="py-4 px-4 whitespace-nowrap text-xs font-black text-orange-600 font-mono-numbers">
+                        {formatPrice(order.total, currency, rate)}
+                      </td>
+
+                      {/* Note */}
+                      <td className="py-4 px-4 text-xs text-slate-500 font-medium max-w-[150px] truncate" title={order.notes}>
+                        {order.notes || '—'}
+                      </td>
+
+                      {/* Tracking ID */}
+                      <td className="py-4 px-4 whitespace-nowrap text-xs" onClick={(e) => e.stopPropagation()}>
+                        {editingTrackingOrderId === order.id ? (
+                          <input
+                            type="text"
+                            value={tempTrackingId}
+                            onChange={(e) => setTempTrackingId(e.target.value)}
+                            onBlur={async () => {
+                              try {
+                                await updateOrder(order.id, { ...order, trackingId: tempTrackingId });
+                                toast.success("Tracking ID updated successfully!");
+                              } catch (err) {
+                                toast.error("Failed to update Tracking ID");
+                              }
+                              setEditingTrackingOrderId(null);
+                            }}
+                            onKeyDown={async (e) => {
+                              if (e.key === 'Enter') {
+                                try {
+                                  await updateOrder(order.id, { ...order, trackingId: tempTrackingId });
+                                  toast.success("Tracking ID updated successfully!");
+                                } catch (err) {
+                                  toast.error("Failed to update Tracking ID");
+                                }
+                                setEditingTrackingOrderId(null);
+                              } else if (e.key === 'Escape') {
+                                setEditingTrackingOrderId(null);
+                              }
+                            }}
+                            autoFocus
+                            className="w-24 px-2 py-1 text-xs font-semibold bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20"
+                          />
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setEditingTrackingOrderId(order.id);
+                              setTempTrackingId(order.trackingId || '');
+                            }}
+                            className={cn(
+                              "px-3 py-1.5 text-[11px] font-bold rounded-lg border transition-all cursor-pointer",
+                              order.trackingId
+                                ? "bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100"
+                                : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100"
+                            )}
+                          >
+                            {order.trackingId || 'Add ID'}
+                          </button>
+                        )}
                       </td>
 
                       {/* Actions */}
-                      <td className="py-4 px-6">
+                      <td className="py-4 px-6 sticky right-0 bg-white z-10 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">
                         <div className="flex items-center justify-center">
                           <div className="flex items-center gap-0.5 bg-[#F8FAFC] p-1 rounded-xl border border-[#EDF2F7] shadow-sm">
                             <button 
@@ -1334,6 +1588,9 @@ export default function AdminOrders(): React.JSX.Element {
                                 e.stopPropagation();
                                 setInvoiceOrder(order);
                                 setShowInvoiceModal(true);
+                                if (normalizeStatus(order.status) !== 'PRINTED') {
+                                  updateOrderStatus(order.id, 'PRINTED');
+                                }
                               }} 
                               title="Print Invoice"
                               className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
@@ -1570,28 +1827,28 @@ export default function AdminOrders(): React.JSX.Element {
                     {/* ORDER ITEMS */}
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">ORDER ITEMS (REQUIRED)</span>
-                        <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full text-[10px] font-black tracking-wide font-mono">
+                        <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">ORDER ITEMS (REQUIRED)</span>
+                        <span className="bg-[#EFF6FF] text-[#2563EB] px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide font-mono shadow-3xs">
                           {newOrderItems.length} styles
                         </span>
                       </div>
 
                       {newOrderItems.length === 0 ? (
-                        <div className="p-6 border-2 border-dashed border-gray-200 bg-white rounded-2xl text-center">
-                          <ShoppingCart className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">No Items Added to Memo Yet</p>
-                          <p className="text-[9.5px] text-gray-400 font-semibold mt-0.5">Use the IBL Search panel on the left to select items</p>
+                        <div className="py-8 bg-[#F1F5F9]/40 border border-dashed border-slate-200 rounded-2xl text-center flex items-center justify-center">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            Select products from the left catalog
+                          </p>
                         </div>
                       ) : (
                         <div className="space-y-2">
                           {newOrderItems.map(item => (
-                            <div key={item.id} className="p-3 bg-white border border-gray-200 rounded-2xl flex items-center justify-between gap-4 shadow-3xs transition-all hover:border-gray-300">
+                            <div key={item.id} className="p-3 bg-white border border-slate-150 rounded-2xl flex items-center justify-between gap-4 shadow-3xs transition-all hover:border-slate-250">
                               <div className="flex items-center gap-3 min-w-0 flex-1">
                                 <div className="flex-1 min-w-0 text-left">
-                                  <p className="text-xs font-black text-[#0C1421] truncate">
+                                  <p className="text-xs font-black text-[#0F172A] truncate">
                                     {item.product.name} ({item.selectedSize})
                                   </p>
-                                  <p className="text-[10px] font-bold text-gray-400 font-mono mt-0.5">
+                                  <p className="text-[10px] font-bold text-slate-400 font-mono mt-0.5">
                                     SKU: EP-{item.product.id.slice(-4).toUpperCase()}
                                   </p>
                                 </div>
@@ -1607,13 +1864,13 @@ export default function AdminOrders(): React.JSX.Element {
                                     const val = parseInt(e.target.value) || 1;
                                     setNewOrderItems(prev => prev.map(it => it.id === item.id ? { ...it, quantity: val } : it));
                                   }}
-                                  className="w-12 text-center py-1 bg-[#F8FAFC] border border-gray-200 text-xs font-black rounded-lg outline-none focus:ring-2 focus:ring-blue-500/15"
+                                  className="w-12 text-center py-1 bg-[#F8FAFC] border border-slate-200 text-xs font-black rounded-lg outline-none focus:ring-2 focus:ring-blue-500/15"
                                 />
-                                <span className="text-xs font-black text-gray-400">×</span>
+                                <span className="text-xs font-black text-slate-400">×</span>
                                 
                                 {/* Editable custom price field, prefixed with ৳ */}
                                 <div className="relative">
-                                  <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">৳</span>
+                                  <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">৳</span>
                                   <input 
                                     type="number"
                                     min={0}
@@ -1622,7 +1879,7 @@ export default function AdminOrders(): React.JSX.Element {
                                       const val = parseFloat(e.target.value) || 0;
                                       setNewOrderItems(prev => prev.map(it => it.id === item.id ? { ...it, price: val } : it));
                                     }}
-                                    className="w-20 pl-4 pr-1 text-center py-1 bg-[#F8FAFC] border border-gray-200 text-xs font-black rounded-lg outline-none focus:ring-2 focus:ring-blue-500/15"
+                                    className="w-20 pl-4 pr-1 text-center py-1 bg-[#F8FAFC] border border-slate-200 text-xs font-black rounded-lg outline-none focus:ring-2 focus:ring-blue-500/15"
                                   />
                                 </div>
 
@@ -1630,7 +1887,7 @@ export default function AdminOrders(): React.JSX.Element {
                                 <button
                                   type="button"
                                   onClick={() => setNewOrderItems(prev => prev.filter(it => it.id !== item.id))}
-                                  className="p-1 text-gray-400 hover:text-red-500 transition-colors ml-1"
+                                  className="p-1 text-slate-400 hover:text-red-500 transition-colors ml-1"
                                 >
                                   <X size={14} className="stroke-[2.5]" />
                                 </button>
@@ -1643,21 +1900,21 @@ export default function AdminOrders(): React.JSX.Element {
 
                     {/* CUSTOMER DETAILS SECTION */}
                     <div className="space-y-4">
-                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 block border-b border-gray-100 pb-1.5 text-left">
+                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block border-b border-slate-100 pb-1.5 text-left">
                         CUSTOMER DETAILS
                       </span>
                       
                       {/* Lookup phone number field with auto-fill pill indicator */}
                       <div className="space-y-1 text-left">
-                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-gray-500">PHONE NUMBER (LOOKUP)</label>
+                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">PHONE NUMBER (LOOKUP)</label>
                         <div className="relative">
-                          <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                          <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                           <input 
                             type="tel" 
-                            placeholder="Enter phone to find or create..." 
+                            placeholder="e.g., 017XXXXXXXX" 
                             value={newCustomerPhone}
                             onChange={(e) => setNewCustomerPhone(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 text-[12px] font-semibold rounded-xl placeholder-gray-400 focus:ring-2 focus:ring-[#2563EB]/15 outline-none transition-all shadow-3xs"
+                            className="w-full pl-10 pr-4 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
                           />
                         </div>
                         
@@ -1666,7 +1923,7 @@ export default function AdminOrders(): React.JSX.Element {
                           <button
                             type="button"
                             onClick={handleAutofillCustomer}
-                            className="mt-1.5 w-full text-left bg-blue-50/70 hover:bg-blue-50 border border-blue-200/50 rounded-xl px-3 py-2 text-[10px] font-black text-blue-700 uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-3xs active:scale-99"
+                            className="mt-1.5 w-full text-left bg-blue-50/70 hover:bg-blue-50 border border-blue-200/50 rounded-xl px-3 py-2 text-[10px] font-black text-blue-700 uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-3xs active:scale-99 cursor-pointer"
                           >
                             <CheckCircle2 size={12} className="text-blue-600 shrink-0" />
                             <span>Found client: <span className="underline">{matchedCustomerFromOrders.name}</span> — Click to autofill address &amp; region</span>
@@ -1677,36 +1934,36 @@ export default function AdminOrders(): React.JSX.Element {
                       {/* Grid for Name and City/Region */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1 text-left">
-                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-gray-500">FULL NAME</label>
+                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">FULL NAME</label>
                           <div className="relative">
-                            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                             <input 
                               type="text" 
-                              placeholder="Customer name..." 
+                              placeholder="e.g., John Doe" 
                               value={newCustomerName}
                               onChange={(e) => setNewCustomerName(e.target.value)}
-                              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 text-[12px] font-semibold rounded-xl placeholder-gray-400 focus:ring-2 focus:ring-[#2563EB]/15 outline-none transition-all shadow-3xs"
+                              className="w-full pl-10 pr-4 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
                             />
                           </div>
                         </div>
 
                         <div className="space-y-1 text-left">
-                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-gray-500">DELIVERY REGION (REQUIRED)</label>
+                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">DELIVERY REGION (REQUIRED)</label>
                           <div className="relative">
-                            <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                            <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                             <select 
                               value={newCustomerCity}
                               onChange={(e) => {
                                 const region = e.target.value;
-                                setNewCustomerCity(region);
-                                // Dynamic region charge setting!
-                                if (region === 'Dhaka City' || region === 'Dhaka') {
-                                  setNewDeliveryCharge(80);
-                                } else if (region) {
-                                  setNewDeliveryCharge(150);
-                                }
+                                  setNewCustomerCity(region);
+                                  // Dynamic region charge setting!
+                                  if (region === 'Dhaka City' || region === 'Dhaka') {
+                                    setNewDeliveryCharge(80);
+                                  } else if (region) {
+                                    setNewDeliveryCharge(150);
+                                  }
                               }}
-                              className="w-full pl-10 pr-8 py-2.5 bg-white border border-gray-200 text-[12px] font-semibold rounded-xl text-[#0C1421] focus:ring-2 focus:ring-[#2563EB]/15 outline-none transition-all appearance-none cursor-pointer shadow-3xs"
+                              className="w-full pl-10 pr-8 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all appearance-none cursor-pointer shadow-3xs"
                             >
                               <option value="" disabled>Select Region</option>
                               <option value="Dhaka City">Dhaka City (৳80)</option>
@@ -1720,129 +1977,189 @@ export default function AdminOrders(): React.JSX.Element {
                               <option value="Mymensingh">Mymensingh (৳150)</option>
                               <option value="Outside Dhaka">Outside Dhaka (৳150)</option>
                             </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
                           </div>
                         </div>
                       </div>
 
                       {/* EMAIL FIELD (OPTIONAL) */}
                       <div className="space-y-1 text-left">
-                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-gray-500">EMAIL (OPTIONAL)</label>
+                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">EMAIL (OPTIONAL)</label>
                         <div className="relative">
-                          <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                          <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                           <input 
                             type="email" 
-                            placeholder="email@example.com" 
+                            placeholder="e.g., john@example.com" 
                             value={newCustomerEmail}
                             onChange={(e) => setNewCustomerEmail(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 text-[12px] font-semibold rounded-xl placeholder-gray-400 focus:ring-2 focus:ring-[#2563EB]/15 outline-none transition-all shadow-3xs"
+                            className="w-full pl-10 pr-4 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
                           />
                         </div>
                       </div>
 
                       {/* SHIPPING ADDRESS FIELD */}
                       <div className="space-y-1 text-left">
-                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-gray-500">SHIPPING ADDRESS</label>
+                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">SHIPPING ADDRESS</label>
                         <div className="relative">
-                          <MapPin className="absolute left-3.5 top-3 text-gray-400 w-4 h-4" />
+                          <MapPin className="absolute left-3.5 top-3 text-slate-400 w-4 h-4" />
                           <textarea 
                             rows={2}
-                            placeholder="Enter delivery address..." 
+                            placeholder="e.g., House 12, Road 4, Dhanmondi, Dhaka" 
                             value={newCustomerAddress}
                             onChange={(e) => setNewCustomerAddress(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 text-[12px] font-semibold rounded-xl placeholder-gray-400 focus:ring-2 focus:ring-[#2563EB]/15 outline-none transition-all resize-none shadow-3xs"
+                            className="w-full pl-10 pr-4 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all resize-none shadow-3xs"
                           />
-                        </div>
-                      </div>
-
-                      {/* INVOICE BY FIELD */}
-                      <div className="space-y-1 text-left">
-                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-gray-500">INVOICE BY</label>
-                        <div className="relative">
-                          <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                          <select 
-                            value={newInvoiceBy}
-                            onChange={(e) => setNewInvoiceBy(e.target.value as any)}
-                            className="w-full pl-10 pr-8 py-2.5 bg-white border border-gray-200 text-[12px] font-semibold rounded-xl text-[#0C1421] focus:ring-2 focus:ring-[#2563EB]/15 outline-none transition-all appearance-none cursor-pointer shadow-3xs"
-                          >
-                            <option value="Sabbir">1. Sabbir</option>
-                            <option value="Nasir">2. Nasir</option>
-                            <option value="Shamiul">3. Shamiul</option>
-                            <option value="Office Sale">4. Office Sale</option>
-                          </select>
-                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
                         </div>
                       </div>
                     </div>
 
-                    {/* TRACKING INFO & BILLING */}
+                    {/* TRACKING INFO SECTION */}
                     <div className="space-y-4">
-                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 block border-b border-gray-100 pb-1.5 text-left">
-                        TRACKING INFO &amp; BILLING
+                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block border-b border-slate-100 pb-1.5 text-left">
+                        TRACKING INFO
                       </span>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* DELIVERY PARTNER */}
+                        <div className="space-y-1 text-left">
+                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">DELIVERY PARTNER</label>
+                          <div className="relative">
+                            <Truck className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                            <select 
+                              value={newDeliveryPartner}
+                              onChange={(e) => setNewDeliveryPartner(e.target.value)}
+                              className="w-full pl-10 pr-8 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all appearance-none cursor-pointer shadow-3xs"
+                            >
+                              <option value="">Select Partner (Optional)</option>
+                              <option value="Pathao">Pathao</option>
+                              <option value="Steadfast">Steadfast</option>
+                              <option value="RedX">RedX</option>
+                              <option value="Paperfly">Paperfly</option>
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
+                          </div>
+                        </div>
+
+                        {/* INVOICE BY */}
+                        <div className="space-y-1 text-left">
+                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">INVOICE BY</label>
+                          <div className="relative">
+                            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                            <select 
+                              value={newInvoiceBy}
+                              onChange={(e) => setNewInvoiceBy(e.target.value as any)}
+                              className="w-full pl-10 pr-8 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all appearance-none cursor-pointer shadow-3xs"
+                            >
+                              <option value="Sabbir">Sabbir</option>
+                              <option value="Nasir">Nasir</option>
+                              <option value="Shamiul">Shamiul</option>
+                              <option value="Office Sale">Office Sale</option>
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* INVOICE NO */}
+                        <div className="space-y-1 text-left">
+                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">INVOICE NO</label>
+                          <div className="relative">
+                            <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                            <input 
+                              type="text" 
+                              disabled
+                              value="Will be generated automatically (e.g., INV-123456)"
+                              className="w-full pl-10 pr-4 py-2.5 bg-[#F1F5F9]/30 border border-slate-200/50 text-[11px] font-semibold rounded-xl text-slate-400 select-none cursor-not-allowed"
+                            />
+                          </div>
+                        </div>
+
+                        {/* TRACKING ID */}
+                        <div className="space-y-1 text-left">
+                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">TRACKING ID</label>
+                          <div className="relative">
+                            <Tag className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                            <input 
+                              type="text" 
+                              placeholder="Tracking Number" 
+                              value={newTrackingId}
+                              onChange={(e) => setNewTrackingId(e.target.value)}
+                              className="w-full pl-10 pr-4 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+                            />
+                          </div>
+                        </div>
+                      </div>
 
                       {/* DELIVERY DATE (OPTIONAL) */}
                       <div className="space-y-1 text-left">
-                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-gray-500">DELIVERY DATE (OPTIONAL)</label>
+                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">DELIVERY DATE (OPTIONAL)</label>
                         <div className="relative">
-                          <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+                          <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
                           <input 
                             type="date" 
                             value={newDeliveryDate} 
                             onChange={(e) => setNewDeliveryDate(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 text-[12px] font-semibold rounded-xl outline-none focus:ring-2 focus:ring-[#2563EB]/15 transition-all cursor-pointer font-mono shadow-3xs text-left"
+                            className="w-full pl-10 pr-4 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl outline-none focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 transition-all cursor-pointer font-mono shadow-3xs text-left text-slate-800"
                           />
                         </div>
                       </div>
+                    </div>
+
+                    {/* BILLING & PAYMENT SECTION */}
+                    <div className="space-y-4">
+                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block border-b border-slate-100 pb-1.5 text-left">
+                        BILLING &amp; PAYMENT
+                      </span>
 
                       {/* BILLING & PAYMENT Grid */}
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1 text-left">
-                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-gray-500">DELIVERY CHARGE</label>
+                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">DELIVERY CHARGE</label>
                           <div className="relative">
-                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold font-mono">৳</span>
+                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold font-mono">৳</span>
                             <input 
                               type="number" 
                               min={0}
                               value={newDeliveryCharge}
                               onChange={(e) => setNewDeliveryCharge(parseFloat(e.target.value) || 0)}
-                              className="w-full pl-8 pr-4 py-2.5 bg-white border border-gray-200 text-[12px] font-semibold rounded-xl focus:ring-2 focus:ring-[#2563EB]/15 outline-none transition-all shadow-3xs font-mono"
+                              className="w-full pl-8 pr-4 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs font-mono"
                             />
                           </div>
                         </div>
 
                         <div className="space-y-1 text-left">
-                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-gray-500">DISCOUNT AMOUNT</label>
+                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">DISCOUNT AMOUNT</label>
                           <div className="relative">
-                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold font-mono">৳</span>
+                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold font-mono">৳</span>
                             <input 
                               type="number" 
                               min={0}
                               value={newDiscountAmount}
                               onChange={(e) => setNewDiscountAmount(parseFloat(e.target.value) || 0)}
-                              className="w-full pl-8 pr-4 py-2.5 bg-[#FAFBFD]/50 border border-gray-200 text-[12px] font-semibold rounded-xl focus:ring-2 focus:ring-[#2563EB]/15 outline-none transition-all shadow-3xs font-mono"
+                              className="w-full pl-8 pr-4 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs font-mono"
                             />
                           </div>
                         </div>
 
                         <div className="space-y-1 text-left">
-                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-gray-500">ADVANCE PAYMENT</label>
+                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">ADVANCE PAYMENT</label>
                           <div className="relative">
-                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold font-mono">৳</span>
+                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold font-mono">৳</span>
                             <input 
                               type="number" 
                               min={0}
                               value={newAdvancePayment}
                               onChange={(e) => setNewAdvancePayment(parseFloat(e.target.value) || 0)}
-                              className="w-full pl-8 pr-4 py-2.5 bg-[#FAFBFD]/50 border border-gray-200 text-[12px] font-semibold rounded-xl focus:ring-2 focus:ring-[#2563EB]/15 outline-none transition-all shadow-3xs font-mono"
+                              className="w-full pl-8 pr-4 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs font-mono"
                             />
                           </div>
                         </div>
 
                         {/* Orange computed Collectable card */}
                         <div className="space-y-1 text-left">
-                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-gray-500">COLLECTABLE AMOUNT</label>
-                          <div className="relative bg-[#FFF7ED] border border-[#FFEDD5] text-[#C2410C] rounded-xl px-4 py-2.5 flex items-center justify-between font-mono font-black text-xs h-[42px] shadow-3xs">
+                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">COLLECTABLE AMOUNT</label>
+                          <div className="relative bg-[#FFF7ED] border border-[#FFEDD5] text-[#C2410C] rounded-xl px-4 py-2.5 flex items-center justify-between font-mono font-black text-xs h-[42px] shadow-3xs select-all">
                             <span className="text-[#C2410C]/70">৳</span>
                             <span>{newOrderItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0) + newDeliveryCharge - newDiscountAmount - newAdvancePayment}</span>
                           </div>
@@ -1851,32 +2168,70 @@ export default function AdminOrders(): React.JSX.Element {
 
                       {/* ADVANCE PAYMENT METHOD pills row */}
                       <div className="space-y-1.5 text-left">
-                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-gray-500">ADVANCE PAYMENT METHOD</label>
+                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">ADVANCE PAYMENT METHOD</label>
                         <div className="flex items-center gap-1.5">
-                          {['Cash', 'bKash', 'Rocket', 'Nagad'].map((method) => {
-                            const active = newAdvancePaymentMethod === method;
-                            return (
-                              <button
-                                key={method}
-                                type="button"
-                                onClick={() => setNewAdvancePaymentMethod(method as any)}
-                                className={cn(
-                                  "flex-1 py-2 text-[11px] font-black tracking-wide uppercase rounded-xl transition-all border shadow-3xs active:scale-95",
-                                  active 
-                                    ? "bg-[#2563EB] border-[#2563EB] text-white font-extrabold shadow-sm shadow-blue-500/10" 
-                                    : "bg-white border-gray-200 text-gray-600 hover:text-black hover:border-gray-300"
-                                )}
-                              >
-                                {method}
-                              </button>
-                            );
-                          })}
+                          {/* Cash Button */}
+                          <button
+                            type="button"
+                            onClick={() => setNewAdvancePaymentMethod('Cash')}
+                            className={cn(
+                              "flex-1 py-3 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95",
+                              newAdvancePaymentMethod === 'Cash'
+                                ? "bg-[#E6F4EA] border-[#137333] text-[#137333] font-black"
+                                : "bg-white border-slate-200 text-slate-600 hover:text-black hover:border-slate-300"
+                            )}
+                          >
+                            <span className="text-sm leading-none">💵</span>
+                            <span>Cash</span>
+                          </button>
+
+                          {/* bKash Button */}
+                          <button
+                            type="button"
+                            onClick={() => setNewAdvancePaymentMethod('bKash')}
+                            className={cn(
+                              "flex-1 py-3 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95",
+                              newAdvancePaymentMethod === 'bKash'
+                                ? "bg-[#FDF2F8] border-[#DB2777] text-[#DB2777] font-black"
+                                : "bg-white border-slate-200 text-slate-600 hover:text-black hover:border-slate-300"
+                            )}
+                          >
+                            <span className="text-xs font-extrabold">bKash</span>
+                          </button>
+
+                          {/* Rocket Button */}
+                          <button
+                            type="button"
+                            onClick={() => setNewAdvancePaymentMethod('Rocket')}
+                            className={cn(
+                              "flex-1 py-3 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95",
+                              newAdvancePaymentMethod === 'Rocket'
+                                ? "bg-[#FAF5FF] border-[#7C3AED] text-[#7C3AED] font-black"
+                                : "bg-white border-slate-200 text-slate-600 hover:text-black hover:border-slate-300"
+                            )}
+                          >
+                            <span className="text-xs font-extrabold">Rocket</span>
+                          </button>
+
+                          {/* Nagad Button */}
+                          <button
+                            type="button"
+                            onClick={() => setNewAdvancePaymentMethod('Nagad')}
+                            className={cn(
+                              "flex-1 py-3 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95",
+                              newAdvancePaymentMethod === 'Nagad'
+                                ? "bg-[#FFF7ED] border-[#EA580C] text-[#EA580C] font-black"
+                                : "bg-white border-slate-200 text-slate-600 hover:text-black hover:border-slate-300"
+                            )}
+                          >
+                            <span className="text-xs font-extrabold">Nagad</span>
+                          </button>
                           
                           <button
                             type="button"
                             onClick={() => setNewAdvancePaymentMethod('')}
                             title="Clear selection"
-                            className="p-2 border border-gray-200 hover:border-gray-300 rounded-xl bg-white hover:bg-gray-50 transition-all text-gray-400 hover:text-black shrink-0 shadow-3xs active:scale-95"
+                            className="p-3 border border-slate-200 hover:border-slate-300 rounded-xl bg-white hover:bg-slate-50 transition-all text-slate-400 hover:text-black shrink-0 shadow-3xs active:scale-95 cursor-pointer"
                           >
                             <X size={14} className="stroke-[2.5]" />
                           </button>
@@ -1885,41 +2240,40 @@ export default function AdminOrders(): React.JSX.Element {
 
                       {/* INTERNAL NOTE */}
                       <div className="space-y-1 text-left">
-                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-gray-500 font-sans">INTERNAL NOTE (OPTIONAL)</label>
+                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 font-sans">INTERNAL NOTE (OPTIONAL)</label>
                         <input 
                           type="text" 
-                          placeholder="Shipping instructions..." 
+                          placeholder="e.g., Call before delivery, handle with care..." 
                           value={newInternalNote}
                           onChange={(e) => setNewInternalNote(e.target.value)}
-                          className="w-full px-4 py-2.5 bg-white border border-gray-200 text-[12px] font-semibold rounded-xl placeholder-gray-400 focus:ring-2 focus:ring-[#2563EB]/15 outline-none transition-all shadow-3xs"
+                          className="w-full px-4 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
                         />
                       </div>
-
                     </div>
 
                   </div>
 
                   {/* STICKY BOTTOM SUMMARY SECTION */}
-                  <div className="p-5 bg-white border-t border-[#EFF2F6] shrink-0 text-left">
-                    <div className="space-y-3.5">
+                  <div className="p-5 bg-white border-t border-slate-100 shrink-0 text-left">
+                    <div className="space-y-4">
                       
                       {/* Financial values mapping */}
-                      <div className="p-4 bg-[#FAFBFD] rounded-2xl space-y-2 border border-[#EFF2F6]">
-                        <div className="flex justify-between items-center text-[10px] font-extrabold text-[#8292A1] uppercase tracking-wider">
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest">
                           <span>SUBTOTAL</span>
-                          <span className="font-mono font-black text-gray-700">
+                          <span className="font-mono font-black text-slate-700">
                             {formatPrice(newOrderItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0), currency, rate)}
                           </span>
                         </div>
-                        <div className="flex justify-between items-center text-[10px] font-extrabold text-red-500 uppercase tracking-wider">
+                        <div className="flex justify-between items-center text-[10px] font-extrabold text-[#10B981] uppercase tracking-widest">
                           <span>ADVANCE PAYMENT (-)</span>
                           <span className="font-mono font-black">
                             {formatPrice(newAdvancePayment, currency, rate)}
                           </span>
                         </div>
-                        <div className="flex justify-between items-center text-sm font-black text-[#0C1421] uppercase border-t border-dashed border-gray-200 pt-2">
-                          <span className="tracking-wide">COLLECTABLE AMOUNT</span>
-                          <span className="text-xl font-black text-blue-600 font-mono">
+                        <div className="flex justify-between items-end pt-3 border-t border-dashed border-slate-200">
+                          <span className="text-[11px] font-black text-[#0F172A] uppercase tracking-widest leading-none">COLLECTABLE AMOUNT</span>
+                          <span className="text-3xl font-black text-slate-900 font-mono-numbers leading-none">
                             {formatPrice(newOrderItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0) + newDeliveryCharge - newDiscountAmount - newAdvancePayment, currency, rate)}
                           </span>
                         </div>
@@ -1933,8 +2287,8 @@ export default function AdminOrders(): React.JSX.Element {
                           className={cn(
                             "w-full py-4 uppercase font-black text-xs tracking-widest rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 active:scale-98",
                             (!newCustomerName || !newCustomerPhone || !newCustomerAddress || !newCustomerCity || newOrderItems.length === 0)
-                              ? "bg-gray-400 text-white cursor-not-allowed opacity-80"
-                              : "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer hover:shadow-lg hover:shadow-blue-500/10"
+                              ? "bg-[#94A3B8] text-white cursor-not-allowed opacity-80"
+                              : "bg-[#0F172A] hover:bg-black text-white cursor-pointer hover:shadow-lg hover:shadow-slate-500/10"
                           )}
                         >
                           <Plus size={14} className="stroke-[3.5]" />
@@ -2420,7 +2774,13 @@ export default function AdminOrders(): React.JSX.Element {
                 <div className="space-y-1">
                   <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Order Status</span>
                   <span className="text-sm font-black text-slate-900 block uppercase">
-                    {issueConversationOrder.status === 'QC' ? 'QC PASSED' : (issueConversationOrder.status === 'Pending' ? 'ORDER PLACED' : issueConversationOrder.status.toUpperCase())}
+                    {issueConversationOrder.status === 'Shipped' ? (
+                      <span className="text-blue-600">Ready to Ship</span>
+                    ) : issueConversationOrder.status.toLowerCase() === 'delivered' ? (
+                      <span className="text-green-600">Delivered</span>
+                    ) : (
+                      issueConversationOrder.status === 'QC' ? 'QC PASSED' : (issueConversationOrder.status === 'Pending' ? 'ORDER PLACED' : issueConversationOrder.status.toUpperCase())
+                    )}
                   </span>
                   <span className="text-[10px] font-bold text-slate-500 block uppercase truncate">VIA {issueConversationOrder.paymentMethod || '-'}</span>
                 </div>
@@ -2564,26 +2924,54 @@ export default function AdminOrders(): React.JSX.Element {
 
                   {/* Right side CTA stack matching exactly the screenshot buttons */}
                   <div className="flex flex-col gap-2 w-full sm:w-auto shrink-0">
+                    
+                    {/* Solve button container for active issues */}
+                    {readyToShipClicked && issueConversationOrder.issueType && issueConversationOrder.issueStatus !== 'resolved' && (
+                      <div className="flex items-center justify-center p-3 bg-emerald-50 border border-emerald-200 rounded-2xl mb-1 shadow-sm">
+                        <button
+                          onClick={async () => {
+                            const systemReply = {
+                              sender: 'system' as const,
+                              message: `Admin marked issue status as Solved`,
+                              timestamp: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }) + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+                            };
+                            const existingReplies = issueConversationOrder.issueReplies || [];
+                            const updatedReplies = [...existingReplies, systemReply];
+                            await updateOrder(issueConversationOrder.id, {
+                              issueReplies: updatedReplies,
+                              issueStatus: 'resolved'
+                            });
+                            setIssueConversationOrder({
+                              ...issueConversationOrder,
+                              issueStatus: 'resolved',
+                              issueReplies: updatedReplies
+                            });
+                            toast.success("Issue marked as solved!");
+                          }}
+                          className="flex items-center gap-2 px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-full uppercase tracking-wider transition-all shadow-md cursor-pointer hover:shadow-lg"
+                        >
+                          <CheckCircle2 size={14} className="stroke-[2.5]" />
+                          SOLVE ISSUE
+                        </button>
+                      </div>
+                    )}
+                    
                     <div className="flex gap-2">
+                      <button
+                        onClick={() => navigate(`/admin/exchanges?orderId=${issueConversationOrder.id}`)}
+                        className="flex items-center justify-center p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full transition-all"
+                        title="Create Exchange"
+                      >
+                        <ArrowLeftRight size={16} />
+                      </button>
                       <button 
                         onClick={async () => {
-                          const systemReply = {
-                            sender: 'system' as const,
-                            message: `Rabbi changed issue status to Solved`,
-                            timestamp: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }) + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
-                          };
-                          const existingReplies = issueConversationOrder.issueReplies || [];
-                          const updatedReplies = [...existingReplies, systemReply];
-                          await updateOrder(issueConversationOrder.id, {
-                            issueReplies: updatedReplies,
-                            issueStatus: 'resolved'
-                          });
-                          setIssueConversationOrder({
-                            ...issueConversationOrder,
-                            issueStatus: 'resolved',
-                            issueReplies: updatedReplies
-                          });
-                          toast.success("Issue marked as solved!");
+                          if (issueConversationOrder.issueType && issueConversationOrder.issueStatus !== 'resolved') {
+                            setReadyToShipClicked(true);
+                          } else {
+                            await handleStatusChange(issueConversationOrder.id, 'Shipped');
+                            toast.success("Order marked as ready to ship!");
+                          }
                         }}
                         className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 bg-[#5E50F9] hover:bg-[#4E40E9] text-white font-extrabold text-[10.5px] rounded-full uppercase tracking-wider transition-all shadow-md cursor-pointer hover:shadow-lg"
                       >
@@ -3226,6 +3614,9 @@ export default function AdminOrders(): React.JSX.Element {
                           onClick={() => {
                             setInvoiceOrder(selectedOrder);
                             setShowInvoiceModal(true);
+                            if (normalizeStatus(selectedOrder.status) !== 'PRINTED') {
+                              updateOrderStatus(selectedOrder.id, 'PRINTED');
+                            }
                           }}
                           className="w-full py-4 bg-[#0F172A] hover:bg-black text-white font-black text-xs uppercase tracking-widest rounded-[20px] transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center justify-center gap-2 border border-slate-700/30"
                         >
@@ -3298,6 +3689,10 @@ export default function AdminOrders(): React.JSX.Element {
                       const invoiceElement = document.getElementById('invoice-to-print');
                       if (!invoiceElement) {
                         return;
+                      }
+
+                      if (invoiceOrder && normalizeStatus(invoiceOrder.status) !== 'PRINTED') {
+                        updateOrderStatus(invoiceOrder.id, 'PRINTED');
                       }
 
                       // Create a hidden iframe

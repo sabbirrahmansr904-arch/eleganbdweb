@@ -310,7 +310,7 @@ export default function AdminStockOut() {
   }, [transactions]);
 
   return (
-    <div className="max-w-[1600px] mx-auto space-y-8 pb-20 font-sans bg-[#F8FAFC]">
+    <div className="max-w-[1600px] mx-auto space-y-8 pb-20 font-sans bg-white">
       
       {/* Visual Header matching the red screenshot styling */}
       <div className="space-y-1">

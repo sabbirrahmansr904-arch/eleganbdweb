@@ -48,6 +48,7 @@ import AdminOrders from './pages/admin/AdminOrders';
 import AdminProducts from './pages/admin/AdminProducts';
 import AdminAddProduct from './pages/admin/AdminAddProduct';
 import AdminCustomers from './pages/admin/AdminCustomers';
+import AdminCustomerProfiler from './pages/admin/AdminCustomerProfiler';
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminStockIn from './pages/admin/AdminStockIn';
 import AdminStockOut from './pages/admin/AdminStockOut';
@@ -124,6 +125,7 @@ function AppRoutes() {
           <Route path="add-product" element={<AdminAddProduct />} />
           <Route path="edit-product/:id" element={<AdminAddProduct />} />
           <Route path="customers" element={<AdminCustomers />} />
+          <Route path="customer-profiler" element={<AdminCustomerProfiler />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="stock-in" element={<AdminStockIn />} />
           <Route path="stock-out" element={<AdminStockOut />} />
