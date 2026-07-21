@@ -78,8 +78,9 @@ const normalizeStatus = (status: string): string => {
   const s = (status || '').toUpperCase().trim();
   if (s === 'PENDING') return 'ORDER PLACED';
   if (s === 'PROCESSING') return 'PREPARING';
-  if (s === 'DELIVERED') return 'SUCCESS';
-  if (s === 'QC') return 'PICK UP CANCEL';
+  if (s === 'DELIVERED') return 'DELIVERED';
+  if (s === 'QC' || s === 'PICK UP CANCEL') return 'DELIVERED';
+  if (s === 'SUCCESS') return 'DELIVERED';
   return s;
 };
 
@@ -146,6 +147,7 @@ export default function AdminOrders(): React.JSX.Element {
   const [editPhone, setEditPhone] = useState('');
   const [editAddress, setEditAddress] = useState('');
   const [editCity, setEditCity] = useState('');
+  const [editThana, setEditThana] = useState('');
   const [editStatus, setEditStatus] = useState<Order['status']>('Pending');
   const [editDeliveryCharge, setEditDeliveryCharge] = useState(100);
   const [editDiscount, setEditDiscount] = useState(0);
@@ -188,8 +190,10 @@ export default function AdminOrders(): React.JSX.Element {
   // Create Order Form State
   const [newCustomerName, setNewCustomerName] = useState('');
   const [newCustomerPhone, setNewCustomerPhone] = useState('');
+  const [lastAutofilledPhone, setLastAutofilledPhone] = useState('');
   const [newCustomerAddress, setNewCustomerAddress] = useState('');
   const [newCustomerCity, setNewCustomerCity] = useState('');
+  const [newCustomerThana, setNewCustomerThana] = useState('');
   const [newProductId, setNewProductId] = useState('');
   const [newSize, setNewSize] = useState('');
   const [newQty, setNewQty] = useState(1);
@@ -296,6 +300,7 @@ export default function AdminOrders(): React.JSX.Element {
       setEditPhone(selectedOrder.phone || '');
       setEditAddress(selectedOrder.address || '');
       setEditCity(selectedOrder.city || '');
+      setEditThana((selectedOrder as any).thana || '');
       setEditStatus(selectedOrder.status || 'Pending');
       setEditDeliveryCharge(selectedOrder.deliveryCharge ?? 100);
       setEditDiscount((selectedOrder as any).discount ?? 0);
@@ -768,7 +773,8 @@ export default function AdminOrders(): React.JSX.Element {
         name: match.customerName,
         email: match.email,
         address: match.address,
-        city: match.city
+        city: match.city,
+        thana: (match as any).thana || ''
       };
     }
     return null;
@@ -776,15 +782,47 @@ export default function AdminOrders(): React.JSX.Element {
 
   const handleAutofillCustomer = () => {
     if (matchedCustomerFromOrders) {
-      setNewCustomerName(matchedCustomerFromOrders.name);
-      setNewCustomerAddress(matchedCustomerFromOrders.address);
-      setNewCustomerCity(matchedCustomerFromOrders.city);
-      if (matchedCustomerFromOrders.email && !matchedCustomerFromOrders.email.includes('@elegan.bd')) {
-        setNewCustomerEmail(matchedCustomerFromOrders.email);
-      }
-      toast.success(`Autofilled details for ${matchedCustomerFromOrders.name}!`);
+       setNewCustomerName(matchedCustomerFromOrders.name);
+       setNewCustomerAddress(matchedCustomerFromOrders.address);
+       setNewCustomerCity(matchedCustomerFromOrders.city);
+       setNewCustomerThana(matchedCustomerFromOrders.thana || '');
+       if (matchedCustomerFromOrders.email && !matchedCustomerFromOrders.email.includes('@elegan.bd')) {
+         setNewCustomerEmail(matchedCustomerFromOrders.email);
+       }
+       toast.success(`Autofilled details for ${matchedCustomerFromOrders.name}!`);
     }
   };
+
+  // Automatic customer info populate when a phone number is entered that exists in orders history
+  useEffect(() => {
+    const cleanedInput = newCustomerPhone.trim();
+    if (cleanedInput.length < 11) return;
+    if (cleanedInput === lastAutofilledPhone) return;
+
+    // Find first order with exactly matching phone, or matching suffix/cleaned number
+    const match = orders.find(o => o.phone && o.phone.trim() === cleanedInput);
+    const finalMatch = match || orders.find(o => o.phone && o.phone.replace(/[^0-9]/g, '').endsWith(cleanedInput.replace(/[^0-9]/g, '')));
+
+    if (finalMatch) {
+      setNewCustomerName(finalMatch.customerName || '');
+      setNewCustomerAddress(finalMatch.address || '');
+      setNewCustomerCity(finalMatch.city || '');
+      setNewCustomerThana((finalMatch as any).thana || '');
+      if (finalMatch.email && !finalMatch.email.includes('@elegan.bd')) {
+        setNewCustomerEmail(finalMatch.email);
+      } else {
+        setNewCustomerEmail('');
+      }
+      setLastAutofilledPhone(cleanedInput);
+      toast.success(`Autofilled details for returning customer: ${finalMatch.customerName}!`, { id: 'autofill-toast' });
+    }
+  }, [newCustomerPhone, orders, lastAutofilledPhone]);
+
+  useEffect(() => {
+    if (newCustomerPhone.trim().length < 11) {
+      setLastAutofilledPhone('');
+    }
+  }, [newCustomerPhone]);
 
   const matchedProductsForLeftSearch = useMemo(() => {
     if (!leftSearchVal.trim()) return [];
@@ -851,6 +889,7 @@ export default function AdminOrders(): React.JSX.Element {
       phone: newCustomerPhone,
       address: newCustomerAddress,
       city: newCustomerCity,
+      thana: newCustomerThana,
       items: cartItems,
       deliveryCharge: newDeliveryCharge,
       total: totalCollectable,
@@ -876,6 +915,7 @@ export default function AdminOrders(): React.JSX.Element {
       setNewCustomerPhone('');
       setNewCustomerAddress('');
       setNewCustomerCity('');
+      setNewCustomerThana('');
       setNewProductId('');
       setNewSize('');
       setNewQty(1);
@@ -918,20 +958,15 @@ export default function AdminOrders(): React.JSX.Element {
           text: 'PREPARING',
           class: 'bg-[#E3F2FD] text-[#0D47A1] border-[#BBDEFB]',
         };
-      case 'PICK UP CANCEL':
+      case 'DELIVERED':
         return {
-          text: 'PICK UP CANCEL',
-          class: 'bg-[#FFF0F0] text-[#E53E3E] border-[#FED7D7]',
+          text: 'DELIVERED',
+          class: 'bg-[#E6F4EA] text-[#137333] border-[#CEEAD6]',
         };
       case 'SHIPPED':
         return {
           text: 'SHIPPED',
           class: 'bg-[#EEF2FF] text-[#4F46E5] border-[#C7D2FE]',
-        };
-      case 'SUCCESS':
-        return {
-          text: 'SUCCESS',
-          class: 'bg-[#E6F4EA] text-[#137333] border-[#CEEAD6]',
         };
       case 'PARTIAL DELIVERY':
         return {
@@ -1098,9 +1133,8 @@ export default function AdminOrders(): React.JSX.Element {
               <option value="ORDER PLACED">ORDER PLACED</option>
               <option value="PRINTED">PRINTED</option>
               <option value="PREPARING">PREPARING</option>
-              <option value="PICK UP CANCEL">PICK UP CANCEL</option>
+              <option value="DELIVERED">DELIVERED</option>
               <option value="SHIPPED">SHIPPED</option>
-              <option value="SUCCESS">SUCCESS</option>
               <option value="PARTIAL DELIVERY">PARTIAL DELIVERY</option>
               <option value="HOLD">HOLD</option>
               <option value="RETURNED">RETURNED</option>
@@ -1388,9 +1422,8 @@ export default function AdminOrders(): React.JSX.Element {
                                 { key: 'ORDER PLACED', label: 'ORDER PLACED' },
                                 { key: 'PRINTED', label: 'PRINTED' },
                                 { key: 'PREPARING', label: 'PREPARING' },
-                                { key: 'PICK UP CANCEL', label: 'PICK UP CANCEL' },
+                                { key: 'DELIVERED', label: 'DELIVERED' },
                                 { key: 'SHIPPED', label: 'SHIPPED' },
-                                { key: 'SUCCESS', label: 'SUCCESS' },
                                 { key: 'PARTIAL DELIVERY', label: 'PARTIAL DELIVERY' },
                                 { key: 'HOLD', label: 'HOLD' },
                                 { key: 'RETURNED', label: 'RETURNED' },
@@ -1444,8 +1477,14 @@ export default function AdminOrders(): React.JSX.Element {
                       </td>
 
                       {/* Address */}
-                      <td className="py-4 px-4 text-xs text-slate-600 font-medium max-w-[250px] truncate" title={order.address}>
-                        {order.address ? `Address: ${order.address}` : '—'}
+                      <td className="py-4 px-4 text-xs text-slate-600 font-medium max-w-[250px]" title={`${order.address || ''}${order.thana ? `, Thana: ${order.thana}` : ''}, ${order.city || ''}`}>
+                        <div className="font-semibold text-slate-800 truncate">{order.address || '—'}</div>
+                        {(order.thana || order.city) && (
+                          <div className="text-[10px] text-slate-400 mt-0.5 truncate">
+                            {order.thana && <span className="font-bold text-slate-500">Thana: {order.thana} </span>}
+                            {order.city && <span>({order.city})</span>}
+                          </div>
+                        )}
                       </td>
 
                       {/* SKU */}
@@ -1604,10 +1643,15 @@ export default function AdminOrders(): React.JSX.Element {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedOrder(order);
+                                setNewCustomerName(order.customerName || '');
+                                setNewCustomerPhone(order.phone || '');
+                                setNewCustomerAddress(order.address || '');
+                                setNewCustomerCity(order.city || '');
                                 setEditName(order.customerName || '');
                                 setEditPhone(order.phone || '');
                                 setEditAddress(order.address || '');
                                 setEditCity(order.city || '');
+                                setEditThana((order as any).thana || '');
                                 setEditStatus(order.status || 'Pending');
                                 setEditDeliveryCharge(order.deliveryCharge ?? 100);
                                 setEditDiscount((order as any).discount ?? 0);
@@ -1959,23 +2003,25 @@ export default function AdminOrders(): React.JSX.Element {
                                   // Dynamic region charge setting!
                                   if (region === 'Dhaka City' || region === 'Dhaka') {
                                     setNewDeliveryCharge(80);
+                                  } else if (region === 'Dhaka Suburbs' || region === 'Dhaka Suburbs / Sub Area') {
+                                    setNewDeliveryCharge(110);
                                   } else if (region) {
-                                    setNewDeliveryCharge(150);
+                                    setNewDeliveryCharge(130);
                                   }
                               }}
                               className="w-full pl-10 pr-8 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all appearance-none cursor-pointer shadow-3xs"
                             >
                               <option value="" disabled>Select Region</option>
                               <option value="Dhaka City">Dhaka City (৳80)</option>
-                              <option value="Dhaka Suburbs">Dhaka Suburbs (৳120)</option>
-                              <option value="Chittagong">Chittagong (৳150)</option>
-                              <option value="Sylhet">Sylhet (৳150)</option>
-                              <option value="Rajshahi">Rajshahi (৳150)</option>
-                              <option value="Khulna">Khulna (৳150)</option>
-                              <option value="Barisal">Barisal (৳150)</option>
-                              <option value="Rangpur">Rangpur (৳150)</option>
-                              <option value="Mymensingh">Mymensingh (৳150)</option>
-                              <option value="Outside Dhaka">Outside Dhaka (৳150)</option>
+                              <option value="Dhaka Suburbs">Dhaka Suburbs / Sub Area (৳110)</option>
+                              <option value="Chittagong">Chittagong (৳130)</option>
+                              <option value="Sylhet">Sylhet (৳130)</option>
+                              <option value="Rajshahi">Rajshahi (৳130)</option>
+                              <option value="Khulna">Khulna (৳130)</option>
+                              <option value="Barisal">Barisal (৳130)</option>
+                              <option value="Rangpur">Rangpur (৳130)</option>
+                              <option value="Mymensingh">Mymensingh (৳130)</option>
+                              <option value="Outside Dhaka">Outside Dhaka (৳130)</option>
                             </select>
                             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
                           </div>
@@ -1997,18 +2043,34 @@ export default function AdminOrders(): React.JSX.Element {
                         </div>
                       </div>
 
-                      {/* SHIPPING ADDRESS FIELD */}
-                      <div className="space-y-1 text-left">
-                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">SHIPPING ADDRESS</label>
-                        <div className="relative">
-                          <MapPin className="absolute left-3.5 top-3 text-slate-400 w-4 h-4" />
-                          <textarea 
-                            rows={2}
-                            placeholder="e.g., House 12, Road 4, Dhanmondi, Dhaka" 
-                            value={newCustomerAddress}
-                            onChange={(e) => setNewCustomerAddress(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all resize-none shadow-3xs"
-                          />
+                      {/* SHIPPING ADDRESS & THANA FIELDS */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1 text-left">
+                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">SHIPPING ADDRESS</label>
+                          <div className="relative">
+                            <MapPin className="absolute left-3.5 top-3 text-slate-400 w-4 h-4" />
+                            <textarea 
+                              rows={2}
+                              placeholder="e.g., House 12, Road 4, Dhanmondi" 
+                              value={newCustomerAddress}
+                              onChange={(e) => setNewCustomerAddress(e.target.value)}
+                              className="w-full pl-10 pr-4 py-2 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all resize-none shadow-3xs"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1 text-left">
+                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">THANA / AREA</label>
+                          <div className="relative">
+                            <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                            <input 
+                              type="text" 
+                              placeholder="e.g., Savar" 
+                              value={newCustomerThana}
+                              onChange={(e) => setNewCustomerThana(e.target.value)}
+                              className="w-full pl-10 pr-4 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -3241,13 +3303,22 @@ export default function AdminOrders(): React.JSX.Element {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-4 gap-3">
                         <div className="col-span-2 space-y-1">
                           <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Postal Address</label>
                           <input 
                             type="text" 
                             value={editAddress}
                             onChange={(e) => setEditAddress(e.target.value)}
+                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Thana</label>
+                          <input 
+                            type="text" 
+                            value={editThana}
+                            onChange={(e) => setEditThana(e.target.value)}
                             className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
                           />
                         </div>
@@ -3273,9 +3344,8 @@ export default function AdminOrders(): React.JSX.Element {
                             <option value="ORDER PLACED">ORDER PLACED</option>
                             <option value="PRINTED">PRINTED</option>
                             <option value="PREPARING">PREPARING</option>
-                            <option value="PICK UP CANCEL">PICK UP CANCEL</option>
+                            <option value="DELIVERED">DELIVERED</option>
                             <option value="SHIPPED">SHIPPED</option>
-                            <option value="SUCCESS">SUCCESS</option>
                             <option value="PARTIAL DELIVERY">PARTIAL DELIVERY</option>
                             <option value="HOLD">HOLD</option>
                             <option value="RETURNED">RETURNED</option>
@@ -3357,6 +3427,7 @@ export default function AdminOrders(): React.JSX.Element {
                                 phone: editPhone,
                                 address: editAddress,
                                 city: editCity,
+                                thana: editThana,
                                 status: editStatus,
                                 deliveryCharge: editDeliveryCharge,
                                 discount: editDiscount,
@@ -3372,6 +3443,7 @@ export default function AdminOrders(): React.JSX.Element {
                                 phone: editPhone,
                                 address: editAddress,
                                 city: editCity,
+                                thana: editThana,
                                 status: editStatus,
                                 deliveryCharge: editDeliveryCharge,
                                 discount: editDiscount,
@@ -3467,7 +3539,19 @@ export default function AdminOrders(): React.JSX.Element {
                           </div>
                           <div>
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Address</span>
-                            <span className="text-xs font-bold text-slate-600 leading-relaxed block">{selectedOrder.address || selectedOrder.city}</span>
+                            <span className="text-xs font-black text-slate-850 leading-relaxed block">{selectedOrder.address || '—'}</span>
+                            {(selectedOrder as any).thana && (
+                              <div className="mt-2">
+                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Thana</span>
+                                <span className="text-xs font-black text-slate-850 block">{(selectedOrder as any).thana}</span>
+                              </div>
+                            )}
+                            {selectedOrder.city && (
+                              <div className="mt-2">
+                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">District / City</span>
+                                <span className="text-xs font-black text-slate-850 block">{selectedOrder.city}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

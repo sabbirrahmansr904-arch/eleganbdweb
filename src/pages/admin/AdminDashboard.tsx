@@ -115,13 +115,13 @@ export default function AdminDashboard(): React.JSX.Element {
       if (order.status === 'Pending') {
         statsMap.PENDING.count += 1;
         statsMap.PENDING.total += total;
-      } else if (['Processing', 'Printed', 'Hold', 'QC'].includes(order.status)) {
+      } else if (['Processing', 'Printed', 'Hold'].includes(order.status)) {
         statsMap.CONFIRMED.count += 1;
         statsMap.CONFIRMED.total += total;
       } else if (order.status === 'Shipped') {
         statsMap.SHIPPED.count += 1;
         statsMap.SHIPPED.total += total;
-      } else if (order.status === 'Delivered') {
+      } else if (['Delivered', 'DELIVERED', 'QC', 'PICK UP CANCEL', 'SUCCESS', 'Success'].includes(order.status)) {
         statsMap.DELIVERED.count += 1;
         statsMap.DELIVERED.total += total;
       }

@@ -53,6 +53,7 @@ export interface Order {
   phone: string;
   address: string;
   city: string;
+  thana?: string;
   items: CartItem[];
   deliveryCharge: number;
   total: number;
@@ -108,6 +109,7 @@ export interface CheckoutFormData {
   email: string;
   address: string;
   city: string;
+  thana?: string;
   phone: string;
   paymentMethod: 'cod' | 'card' | 'bkash' | 'nagad';
   transactionId?: string;

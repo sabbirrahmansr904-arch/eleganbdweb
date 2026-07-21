@@ -40,17 +40,20 @@ async function startServer() {
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
       return res.status(500).json({ error: "Email configuration missing" });
     }
+    const cleanUser = process.env.EMAIL_USER.trim();
+    const cleanPass = process.env.EMAIL_PASS.trim().replace(/\s+/g, "");
+
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        user: cleanUser,
+        pass: cleanPass,
       },
     });
 
     try {
       await transporter.sendMail({
-        from: process.env.EMAIL_USER,
+        from: cleanUser,
         to: email,
         subject: "Your OTP for Elegan BD",
         text: `Your OTP is: ${otp}`,
@@ -137,11 +140,14 @@ async function startServer() {
       console.warn("Could not load notification settings from Firestore, using default fallbacks", e);
     }
 
+    const cleanUser = process.env.EMAIL_USER.trim();
+    const cleanPass = process.env.EMAIL_PASS.trim().replace(/\s+/g, "");
+
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        user: cleanUser,
+        pass: cleanPass,
       },
     });
 
@@ -157,7 +163,7 @@ async function startServer() {
 
     try {
       await transporter.sendMail({
-        from: process.env.EMAIL_USER,
+        from: cleanUser,
         to: adminEmails,
         bcc: orderDetails.email || undefined,
         subject: `🛒 New Order Received - #${orderDetails.id.slice(-6)}`,

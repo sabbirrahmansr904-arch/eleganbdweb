@@ -12,8 +12,9 @@ const normalizeStatus = (status: string): string => {
   const s = (status || '').toUpperCase().trim();
   if (s === 'PENDING') return 'ORDER PLACED';
   if (s === 'PROCESSING') return 'PREPARING';
-  if (s === 'DELIVERED') return 'SUCCESS';
-  if (s === 'QC') return 'PICK UP CANCEL';
+  if (s === 'DELIVERED') return 'DELIVERED';
+  if (s === 'QC' || s === 'PICK UP CANCEL') return 'DELIVERED';
+  if (s === 'SUCCESS') return 'DELIVERED';
   return s;
 };
 import { 
@@ -847,9 +848,8 @@ export default function AdminIssues() {
                           <option value="ORDER PLACED">ORDER PLACED</option>
                           <option value="PRINTED">PRINTED</option>
                           <option value="PREPARING">PREPARING</option>
-                          <option value="PICK UP CANCEL">PICK UP CANCEL</option>
+                          <option value="DELIVERED">DELIVERED</option>
                           <option value="SHIPPED">SHIPPED</option>
-                          <option value="SUCCESS">SUCCESS</option>
                           <option value="PARTIAL DELIVERY">PARTIAL DELIVERY</option>
                           <option value="HOLD">HOLD</option>
                           <option value="RETURNED">RETURNED</option>

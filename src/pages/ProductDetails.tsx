@@ -36,7 +36,7 @@ const ProductDetails = () => {
   const [isExpanded, setIsExpanded] = useState(true);
 
   // New conversion features states
-  const [selectedShippingArea, setSelectedShippingArea] = useState<'dhaka' | 'outside'>('dhaka');
+  const [selectedShippingArea, setSelectedShippingArea] = useState<'dhaka' | 'sub' | 'outside'>('dhaka');
   const [showFitAssistant, setShowFitAssistant] = useState(false);
   const [fitHeightFt, setFitHeightFt] = useState('5');
   const [fitHeightIn, setFitHeightIn] = useState('6');
@@ -421,12 +421,12 @@ const ProductDetails = () => {
                 ডেলিভারি চার্জ চেক করুন (Check Shipping)
               </p>
               
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => setSelectedShippingArea('dhaka')}
                   className={cn(
-                    "py-2 text-[10px] font-black uppercase tracking-widest rounded-lg border transition-all cursor-pointer",
+                    "py-2 text-[9px] font-black uppercase tracking-tighter rounded-lg border transition-all cursor-pointer",
                     selectedShippingArea === 'dhaka' 
                       ? "border-blue-600 bg-blue-50/40 text-blue-600 font-bold" 
                       : "border-gray-200 bg-white text-gray-500 hover:border-gray-350"
@@ -436,9 +436,21 @@ const ProductDetails = () => {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setSelectedShippingArea('sub')}
+                  className={cn(
+                    "py-2 text-[9px] font-black uppercase tracking-tighter rounded-lg border transition-all cursor-pointer",
+                    selectedShippingArea === 'sub' 
+                      ? "border-blue-600 bg-blue-50/40 text-blue-600 font-bold" 
+                      : "border-gray-200 bg-white text-gray-500 hover:border-gray-350"
+                  )}
+                >
+                  Sub Area
+                </button>
+                <button
+                  type="button"
                   onClick={() => setSelectedShippingArea('outside')}
                   className={cn(
-                    "py-2 text-[10px] font-black uppercase tracking-widest rounded-lg border transition-all cursor-pointer",
+                    "py-2 text-[9px] font-black uppercase tracking-tighter rounded-lg border transition-all cursor-pointer",
                     selectedShippingArea === 'outside' 
                       ? "border-blue-600 bg-blue-50/40 text-blue-600 font-bold" 
                       : "border-gray-200 bg-white text-gray-500 hover:border-gray-350"
@@ -456,8 +468,15 @@ const ProductDetails = () => {
                       {shippingFreeAfter > 0 && product.price >= shippingFreeAfter ? 'FREE' : formatPrice(shippingInsideDhaka, currency, rate)}
                     </span>
                   </p>
-                ) : (
+                ) : selectedShippingArea === 'sub' ? (
                   <p className="flex justify-between items-center text-black">
+                    <span>ডেলিভারি চার্জ (Sub Area):</span>
+                    <span className="font-black text-blue-600 font-mono">
+                      {shippingFreeAfter > 0 && product.price >= shippingFreeAfter ? 'FREE' : formatPrice(Math.min(110, shippingOutsideDhaka), currency, rate)}
+                    </span>
+                  </p>
+                ) : (
+                  <p className="flex justify-between items-center text-[#0C1421]">
                     <span>ডেলিভারি চার্জ (Outside Dhaka):</span>
                     <span className="font-black text-blue-600 font-mono">
                       {shippingFreeAfter > 0 && product.price >= shippingFreeAfter ? 'FREE' : formatPrice(shippingOutsideDhaka, currency, rate)}

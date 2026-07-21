@@ -87,11 +87,11 @@ export default function TrackOrder() {
   // Status mapping for visual timeline progress indicator
   const getStatusStepIndex = (status: Order['status']) => {
     const s = (status || '').toUpperCase();
-    if (s === 'CANCELLED' || s === 'PICK UP CANCEL' || s === 'HOLD' || s === 'RETURNED') return -1;
+    if (s === 'CANCELLED' || s === 'HOLD' || s === 'RETURNED') return -1;
     if (s === 'PENDING' || s === 'ORDER PLACED') return 0;
     if (s === 'PROCESSING' || s === 'PREPARING') return 1;
     if (s === 'SHIPPED') return 2;
-    if (s === 'DELIVERED' || s === 'SUCCESS') return 3;
+    if (s === 'DELIVERED' || s === 'SUCCESS' || s === 'QC' || s === 'PICK UP CANCEL') return 3;
     return -1;
   };
 
@@ -99,7 +99,7 @@ export default function TrackOrder() {
 
   const getStatusStyle = (status: Order['status']) => {
     const s = (status || '').toUpperCase();
-    if (s === 'DELIVERED' || s === 'SUCCESS') {
+    if (s === 'DELIVERED' || s === 'SUCCESS' || s === 'QC' || s === 'PICK UP CANCEL') {
       return 'text-emerald-700 bg-emerald-50 border-emerald-200';
     }
     if (s === 'SHIPPED') {
@@ -108,7 +108,7 @@ export default function TrackOrder() {
     if (s === 'PROCESSING' || s === 'PREPARING') {
       return 'text-blue-700 bg-blue-50 border-blue-200';
     }
-    if (s === 'CANCELLED' || s === 'PICK UP CANCEL' || s === 'RETURNED') {
+    if (s === 'CANCELLED' || s === 'RETURNED') {
       return 'text-rose-700 bg-rose-50 border-rose-200';
     }
     return 'text-indigo-700 bg-indigo-50 border-indigo-200';

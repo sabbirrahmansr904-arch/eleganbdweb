@@ -189,10 +189,32 @@ export default function Checkout() {
   const subtotal = breakdown.subtotal;
   const isInsideDhaka = formData.city === 'Dhaka';
                         
-  // Set shipping dynamically from admin design settings, defaulting to 70 and 130 as per customer requirements
-  const insideDhakaFee = shippingInsideDhaka !== undefined ? shippingInsideDhaka : 70;
-  const outsideDhakaFee = shippingOutsideDhaka !== undefined ? shippingOutsideDhaka : 130;
-  const baseShipping = isInsideDhaka ? insideDhakaFee : outsideDhakaFee;
+  const getShippingFee = () => {
+    if (!formData.city) return shippingOutsideDhaka;
+    
+    const cityClean = formData.city.trim().toLowerCase();
+    const thanaClean = (formData.thana || '').trim().toLowerCase();
+    
+    if (cityClean === 'dhaka') {
+      const subKeywords = [
+        'savar', 'ashulia', 'keraniganj', 'dhamrai', 'dohar', 'nawabganj',
+        'baipail', 'jamgora', 'zirabo', 'zirani', 'hemayetpur', 'epz', 'nobinagar',
+        'bipail', 'palli bidyut', 'pakiza', 'radio colony', 'rajashon', 'shimultola',
+        'tenari savar', 'bolivodro', 'charabag', 'deogao', 'ganda', 'jahangirnagar',
+        'katghora', 'kolatia', 'kolma', 'konakhola'
+      ];
+      const isSub = subKeywords.some(kw => thanaClean.includes(kw));
+      return isSub ? Math.min(110, shippingOutsideDhaka) : shippingInsideDhaka;
+    }
+    
+    if (cityClean === 'gazipur' || cityClean === 'narayanganj') {
+      return Math.min(110, shippingOutsideDhaka);
+    }
+    
+    return shippingOutsideDhaka;
+  };
+
+  const baseShipping = getShippingFee();
   const shipping = (shippingFreeAfter > 0 && subtotal >= shippingFreeAfter) ? 0 : baseShipping;
   const discountAmount = discountType === 'percentage'
     ? (subtotal * discount) / 100
@@ -307,6 +329,7 @@ export default function Checkout() {
         phone: formData.phone,
         address: formData.address,
         city: formData.city,
+        thana: formData.thana,
         items: items.map(item => ({ ...item.product, selectedSize: item.selectedSize, quantity: item.quantity })),
         deliveryCharge: shipping,
         total: total,
@@ -586,6 +609,20 @@ export default function Checkout() {
                       />
                     </div>
                   </div>
+
+                  {formData.city && (
+                    <div className="p-4 bg-blue-50/50 border border-blue-100/50 rounded-2xl text-left space-y-1 animate-in fade-in duration-300">
+                      <p className="text-[10px] text-blue-800 font-extrabold uppercase tracking-widest flex items-center gap-1.5">
+                        <Truck size={14} className="text-blue-600 shrink-0" />
+                        Selected Shipping Zone: <span className="text-blue-900 font-black">{baseShipping === 80 ? 'Inside Dhaka (80 Tk)' : baseShipping === 110 ? 'Dhaka Sub Area (110 Tk)' : 'Outside Dhaka (130 Tk)'}</span>
+                      </p>
+                      <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider leading-relaxed">
+                        • Dhaka Metro: 80 Tk <br />
+                        • Sub Area (Savar, Ashulia, Keraniganj, Gazipur, Narayanganj): 110 Tk <br />
+                        • Outside Dhaka (All other districts): 130 Tk
+                      </p>
+                    </div>
+                  )}
                 </div>
             </div>
 
@@ -840,7 +877,7 @@ export default function Checkout() {
             )}
             
             <div className="flex justify-between items-center">
-              <span>SHIPPING ({isInsideDhaka ? 'DHAKA' : 'টাকার বাহিরে'})</span>
+              <span>SHIPPING ({baseShipping === 80 ? 'Inside Dhaka' : baseShipping === 110 ? 'Sub Area' : 'Outside Dhaka'})</span>
               <span className="text-[#0C1421] font-bold font-mono">{formatPrice(shipping, currency, rate)}</span>
             </div>
             

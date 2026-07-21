@@ -43,8 +43,14 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
     setIsSubmitting(true);
     
     // Simulate order placement
-    const isInsideDhaka = formData.city === 'Dhaka';
-    const baseShipping = isInsideDhaka ? shippingInsideDhaka : shippingOutsideDhaka;
+    let baseShipping = shippingOutsideDhaka;
+    if (formData.city === 'Dhaka') {
+      baseShipping = shippingInsideDhaka;
+    } else if (formData.city === 'Dhaka Sub') {
+      baseShipping = Math.min(110, shippingOutsideDhaka);
+    } else {
+      baseShipping = shippingOutsideDhaka;
+    }
     const shipping = (shippingFreeAfter > 0 && product.price >= shippingFreeAfter) ? 0 : baseShipping;
     const total = product.price + shipping;
 
@@ -188,7 +194,8 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
                            onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
                            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 outline-none focus:border-brand-gold text-sm font-medium"
                         >
-                            <option value="Dhaka">Inside Dhaka (70 TK)</option>
+                            <option value="Dhaka">Inside Dhaka (80 TK)</option>
+                            <option value="Dhaka Sub">Dhaka Sub Area (110 TK)</option>
                             <option value="Outside Dhaka">Outside Dhaka (130 TK)</option>
                         </select>
                     </div>

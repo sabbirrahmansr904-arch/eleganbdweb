@@ -135,7 +135,7 @@ export default function InvoiceTemplate({ order, preview = false }: InvoiceProps
             <p className="text-sm font-black text-gray-900 tracking-tight">{order.customerName}</p>
             <p className="text-xs font-bold text-indigo-600 font-mono-numbers tracking-tight mt-0.5">{order.phone}</p>
             <div className="text-[10px] font-medium leading-relaxed text-gray-500 mt-1 line-clamp-2">
-              {order.address}, {order.city}
+              {order.address}{order.thana && `, Thana: ${order.thana}`}, {order.city}
             </div>
           </div>
         </div>

@@ -242,6 +242,43 @@ export default function BannerSettings() {
 
           <div className="space-y-8">
             <div className="bg-white border border-gray-100 p-8 rounded-[32px] shadow-sm space-y-6">
+              <h4 className="text-sm font-black uppercase tracking-widest text-black border-b border-gray-50 pb-4">Delivery Rates Configuration</h4>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Inside Dhaka Fee (৳)</label>
+                  <input
+                    type="number"
+                    value={localShippingInside}
+                    onChange={(e) => setLocalShippingInside(Number(e.target.value))}
+                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-3.5 outline-none focus:border-black transition-all text-xs font-bold"
+                  />
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Outside Dhaka Fee (৳)</label>
+                  <input
+                    type="number"
+                    value={localShippingOutside}
+                    onChange={(e) => setLocalShippingOutside(Number(e.target.value))}
+                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-3.5 outline-none focus:border-black transition-all text-xs font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Free Delivery Threshold (৳) (0 to disable)</label>
+                <input
+                  type="number"
+                  value={localShippingFreeAfter}
+                  onChange={(e) => setLocalShippingFreeAfter(Number(e.target.value))}
+                  placeholder="e.g. 2000"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-3.5 outline-none focus:border-black transition-all text-xs font-bold"
+                />
+              </div>
+            </div>
+
+            <div className="bg-white border border-gray-100 p-8 rounded-[32px] shadow-sm space-y-6">
               <h4 className="text-sm font-black uppercase tracking-widest text-black border-b border-gray-50 pb-4">Content & About Matrix</h4>
               <textarea
                 value={localAboutText}
