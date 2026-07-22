@@ -221,6 +221,62 @@ export default function AdminOrders(): React.JSX.Element {
     price: number;
   }>>([]);
 
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+
+  const resetCreateModalState = () => {
+    setEditingOrderId(null);
+    setNewCustomerName('');
+    setNewCustomerPhone('');
+    setNewCustomerAddress('');
+    setNewCustomerCity('');
+    setNewCustomerThana('');
+    setNewProductId('');
+    setNewSize('');
+    setNewQty(1);
+    setNewDeliveryCharge(0);
+    setNewCustomerEmail('');
+    setNewDiscountAmount(0);
+    setNewAdvancePayment(0);
+    setNewAdvancePaymentMethod('');
+    setNewDeliveryPartner('');
+    setNewTrackingId('');
+    setNewInternalNote('');
+    setNewDeliveryDate('');
+    setNewOrderItems([]);
+    setShowCreateModal(false);
+  };
+
+  const openOrderInCreateModal = (order: Order) => {
+    setEditingOrderId(order.id);
+    setNewCustomerName(order.customerName || '');
+    setNewCustomerPhone(order.phone || '');
+    setNewCustomerAddress(order.address || '');
+    setNewCustomerCity(order.city || '');
+    setNewCustomerThana((order as any).thana || '');
+    setNewCustomerEmail(order.email || '');
+    setNewDeliveryCharge(order.deliveryCharge ?? 100);
+    setNewDiscountAmount((order as any).discount ?? 0);
+    setNewAdvancePayment((order as any).advancePayment ?? 0);
+    setNewDeliveryPartner(order.partner || order.courier || 'Pathao');
+    setNewInternalNote(order.notes || '');
+    setNewInvoiceBy((order.invoiceBy as any) || 'Sabbir');
+    
+    if (order.items && order.items.length > 0) {
+      setNewOrderItems(order.items.map((it, idx) => ({
+        id: `${it.id || idx}-${Date.now()}`,
+        product: it,
+        selectedSize: it.selectedSize || 'M',
+        quantity: it.quantity || 1,
+        price: it.price || 0
+      })));
+    } else {
+      setNewOrderItems([]);
+    }
+    
+    setSelectedOrder(null);
+    setShowCreateModal(true);
+  };
+
   // Helper deterministic dispatcher name generator for the 'INVOICE BY' column matching screenshot names (or custom manual creations)
   const getInvoiceBy = React.useCallback((order: Order) => {
     if (order.invoiceBy) {
@@ -305,7 +361,7 @@ export default function AdminOrders(): React.JSX.Element {
       setEditDeliveryCharge(selectedOrder.deliveryCharge ?? 100);
       setEditDiscount((selectedOrder as any).discount ?? 0);
       setEditAdvancePayment((selectedOrder as any).advancePayment ?? (selectedOrder.paymentMethod === 'bkash' || selectedOrder.paymentMethod === 'nagad' ? 100 : 0));
-      setEditNotes((selectedOrder as any).notes || 'Agamikal booking dite hobe');
+      setEditNotes((selectedOrder as any).notes || '');
       setEditInvoiceBy(selectedOrder.invoiceBy || (selectedOrder.customerId === 'manual_admin' ? 'Office Sale' : 'Website order'));
       setIsEditingDetails(false);
     }
@@ -881,6 +937,37 @@ export default function AdminOrders(): React.JSX.Element {
     const subtotal = newOrderItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
     const totalCollectable = subtotal + newDeliveryCharge - newDiscountAmount - newAdvancePayment;
 
+    if (editingOrderId) {
+      const existingOrder = orders.find(o => o.id === editingOrderId);
+      const updatedData: Partial<Order> = {
+        customerName: newCustomerName,
+        email: newCustomerEmail || `${newCustomerPhone}@elegan.bd`,
+        phone: newCustomerPhone,
+        address: newCustomerAddress,
+        city: newCustomerCity,
+        thana: newCustomerThana,
+        items: cartItems,
+        deliveryCharge: newDeliveryCharge,
+        total: totalCollectable,
+        notes: newInternalNote || '',
+        discount: newDiscountAmount,
+        advancePayment: newAdvancePayment,
+        invoiceBy: newInvoiceBy,
+        courier: newDeliveryPartner || 'Pathao',
+        partner: newDeliveryPartner || '',
+        trackingId: newTrackingId || (existingOrder?.trackingId || '')
+      };
+
+      try {
+        await updateOrder(editingOrderId, updatedData);
+        toast.success(`Order #${editingOrderId.slice(-6)} updated successfully!`);
+        resetCreateModalState();
+      } catch (err: any) {
+        toast.error(`Update failed: ${err.message || 'Error occurred'}`);
+      }
+      return;
+    }
+
     const newOrder: Order = {
       id: orderId,
       customerId: 'manual_admin',
@@ -908,29 +995,7 @@ export default function AdminOrders(): React.JSX.Element {
     try {
       await addOrder(newOrder);
       toast.success(`Memo Order #${orderId} created successfully!`);
-      setShowCreateModal(false);
-      
-      // Clear form
-      setNewCustomerName('');
-      setNewCustomerPhone('');
-      setNewCustomerAddress('');
-      setNewCustomerCity('');
-      setNewCustomerThana('');
-      setNewProductId('');
-      setNewSize('');
-      setNewQty(1);
-      setNewDeliveryCharge(0);
-      setNewCustomerEmail('');
-      setNewDiscountAmount(0);
-      setNewAdvancePayment(0);
-      setNewAdvancePaymentMethod('');
-      setNewDeliveryPartner('');
-      setNewTrackingId('');
-      setNewInternalNote('');
-      setNewDeliveryDate('');
-      setNewInvoiceBy('Sabbir');
-      setNewOrderItems([]);
-      setLeftSearchVal('');
+      resetCreateModalState();
     } catch (err: any) {
       console.error("Manual order creation failed:", err);
       toast.error(`Failed to create manual order record: ${err?.message || err}`);
@@ -1057,7 +1122,10 @@ export default function AdminOrders(): React.JSX.Element {
           </button>
 
           <button 
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => {
+              resetCreateModalState();
+              setShowCreateModal(true);
+            }}
             className="px-4 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-sm flex items-center gap-2"
           >
             <Plus size={13} className="stroke-[3]" />
@@ -1477,14 +1545,20 @@ export default function AdminOrders(): React.JSX.Element {
                       </td>
 
                       {/* Address */}
-                      <td className="py-4 px-4 text-xs text-slate-600 font-medium max-w-[250px]" title={`${order.address || ''}${order.thana ? `, Thana: ${order.thana}` : ''}, ${order.city || ''}`}>
+                      <td className="py-4 px-4 text-xs text-slate-600 font-medium max-w-[260px]" title={`${order.address || ''}${order.thana ? `, Thana: ${order.thana}` : ''}, ${order.city || ''}`}>
                         <div className="font-semibold text-slate-800 truncate">{order.address || '—'}</div>
-                        {(order.thana || order.city) && (
-                          <div className="text-[10px] text-slate-400 mt-0.5 truncate">
-                            {order.thana && <span className="font-bold text-slate-500">Thana: {order.thana} </span>}
-                            {order.city && <span>({order.city})</span>}
-                          </div>
-                        )}
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                          {order.city && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200/80">
+                              📍 {order.city}
+                            </span>
+                          )}
+                          {order.thana && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200/80">
+                              🏛️ {order.thana}
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* SKU */}
@@ -1765,7 +1839,7 @@ export default function AdminOrders(): React.JSX.Element {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setShowCreateModal(false)}
+              onClick={resetCreateModalState}
               className="absolute inset-0 bg-black/60 backdrop-blur-xs"
             />
             <motion.div 
@@ -1777,12 +1851,16 @@ export default function AdminOrders(): React.JSX.Element {
               {/* Modal Title / Header bar */}
               <div className="p-6 border-b border-[#EFF2F6] flex items-center justify-between bg-white shrink-0">
                 <div className="text-left">
-                  <h2 className="text-xl font-black text-[#0C1421] tracking-tight">Create Order</h2>
-                  <p className="text-xs text-gray-400 font-semibold mt-1">Record precise transaction details and sync with inventory catalog.</p>
+                  <h2 className="text-xl font-black text-[#0C1421] tracking-tight">
+                    {editingOrderId ? `Order Details & Edit #${editingOrderId.slice(-6)}` : 'Create Order'}
+                  </h2>
+                  <p className="text-xs text-gray-400 font-semibold mt-1">
+                    {editingOrderId ? 'View and modify order items, customer details, address, and logistics.' : 'Record precise transaction details and sync with inventory catalog.'}
+                  </p>
                 </div>
                 <button 
-                  onClick={() => setShowCreateModal(false)}
-                  className="p-1 text-gray-400 hover:text-black transition-all"
+                  onClick={resetCreateModalState}
+                  className="p-1 text-gray-400 hover:text-black transition-all cursor-pointer"
                 >
                   <XCircle size={22} className="stroke-[1.8]" />
                 </button>
@@ -2353,8 +2431,8 @@ export default function AdminOrders(): React.JSX.Element {
                               : "bg-[#0F172A] hover:bg-black text-white cursor-pointer hover:shadow-lg hover:shadow-slate-500/10"
                           )}
                         >
-                          <Plus size={14} className="stroke-[3.5]" />
-                          <span>Initialize Order Row</span>
+                          <CheckCircle2 size={14} className="stroke-[3.5]" />
+                          <span>{editingOrderId ? `Update Order Record #${editingOrderId.slice(-6)}` : 'Initialize Order Row'}</span>
                         </button>
                         
                         {/* Status notification when incomplete */}
@@ -3388,7 +3466,7 @@ export default function AdminOrders(): React.JSX.Element {
                             type="text" 
                             value={editNotes}
                             onChange={(e) => setEditNotes(e.target.value)}
-                            placeholder="e.g. Agamikal booking dite hobe"
+                            placeholder="Order note (optional)..."
                             className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
                           />
                         </div>
@@ -3538,20 +3616,25 @@ export default function AdminOrders(): React.JSX.Element {
                             </div>
                           </div>
                           <div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Address</span>
-                            <span className="text-xs font-black text-slate-850 leading-relaxed block">{selectedOrder.address || '—'}</span>
-                            {(selectedOrder as any).thana && (
-                              <div className="mt-2">
-                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Thana</span>
-                                <span className="text-xs font-black text-slate-850 block">{(selectedOrder as any).thana}</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Full Delivery Address</span>
+                            <span className="text-xs font-semibold text-slate-800 leading-relaxed block bg-slate-50/80 border border-slate-200/80 rounded-xl p-2.5 mb-3">
+                              {selectedOrder.address || '—'}
+                            </span>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="bg-blue-50/80 border border-blue-200/80 rounded-xl p-2.5">
+                                <span className="text-[9px] font-black text-blue-600 uppercase tracking-wider block mb-0.5">District / জেলা</span>
+                                <span className="text-xs font-black text-blue-950 block truncate">
+                                  {selectedOrder.city || '—'}
+                                </span>
                               </div>
-                            )}
-                            {selectedOrder.city && (
-                              <div className="mt-2">
-                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">District / City</span>
-                                <span className="text-xs font-black text-slate-850 block">{selectedOrder.city}</span>
+                              <div className="bg-purple-50/80 border border-purple-200/80 rounded-xl p-2.5">
+                                <span className="text-[9px] font-black text-purple-600 uppercase tracking-wider block mb-0.5">Thana / থানা</span>
+                                <span className="text-xs font-black text-purple-950 block truncate">
+                                  {(selectedOrder as any).thana || '—'}
+                                </span>
                               </div>
-                            )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -3634,10 +3717,10 @@ export default function AdminOrders(): React.JSX.Element {
                                 {it.quantity}
                               </div>
                               <div className="col-span-2 text-right font-bold text-slate-500 text-sm font-mono">
-                                ৳{formatPrice(it.price, currency, rate)}
+                                {formatPrice(it.price, currency, rate)}
                               </div>
                               <div className="col-span-2 text-right font-black text-slate-900 text-sm font-mono">
-                                ৳{formatPrice(it.price * it.quantity, currency, rate)}
+                                {formatPrice(it.price * it.quantity, currency, rate)}
                               </div>
                             </div>
                           ))}
@@ -3653,19 +3736,19 @@ export default function AdminOrders(): React.JSX.Element {
                         <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
                           <span>Subtotal</span>
                           <span className="font-bold text-slate-800 font-mono">
-                            ৳{formatPrice(selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0), currency, rate)}
+                            {formatPrice(selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0), currency, rate)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
                           <span>Delivery Charge</span>
                           <span className="font-bold text-slate-800 font-mono">
-                            ৳{formatPrice(selectedOrder.deliveryCharge || 0, currency, rate)}
+                            {formatPrice(selectedOrder.deliveryCharge || 0, currency, rate)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
                           <span>Discount</span>
                           <span className="font-bold text-[#EB5A3C] font-mono">
-                            -৳{formatPrice((selectedOrder as any).discount || 0, currency, rate)}
+                            -{formatPrice((selectedOrder as any).discount || 0, currency, rate)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
@@ -3673,14 +3756,14 @@ export default function AdminOrders(): React.JSX.Element {
                             Advance Payment ({selectedOrder.paymentMethod === 'cod' ? 'COD' : selectedOrder.paymentMethod.toUpperCase()})
                           </span>
                           <span className="font-bold text-[#10B981] font-mono">
-                            ৳{formatPrice((selectedOrder as any).advancePayment || 0, currency, rate)}
+                            {formatPrice((selectedOrder as any).advancePayment || 0, currency, rate)}
                           </span>
                         </div>
                         
                         <div className="flex items-center justify-between pt-4 border-t border-slate-300/40">
                           <span className="text-sm font-black text-slate-950 uppercase tracking-wider">Collectable</span>
                           <span className="text-3xl font-black text-slate-900 font-mono tracking-tight">
-                            ৳{formatPrice(
+                            {formatPrice(
                               selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 
                               (selectedOrder.deliveryCharge || 0) - 
                               ((selectedOrder as any).discount || 0) - 
@@ -3709,6 +3792,14 @@ export default function AdminOrders(): React.JSX.Element {
                         </button>
                         
                         <button 
+                          onClick={() => openOrderInCreateModal(selectedOrder)}
+                          className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-widest rounded-[20px] transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+                        >
+                          <Edit3 size={14} className="stroke-[2.5]" />
+                          <span>Edit in Order Page (নতুন অর্ডার পেজ)</span>
+                        </button>
+
+                        <button 
                           onClick={() => {
                             setEditName(selectedOrder.customerName || '');
                             setEditPhone(selectedOrder.phone || '');
@@ -3718,14 +3809,13 @@ export default function AdminOrders(): React.JSX.Element {
                             setEditDeliveryCharge(selectedOrder.deliveryCharge ?? 100);
                             setEditDiscount((selectedOrder as any).discount ?? 0);
                             setEditAdvancePayment((selectedOrder as any).advancePayment ?? 0);
-                            setEditNotes((selectedOrder as any).notes || 'Agamikal booking dite hobe');
+                            setEditNotes((selectedOrder as any).notes || '');
                             setEditInvoiceBy(selectedOrder.invoiceBy || 'Website order');
                             setIsEditingDetails(true);
                           }}
-                          className="w-full py-4 bg-white/70 hover:bg-white text-slate-800 border border-slate-300/40 font-black text-xs uppercase tracking-widest rounded-[20px] transition-all shadow-sm cursor-pointer flex items-center justify-center gap-2"
+                          className="w-full py-3 bg-white/70 hover:bg-white text-slate-800 border border-slate-300/40 font-black text-[11px] uppercase tracking-widest rounded-[20px] transition-all shadow-sm cursor-pointer flex items-center justify-center gap-2"
                         >
-                          <Edit3 size={14} className="stroke-[2.5]" />
-                          <span>Edit Details</span>
+                          <span>Quick Inline Edit</span>
                         </button>
                       </div>
 

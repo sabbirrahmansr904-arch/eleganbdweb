@@ -7,6 +7,7 @@ import { useOrders } from '../contexts/OrderContext';
 import { useProducts } from '../contexts/ProductContext';
 import { useBranding } from '../contexts/BrandingContext';
 import { formatPrice, cn } from '../lib/utils';
+import { DISTRICT_THANAS } from '../data/locations';
 import toast from 'react-hot-toast';
 
 interface QuickOrderModalProps {
@@ -30,7 +31,8 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
     name: '',
     phone: '',
     location: '',
-    city: 'Dhaka'
+    city: 'Dhaka',
+    thana: ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,18 +41,38 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
       toast.error(isBag ? 'Please select QN' : 'Please select a size');
       return;
     }
+    if (!formData.city) {
+      toast.error('Please select a district');
+      return;
+    }
+    if (!formData.thana) {
+      toast.error('Please select a thana');
+      return;
+    }
 
     setIsSubmitting(true);
     
-    // Simulate order placement
+    // Determine shipping fee
     let baseShipping = shippingOutsideDhaka;
-    if (formData.city === 'Dhaka') {
-      baseShipping = shippingInsideDhaka;
-    } else if (formData.city === 'Dhaka Sub') {
+    const cityClean = formData.city.trim().toLowerCase();
+    const thanaClean = (formData.thana || '').trim().toLowerCase();
+
+    if (cityClean === 'dhaka') {
+      const subKeywords = [
+        'savar', 'ashulia', 'keraniganj', 'dhamrai', 'dohar', 'nawabganj',
+        'baipail', 'jamgora', 'zirabo', 'zirani', 'hemayetpur', 'epz', 'nobinagar',
+        'bipail', 'palli bidyut', 'pakiza', 'radio colony', 'rajashon', 'shimultola',
+        'tenari savar', 'bolivodro', 'charabag', 'deogao', 'ganda', 'jahangirnagar',
+        'katghora', 'kolatia', 'kolma', 'konakhola'
+      ];
+      const isSub = subKeywords.some(kw => thanaClean.includes(kw));
+      baseShipping = isSub ? Math.min(110, shippingOutsideDhaka) : shippingInsideDhaka;
+    } else if (cityClean === 'gazipur' || cityClean === 'narayanganj') {
       baseShipping = Math.min(110, shippingOutsideDhaka);
     } else {
       baseShipping = shippingOutsideDhaka;
     }
+
     const shipping = (shippingFreeAfter > 0 && product.price >= shippingFreeAfter) ? 0 : baseShipping;
     const total = product.price + shipping;
 
@@ -61,6 +83,7 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
       phone: formData.phone,
       address: formData.location,
       city: formData.city,
+      thana: formData.thana,
       items: [{ ...product, selectedSize, quantity: 1 }],
       deliveryCharge: shipping,
       total: total,
@@ -188,16 +211,33 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
                         className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-100 outline-none focus:border-brand-gold text-sm font-medium"
                       />
                     </div>
-                    <div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
                         <select
+                           required
                            value={formData.city}
-                           onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
-                           className="w-full px-4 py-3 bg-gray-50 border border-gray-100 outline-none focus:border-brand-gold text-sm font-medium"
+                           onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value, thana: '' }))}
+                           className="w-full px-3 py-3 bg-gray-50 border border-gray-100 outline-none focus:border-brand-gold text-xs font-medium cursor-pointer"
                         >
-                            <option value="Dhaka">Inside Dhaka (80 TK)</option>
-                            <option value="Dhaka Sub">Dhaka Sub Area (110 TK)</option>
-                            <option value="Outside Dhaka">Outside Dhaka (130 TK)</option>
+                            <option value="">Select District</option>
+                            {Object.keys(DISTRICT_THANAS).map(district => (
+                              <option key={district} value={district}>{district}</option>
+                            ))}
                         </select>
+                      </div>
+                      <div>
+                        <select
+                           required
+                           value={formData.thana}
+                           onChange={(e) => setFormData(prev => ({ ...prev, thana: e.target.value }))}
+                           className="w-full px-3 py-3 bg-gray-50 border border-gray-100 outline-none focus:border-brand-gold text-xs font-medium cursor-pointer"
+                        >
+                            <option value="">Select Thana</option>
+                            {formData.city && DISTRICT_THANAS[formData.city]?.map(thana => (
+                              <option key={thana} value={thana}>{thana}</option>
+                            ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
 

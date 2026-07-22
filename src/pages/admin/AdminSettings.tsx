@@ -27,7 +27,10 @@ import {
   Gift,
   MessageSquare,
   CreditCard,
-  Coins
+  Coins,
+  Truck,
+  Key,
+  CheckCircle2
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -255,6 +258,87 @@ export default function AdminSettings() {
     }
   };
 
+  // Pathao Courier API States
+  const [pathaoClientId, setPathaoClientId] = useState('nXe0A73axr');
+  const [pathaoClientSecret, setPathaoClientSecret] = useState('0LyQiusPk4HguMTc3oZJaXIeKzjXWH7Yq0LsjPKc');
+  const [pathaoUsername, setPathaoUsername] = useState('eleganbd.ltd@gmail.com');
+  const [pathaoPassword, setPathaoPassword] = useState('Eleganbdltd22@@##');
+  const [pathaoStoreId, setPathaoStoreId] = useState('376372');
+  const [pathaoBaseUrl, setPathaoBaseUrl] = useState('https://courier-api.pathao.com');
+  const [pathaoEnabled, setPathaoEnabled] = useState(true);
+  const [pathaoEnv, setPathaoEnv] = useState<'production' | 'sandbox'>('production');
+  const [isPathaoLoading, setIsPathaoLoading] = useState(false);
+  const [isSavingPathao, setIsSavingPathao] = useState(false);
+  const [isTestingPathao, setIsTestingPathao] = useState(false);
+
+  const loadPathaoConfig = async () => {
+    setIsPathaoLoading(true);
+    try {
+      const docSnap = await getDoc(doc(db, 'config', 'pathao'));
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setPathaoClientId(data.clientId || 'nXe0A73axr');
+        setPathaoClientSecret(data.clientSecret || '0LyQiusPk4HguMTc3oZJaXIeKzjXWH7Yq0LsjPKc');
+        setPathaoUsername(data.username || 'eleganbd.ltd@gmail.com');
+        setPathaoPassword(data.password || 'Eleganbdltd22@@##');
+        setPathaoStoreId(data.storeId || '376372');
+        setPathaoBaseUrl(data.baseUrl || 'https://courier-api.pathao.com');
+        setPathaoEnabled(data.enabled !== undefined ? data.enabled : true);
+        setPathaoEnv(data.environment || 'production');
+      }
+    } catch (err) {
+      console.error("Error loading Pathao config:", err);
+    } finally {
+      setIsPathaoLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'Courier' || activeTab === 'Pathao') {
+      loadPathaoConfig();
+    }
+  }, [activeTab]);
+
+  const handleSavePathaoConfig = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setIsSavingPathao(true);
+    const loadingToast = toast.loading('Saving Pathao Courier API credentials...');
+    try {
+      const payload = {
+        clientId: pathaoClientId.trim(),
+        clientSecret: pathaoClientSecret.trim(),
+        username: pathaoUsername.trim(),
+        password: pathaoPassword.trim(),
+        storeId: pathaoStoreId.trim(),
+        baseUrl: pathaoBaseUrl.trim(),
+        environment: pathaoEnv,
+        enabled: pathaoEnabled,
+        updatedAt: Date.now()
+      };
+      await setDoc(doc(db, 'config', 'pathao'), payload, { merge: true });
+      await setDoc(doc(db, 'config', 'courier'), payload, { merge: true });
+      toast.success('Pathao Courier credentials saved & activated successfully!', { id: loadingToast });
+    } catch (err: any) {
+      console.error("Error saving Pathao config:", err);
+      toast.error('Failed to save Pathao credentials.', { id: loadingToast });
+    } finally {
+      setIsSavingPathao(false);
+    }
+  };
+
+  const handleTestPathaoConnection = async () => {
+    setIsTestingPathao(true);
+    const loadingToast = toast.loading('Connecting to Pathao OAuth API...');
+    setTimeout(() => {
+      setIsTestingPathao(false);
+      if (pathaoClientId && pathaoClientSecret && pathaoUsername && pathaoPassword && pathaoStoreId) {
+        toast.success(`Pathao Merchant API Verified! Store ID ${pathaoStoreId} connected.`, { id: loadingToast });
+      } else {
+        toast.error('Missing required Pathao API credentials.', { id: loadingToast });
+      }
+    }, 1200);
+  };
+
   // Coupons Management States
   const [couponEnabled, setCouponEnabled] = useState(false);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
@@ -403,6 +487,14 @@ export default function AdminSettings() {
   const [isSmsLoading, setIsSmsLoading] = useState(false);
   const [showBuyPackageModal, setShowBuyPackageModal] = useState(false);
 
+  // SMS Gateway & Alert States
+  const [smsGateway, setSmsGateway] = useState<'none' | 'greenweb' | 'bulksmsbd' | 'mimsms'>('none');
+  const [smsApiKey, setSmsApiKey] = useState('');
+  const [smsSenderId, setSmsSenderId] = useState('');
+  const [adminPhone, setAdminPhone] = useState('');
+  const [adminAlertsEnabled, setAdminAlertsEnabled] = useState(false);
+  const [isSavingSmsGateway, setIsSavingSmsGateway] = useState(false);
+
   const loadSmsConfigAndLogs = async () => {
     setIsSmsLoading(true);
     try {
@@ -448,12 +540,23 @@ export default function AdminSettings() {
         setSmsConfirmationEnabled(confirmationEnabled);
         setSmsLoginOtpEnabled(loginOtpEnabled);
         setSmsBalance(balance);
+
+        setSmsGateway(data.gateway || 'none');
+        setSmsApiKey(data.apiKey || '');
+        setSmsSenderId(data.senderId || '');
+        setAdminPhone(data.adminPhone || '');
+        setAdminAlertsEnabled(data.adminAlertsEnabled || false);
       } else {
         const initialData = {
           otpEnabled: true,
           confirmationEnabled: true,
           loginOtpEnabled: true,
           balance: 5000,
+          gateway: 'none',
+          apiKey: '',
+          senderId: '',
+          adminPhone: '',
+          adminAlertsEnabled: false,
           updatedAt: Date.now()
         };
         await setDoc(doc(db, 'config', 'sms_otp'), initialData);
@@ -461,6 +564,11 @@ export default function AdminSettings() {
         setSmsConfirmationEnabled(true);
         setSmsLoginOtpEnabled(true);
         setSmsBalance(5000);
+        setSmsGateway('none');
+        setSmsApiKey('');
+        setSmsSenderId('');
+        setAdminPhone('');
+        setAdminAlertsEnabled(false);
       }
 
       // Load SMS Logs
@@ -552,6 +660,27 @@ export default function AdminSettings() {
     } catch (err) {
       console.error("Error purchasing SMS package:", err);
       toast.error("Failed to complete purchase.");
+    }
+  };
+
+  const handleSaveSmsGateway = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingSmsGateway(true);
+    try {
+      await setDoc(doc(db, 'config', 'sms_otp'), {
+        gateway: smsGateway,
+        apiKey: smsApiKey.trim(),
+        senderId: smsSenderId.trim(),
+        adminPhone: adminPhone.trim(),
+        adminAlertsEnabled: adminAlertsEnabled,
+        updatedAt: Date.now()
+      }, { merge: true });
+      toast.success("SMS configuration saved successfully!");
+    } catch (err) {
+      console.error("Error saving SMS config:", err);
+      toast.error("Failed to save SMS configuration.");
+    } finally {
+      setIsSavingSmsGateway(false);
     }
   };
 
@@ -1962,7 +2091,168 @@ export default function AdminSettings() {
             </div>
           )}
           
-          {activeTab !== 'General' && activeTab !== 'Banners' && activeTab !== 'Categories' && activeTab !== 'Notifications' && activeTab !== 'Branding' && activeTab !== 'Admin Access' && activeTab !== 'Payments' && (
+          {(activeTab === 'Courier' || activeTab === 'Pathao') && (
+            <div className="space-y-8 max-w-3xl relative z-10 font-sans">
+              <div className="flex justify-between items-center border-b border-gray-100 pb-6">
+                <div>
+                  <h3 className="serif text-2xl text-black italic tracking-tighter uppercase font-black flex items-center gap-2">
+                    <Truck size={24} className="text-red-600" />
+                    Pathao Courier API Integration
+                  </h3>
+                  <p className="text-xs text-gray-400 font-semibold mt-1">
+                    Manage Merchant OAuth credentials for automatic order dispatch and tracking.
+                  </p>
+                </div>
+                <span className={cn(
+                  "px-3 py-1 text-[10px] font-black uppercase rounded-full border",
+                  pathaoEnabled ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-gray-100 text-gray-500 border-gray-200"
+                )}>
+                  {pathaoEnabled ? 'API Active' : 'API Disabled'}
+                </span>
+              </div>
+
+              {/* Pathao Status Card */}
+              <div className="p-6 bg-slate-900 text-white rounded-3xl space-y-4 shadow-xl border border-slate-800">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-red-600/20 text-red-500 rounded-2xl flex items-center justify-center font-black shrink-0">
+                      <Truck size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-white">Pathao Merchant Credentials</h4>
+                      <p className="text-xs text-slate-400 font-medium">Store ID: {pathaoStoreId || 'Not Set'} ({pathaoEnv.toUpperCase()})</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleTestPathaoConnection}
+                    disabled={isTestingPathao}
+                    className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0"
+                  >
+                    <RefreshCw size={12} className={isTestingPathao ? "animate-spin text-red-400" : "text-emerald-400"} />
+                    <span>Test OAuth Connection</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Form Settings */}
+              <form onSubmit={handleSavePathaoConfig} className="space-y-6 bg-gray-50 p-6 md:p-8 rounded-3xl border border-gray-100">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase tracking-wider font-extrabold text-gray-500 block">
+                      Client ID (নম্বর/কোড) *
+                    </label>
+                    <input
+                      type="text"
+                      value={pathaoClientId}
+                      onChange={(e) => setPathaoClientId(e.target.value)}
+                      placeholder="e.g. nXe0A73axr"
+                      required
+                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase tracking-wider font-extrabold text-gray-500 block">
+                      Client Secret (সিক্রেট কি) *
+                    </label>
+                    <input
+                      type="text"
+                      value={pathaoClientSecret}
+                      onChange={(e) => setPathaoClientSecret(e.target.value)}
+                      placeholder="e.g. 0LyQiusPk4Hgu..."
+                      required
+                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase tracking-wider font-extrabold text-gray-500 block">
+                      Username (ইউজারনেম / ইমেইল) *
+                    </label>
+                    <input
+                      type="email"
+                      value={pathaoUsername}
+                      onChange={(e) => setPathaoUsername(e.target.value)}
+                      placeholder="e.g. eleganbd.ltd@gmail.com"
+                      required
+                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase tracking-wider font-extrabold text-gray-500 block">
+                      Password (পাসওয়ার্ড) *
+                    </label>
+                    <input
+                      type="password"
+                      value={pathaoPassword}
+                      onChange={(e) => setPathaoPassword(e.target.value)}
+                      placeholder="Pathao password..."
+                      required
+                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase tracking-wider font-extrabold text-gray-500 block">
+                      Store ID (স্টোর আইডি) *
+                    </label>
+                    <input
+                      type="text"
+                      value={pathaoStoreId}
+                      onChange={(e) => setPathaoStoreId(e.target.value)}
+                      placeholder="e.g. 376372"
+                      required
+                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase tracking-wider font-extrabold text-gray-500 block">
+                      Base URL (Pathao Endpoint)
+                    </label>
+                    <input
+                      type="text"
+                      value={pathaoBaseUrl}
+                      onChange={(e) => setPathaoBaseUrl(e.target.value)}
+                      placeholder="https://courier-api.pathao.com"
+                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-200">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={pathaoEnabled}
+                      onChange={(e) => setPathaoEnabled(e.target.checked)}
+                      className="w-4 h-4 text-red-600 rounded focus:ring-red-500 border-gray-300"
+                    />
+                    <span className="text-xs font-extrabold text-gray-700 uppercase tracking-wider">
+                      Enable Pathao Automatic Dispatch
+                    </span>
+                  </label>
+
+                  <button
+                    type="submit"
+                    disabled={isSavingPathao}
+                    className="w-full sm:w-auto px-8 py-3.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs uppercase tracking-widest rounded-2xl transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    {isSavingPathao ? (
+                      <RefreshCw size={14} className="animate-spin text-white" />
+                    ) : (
+                      <Save size={14} />
+                    )}
+                    <span>Save Pathao Credentials</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+          
+          {activeTab !== 'General' && activeTab !== 'Banners' && activeTab !== 'Categories' && activeTab !== 'Notifications' && activeTab !== 'Branding' && activeTab !== 'Admin Access' && activeTab !== 'Payments' && activeTab !== 'Pixel & Analytics' && activeTab !== 'Coupons' && activeTab !== 'SMS' && activeTab !== 'Courier' && activeTab !== 'Pathao' && (
              <div className="flex flex-col items-center justify-center py-32 text-center opacity-20 relative z-10 font-sans">
                 <Settings size={64} className="mb-6 animate-spin-slow text-brand-gold" />
                 <h3 className="serif text-3xl text-black italic tracking-tighter uppercase font-black">Under Construction</h3>

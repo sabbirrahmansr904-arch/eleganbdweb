@@ -15,7 +15,7 @@ import { useCart } from '../contexts/CartContext';
 import { useBranding } from '../contexts/BrandingContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useInventory } from '../contexts/InventoryContext';
-import { ArrowLeft, CheckCircle2, User, Phone, Mail, MapPin, FileText, ShoppingBag, Gift, CreditCard, Coins, ShieldCheck, RefreshCw } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, User, Phone, Mail, MapPin, FileText, ShoppingBag, Gift, CreditCard, Coins, ShieldCheck, RefreshCw, Truck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import { db } from '../lib/firebase';
@@ -29,7 +29,7 @@ export default function Checkout() {
   const { addOrder } = useOrders();
   const { products, updateProduct } = useProducts();
   const { addTransaction } = useInventory();
-  const { currentUser, customerUser } = useAuth();
+  const { currentUser, customerUser, loginCustomer } = useAuth();
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);

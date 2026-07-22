@@ -6,7 +6,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Order } from '../types';
 import { db } from '../lib/firebase';
-import { collection, doc, setDoc, deleteDoc, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, doc, setDoc, getDoc, deleteDoc, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { useProducts } from './ProductContext';
 import { useInventory } from './InventoryContext';

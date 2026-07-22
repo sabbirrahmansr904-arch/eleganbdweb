@@ -5,9 +5,10 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface AuthContextType {
   currentUser: User | null;
-  customerUser: { email: string } | null;
+  customerUser: { email: string; name?: string } | null;
   sendOtp: (email: string) => Promise<void>;
   verifyOtp: (email: string, otp: string) => Promise<void>;
+  loginCustomer: (phoneOrEmail: string, name?: string) => void;
   logoutCustomer: () => void;
   isAdmin: boolean;
   isSuperAdmin: boolean;
@@ -54,6 +55,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!res.ok) throw new Error('Invalid OTP');
     
     const user = { email };
+    setCustomerUser(user);
+    localStorage.setItem('elegan_customer_user', JSON.stringify(user));
+  };
+
+  const loginCustomer = (phoneOrEmail: string, name?: string) => {
+    const user = { email: phoneOrEmail, name: name || '' };
     setCustomerUser(user);
     localStorage.setItem('elegan_customer_user', JSON.stringify(user));
   };
@@ -221,6 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       customerUser, 
       sendOtp,
       verifyOtp,
+      loginCustomer,
       logoutCustomer, 
       isAdmin,
       isSuperAdmin,

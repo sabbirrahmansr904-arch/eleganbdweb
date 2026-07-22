@@ -200,6 +200,7 @@ export default function AdminLayout() {
         { name: 'Branding', path: '/admin/settings?tab=Branding', icon: Palette },
         { name: 'Banners', path: '/admin/settings?tab=Banners', icon: Globe },
         { name: 'Notifications', path: '/admin/settings?tab=Notifications', icon: Bell },
+        { name: 'Pathao Courier', path: '/admin/settings?tab=Courier', icon: Truck },
       ]
     },
     {
