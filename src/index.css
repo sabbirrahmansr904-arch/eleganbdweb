@@ -145,3 +145,10 @@ html.dark .text-indigo-600 {
 html.dark .border-indigo-100 {
   border-color: #312e81 !important;
 }
+
+/* Prevent text from turning white on hover */
+.hover\:text-white:hover,
+.group:hover .group-hover\:text-white {
+  color: inherit !important;
+}
+

@@ -112,7 +112,7 @@ export default function AdminCustomers() {
           </div>
           <button 
             onClick={() => toast.success('Initializing filter matrix...')}
-            className="flex items-center gap-3 px-8 py-4 bg-gray-50 text-black border border-gray-100 text-[10px] uppercase tracking-widest font-black rounded-2xl hover:bg-black hover:text-white transform-gpu transition-all active:scale-95"
+            className="flex items-center gap-3 px-8 py-4 bg-gray-50 text-black border border-gray-100 text-[10px] uppercase tracking-widest font-black rounded-2xl hover:bg-gray-100 hover:text-black transform-gpu transition-all active:scale-95"
           >
             <Filter size={16} className="text-brand-gold" />
             <span>Advanced Filters</span>
@@ -136,11 +136,11 @@ export default function AdminCustomers() {
                 <tr key={customer.id} className="hover:bg-gray-50 transition-all group font-sans">
                   <td className="px-10 py-8">
                     <div className="flex items-center space-x-5">
-                      <div className="w-12 h-12 bg-gray-50 text-black rounded-2xl flex items-center justify-center font-black italic text-lg border border-gray-100 shadow-sm group-hover:bg-black group-hover:text-white transition-all transform group-hover:rotate-6">
+                      <div className="w-12 h-12 bg-gray-50 text-black rounded-2xl flex items-center justify-center font-black italic text-lg border border-gray-100 shadow-sm group-hover:bg-gray-100 transition-all transform group-hover:rotate-6">
                         {customer.name?.charAt(0) || '?'}
                       </div>
                       <div className="space-y-1">
-                        <h4 className="text-sm font-black text-black uppercase italic tracking-tighter group-hover:text-brand-gold transition-colors">{customer.name}</h4>
+                        <h4 className="text-sm font-black text-black uppercase italic tracking-tighter transition-colors">{customer.name}</h4>
                         <p className="text-[9px] text-gray-400 uppercase tracking-widest font-black">{customer.id}</p>
                       </div>
                     </div>
@@ -158,7 +158,7 @@ export default function AdminCustomers() {
                     </div>
                   </td>
                   <td className="px-6 py-8 text-center">
-                    <span className="bg-gray-50 text-black border border-gray-100 px-4 py-1.5 rounded-xl text-[10px] font-black font-mono shadow-sm group-hover:bg-black group-hover:text-white group-hover:border-black transition-all">{customer.totalOrders || 0}</span>
+                    <span className="bg-gray-50 text-black border border-gray-100 px-4 py-1.5 rounded-xl text-[10px] font-black font-mono shadow-sm group-hover:bg-gray-100 group-hover:border-gray-200 transition-all">{customer.totalOrders || 0}</span>
                   </td>
                   <td className="px-6 py-8">
                     <span className="text-sm font-black text-black italic tracking-tighter">{formatPrice(customer.totalSpent || 0, currency, rate)}</span>

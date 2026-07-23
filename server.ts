@@ -206,6 +206,162 @@ async function startServer() {
     }
   });
 
+  // API route to test Pathao OAuth connection
+  app.post("/api/pathao/test-connection", async (req, res) => {
+    const { clientId, clientSecret, username, password, baseUrl } = req.body;
+    let apiBase = (baseUrl || 'https://api-hermes.pathao.com').replace(/\/$/, '');
+    if (apiBase.includes('courier-api.pathao.com')) {
+      apiBase = 'https://api-hermes.pathao.com';
+    }
+
+    if (!clientId || !clientSecret || !username || !password) {
+      return res.status(400).json({ success: false, error: "Please fill in Client ID, Client Secret, Username, and Password." });
+    }
+
+    try {
+      const response = await fetch(`${apiBase}/aladdin/api/v1/issue-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+          client_id: clientId,
+          client_secret: clientSecret,
+          username: username,
+          password: password,
+          grant_type: 'password'
+        })
+      });
+
+      const data: any = await response.json();
+      if (response.ok && data.access_token) {
+        return res.json({ success: true, access_token: data.access_token, token_type: data.token_type, expires_in: data.expires_in });
+      } else {
+        const errorMsg = data.message || data.error || (data.errors ? JSON.stringify(data.errors) : "Pathao Authentication Failed");
+        return res.status(400).json({ success: false, error: errorMsg });
+      }
+    } catch (error: any) {
+      console.error("Pathao test connection error:", error);
+      return res.status(500).json({ success: false, error: error.message || "Failed to connect to Pathao API server" });
+    }
+  });
+
+  // API route to create/book order in Pathao Courier
+  app.post("/api/pathao/create-order", async (req, res) => {
+    const { order, credentials } = req.body;
+
+    if (!order) {
+      return res.status(400).json({ success: false, error: "Order details are missing" });
+    }
+
+    let creds = credentials;
+    if (!creds || !creds.clientId) {
+      try {
+        const pathaoRef = doc(db, 'config', 'pathao');
+        const pathaoSnap = await getDoc(pathaoRef);
+        if (pathaoSnap.exists()) {
+          creds = pathaoSnap.data();
+        }
+      } catch (e) {
+        console.warn("Could not load Pathao creds from Firestore", e);
+      }
+    }
+
+    if (!creds || !creds.clientId || !creds.clientSecret || !creds.username || !creds.password || !creds.storeId) {
+      return res.status(400).json({ success: false, error: "Pathao API credentials or Store ID missing in Admin Settings" });
+    }
+
+    let apiBase = (creds.baseUrl || 'https://api-hermes.pathao.com').replace(/\/$/, '');
+    if (apiBase.includes('courier-api.pathao.com')) {
+      apiBase = 'https://api-hermes.pathao.com';
+    }
+
+    try {
+      // Step 1: Issue OAuth token
+      const tokenRes = await fetch(`${apiBase}/aladdin/api/v1/issue-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+          client_id: creds.clientId,
+          client_secret: creds.clientSecret,
+          username: creds.username,
+          password: creds.password,
+          grant_type: 'password'
+        })
+      });
+
+      const tokenData: any = await tokenRes.json();
+      if (!tokenRes.ok || !tokenData.access_token) {
+        const tokenErr = tokenData.message || tokenData.error || "Pathao Authentication Failed";
+        return res.status(400).json({ success: false, error: `Pathao Auth Failed: ${tokenErr}` });
+      }
+
+      const accessToken = tokenData.access_token;
+
+      // Step 2: Format phone number (must be 11 digits starting with 01)
+      let phone = (order.phone || '').replace(/[^0-9]/g, '');
+      if (phone.startsWith('880')) phone = phone.slice(2);
+      if (!phone.startsWith('0') && phone.length === 10) phone = '0' + phone;
+
+      // Format recipient address (must be at least 10 characters)
+      let address = `${order.address || ''}${order.thana ? `, ${order.thana}` : ''}${order.city ? `, ${order.city}` : ''}`.trim();
+      if (address.length < 10) {
+        address = (address + ', Dhaka, Bangladesh').trim();
+      }
+
+      const itemsDesc = (order.items || []).map((i: any) => `${i.name}${i.selectedSize ? ` (${i.selectedSize})` : ''} x${i.quantity || 1}`).join(', ');
+      const totalQty = (order.items || []).reduce((sum: number, i: any) => sum + (i.quantity || 1), 0);
+
+      const payload: any = {
+        store_id: Number(creds.storeId),
+        merchant_order_id: order.id,
+        recipient_name: order.customerName || 'Customer',
+        recipient_phone: phone,
+        recipient_address: address,
+        recipient_city: Number(order.cityId || creds.defaultCityId || 1),
+        recipient_zone: Number(order.zoneId || creds.defaultZoneId || 1),
+        delivery_type: 48,
+        item_type: 2,
+        special_instruction: order.orderNote || 'Handle with care',
+        item_quantity: totalQty || 1,
+        item_weight: 0.5,
+        amount_to_collect: (order.paymentMethod === 'COD' || order.paymentStatus !== 'Paid') ? Number(order.total || 0) : 0,
+        item_description: itemsDesc || 'Garments / Apparel item'
+      };
+
+      if (order.areaId || creds.defaultAreaId) {
+        payload.recipient_area = Number(order.areaId || creds.defaultAreaId);
+      }
+
+      // Step 3: Create order in Pathao
+      const orderRes = await fetch(`${apiBase}/aladdin/api/v1/orders`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const orderData: any = await orderRes.json();
+
+      if (orderRes.ok && (orderData.data || orderData.consignment_id)) {
+        const consignmentId = orderData.data?.consignment_id || orderData.consignment_id;
+        return res.json({
+          success: true,
+          consignment_id: consignmentId,
+          data: orderData.data || orderData
+        });
+      } else {
+        const orderErr = orderData.message || (orderData.errors ? JSON.stringify(orderData.errors) : "Pathao Order Booking Failed");
+        return res.status(400).json({ success: false, error: orderErr });
+      }
+
+    } catch (error: any) {
+      console.error("Pathao create order error:", error);
+      return res.status(500).json({ success: false, error: error.message || "Failed to communicate with Pathao API" });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

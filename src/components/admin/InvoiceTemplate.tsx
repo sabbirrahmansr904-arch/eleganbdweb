@@ -15,7 +15,7 @@ export default function InvoiceTemplate({ order, preview = false }: InvoiceProps
   const subTotal = order.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   
   // Format order ID for ON field
-  const orderNumber = order.id.slice(-6).toUpperCase();
+  const orderNumber = (order.id.length <= 8 || /^\d+$/.test(order.id)) ? order.id : order.id.slice(-6).toUpperCase();
   const onCode = order.id.slice(-3).toUpperCase();
 
   const formatDate = (dateInput: any) => {

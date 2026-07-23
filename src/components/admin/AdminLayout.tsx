@@ -43,7 +43,8 @@ import {
   Package,
   DollarSign,
   RefreshCw,
-  UserCheck
+  UserCheck,
+  History
 } from 'lucide-react';
 import { cn, formatPrice } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -59,7 +60,7 @@ export default function AdminLayout() {
   const { logoUrl } = useBranding();
   const { orders } = useOrders();
   const { products } = useProducts();
-  const { currentUser, isSuperAdmin } = useAuth();
+  const { currentUser, isSuperAdmin, department, permissions = [], signOut } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const location = useLocation();
@@ -67,7 +68,37 @@ export default function AdminLayout() {
 
   const { currency, rate } = useCurrency();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
+  const profileRef = React.useRef<HTMLDivElement>(null);
+
+  const userInitials = (currentUser?.email ? currentUser.email.slice(0, 2) : 'AD').toUpperCase();
+  const activeDepartment = department || (isSuperAdmin ? 'CEO & Founder' : 'Sales Executive Department');
+
+  const getDepartmentBadgeStyle = (dept: string) => {
+    if (dept.includes('CEO') || dept.includes('Founder')) {
+      return 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-700';
+    }
+    if (dept.includes('Sales')) {
+      return 'bg-blue-100 text-blue-900 border-blue-300 dark:bg-blue-950/60 dark:text-blue-200 dark:border-blue-700';
+    }
+    if (dept.includes('Inventory') || dept.includes('Stock')) {
+      return 'bg-purple-100 text-purple-900 border-purple-300 dark:bg-purple-950/60 dark:text-purple-200 dark:border-purple-700';
+    }
+    if (dept.includes('Issue') || dept.includes('Support')) {
+      return 'bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-950/60 dark:text-rose-200 dark:border-rose-700';
+    }
+    if (dept.includes('QC') || dept.includes('Quality')) {
+      return 'bg-teal-100 text-teal-900 border-teal-300 dark:bg-teal-950/60 dark:text-teal-200 dark:border-teal-700';
+    }
+    if (dept.includes('Delivery') || dept.includes('Logistics')) {
+      return 'bg-indigo-100 text-indigo-900 border-indigo-300 dark:bg-indigo-950/60 dark:text-indigo-200 dark:border-indigo-700';
+    }
+    if (dept.includes('Accounts') || dept.includes('Finance')) {
+      return 'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-700';
+    }
+    return 'bg-gray-100 text-gray-900 border-gray-300 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600';
+  };
 
   const [readIds, setReadIds] = useState<string[]>(() => {
     try {
@@ -104,6 +135,9 @@ export default function AdminLayout() {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowNotifications(false);
+      }
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setShowProfileDropdown(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -179,44 +213,54 @@ export default function AdminLayout() {
     return notifications.filter(n => !readIds.includes(n.id)).length;
   }, [notifications, readIds]);
 
-  const menuGroups = [
+  const isPermitted = (key: string) => {
+    if (isSuperAdmin) return true;
+    if (!permissions || permissions.length === 0) return true; // Default fallback if not set
+    return permissions.includes(key);
+  };
+
+  const rawMenuGroups = [
     {
       items: [
-        { name: 'Dashboard', path: '/admin', icon: Home },
-        { name: 'Customers', path: '/admin/customers', icon: Users },
-        { name: 'Customer Profiler', path: '/admin/customer-profiler', icon: UserCheck },
-        { name: 'Orders', path: '/admin/orders', icon: FileText },
-        { name: 'Exchanges', path: '/admin/exchanges', icon: RefreshCw },
-        { name: 'Categories', path: '/admin/settings?tab=Categories', icon: Folder },
-        { name: 'Products', path: '/admin/products', icon: ShoppingBag },
-        { name: 'Issues', path: '/admin/issues', icon: MessageCircle },
-        { name: 'Master Table', path: '/admin/master-table', icon: Table },
+        { name: 'Dashboard', path: '/admin', icon: Home, perm: 'dashboard' },
+        { name: 'Customers', path: '/admin/customers', icon: Users, perm: 'customers' },
+        { name: 'Customer Profiler', path: '/admin/customer-profiler', icon: UserCheck, perm: 'customers' },
+        { name: 'Orders', path: '/admin/orders', icon: FileText, perm: 'orders' },
+        { name: 'Exchanges', path: '/admin/exchanges', icon: RefreshCw, perm: 'exchanges' },
+        { name: 'Categories', path: '/admin/settings?tab=Categories', icon: Folder, perm: 'products' },
+        { name: 'Products', path: '/admin/products', icon: ShoppingBag, perm: 'products' },
+        { name: 'Issues', path: '/admin/issues', icon: MessageCircle, perm: 'issues' },
+        { name: 'Master Table', path: '/admin/master-table', icon: Table, perm: 'masterTable' },
+        { name: 'Inventory Log', path: '/admin/inventory-log', icon: History, perm: 'masterTable' },
       ]
     },
     {
       items: [
-        { name: 'Settings', path: '/admin/settings', icon: Settings },
-        { name: 'General', path: '/admin/settings?tab=General', icon: Store },
-        { name: 'Branding', path: '/admin/settings?tab=Branding', icon: Palette },
-        { name: 'Banners', path: '/admin/settings?tab=Banners', icon: Globe },
-        { name: 'Notifications', path: '/admin/settings?tab=Notifications', icon: Bell },
-        { name: 'Pathao Courier', path: '/admin/settings?tab=Courier', icon: Truck },
+        { name: 'Settings', path: '/admin/settings', icon: Settings, perm: 'settings' },
+        { name: 'Branding', path: '/admin/settings?tab=Branding', icon: Palette, perm: 'settings' },
+        { name: 'Banners', path: '/admin/settings?tab=Banners', icon: Globe, perm: 'settings' },
+        { name: 'Notifications', path: '/admin/settings?tab=Notifications', icon: Bell, perm: 'settings' },
+        { name: 'Pathao Courier', path: '/admin/settings?tab=Courier', icon: Truck, perm: 'settings' },
       ]
     },
     {
       items: [
-        { name: 'Payments', path: '/admin/settings?tab=Payments', icon: CreditCard },
-        { name: 'Partnership', path: '/admin/finance?tab=partnership', icon: Users },
-        { name: 'Bank', path: '/admin/finance?tab=bank', icon: DollarSign },
-        { name: 'Expenses', path: '/admin/expenses', icon: CreditCard },
+        { name: 'Payments', path: '/admin/settings?tab=Payments', icon: CreditCard, perm: 'settings' },
+        { name: 'Partnership', path: '/admin/finance?tab=partnership', icon: Users, perm: 'finance' },
+        { name: 'Bank', path: '/admin/finance?tab=bank', icon: DollarSign, perm: 'finance' },
+        { name: 'Expenses', path: '/admin/expenses', icon: CreditCard, perm: 'finance' },
       ]
     },
     {
       items: [
-        ...(isSuperAdmin ? [{ name: 'Admin Access', path: '/admin/settings?tab=Admin Access', icon: Lock }] : []),
+        ...(isSuperAdmin ? [{ name: 'Admin Access', path: '/admin/settings?tab=Admin Access', icon: Lock, perm: 'settings' }] : []),
       ]
     }
   ];
+
+  const menuGroups = rawMenuGroups.map(group => ({
+    items: group.items.filter(item => isPermitted(item.perm || 'dashboard'))
+  })).filter(group => group.items.length > 0);
 
   const getIsActive = (itemPath: string) => {
     if (itemPath.includes('?')) {
@@ -229,9 +273,14 @@ export default function AdminLayout() {
     return location.pathname === itemPath || (itemPath !== '/admin' && itemPath !== '/' && location.pathname.startsWith(itemPath));
   };
 
-  const handleLogout = () => {
-    toast.success('Signed out successfully.');
-    navigate('/');
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast.success('Signed out successfully.');
+      navigate('/');
+    } catch (e) {
+      toast.error('Error signing out.');
+    }
   };
 
   const handleSearch = (e: React.KeyboardEvent) => {
@@ -317,13 +366,28 @@ export default function AdminLayout() {
                   </React.Fragment>
                 ))}
               </nav>
-              <div className="p-4 border-t border-gray-100 bg-white">
+              <div className="p-3.5 border-t border-gray-100 bg-gray-50/50">
+                <div className="flex items-center gap-3 mb-3 p-2 bg-white rounded-2xl border border-gray-200/80 shadow-2xs">
+                  {currentUser?.photoURL ? (
+                    <img src={currentUser.photoURL} alt="User Profile" className="w-9 h-9 rounded-full object-cover border border-gray-200 shrink-0" />
+                  ) : (
+                    <div className="w-9 h-9 bg-black text-white rounded-full flex items-center justify-center font-black text-xs shrink-0 shadow-2xs">
+                      {userInitials}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-black text-gray-900 truncate" title={currentUser?.email || ''}>{currentUser?.email || 'Admin User'}</p>
+                    <span className={`inline-block px-2 py-0.5 mt-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border truncate max-w-full ${getDepartmentBadgeStyle(activeDepartment)}`}>
+                      {activeDepartment}
+                    </span>
+                  </div>
+                </div>
                 <button 
                   onClick={handleLogout}
-                  className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-red-500 transition-colors font-medium text-sm"
+                  className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-colors font-bold text-xs"
                 >
-                  <LogOut size={18} strokeWidth={2} />
-                  <span>Logout</span>
+                  <LogOut size={15} />
+                  <span>Sign Out Account</span>
                 </button>
               </div>
             </motion.aside>
@@ -408,6 +472,52 @@ export default function AdminLayout() {
           ))}
         </nav>
 
+        {/* Desktop Sidebar Profile Footer */}
+        <div className="p-3 border-t border-gray-100 bg-white shrink-0">
+          {isSidebarOpen ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2.5 p-2 bg-gray-50/80 rounded-2xl border border-gray-200/60 shadow-2xs">
+                {currentUser?.photoURL ? (
+                  <img src={currentUser.photoURL} alt="User Profile" className="w-9 h-9 rounded-full object-cover border border-gray-200 shrink-0" />
+                ) : (
+                  <div className="w-9 h-9 bg-black text-white rounded-full flex items-center justify-center font-black text-xs shrink-0 shadow-2xs">
+                    {userInitials}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-black text-gray-900 truncate" title={currentUser?.email || ''}>{currentUser?.email || 'Admin User'}</p>
+                  <span className={`inline-block px-2 py-0.5 mt-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border truncate max-w-full ${getDepartmentBadgeStyle(activeDepartment)}`}>
+                    {activeDepartment}
+                  </span>
+                </div>
+              </div>
+              <button 
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-colors font-bold text-xs"
+              >
+                <LogOut size={15} />
+                <span>Sign Out</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3">
+              <button
+                onClick={() => setShowProfileDropdown(true)}
+                title={`${currentUser?.email} (${activeDepartment})`}
+                className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center font-black text-xs hover:scale-105 transition-all shadow-2xs"
+              >
+                {userInitials}
+              </button>
+              <button 
+                onClick={handleLogout}
+                title="Logout"
+                className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+              >
+                <LogOut size={18} />
+              </button>
+            </div>
+          )}
+        </div>
 
       </aside>
 
@@ -548,14 +658,104 @@ export default function AdminLayout() {
               </AnimatePresence>
             </div>
             <div className="h-8 w-[1px] bg-gray-100 mx-2 hidden sm:block"></div>
-            <div className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity">
-              <div className="hidden sm:flex flex-col items-end">
-                <span className="text-sm font-bold text-black leading-none">Admin</span>
-                <span className="text-[10px] text-gray-400 font-medium">Administrator</span>
-              </div>
-              <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center text-black font-bold border-2 border-gray-100 shadow-sm">
-                AD
-              </div>
+            <div className="relative" ref={profileRef}>
+              <button 
+                onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                className="flex items-center space-x-3 cursor-pointer hover:opacity-90 transition-all p-1.5 rounded-2xl border border-transparent hover:border-gray-200 hover:bg-gray-50"
+              >
+                <div className="hidden sm:flex flex-col items-end text-right">
+                  <span className="text-xs font-black text-gray-900 leading-tight truncate max-w-[160px]">
+                    {currentUser?.email ? currentUser.email.split('@')[0] : 'Admin User'}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border mt-0.5 ${getDepartmentBadgeStyle(activeDepartment)}`}>
+                    {activeDepartment}
+                  </span>
+                </div>
+                {currentUser?.photoURL ? (
+                  <img src={currentUser.photoURL} alt="Profile" className="w-9 h-9 rounded-full object-cover border-2 border-gray-200 shadow-2xs" />
+                ) : (
+                  <div className="w-9.5 h-9.5 bg-black text-white rounded-full flex items-center justify-center font-black text-xs border-2 border-gray-100 shadow-2xs">
+                    {userInitials}
+                  </div>
+                )}
+              </button>
+
+              {/* Profile Dropdown / Modal */}
+              <AnimatePresence>
+                {showProfileDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 12, scale: 0.98 }}
+                    className="absolute right-0 mt-3 w-80 sm:w-88 bg-white dark:bg-[#121824] rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-800 p-5 z-[100] text-left"
+                  >
+                    <div className="flex items-center gap-3.5 pb-4 border-b border-gray-100 dark:border-gray-800">
+                      {currentUser?.photoURL ? (
+                        <img src={currentUser.photoURL} alt="Profile" className="w-12 h-12 rounded-2xl object-cover border-2 border-gray-200 shrink-0" />
+                      ) : (
+                        <div className="w-12 h-12 bg-black text-white rounded-2xl flex items-center justify-center font-black text-base shrink-0 shadow-md">
+                          {userInitials}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-black text-gray-900 dark:text-white truncate" title={currentUser?.email || ''}>
+                          {currentUser?.email || 'Admin User'}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${getDepartmentBadgeStyle(activeDepartment)}`}>
+                            {activeDepartment}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="py-4 space-y-3.5">
+                      <div>
+                        <p className="text-[10px] font-black uppercase text-gray-400 tracking-wider mb-1">
+                          Account Role & Access
+                        </p>
+                        <p className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                          {isSuperAdmin ? '👑 Super Admin (Full Access)' : '🔑 Authorized Admin User'}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-[10px] font-black uppercase text-gray-400 tracking-wider mb-1.5">
+                          Authorized System Modules ({permissions.length})
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1">
+                          {permissions.map((perm) => (
+                            <span key={perm} className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-md text-[10px] font-bold capitalize">
+                              {perm}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2">
+                      <Link 
+                        to="/admin/settings" 
+                        onClick={() => setShowProfileDropdown(false)}
+                        className="text-xs font-bold text-indigo-600 hover:underline"
+                      >
+                        Manage Settings
+                      </Link>
+
+                      <button
+                        onClick={() => {
+                          setShowProfileDropdown(false);
+                          handleLogout();
+                        }}
+                        className="px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-xs font-black transition-all flex items-center gap-1.5"
+                      >
+                        <LogOut size={14} />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </header>

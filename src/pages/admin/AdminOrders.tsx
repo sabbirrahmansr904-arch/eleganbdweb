@@ -1,4 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 import InvoiceTemplate from '../../components/admin/InvoiceTemplate';
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
@@ -86,7 +88,7 @@ const normalizeStatus = (status: string): string => {
 
 export default function AdminOrders(): React.JSX.Element {
   const { currency, rate } = useCurrency();
-  const { orders, updateOrderStatus, updateOrder, addOrder, deleteOrder } = useOrders();
+  const { orders, updateOrderStatus, updateOrder, addOrder, deleteOrder, getNextOrderId } = useOrders();
   const { products } = useProducts();
   const { isSuperAdmin } = useAuth();
   const navigate = useNavigate();
@@ -175,6 +177,53 @@ export default function AdminOrders(): React.JSX.Element {
   // Issue Conversation Modal States
   const [issueConversationOrder, setIssueConversationOrder] = useState<Order | null>(null);
   const [readyToShipClicked, setReadyToShipClicked] = useState(false);
+
+  const [paymentsConfig, setPaymentsConfig] = useState({
+    codEnabled: true,
+    codLogo: '',
+    bkashEnabled: true,
+    bkashNumber: '01619835133',
+    bkashType: 'Personal',
+    bkashLogo: '',
+    nagadEnabled: true,
+    nagadNumber: '01619835133',
+    nagadType: 'Personal',
+    nagadLogo: '',
+    rocketEnabled: true,
+    rocketNumber: '01619835133',
+    rocketType: 'Personal',
+    rocketLogo: ''
+  });
+
+  useEffect(() => {
+    const fetchPayments = async () => {
+      try {
+        const docSnap = await getDoc(doc(db, 'config', 'payments'));
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setPaymentsConfig({
+            codEnabled: data.codEnabled !== undefined ? data.codEnabled : true,
+            codLogo: data.codLogo || '',
+            bkashEnabled: data.bkashEnabled !== undefined ? data.bkashEnabled : true,
+            bkashNumber: data.bkashNumber || '01619835133',
+            bkashType: data.bkashType || 'Personal',
+            bkashLogo: data.bkashLogo || '',
+            nagadEnabled: data.nagadEnabled !== undefined ? data.nagadEnabled : true,
+            nagadNumber: data.nagadNumber || '01619835133',
+            nagadType: data.nagadType || 'Personal',
+            nagadLogo: data.nagadLogo || '',
+            rocketEnabled: data.rocketEnabled !== undefined ? data.rocketEnabled : true,
+            rocketNumber: data.rocketNumber || '01619835133',
+            rocketType: data.rocketType || 'Personal',
+            rocketLogo: data.rocketLogo || ''
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load payments config in AdminOrders:", err);
+      }
+    };
+    fetchPayments();
+  }, []);
 
   useEffect(() => {
     setReadyToShipClicked(false);
@@ -360,7 +409,7 @@ export default function AdminOrders(): React.JSX.Element {
       setEditStatus(selectedOrder.status || 'Pending');
       setEditDeliveryCharge(selectedOrder.deliveryCharge ?? 100);
       setEditDiscount((selectedOrder as any).discount ?? 0);
-      setEditAdvancePayment((selectedOrder as any).advancePayment ?? (selectedOrder.paymentMethod === 'bkash' || selectedOrder.paymentMethod === 'nagad' ? 100 : 0));
+      setEditAdvancePayment((selectedOrder as any).advancePayment ?? (selectedOrder.paymentMethod === 'bkash' || selectedOrder.paymentMethod === 'nagad' || selectedOrder.paymentMethod === 'rocket' ? 100 : 0));
       setEditNotes((selectedOrder as any).notes || '');
       setEditInvoiceBy(selectedOrder.invoiceBy || (selectedOrder.customerId === 'manual_admin' ? 'Office Sale' : 'Website order'));
       setIsEditingDetails(false);
@@ -669,23 +718,35 @@ export default function AdminOrders(): React.JSX.Element {
     }
     
     setBookingToPathao(true);
-    
-    // Simulate background API communication with Pathao
-    await new Promise(resolve => setTimeout(resolve, 1200));
+    const shortCode = activeScanOrder.id.slice(-6).toUpperCase();
+    const loadingToast = toast.loading(`Booking Order #${shortCode} with Pathao API...`);
     
     try {
-      // Update the order status to 'Shipped' representing dispatched to courier
-      await updateOrderStatus(activeScanOrder.id, 'Shipped');
-      
-      const trackingCode = `PL-${Math.floor(100000 + Math.random() * 900000)}`;
-      
-      // Store in session arrays
-      setScannedOrders(prev => [activeScanOrder, ...prev]);
-      setScannedIds(prev => [...prev, activeScanOrder.id]);
-      
-      toast.success(`Successfully booked Order #${activeScanOrder.id.slice(-6).toUpperCase()} in Pathao Courier! Tracking: ${trackingCode}`);
-    } catch (err) {
-      toast.error("Failed to update status in database. Please check permissions.");
+      const res = await fetch('/api/pathao/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order: activeScanOrder })
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        // Update the order status to 'Shipped' and save consignment ID
+        if (updateOrder) {
+          await updateOrder(activeScanOrder.id, { status: 'Shipped', trackingCode: data.consignment_id, pathaoConsignmentId: data.consignment_id });
+        } else {
+          await updateOrderStatus(activeScanOrder.id, 'Shipped');
+        }
+        
+        // Store in session arrays
+        setScannedOrders(prev => [activeScanOrder, ...prev]);
+        setScannedIds(prev => [...prev, activeScanOrder.id]);
+        
+        toast.success(`Successfully created parcel in Pathao Merchant Portal! Consignment ID: ${data.consignment_id}`, { id: loadingToast, duration: 8000 });
+      } else {
+        toast.error(`Pathao API Error: ${data.error || 'Failed to create order'}`, { id: loadingToast, duration: 7000 });
+      }
+    } catch (err: any) {
+      toast.error(`Network Error calling Pathao API: ${err.message}`, { id: loadingToast });
     } finally {
       setActiveScanOrder(null);
       setBookingToPathao(false);
@@ -924,7 +985,7 @@ export default function AdminOrders(): React.JSX.Element {
       return;
     }
 
-    const orderId = Date.now().toString().slice(-10);
+    const orderId = getNextOrderId();
 
     const cartItems: CartItem[] = newOrderItems.map(item => ({
       ...item.product,
@@ -1314,8 +1375,42 @@ export default function AdminOrders(): React.JSX.Element {
                 </button>
               )}
               <button 
-                onClick={() => {
-                  toast.success(`Authorized Pathao dispatch sheets for ${selectedOrderIds.length} records!`);
+                onClick={async () => {
+                  if (selectedOrderIds.length === 0) return;
+                  const loadingToast = toast.loading(`Booking ${selectedOrderIds.length} orders to Pathao Merchant Portal...`);
+                  let successCount = 0;
+                  let failCount = 0;
+                  
+                  const selectedOrdersList = orders.filter(o => selectedOrderIds.includes(o.id));
+
+                  for (const targetOrder of selectedOrdersList) {
+                    try {
+                      const res = await fetch('/api/pathao/create-order', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ order: targetOrder })
+                      });
+                      const data = await res.json();
+                      if (res.ok && data.success) {
+                        if (updateOrder) {
+                          await updateOrder(targetOrder.id, { status: 'Shipped', trackingCode: data.consignment_id, pathaoConsignmentId: data.consignment_id });
+                        } else {
+                          await updateOrderStatus(targetOrder.id, 'Shipped');
+                        }
+                        successCount++;
+                      } else {
+                        failCount++;
+                      }
+                    } catch (e) {
+                      failCount++;
+                    }
+                  }
+
+                  if (successCount > 0) {
+                    toast.success(`Successfully booked ${successCount} orders to Pathao Courier!${failCount > 0 ? ` (${failCount} failed)` : ''}`, { id: loadingToast, duration: 6000 });
+                  } else {
+                    toast.error(`Failed to book orders to Pathao. Please check credentials in Admin Settings.`, { id: loadingToast, duration: 6000 });
+                  }
                   setSelectedOrderIds([]);
                 }}
                 className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-[10px] tracking-wider uppercase rounded-lg transition-all cursor-pointer"
@@ -1756,14 +1851,40 @@ export default function AdminOrders(): React.JSX.Element {
                             <div className="w-[1px] h-4 bg-[#E2E8F0] mx-0.5" />
                             
                             <button 
-                              onClick={(e) => {
+                              onClick={async (e) => {
                                 e.stopPropagation();
-                                handleStatusChange(order.id, 'Shipped');
+                                if (order.issueType && order.issueStatus !== 'resolved') {
+                                  toast.error("Cannot book order with active issue!");
+                                  return;
+                                }
+                                const shortCode = order.id.slice(-6).toUpperCase();
+                                const toastId = toast.loading(`Booking Order #${shortCode} to Pathao Courier...`);
+                                try {
+                                  const res = await fetch('/api/pathao/create-order', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ order })
+                                  });
+                                  const data = await res.json();
+                                  if (res.ok && data.success) {
+                                    if (updateOrder) {
+                                      await updateOrder(order.id, { status: 'Shipped', trackingCode: data.consignment_id, pathaoConsignmentId: data.consignment_id });
+                                    } else {
+                                      await updateOrderStatus(order.id, 'Shipped');
+                                    }
+                                    toast.success(`Order #${shortCode} booked in Pathao! Consignment ID: ${data.consignment_id}`, { id: toastId, duration: 8000 });
+                                  } else {
+                                    toast.error(`Pathao Error: ${data.error || 'Failed to book order'}`, { id: toastId, duration: 7000 });
+                                  }
+                                } catch (err: any) {
+                                  toast.error(`Network Error: ${err.message}`, { id: toastId });
+                                }
                               }} 
-                              title="Dispatch/Ship"
-                              className="p-2 hover:bg-emerald-50 hover:shadow-sm rounded-lg transition-all text-emerald-500 hover:text-emerald-600 cursor-pointer"
+                              title="Auto Book to Pathao Courier"
+                              className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 text-emerald-700 font-extrabold text-[11px] rounded-md transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
                             >
-                              <Send size={15} className="stroke-[2.5]" />
+                              <Send size={13} className="text-emerald-600 stroke-[2.5]" />
+                              <span>Pathao</span>
                             </button>
 
                             {isSuperAdmin && (
@@ -2309,19 +2430,25 @@ export default function AdminOrders(): React.JSX.Element {
                       {/* ADVANCE PAYMENT METHOD pills row */}
                       <div className="space-y-1.5 text-left">
                         <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">ADVANCE PAYMENT METHOD</label>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap md:flex-nowrap">
                           {/* Cash Button */}
                           <button
                             type="button"
                             onClick={() => setNewAdvancePaymentMethod('Cash')}
                             className={cn(
-                              "flex-1 py-3 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95",
+                              "flex-1 min-w-[100px] py-2 px-2.5 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-2 cursor-pointer active:scale-95",
                               newAdvancePaymentMethod === 'Cash'
                                 ? "bg-[#E6F4EA] border-[#137333] text-[#137333] font-black"
                                 : "bg-white border-slate-200 text-slate-600 hover:text-black hover:border-slate-300"
                             )}
                           >
-                            <span className="text-sm leading-none">💵</span>
+                            <div className="w-7 h-7 rounded-lg bg-white shrink-0 border border-gray-100 flex items-center justify-center overflow-hidden relative shadow-3xs">
+                              {paymentsConfig.codLogo ? (
+                                <img src={paymentsConfig.codLogo} alt="Cash" className="w-full h-full object-contain p-0.5" />
+                              ) : (
+                                <span className="text-sm">💵</span>
+                              )}
+                            </div>
                             <span>Cash</span>
                           </button>
 
@@ -2330,13 +2457,26 @@ export default function AdminOrders(): React.JSX.Element {
                             type="button"
                             onClick={() => setNewAdvancePaymentMethod('bKash')}
                             className={cn(
-                              "flex-1 py-3 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95",
+                              "flex-1 min-w-[100px] py-2 px-2.5 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-2 cursor-pointer active:scale-95",
                               newAdvancePaymentMethod === 'bKash'
                                 ? "bg-[#FDF2F8] border-[#DB2777] text-[#DB2777] font-black"
                                 : "bg-white border-slate-200 text-slate-600 hover:text-black hover:border-slate-300"
                             )}
                           >
-                            <span className="text-xs font-extrabold">bKash</span>
+                            <div className="w-7 h-7 rounded-lg bg-white shrink-0 border border-gray-100 flex items-center justify-center overflow-hidden relative shadow-3xs">
+                              <img 
+                                src={paymentsConfig.bkashLogo || "https://upload.wikimedia.org/wikipedia/commons/7/7a/BKash_Logo.svg"} 
+                                alt="bKash" 
+                                className="w-full h-full object-contain p-0.5"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  const fb = e.currentTarget.parentElement?.querySelector('.fallback-bkash') as HTMLElement;
+                                  if (fb) fb.style.display = 'flex';
+                                }}
+                              />
+                              <div className="fallback-bkash hidden absolute inset-0 bg-[#D12053] items-center justify-center text-white text-[9px] font-black">bK</div>
+                            </div>
+                            <span>bKash</span>
                           </button>
 
                           {/* Rocket Button */}
@@ -2344,13 +2484,26 @@ export default function AdminOrders(): React.JSX.Element {
                             type="button"
                             onClick={() => setNewAdvancePaymentMethod('Rocket')}
                             className={cn(
-                              "flex-1 py-3 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95",
+                              "flex-1 min-w-[100px] py-2 px-2.5 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-2 cursor-pointer active:scale-95",
                               newAdvancePaymentMethod === 'Rocket'
                                 ? "bg-[#FAF5FF] border-[#7C3AED] text-[#7C3AED] font-black"
                                 : "bg-white border-slate-200 text-slate-600 hover:text-black hover:border-slate-300"
                             )}
                           >
-                            <span className="text-xs font-extrabold">Rocket</span>
+                            <div className="w-7 h-7 rounded-lg bg-white shrink-0 border border-gray-100 flex items-center justify-center overflow-hidden relative shadow-3xs">
+                              <img 
+                                src={paymentsConfig.rocketLogo || "https://upload.wikimedia.org/wikipedia/commons/8/82/Rocket_logo.svg"} 
+                                alt="Rocket" 
+                                className="w-full h-full object-contain p-0.5"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  const fb = e.currentTarget.parentElement?.querySelector('.fallback-rocket') as HTMLElement;
+                                  if (fb) fb.style.display = 'flex';
+                                }}
+                              />
+                              <div className="fallback-rocket hidden absolute inset-0 bg-[#8c0c5c] items-center justify-center text-white text-[9px] font-black">Rk</div>
+                            </div>
+                            <span>Rocket</span>
                           </button>
 
                           {/* Nagad Button */}
@@ -2358,13 +2511,26 @@ export default function AdminOrders(): React.JSX.Element {
                             type="button"
                             onClick={() => setNewAdvancePaymentMethod('Nagad')}
                             className={cn(
-                              "flex-1 py-3 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95",
+                              "flex-1 min-w-[100px] py-2 px-2.5 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-2 cursor-pointer active:scale-95",
                               newAdvancePaymentMethod === 'Nagad'
                                 ? "bg-[#FFF7ED] border-[#EA580C] text-[#EA580C] font-black"
                                 : "bg-white border-slate-200 text-slate-600 hover:text-black hover:border-slate-300"
                             )}
                           >
-                            <span className="text-xs font-extrabold">Nagad</span>
+                            <div className="w-7 h-7 rounded-lg bg-white shrink-0 border border-gray-100 flex items-center justify-center overflow-hidden relative shadow-3xs">
+                              <img 
+                                src={paymentsConfig.nagadLogo || "https://upload.wikimedia.org/wikipedia/commons/1/1b/Nagad_logo.png"} 
+                                alt="Nagad" 
+                                className="w-full h-full object-contain p-0.5"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  const fb = e.currentTarget.parentElement?.querySelector('.fallback-nagad') as HTMLElement;
+                                  if (fb) fb.style.display = 'flex';
+                                }}
+                              />
+                              <div className="fallback-nagad hidden absolute inset-0 bg-[#F47216] items-center justify-center text-white text-[9px] font-black">Ng</div>
+                            </div>
+                            <span>Nagad</span>
                           </button>
                           
                           <button

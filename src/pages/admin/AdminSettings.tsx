@@ -30,7 +30,8 @@ import {
   Coins,
   Truck,
   Key,
-  CheckCircle2
+  CheckCircle2,
+  CheckSquare
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -40,6 +41,7 @@ import NotificationSettings from '../../components/admin/settings/NotificationSe
 import { useBranding } from '../../contexts/BrandingContext';
 import { useProducts } from '../../contexts/ProductContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useOrders } from '../../contexts/OrderContext';
 import { db } from '../../lib/firebase';
 import { doc, getDoc, getDocs, setDoc, deleteDoc, collection } from 'firebase/firestore';
 import { compressImage } from '../../utils/imageCompressor';
@@ -72,6 +74,7 @@ export default function AdminSettings() {
   } = useBranding();
   const { products } = useProducts();
   const { currentUser, isSuperAdmin } = useAuth();
+  const { orders } = useOrders();
 
   const [activeTab, setActiveTab ] = useState('General');
 
@@ -93,14 +96,105 @@ export default function AdminSettings() {
 
   // Admin Access management states
   const [adminCode, setAdminCode] = useState('');
-  const [adminList, setAdminList] = useState<{ id: string; email?: string; role?: string; updatedAt?: number }[]>([]);
-  const [showInviteModal, setShowInviteModal] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [invitePermissions, setInvitePermissions] = useState<string[]>(['dashboard']);
+  const [adminList, setAdminList] = useState<{ id: string; email?: string; role?: string; permissions?: string[]; department?: string; updatedAt?: number; isDirectAccess?: boolean }[]>([]);
+  const [showDirectAccessModal, setShowDirectAccessModal] = useState(false);
+  const [directAccessEmail, setDirectAccessEmail] = useState('');
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>(['dashboard', 'orders', 'issues']);
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('Sales Executive Department');
+  const [isEditingAccess, setIsEditingAccess] = useState(false);
+  const [editingTargetEmail, setEditingTargetEmail] = useState('');
+  const [isSavingDirectAccess, setIsSavingDirectAccess] = useState(false);
 
-  const availablePermissions = ['dashboard', 'customers', 'orders', 'products', 'issues', 'masterTable', 'finance', 'settings'];
+  const departmentsList = [
+    { id: 'CEO & Founder', name: 'CEO & Founder', desc: 'ফুল সিস্টেম এক্সেস ও সর্বোচ্চ নিয়ন্ত্রণ', defaultPerms: ['dashboard', 'customers', 'orders', 'exchanges', 'products', 'issues', 'masterTable', 'finance', 'settings'] },
+    { id: 'Sales Executive Department', name: 'Sales Executive Department', desc: 'অর্ডার নেওয়া, ড্যাশবোর্ড দেখা ও কাস্টমার ম্যানেজমেন্ট', defaultPerms: ['dashboard', 'orders', 'customers', 'exchanges'] },
+    { id: 'Delivery / Logistics Department', name: 'Delivery / Logistics Department', desc: 'অর্ডার প্রসেসিং, লেবেল প্রিন্ট, এক্সচেঞ্জ ও পাথাও কুরিয়ার', defaultPerms: ['orders', 'exchanges', 'masterTable', 'settings'] },
+    { id: 'Management / Admin Department', name: 'Management / Admin Department', desc: 'সম্পূর্ণ স্টোর অপারেশন, প্রোডাক্ট ইনভেন্টরি ও হিসাব-নিকাশ', defaultPerms: ['dashboard', 'orders', 'products', 'customers', 'issues', 'masterTable', 'finance', 'settings'] },
+    { id: 'Customer Support Department', name: 'Customer Support Department', desc: 'কাস্টমার কমপ্লেন, অর্ডার ইস্যু সমাধান ও সাইজ এক্সচেঞ্জ', defaultPerms: ['dashboard', 'orders', 'issues', 'exchanges'] }
+  ];
+
+  const availableModules = [
+    { id: 'dashboard', name: 'Dashboard', banglaName: 'ড্যাশবোর্ড', desc: 'ওভারভিউ, চার্ট ও সেলস সামারি' },
+    { id: 'orders', name: 'Orders', banglaName: 'অর্ডারসমূহ', desc: 'অর্ডার লিস্ট, স্ট্যাটাস আপডেট ও কাস্টমার ডিটেইলস' },
+    { id: 'issues', name: 'Order Issues', banglaName: 'অর্ডার ইস্যু', desc: 'কাস্টমার কমপ্লেন, প্রবলেম রিপোর্ট ও সমাধান' },
+    { id: 'exchanges', name: 'Exchanges', banglaName: 'রিটার্ন ও এক্সচেঞ্জ', desc: 'সাইজ এক্সচেঞ্জ ও রিটার্ন রিকোয়েস্ট ম্যানেজমেন্ট' },
+    { id: 'products', name: 'Products & Inventory', banglaName: 'প্রোডাক্ট ও স্টক', desc: 'প্রোডাক্ট অ্যাড, এডিট, ক্যাটালগ ও স্টক আপডেট' },
+    { id: 'customers', name: 'Customers & Profiler', banglaName: 'কাস্টমার ডিরেক্টরি', desc: 'কাস্টমার প্রোফাইল ও পারচেজ হিস্ট্রি' },
+    { id: 'masterTable', name: 'Master Table', banglaName: 'মাস্কেল টেবিল', desc: 'বাল্ক স্ক্যানিং, লেবেল প্রিন্ট ও দ্রুত প্রসেসিং' },
+    { id: 'finance', name: 'Finance & Accounts', banglaName: 'হিসাব-নিকাশ', desc: 'ব্যাংক ট্রানজেকশন, খরচ ও পার্টনারশিপ' },
+    { id: 'settings', name: 'Settings & Courier', banglaName: 'সেটিংস ও পাথাও', desc: 'স্টোর সেটিংস, পেমেন্ট ও পাথাও কুরিয়ার' },
+  ];
   const [loadingAdmins, setLoadingAdmins] = useState(false);
   const [isSavingCode, setIsSavingCode] = useState(false);
+
+  // General settings state
+  const [storeIsLive, setStoreIsLive] = useState(true);
+  const [showZobityCredit, setShowZobityCredit] = useState(true);
+  const [storeName, setStoreName] = useState('Elegan BD');
+  const [shortDescription, setShortDescription] = useState('Premium minimalist fashion for the modern individual.');
+  const [phone, setPhone] = useState('01619835133');
+  const [whatsappNumber, setWhatsappNumber] = useState('01619835133');
+  const [email, setEmail] = useState('care@eleganbd.com');
+  const [address, setAddress] = useState('Dhaka, Bangladesh');
+
+  const [originalGeneral, setOriginalGeneral] = useState({
+    storeIsLive: true,
+    showZobityCredit: true,
+    storeName: 'Elegan BD',
+    shortDescription: 'Premium minimalist fashion for the modern individual.',
+    phone: '01619835133',
+    whatsappNumber: '01619835133',
+    email: 'care@eleganbd.com',
+    address: 'Dhaka, Bangladesh'
+  });
+
+  const loadGeneralSettings = async () => {
+    try {
+      const snap = await getDoc(doc(db, 'config', 'general'));
+      if (snap.exists()) {
+        const d = snap.data();
+        const settings = {
+          storeIsLive: d.storeIsLive !== undefined ? d.storeIsLive : true,
+          showZobityCredit: d.showZobityCredit !== undefined ? d.showZobityCredit : true,
+          storeName: d.storeName || 'Elegan BD',
+          shortDescription: d.shortDescription || '',
+          phone: d.phone || '01619835133',
+          whatsappNumber: d.whatsappNumber || '01619835133',
+          email: d.email || 'care@eleganbd.com',
+          address: d.address || ''
+        };
+        setStoreIsLive(settings.storeIsLive);
+        setShowZobityCredit(settings.showZobityCredit);
+        setStoreName(settings.storeName);
+        setShortDescription(settings.shortDescription);
+        setPhone(settings.phone);
+        setWhatsappNumber(settings.whatsappNumber);
+        setEmail(settings.email);
+        setAddress(settings.address);
+        setOriginalGeneral(settings);
+      }
+    } catch (err) {
+      console.error("Error loading general settings:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'General') {
+      loadGeneralSettings();
+    }
+  }, [activeTab]);
+
+  const handleSaveGeneralSection = async (sectionName: string, data: any) => {
+    const loadingToast = toast.loading(`Saving ${sectionName}...`);
+    try {
+      await setDoc(doc(db, 'config', 'general'), data, { merge: true });
+      setOriginalGeneral(prev => ({ ...prev, ...data }));
+      toast.success(`Your changes have been saved.`, { id: loadingToast });
+    } catch (err) {
+      console.error(err);
+      toast.error(`Failed to save ${sectionName}.`, { id: loadingToast });
+    }
+  };
 
   // Pixel & Analytics States
   const [pixelConfig, setPixelConfig] = useState({
@@ -149,12 +243,19 @@ export default function AdminSettings() {
 
   // Payments Management States
   const [codEnabled, setCodEnabled] = useState(true);
+  const [codLogo, setCodLogo] = useState('');
   const [bkashEnabled, setBkashEnabled] = useState(true);
   const [bkashNumber, setBkashNumber] = useState('01619835133');
   const [bkashType, setBkashType] = useState<'Personal' | 'Merchant' | 'Agent'>('Personal');
+  const [bkashLogo, setBkashLogo] = useState('');
   const [nagadEnabled, setNagadEnabled] = useState(true);
   const [nagadNumber, setNagadNumber] = useState('01619835133');
   const [nagadType, setNagadType] = useState<'Personal' | 'Merchant' | 'Agent'>('Personal');
+  const [nagadLogo, setNagadLogo] = useState('');
+  const [rocketEnabled, setRocketEnabled] = useState(true);
+  const [rocketNumber, setRocketNumber] = useState('01619835133');
+  const [rocketType, setRocketType] = useState<'Personal' | 'Merchant' | 'Agent'>('Personal');
+  const [rocketLogo, setRocketLogo] = useState('');
   const [paymentsLoading, setPaymentsLoading] = useState(false);
   const [originalPayments, setOriginalPayments] = useState<any>(null);
 
@@ -166,38 +267,66 @@ export default function AdminSettings() {
         const data = docSnap.data();
         const p = {
           codEnabled: data.codEnabled !== undefined ? data.codEnabled : true,
+          codLogo: data.codLogo || '',
           bkashEnabled: data.bkashEnabled !== undefined ? data.bkashEnabled : true,
           bkashNumber: data.bkashNumber || '01619835133',
           bkashType: data.bkashType || 'Personal',
+          bkashLogo: data.bkashLogo || '',
           nagadEnabled: data.nagadEnabled !== undefined ? data.nagadEnabled : true,
           nagadNumber: data.nagadNumber || '01619835133',
-          nagadType: data.nagadType || 'Personal'
+          nagadType: data.nagadType || 'Personal',
+          nagadLogo: data.nagadLogo || '',
+          rocketEnabled: data.rocketEnabled !== undefined ? data.rocketEnabled : true,
+          rocketNumber: data.rocketNumber || '01619835133',
+          rocketType: data.rocketType || 'Personal',
+          rocketLogo: data.rocketLogo || ''
         };
         setCodEnabled(p.codEnabled);
+        setCodLogo(p.codLogo);
         setBkashEnabled(p.bkashEnabled);
         setBkashNumber(p.bkashNumber);
         setBkashType(p.bkashType);
+        setBkashLogo(p.bkashLogo);
         setNagadEnabled(p.nagadEnabled);
         setNagadNumber(p.nagadNumber);
         setNagadType(p.nagadType);
+        setNagadLogo(p.nagadLogo);
+        setRocketEnabled(p.rocketEnabled);
+        setRocketNumber(p.rocketNumber);
+        setRocketType(p.rocketType);
+        setRocketLogo(p.rocketLogo);
         setOriginalPayments(p);
       } else {
         const defaultPayments = {
           codEnabled: true,
+          codLogo: '',
           bkashEnabled: true,
           bkashNumber: '01619835133',
           bkashType: 'Personal' as const,
+          bkashLogo: '',
           nagadEnabled: true,
           nagadNumber: '01619835133',
-          nagadType: 'Personal' as const
+          nagadType: 'Personal' as const,
+          nagadLogo: '',
+          rocketEnabled: true,
+          rocketNumber: '01619835133',
+          rocketType: 'Personal' as const,
+          rocketLogo: ''
         };
         setCodEnabled(true);
+        setCodLogo('');
         setBkashEnabled(true);
         setBkashNumber('01619835133');
         setBkashType('Personal');
+        setBkashLogo('');
         setNagadEnabled(true);
         setNagadNumber('01619835133');
         setNagadType('Personal');
+        setNagadLogo('');
+        setRocketEnabled(true);
+        setRocketNumber('01619835133');
+        setRocketType('Personal');
+        setRocketLogo('');
         setOriginalPayments(defaultPayments);
       }
     } catch (err) {
@@ -215,12 +344,19 @@ export default function AdminSettings() {
 
   const paymentsChanged = originalPayments ? (
     codEnabled !== originalPayments.codEnabled ||
+    codLogo !== originalPayments.codLogo ||
     bkashEnabled !== originalPayments.bkashEnabled ||
     bkashNumber !== originalPayments.bkashNumber ||
     bkashType !== originalPayments.bkashType ||
+    bkashLogo !== originalPayments.bkashLogo ||
     nagadEnabled !== originalPayments.nagadEnabled ||
     nagadNumber !== originalPayments.nagadNumber ||
-    nagadType !== originalPayments.nagadType
+    nagadType !== originalPayments.nagadType ||
+    nagadLogo !== originalPayments.nagadLogo ||
+    rocketEnabled !== originalPayments.rocketEnabled ||
+    rocketNumber !== originalPayments.rocketNumber ||
+    rocketType !== originalPayments.rocketType ||
+    rocketLogo !== originalPayments.rocketLogo
   ) : false;
 
   const handleSavePayments = async () => {
@@ -228,12 +364,19 @@ export default function AdminSettings() {
     try {
       const payload = {
         codEnabled,
+        codLogo,
         bkashEnabled,
         bkashNumber,
         bkashType,
+        bkashLogo,
         nagadEnabled,
         nagadNumber,
         nagadType,
+        nagadLogo,
+        rocketEnabled,
+        rocketNumber,
+        rocketType,
+        rocketLogo,
         updatedAt: Date.now()
       };
       await setDoc(doc(db, 'config', 'payments'), payload);
@@ -245,15 +388,78 @@ export default function AdminSettings() {
     }
   };
 
+  const handleUploadBkashLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const toastId = toast.loading("Compressing & uploading bKash logo...");
+    try {
+      const compressed = await compressImage(file, 400, 400, 0.85);
+      setBkashLogo(compressed);
+      toast.success("bKash logo updated. Click 'Save changes' to save permanently.", { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to upload logo.", { id: toastId });
+    }
+  };
+
+  const handleUploadNagadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const toastId = toast.loading("Compressing & uploading Nagad logo...");
+    try {
+      const compressed = await compressImage(file, 400, 400, 0.85);
+      setNagadLogo(compressed);
+      toast.success("Nagad logo updated. Click 'Save changes' to save permanently.", { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to upload logo.", { id: toastId });
+    }
+  };
+
+  const handleUploadCodLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const toastId = toast.loading("Compressing & uploading Cash on Delivery picture...");
+    try {
+      const compressed = await compressImage(file, 400, 400, 0.85);
+      setCodLogo(compressed);
+      toast.success("Cash on Delivery picture updated. Click 'Save changes' to save permanently.", { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to upload picture.", { id: toastId });
+    }
+  };
+
+  const handleUploadRocketLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const toastId = toast.loading("Compressing & uploading Rocket logo...");
+    try {
+      const compressed = await compressImage(file, 400, 400, 0.85);
+      setRocketLogo(compressed);
+      toast.success("Rocket logo updated. Click 'Save changes' to save permanently.", { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to upload logo.", { id: toastId });
+    }
+  };
+
   const handleDiscardPayments = () => {
     if (originalPayments) {
       setCodEnabled(originalPayments.codEnabled);
+      setCodLogo(originalPayments.codLogo || '');
       setBkashEnabled(originalPayments.bkashEnabled);
       setBkashNumber(originalPayments.bkashNumber);
       setBkashType(originalPayments.bkashType);
+      setBkashLogo(originalPayments.bkashLogo || '');
       setNagadEnabled(originalPayments.nagadEnabled);
       setNagadNumber(originalPayments.nagadNumber);
       setNagadType(originalPayments.nagadType);
+      setNagadLogo(originalPayments.nagadLogo || '');
+      setRocketEnabled(originalPayments.rocketEnabled !== undefined ? originalPayments.rocketEnabled : true);
+      setRocketNumber(originalPayments.rocketNumber || '01619835133');
+      setRocketType(originalPayments.rocketType || 'Personal');
+      setRocketLogo(originalPayments.rocketLogo || '');
       toast.success('Unsaved changes discarded.');
     }
   };
@@ -264,7 +470,7 @@ export default function AdminSettings() {
   const [pathaoUsername, setPathaoUsername] = useState('eleganbd.ltd@gmail.com');
   const [pathaoPassword, setPathaoPassword] = useState('Eleganbdltd22@@##');
   const [pathaoStoreId, setPathaoStoreId] = useState('376372');
-  const [pathaoBaseUrl, setPathaoBaseUrl] = useState('https://courier-api.pathao.com');
+  const [pathaoBaseUrl, setPathaoBaseUrl] = useState('https://api-hermes.pathao.com');
   const [pathaoEnabled, setPathaoEnabled] = useState(true);
   const [pathaoEnv, setPathaoEnv] = useState<'production' | 'sandbox'>('production');
   const [isPathaoLoading, setIsPathaoLoading] = useState(false);
@@ -282,7 +488,8 @@ export default function AdminSettings() {
         setPathaoUsername(data.username || 'eleganbd.ltd@gmail.com');
         setPathaoPassword(data.password || 'Eleganbdltd22@@##');
         setPathaoStoreId(data.storeId || '376372');
-        setPathaoBaseUrl(data.baseUrl || 'https://courier-api.pathao.com');
+        const url = (data.baseUrl || 'https://api-hermes.pathao.com').replace(/\/$/, '');
+        setPathaoBaseUrl(url.includes('courier-api.pathao.com') ? 'https://api-hermes.pathao.com' : url);
         setPathaoEnabled(data.enabled !== undefined ? data.enabled : true);
         setPathaoEnv(data.environment || 'production');
       }
@@ -327,16 +534,35 @@ export default function AdminSettings() {
   };
 
   const handleTestPathaoConnection = async () => {
+    if (!pathaoClientId || !pathaoClientSecret || !pathaoUsername || !pathaoPassword) {
+      toast.error('Please fill in Client ID, Client Secret, Username, and Password first.');
+      return;
+    }
     setIsTestingPathao(true);
     const loadingToast = toast.loading('Connecting to Pathao OAuth API...');
-    setTimeout(() => {
-      setIsTestingPathao(false);
-      if (pathaoClientId && pathaoClientSecret && pathaoUsername && pathaoPassword && pathaoStoreId) {
-        toast.success(`Pathao Merchant API Verified! Store ID ${pathaoStoreId} connected.`, { id: loadingToast });
+    try {
+      const res = await fetch('/api/pathao/test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId: pathaoClientId.trim(),
+          clientSecret: pathaoClientSecret.trim(),
+          username: pathaoUsername.trim(),
+          password: pathaoPassword.trim(),
+          baseUrl: pathaoBaseUrl.trim()
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(`Pathao Merchant API Connected Successfully! Token Received.`, { id: loadingToast });
       } else {
-        toast.error('Missing required Pathao API credentials.', { id: loadingToast });
+        toast.error(`Pathao Connection Failed: ${data.error || 'Check credentials'}`, { id: loadingToast, duration: 6000 });
       }
-    }, 1200);
+    } catch (err: any) {
+      toast.error(`Network Error connecting to Pathao API: ${err.message}`, { id: loadingToast });
+    } finally {
+      setIsTestingPathao(false);
+    }
   };
 
   // Coupons Management States
@@ -756,16 +982,67 @@ export default function AdminSettings() {
       if (settingsDoc.exists()) {
         setAdminCode(settingsDoc.data().signupCode || '');
       } else {
-        setAdminCode('ELEGAN-VIP-2026'); // Secret default code
+        setAdminCode('ELEGAN-VIP-2026');
       }
 
-      // 2. Get Admins list
+      const adminMap = new Map<string, any>();
+
+      // 1. Load from admins collection
       const adminsSnapshot = await getDocs(collection(db, 'admins'));
-      const list: any[] = [];
-      adminsSnapshot.forEach(doc => {
-        list.push({ id: doc.id, ...doc.data() });
+      adminsSnapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        const emailKey = (data.email || docSnap.id).toLowerCase().trim();
+        adminMap.set(emailKey, {
+          id: docSnap.id,
+          email: data.email || docSnap.id,
+          role: data.role || 'admin',
+          department: data.department || (emailKey === 'eleganbd.ltd@gmail.com' ? 'CEO & Founder' : 'Sales Executive Department'),
+          permissions: (data.permissions && data.permissions.length > 0) 
+            ? data.permissions 
+            : ['dashboard', 'orders', 'issues'],
+          updatedAt: data.updatedAt || Date.now()
+        });
       });
-      setAdminList(list);
+
+      // 2. Load from admin_permissions collection
+      const permsSnapshot = await getDocs(collection(db, 'admin_permissions'));
+      permsSnapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        const emailKey = (data.email || docSnap.id).toLowerCase().trim();
+        const existing = adminMap.get(emailKey) || {};
+        adminMap.set(emailKey, {
+          id: existing.id || docSnap.id,
+          email: data.email || docSnap.id,
+          role: data.role || existing.role || 'admin',
+          department: data.department || existing.department || (emailKey === 'eleganbd.ltd@gmail.com' ? 'CEO & Founder' : 'Sales Executive Department'),
+          permissions: (data.permissions && data.permissions.length > 0) 
+            ? data.permissions 
+            : (existing.permissions || ['dashboard', 'orders', 'issues']),
+          updatedAt: data.updatedAt || existing.updatedAt || Date.now(),
+          isDirectAccess: true
+        });
+      });
+
+      // 3. Load from admin_invites collection
+      const invitesSnapshot = await getDocs(collection(db, 'admin_invites'));
+      invitesSnapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        const emailKey = (data.email || docSnap.id).toLowerCase().trim();
+        const existing = adminMap.get(emailKey) || {};
+        adminMap.set(emailKey, {
+          id: existing.id || docSnap.id,
+          email: data.email || docSnap.id,
+          role: data.role || existing.role || 'admin',
+          department: data.department || existing.department || (emailKey === 'eleganbd.ltd@gmail.com' ? 'CEO & Founder' : 'Sales Executive Department'),
+          permissions: (data.permissions && data.permissions.length > 0) 
+            ? data.permissions 
+            : (existing.permissions || ['dashboard', 'orders', 'issues']),
+          updatedAt: data.updatedAt || existing.updatedAt || Date.now(),
+          isDirectAccess: true
+        });
+      });
+
+      setAdminList(Array.from(adminMap.values()));
     } catch (err) {
       console.error("Error loading admin system stats:", err);
     } finally {
@@ -778,6 +1055,82 @@ export default function AdminSettings() {
       loadAdminConfigAndList();
     }
   }, [activeTab, isSuperAdmin]);
+
+  const handleOpenAddModal = () => {
+    setIsEditingAccess(false);
+    setEditingTargetEmail('');
+    setDirectAccessEmail('');
+    setSelectedDepartment('Sales Executive Department');
+    setSelectedPermissions(['dashboard', 'orders', 'customers', 'exchanges']);
+    setShowDirectAccessModal(true);
+  };
+
+  const handleOpenEditModal = (admin: any) => {
+    setIsEditingAccess(true);
+    setEditingTargetEmail(admin.email || admin.id);
+    setDirectAccessEmail(admin.email || admin.id);
+    const emailKey = (admin.email || admin.id).toLowerCase().trim();
+    const defaultDept = emailKey === 'eleganbd.ltd@gmail.com' ? 'CEO & Founder' : 'Sales Executive Department';
+    setSelectedDepartment(admin.department || defaultDept);
+    setSelectedPermissions(admin.permissions || ['dashboard', 'orders', 'issues']);
+    setShowDirectAccessModal(true);
+  };
+
+  const handleDepartmentChange = (deptId: string) => {
+    setSelectedDepartment(deptId);
+    const deptObj = departmentsList.find(d => d.id === deptId);
+    if (deptObj && deptObj.defaultPerms) {
+      setSelectedPermissions(deptObj.defaultPerms);
+    }
+  };
+
+  const handleSaveDirectAccess = async () => {
+    const cleanEmail = directAccessEmail.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      toast.error("অনুগ্রহ করে একটি সঠিক জিমেইল বা ইমেইল আইডি দিন। (Enter a valid Gmail address)");
+      return;
+    }
+    if (selectedPermissions.length === 0) {
+      toast.error("কমপক্ষে একটি মডিউলের এক্সেস সিলেক্ট করুন। (Select at least one module permission)");
+      return;
+    }
+
+    setIsSavingDirectAccess(true);
+    try {
+      const permData = {
+        email: cleanEmail,
+        permissions: selectedPermissions,
+        department: selectedDepartment,
+        role: 'admin',
+        updatedAt: Date.now(),
+        createdBy: currentUser?.email || 'super_admin'
+      };
+
+      await setDoc(doc(db, 'admin_permissions', cleanEmail), permData);
+      await setDoc(doc(db, 'admin_invites', cleanEmail), permData);
+
+      // Also update existing doc in admins collection if present
+      const existingAdmin = adminList.find(a => a.email?.toLowerCase() === cleanEmail);
+      if (existingAdmin && existingAdmin.id && !existingAdmin.id.includes('@')) {
+        await setDoc(doc(db, 'admins', existingAdmin.id), {
+          permissions: selectedPermissions,
+          department: selectedDepartment,
+          updatedAt: Date.now()
+        }, { merge: true });
+      }
+
+      toast.success(`'${cleanEmail}' (${selectedDepartment}) এর জন্য এডমিন এক্সেস সেভ করা হয়েছে!`);
+      setShowDirectAccessModal(false);
+      setDirectAccessEmail('');
+      setSelectedPermissions(['dashboard', 'orders', 'issues']);
+      await loadAdminConfigAndList();
+    } catch (err: any) {
+      console.error("Error saving direct access:", err);
+      toast.error(`এক্সেস সেভ করতে ব্যর্থ: ${err?.message || 'Error'}`);
+    } finally {
+      setIsSavingDirectAccess(false);
+    }
+  };
 
   const handleSaveAdminCode = async () => {
     if (!adminCode.trim()) {
@@ -799,12 +1152,17 @@ export default function AdminSettings() {
   };
 
   const handleRevokeAdmin = async (adminId: string, email?: string) => {
-    if (window.confirm(`Are you sure you want to revoke admin access for ${email || adminId}?`)) {
+    const targetEmail = (email || adminId).toLowerCase().trim();
+    if (window.confirm(`আপনি কি নিশ্চিত যে '${targetEmail}' এর এডমিন এক্সেস বন্ধ (Revoke) করতে চান?`)) {
       try {
-        await deleteDoc(doc(db, 'admins', adminId));
-        toast.success("Admin access revoked successfully.");
-        // Refresh list
-        setAdminList(prev => prev.filter(admin => admin.id !== adminId));
+        if (adminId && !adminId.includes('@')) {
+          await deleteDoc(doc(db, 'admins', adminId)).catch(() => {});
+        }
+        await deleteDoc(doc(db, 'admin_permissions', targetEmail)).catch(() => {});
+        await deleteDoc(doc(db, 'admin_invites', targetEmail)).catch(() => {});
+
+        toast.success(`'${targetEmail}' এর এডমিন পারমিশন বাতিল করা হয়েছে।`);
+        setAdminList(prev => prev.filter(admin => admin.email?.toLowerCase() !== targetEmail && admin.id !== adminId));
       } catch (err) {
         toast.error("Failed to revoke admin credentials.");
       }
@@ -880,69 +1238,285 @@ export default function AdminSettings() {
           <div className="absolute top-0 right-0 w-64 h-64 bg-gray-50 blur-[100px] -mr-32 -mt-32 rounded-full" />
           
           {activeTab === 'General' && (
-            <div className="space-y-12 max-w-3xl relative z-10 font-sans">
-              <div className="space-y-8">
-                <div className="flex justify-between items-center border-b border-gray-100 pb-6">
-                  <h3 className="serif text-2xl text-black italic tracking-tighter uppercase">Store Profile</h3>
-                  <Store size={20} className="text-brand-gold" />
+            <div className="space-y-8 max-w-4xl relative z-10 font-sans text-left">
+              {/* Top Header matching screenshot */}
+              <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 tracking-tight">Settings</h3>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-3">
-                    <label className="text-[10px] uppercase tracking-[0.2em] font-black text-gray-400 ml-1">Store Nomenclature</label>
-                    <input type="text" defaultValue="Elegan BD" className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 outline-none focus:border-black transition-all text-black text-sm font-black italic tracking-tighter" />
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-200 text-xs font-semibold">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    Store is live
                   </div>
-                  <div className="space-y-3">
-                    <label className="text-[10px] uppercase tracking-[0.2em] font-black text-gray-400 ml-1">Support Channel</label>
-                    <input type="email" defaultValue="care@eleganbd.com" className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 outline-none focus:border-black transition-all text-black text-sm font-medium" />
-                  </div>
-                  <div className="space-y-3 md:col-span-2">
-                    <label className="text-[10px] uppercase tracking-[0.2em] font-black text-gray-400 ml-1">Architectural Description</label>
-                    <textarea defaultValue="Premium minimalist fashion for the modern individual." rows={4} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 outline-none focus:border-black transition-all text-black text-sm font-medium resize-none no-scrollbar" />
-                  </div>
+                  <a 
+                    href="/" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-all shadow-3xs flex items-center gap-1.5"
+                  >
+                    <Globe size={14} />
+                    <span>View website</span>
+                  </a>
                 </div>
               </div>
 
-              <div className="space-y-8">
-                <div className="flex justify-between items-center border-b border-gray-100 pb-6">
-                  <h3 className="serif text-2xl text-black italic tracking-tighter uppercase">Social Integrations</h3>
+              {/* Card 1: Visibility & branding */}
+              <div className="bg-white border border-gray-200/80 rounded-2xl shadow-3xs overflow-hidden">
+                <div className="p-6 border-b border-gray-100">
+                  <h4 className="text-sm font-bold text-gray-900">Visibility & branding</h4>
                 </div>
-                <div className="space-y-4">
-                   <div className="flex gap-4 group">
-                      <div className="bg-gray-50 border border-gray-100 p-4 flex items-center justify-center shrink-0 w-16 rounded-2xl text-black font-black italic group-focus-within:border-black transition-all">
-                         FB
-                      </div>
-                      <input type="text" placeholder="Facebook URL" className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 outline-none focus:border-black text-black text-sm" />
-                   </div>
-                   <div className="flex gap-4 group">
-                      <div className="bg-gray-50 border border-gray-100 p-4 flex items-center justify-center shrink-0 w-16 rounded-2xl text-black font-black italic group-focus-within:border-black transition-all">
-                         IG
-                      </div>
-                      <input type="text" placeholder="Instagram URL" className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 outline-none focus:border-black text-black text-sm" />
-                   </div>
+                <div className="p-6 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-gray-900">Store is live</p>
+                      <p className="text-xs text-gray-500 mt-0.5">Your store is accessible to customers.</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={storeIsLive} 
+                        onChange={(e) => setStoreIsLive(e.target.checked)}
+                        className="sr-only peer" 
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+
+
+                </div>
+                <div className="bg-gray-50/50 px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3">
+                  <button 
+                    onClick={() => {
+                      setStoreIsLive(originalGeneral.storeIsLive);
+                      setShowZobityCredit(originalGeneral.showZobityCredit);
+                      toast.success("Discarded changes for Visibility & branding.");
+                    }}
+                    className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-50 transition-all cursor-pointer shadow-3xs"
+                  >
+                    Discard
+                  </button>
+                  <button 
+                    onClick={() => handleSaveGeneralSection('Visibility & branding', { storeIsLive, showZobityCredit })}
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-1.5"
+                  >
+                    <Check size={14} />
+                    <span>Save changes</span>
+                  </button>
                 </div>
               </div>
 
-              <div className="pt-8">
-                 <button 
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  className={cn(
-                    "bg-black text-white px-12 py-5 text-xs font-black uppercase tracking-[0.3em] hover:bg-gray-800 transition-all flex items-center justify-center space-x-3 min-w-[280px] rounded-2xl shadow-xl transform-gpu active:scale-95",
-                    isSaving && "opacity-70 cursor-not-allowed"
-                  )}
-                 >
-                    {isSaving ? (
-                      <span className="flex items-center gap-3">
-                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        <span>Synchronizing...</span>
+              {/* Card 2: Store basics */}
+              <div className="bg-white border border-gray-200/80 rounded-2xl shadow-3xs overflow-hidden">
+                <div className="p-6 border-b border-gray-100">
+                  <h4 className="text-sm font-bold text-gray-900">Store basics</h4>
+                </div>
+                <div className="p-6 space-y-6">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="text-xs font-semibold text-gray-900">Store name *</label>
+                      <span className="text-[10px] text-gray-400 font-mono">{storeName.length}/50</span>
+                    </div>
+                    <input 
+                      type="text" 
+                      value={storeName} 
+                      onChange={(e) => setStoreName(e.target.value)}
+                      maxLength={50}
+                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 text-sm text-gray-900 transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="text-xs font-semibold text-gray-900">Short description</label>
+                      <span className="text-[10px] text-gray-400 font-mono">{shortDescription.length}/500</span>
+                    </div>
+                    <textarea 
+                      value={shortDescription} 
+                      onChange={(e) => setShortDescription(e.target.value)}
+                      maxLength={500}
+                      rows={3} 
+                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 text-sm text-gray-900 transition-all resize-none"
+                    />
+                  </div>
+                </div>
+                <div className="bg-gray-50/50 px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3">
+                  <button 
+                    onClick={() => {
+                      setStoreName(originalGeneral.storeName);
+                      setShortDescription(originalGeneral.shortDescription);
+                      toast.success("Discarded changes for Store basics.");
+                    }}
+                    className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-50 transition-all cursor-pointer shadow-3xs"
+                  >
+                    Discard
+                  </button>
+                  <button 
+                    onClick={() => handleSaveGeneralSection('Store basics', { storeName, shortDescription })}
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-1.5"
+                  >
+                    <Check size={14} />
+                    <span>Save changes</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Card 3: Phone & WhatsApp */}
+              <div className="bg-white border border-gray-200/80 rounded-2xl shadow-3xs overflow-hidden">
+                <div className="p-6 border-b border-gray-100">
+                  <h4 className="text-sm font-bold text-gray-900">Phone & WhatsApp</h4>
+                </div>
+                <div className="p-6 space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-gray-900">Phone</label>
+                    <div className="flex rounded-xl border border-gray-200 overflow-hidden focus-within:border-blue-500 transition-all">
+                      <span className="bg-gray-50 px-3.5 py-2.5 text-xs font-bold text-gray-500 border-r border-gray-200 flex items-center gap-1">
+                        🇧🇩 +880
                       </span>
-                    ) : (
-                      <>
-                        <Save size={18} />
-                        <span>Commit Global Settings</span>
-                      </>
-                    )}
-                 </button>
+                      <input 
+                        type="text" 
+                        value={phone} 
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="1619835133" 
+                        className="w-full bg-white px-4 py-2.5 outline-none text-sm text-gray-900"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-gray-900">WhatsApp number</label>
+                    <div className="flex rounded-xl border border-gray-200 overflow-hidden focus-within:border-blue-500 transition-all">
+                      <span className="bg-gray-50 px-3.5 py-2.5 text-xs font-bold text-gray-500 border-r border-gray-200 flex items-center gap-1">
+                        🇧🇩 +880
+                      </span>
+                      <input 
+                        type="text" 
+                        value={whatsappNumber} 
+                        onChange={(e) => setWhatsappNumber(e.target.value)}
+                        placeholder="1619835133" 
+                        className="w-full bg-white px-4 py-2.5 outline-none text-sm text-gray-900"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-gray-50/50 px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3">
+                  <button 
+                    onClick={() => {
+                      setPhone(originalGeneral.phone);
+                      setWhatsappNumber(originalGeneral.whatsappNumber);
+                      toast.success("Discarded changes for Phone & WhatsApp.");
+                    }}
+                    className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-50 transition-all cursor-pointer shadow-3xs"
+                  >
+                    Discard
+                  </button>
+                  <button 
+                    onClick={() => handleSaveGeneralSection('Phone & WhatsApp', { phone, whatsappNumber })}
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-1.5"
+                  >
+                    <Check size={14} />
+                    <span>Save changes</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Card 4: Email & address */}
+              <div className="bg-white border border-gray-200/80 rounded-2xl shadow-3xs overflow-hidden">
+                <div className="p-6 border-b border-gray-100">
+                  <h4 className="text-sm font-bold text-gray-900">Email & address</h4>
+                </div>
+                <div className="p-6 space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-gray-900">Email</label>
+                    <div className="flex rounded-xl border border-gray-200 overflow-hidden focus-within:border-blue-500 transition-all">
+                      <span className="bg-gray-50 px-3.5 py-2.5 text-gray-400 border-r border-gray-200 flex items-center">
+                        <Store size={14} />
+                      </span>
+                      <input 
+                        type="email" 
+                        value={email} 
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="care@eleganbd.com" 
+                        className="w-full bg-white px-4 py-2.5 outline-none text-sm text-gray-900"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-gray-900">Address</label>
+                    <div className="flex rounded-xl border border-gray-200 overflow-hidden focus-within:border-blue-500 transition-all">
+                      <span className="bg-gray-50 px-3.5 py-2.5 text-gray-400 border-r border-gray-200 flex items-center self-start">
+                        <Globe size={14} />
+                      </span>
+                      <textarea 
+                        value={address} 
+                        onChange={(e) => setAddress(e.target.value)}
+                        rows={2}
+                        placeholder="Store physical address..." 
+                        className="w-full bg-white px-4 py-2.5 outline-none text-sm text-gray-900 resize-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-gray-50/50 px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3">
+                  <button 
+                    onClick={() => {
+                      setEmail(originalGeneral.email);
+                      setAddress(originalGeneral.address);
+                      toast.success("Discarded changes for Email & address.");
+                    }}
+                    className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-50 transition-all cursor-pointer shadow-3xs"
+                  >
+                    Discard
+                  </button>
+                  <button 
+                    onClick={() => handleSaveGeneralSection('Email & address', { email, address })}
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-1.5"
+                  >
+                    <Check size={14} />
+                    <span>Save changes</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Card 5: Devices */}
+              <div className="bg-white border border-gray-200/80 rounded-2xl shadow-3xs overflow-hidden">
+                <div className="p-6 border-b border-gray-100">
+                  <h4 className="text-sm font-bold text-gray-900">Devices</h4>
+                  <p className="text-xs text-gray-500 mt-0.5">Browsers and phones signed into your account. Remove any device you don't recognize.</p>
+                </div>
+                <div className="p-6">
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-gray-700 shadow-2xs">
+                        <Lock size={16} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-bold text-gray-900">Chrome on Windows</p>
+                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-black rounded-full uppercase tracking-wider">CURRENT</span>
+                        </div>
+                        <p className="text-[11px] text-gray-500 mt-0.5">Windows · Last active just now</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => toast.success("Current session active & verified.")}
+                        className="p-2 bg-white border border-gray-200 hover:bg-gray-100 rounded-lg text-gray-600 transition-all cursor-pointer shadow-3xs"
+                        title="Edit Session"
+                      >
+                        <RefreshCw size={14} />
+                      </button>
+                      <button 
+                        onClick={() => toast.success("Cannot remove current active admin session.")}
+                        className="p-2 bg-white border border-gray-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 rounded-lg text-gray-400 transition-all cursor-pointer shadow-3xs"
+                        title="Sign Out Device"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -1078,56 +1652,189 @@ export default function AdminSettings() {
           )}
           
           {activeTab === 'Admin Access' && isSuperAdmin && (
-            <div className="space-y-12 max-w-4xl relative z-10 font-sans">
+            <div className="space-y-10 max-w-4xl relative z-10 font-sans">
               <div className="space-y-8">
-                <div className="flex justify-between items-center border-b border-gray-100 pb-6">
-                  <h3 className="serif text-2xl text-black italic tracking-tighter uppercase">Authorized Administrative Personnel</h3>
-                  <Lock size={20} className="text-brand-gold" />
-                </div>
-                
-                <p className="text-xs text-gray-500 max-w-2xl leading-relaxed">
-                  Set up registration criteria so that your chosen team members can sign up in the Admin portal using a secret invitation code. Only managers with exact verification credentials can access the administration dashboard.
-                </p>
-
-                {/* Secret Invite Code Form */}
-                <div className="p-8 bg-gray-50 border border-gray-100 rounded-3xl space-y-6">
-                  <label className="text-[10px] uppercase tracking-[0.2em] font-black text-gray-400">
-                    Admin Activation Sign-up Invitation Code (Set by you)
-                  </label>
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <input 
-                      type="text" 
-                      value={adminCode}
-                      onChange={(e) => setAdminCode(e.target.value)}
-                      placeholder="e.g. ELEGAN-TEAM-ACCESS-2026"
-                      className="flex-1 bg-white border border-gray-200 rounded-2xl px-6 py-4 outline-none focus:border-black transition-all text-black text-sm font-mono tracking-wider font-bold" 
-                    />
-                    <button 
-                      onClick={handleSaveAdminCode}
-                      disabled={isSavingCode || loadingAdmins}
-                      className="bg-black text-white px-8 py-4 rounded-xl text-[10px] uppercase font-black tracking-widest hover:bg-gray-850 transition-all flex items-center justify-center gap-2"
-                    >
-                      {isSavingCode ? (
-                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      ) : "Update Code"}
-                    </button>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-6">
+                  <div>
+                    <h3 className="serif text-2xl text-black italic tracking-tighter uppercase">Direct Admin Access Management</h3>
+                    <p className="text-xs text-gray-500 mt-1">
+                      টিম মেম্বারদের জিমেইল (Gmail) দিয়ে সরাসরি নির্দিষ্ট মডিউল ও পেইজের পারমিশন (যেমনঃ অর্ডার ইস্যু, ড্যাশবোর্ড) সেভ করুন।
+                    </p>
                   </div>
-                  <p className="text-[10px] text-gray-400">
-                    Share this secret invitation code with the team members. They will enter it during registration on the login page to gain administrator access.
-                  </p>
+                  <button
+                    onClick={handleOpenAddModal}
+                    className="bg-black text-white px-5 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider hover:bg-gray-800 transition-all shadow-md flex items-center justify-center gap-2 shrink-0"
+                  >
+                    <Plus size={16} />
+                    <span>+ নতুন এডমিন পারমিশন দিন</span>
+                  </button>
                 </div>
 
-                {/* Admin Users List */}
+                {/* Direct Access Modal */}
+                {showDirectAccessModal && (
+                  <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+                    <motion.div 
+                      initial={{ scale: 0.95, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-2xl shadow-2xl space-y-6 my-8 border border-gray-100"
+                    >
+                      <div className="flex justify-between items-start border-b border-gray-100 pb-4">
+                        <div>
+                          <h3 className="text-lg font-black text-gray-900">
+                            {isEditingAccess ? 'এডমিন পারমিশন আপডেট করুন (Edit Access)' : 'নতুন এডমিন এক্সেস যোগ করুন (Add Direct Access)'}
+                          </h3>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            ইমেইল লিখুন এবং যে যে সেকশনের পারমিশন দিতে চান সেগুলো টিক চিহ্ন দিন।
+                          </p>
+                        </div>
+                        <button 
+                          onClick={() => setShowDirectAccessModal(false)}
+                          className="p-1.5 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full transition-colors"
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+
+                      <div className="space-y-5">
+                        <div>
+                          <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-2">
+                            Gmail / Email Address (এডমিন ইউজার ইমেইল)
+                          </label>
+                          <input
+                            type="email"
+                            placeholder="e.g. staff.orders@gmail.com"
+                            value={directAccessEmail}
+                            disabled={isEditingAccess}
+                            onChange={(e) => setDirectAccessEmail(e.target.value)}
+                            className="w-full p-4 border border-gray-200 rounded-2xl text-sm font-semibold focus:border-black outline-none transition-all disabled:bg-gray-100 disabled:text-gray-500"
+                          />
+                        </div>
+
+                        {/* Department Selection */}
+                        <div>
+                          <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-2">
+                            Select Department (ডিপার্টমেন্ট নির্বাচন করুন):
+                          </label>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {departmentsList.map((dept) => {
+                              const isSelected = selectedDepartment === dept.id;
+                              return (
+                                <button
+                                  key={dept.id}
+                                  type="button"
+                                  onClick={() => handleDepartmentChange(dept.id)}
+                                  className={`p-3 text-left rounded-2xl border transition-all flex flex-col justify-between ${
+                                    isSelected 
+                                      ? 'bg-black text-white border-black shadow-md' 
+                                      : 'bg-gray-50 text-gray-800 border-gray-200 hover:border-gray-300'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between w-full">
+                                    <span className="text-xs font-black">{dept.name}</span>
+                                    {isSelected && <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold">Selected</span>}
+                                  </div>
+                                  <p className={`text-[10px] mt-1 line-clamp-1 ${isSelected ? 'text-gray-300' : 'text-gray-500'}`}>
+                                    {dept.desc}
+                                  </p>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Module Permissions Checklist */}
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="block text-xs font-black text-gray-700 uppercase tracking-wider">
+                              Select Module Permissions (যে সেকশনগুলোর এক্সেস দিতে চান):
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedPermissions(availableModules.map(m => m.id))}
+                                className="text-[10px] font-bold text-indigo-600 hover:underline"
+                              >
+                                Select All
+                              </button>
+                              <span className="text-gray-300">|</span>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedPermissions([])}
+                                className="text-[10px] font-bold text-gray-500 hover:underline"
+                              >
+                                Clear All
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-64 overflow-y-auto pr-1">
+                            {availableModules.map(mod => {
+                              const isChecked = selectedPermissions.includes(mod.id);
+                              return (
+                                <label
+                                  key={mod.id}
+                                  className={`p-3 border rounded-2xl cursor-pointer transition-all flex items-start gap-3 ${
+                                    isChecked ? 'bg-black/5 border-black shadow-xs' : 'bg-gray-50/70 border-gray-200 hover:border-gray-300'
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedPermissions([...selectedPermissions, mod.id]);
+                                      } else {
+                                        setSelectedPermissions(selectedPermissions.filter(p => p !== mod.id));
+                                      }
+                                    }}
+                                    className="mt-1 w-4 h-4 rounded text-black focus:ring-black accent-black cursor-pointer"
+                                  />
+                                  <div className="space-y-0.5 min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="text-xs font-black text-gray-900">{mod.name}</span>
+                                      <span className="text-[10px] text-gray-500 font-medium">({mod.banglaName})</span>
+                                    </div>
+                                    <p className="text-[11px] text-gray-500 leading-tight">{mod.desc}</p>
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+                        <button
+                          type="button"
+                          onClick={() => setShowDirectAccessModal(false)}
+                          className="px-5 py-3 text-xs font-bold text-gray-500 hover:text-black transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSaveDirectAccess}
+                          disabled={isSavingDirectAccess}
+                          className="px-6 py-3 bg-black text-white text-xs font-black uppercase tracking-wider rounded-2xl hover:bg-gray-800 transition-all flex items-center gap-2 shadow-lg"
+                        >
+                          {isSavingDirectAccess ? (
+                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          ) : (
+                            <CheckSquare size={14} />
+                          )}
+                          <span>{isEditingAccess ? 'Update Permissions' : 'Save Direct Access'}</span>
+                        </button>
+                      </div>
+                    </motion.div>
+                  </div>
+                )}
+
+                {/* Admin Personnel List */}
                 <div className="space-y-6">
                   <div className="flex justify-between items-center">
-                    <h4 className="text-sm font-black uppercase tracking-widest text-[#0C1421]">Active Administrators ({adminList.length})</h4>
-                    <button 
-                      onClick={() => setShowInviteModal(true)}
-                      className="text-[10px] font-black uppercase bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 flex items-center gap-1.5 transition-colors"
-                    >
-                      <Plus size={12} />
-                      Invite
-                    </button>
+                    <h4 className="text-sm font-black uppercase tracking-widest text-[#0C1421]">
+                      Authorized Personnel ({adminList.length})
+                    </h4>
                     <button 
                       onClick={loadAdminConfigAndList} 
                       disabled={loadingAdmins}
@@ -1137,86 +1844,99 @@ export default function AdminSettings() {
                       Reload List
                     </button>
                   </div>
-                  
-                  {showInviteModal && (
-                    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-                      <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4">
-                        <h3 className="text-lg font-black text-gray-900">Invite New Admin</h3>
-                        <input
-                          type="email"
-                          placeholder="Enter email..."
-                          value={inviteEmail}
-                          onChange={(e) => setInviteEmail(e.target.value)}
-                          className="w-full p-3 border rounded-xl text-sm"
-                        />
-                        <div>
-                          <p className="text-xs font-bold text-gray-700 mb-2">Permissions:</p>
-                          <div className="grid grid-cols-2 gap-2">
-                            {availablePermissions.map(p => (
-                              <label key={p} className="flex items-center gap-2 text-xs text-gray-600 capitalize">
-                                <input
-                                  type="checkbox"
-                                  checked={invitePermissions.includes(p)}
-                                  onChange={(e) => {
-                                    if (e.target.checked) setInvitePermissions([...invitePermissions, p]);
-                                    else setInvitePermissions(invitePermissions.filter(perm => perm !== p));
-                                  }}
-                                />
-                                {p}
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="flex justify-end gap-3 pt-4">
-                          <button onClick={() => setShowInviteModal(false)} className="px-4 py-2 text-xs font-bold text-gray-500">Cancel</button>
-                          <button onClick={handleSendInvite} className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg">Invite</button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
 
                   {loadingAdmins ? (
                     <div className="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-3xl border border-gray-100">
                       <span className="w-8 h-8 border-3 border-brand-gold/30 border-t-brand-gold rounded-full animate-spin mb-3" />
-                      <p className="text-[10px] uppercase tracking-widest font-black text-gray-400">Querying identity directory...</p>
+                      <p className="text-[10px] uppercase tracking-widest font-black text-gray-400">Loading access rights...</p>
                     </div>
                   ) : adminList.length === 0 ? (
                     <div className="text-center py-12 bg-gray-50 border border-gray-150 rounded-3xl">
-                      <p className="text-xs text-gray-400 font-bold italic">No admins currently registered besides Super Admin.</p>
+                      <p className="text-xs text-gray-400 font-bold italic">No direct admins currently added. Click "+ নতুন এডমিন পারমিশন দিন" to add staff.</p>
                     </div>
                   ) : (
-                    <div className="border border-gray-105 rounded-3xl overflow-hidden divide-y divide-gray-100 bg-white">
+                    <div className="border border-gray-200 rounded-3xl overflow-hidden divide-y divide-gray-100 bg-white shadow-xs">
                       {adminList.map((admin) => {
-                        const isSelf = admin.email === 'eleganbd.ltd@gmail.com';
+                        const emailKey = (admin.email || admin.id).toLowerCase().trim();
+                        const isCeo = emailKey === 'eleganbd.ltd@gmail.com';
+                        const isSuperAdminUser = isCeo || emailKey === 'sabbirrahmansr904@gmail.com';
+                        const perms = admin.permissions || [];
+                        const deptName = admin.department || (isCeo ? 'CEO & Founder' : 'Sales Executive Department');
+
                         return (
-                          <div key={admin.id} className="p-6 flex items-center justify-between hover:bg-gray-50/50 transition-all">
-                            <div className="space-y-1">
-                              <p className="text-sm font-black text-[#0C1421]">{admin.email}</p>
-                              <div className="flex items-center gap-3">
-                                <span className="text-[9px] font-bold text-gray-400 font-mono">UID: {admin.id}</span>
-                                <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${
-                                  isSelf ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-brand-gold/15 text-brand-gold'
-                                }`}>
-                                  {isSelf ? 'Super Admin' : 'Admin'}
+                          <div key={admin.id || admin.email} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50/50 transition-all">
+                            <div className="space-y-2 min-w-0">
+                              <div className="flex items-center gap-2.5 flex-wrap">
+                                <p className="text-sm font-black text-[#0C1421] truncate">{admin.email || admin.id}</p>
+                                
+                                {isCeo ? (
+                                  <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 shadow-xs flex items-center gap-1">
+                                    👑 CEO & FOUNDER
+                                  </span>
+                                ) : isSuperAdminUser ? (
+                                  <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    Super Admin
+                                  </span>
+                                ) : null}
+
+                                {/* Department Badge */}
+                                <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-800 border border-indigo-200">
+                                  {deptName}
                                 </span>
+                              </div>
+
+                              {/* Permitted Modules Badges */}
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-[10px] font-bold text-gray-400">Authorized Modules:</span>
+                                {isCeo ? (
+                                  <span className="text-[10px] font-black text-amber-900 bg-amber-50/80 px-2 py-0.5 rounded-lg border border-amber-200">
+                                    Full System Access & Control (All Modules)
+                                  </span>
+                                ) : perms.length === 0 ? (
+                                  <span className="text-[10px] font-bold text-gray-400 italic">No specific permissions set</span>
+                                ) : (
+                                  perms.map((pKey) => {
+                                    const modInfo = availableModules.find(m => m.id === pKey);
+                                    return (
+                                      <span
+                                        key={pKey}
+                                        className="text-[10px] font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded-md border border-gray-200"
+                                      >
+                                        {modInfo ? modInfo.name : pKey}
+                                      </span>
+                                    );
+                                  })
+                                )}
                               </div>
                             </div>
 
-                            {!isSelf && (
-                              <button 
-                                onClick={() => handleRevokeAdmin(admin.id, admin.email)}
-                                className="p-3 text-red-500 hover:text-white hover:bg-red-500 border border-transparent hover:border-red-650 rounded-xl transition-all shadow-3xs"
-                                title="Revoke Admin Access"
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button
+                                onClick={() => handleOpenEditModal(admin)}
+                                className="px-3.5 py-2 bg-gray-100 hover:bg-black hover:text-white text-gray-900 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs"
+                                title="Edit Department & Module Permissions"
                               >
-                                <Trash2 size={16} />
+                                <span>Edit Access</span>
                               </button>
-                            )}
+
+                              {!isCeo && (
+                                <button 
+                                  onClick={() => handleRevokeAdmin(admin.id, admin.email)}
+                                  className="p-2 text-red-500 hover:text-white hover:bg-red-500 border border-red-200 hover:border-red-500 rounded-xl transition-all shadow-2xs"
+                                  title="Revoke Access"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
                     </div>
                   )}
                 </div>
+
+
               </div>
             </div>
           )}
@@ -1884,7 +2604,7 @@ export default function AdminSettings() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="bg-gray-100 text-gray-800 px-4 py-2 rounded-lg text-sm font-bold font-mono">
-                    {(codEnabled ? 1 : 0) + (bkashEnabled ? 1 : 0) + (nagadEnabled ? 1 : 0)}
+                    {(codEnabled ? 1 : 0) + (bkashEnabled ? 1 : 0) + (nagadEnabled ? 1 : 0) + (rocketEnabled ? 1 : 0)}
                   </span>
                   <button
                     onClick={handleSavePayments}
@@ -1900,7 +2620,7 @@ export default function AdminSettings() {
                 <div className="bg-white border border-gray-200/80 rounded-2xl p-6 shadow-3xs flex flex-col justify-between">
                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">METHODS ON</span>
                   <span className="text-4xl font-black text-gray-900 mt-2">
-                    {(codEnabled ? 1 : 0) + (bkashEnabled ? 1 : 0) + (nagadEnabled ? 1 : 0)}
+                    {(codEnabled ? 1 : 0) + (bkashEnabled ? 1 : 0) + (nagadEnabled ? 1 : 0) + (rocketEnabled ? 1 : 0)}
                   </span>
                   <span className="text-xs text-gray-500 font-medium mt-1">Across all gateways</span>
                 </div>
@@ -1908,7 +2628,7 @@ export default function AdminSettings() {
                 <div className="bg-white border border-gray-200/80 rounded-2xl p-6 shadow-3xs flex flex-col justify-between">
                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">MANUAL</span>
                   <span className="text-4xl font-black text-gray-900 mt-2">
-                    {(codEnabled ? 1 : 0) + (bkashEnabled ? 1 : 0) + (nagadEnabled ? 1 : 0)}
+                    {(codEnabled ? 1 : 0) + (bkashEnabled ? 1 : 0) + (nagadEnabled ? 1 : 0) + (rocketEnabled ? 1 : 0)}
                   </span>
                   <span className="text-xs text-gray-500 font-medium mt-1">Customer pays you</span>
                 </div>
@@ -1931,11 +2651,32 @@ export default function AdminSettings() {
                   {/* Cash on Delivery */}
                   <div className="flex items-center justify-between p-4 bg-gray-50/50 rounded-2xl border border-gray-100 hover:border-gray-200 transition-all">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shadow-3xs">
-                        <Coins size={22} />
+                      <div 
+                        onClick={() => document.getElementById('cod-logo-input')?.click()}
+                        className={cn(
+                          "w-12 h-12 rounded-xl flex items-center justify-center shadow-3xs cursor-pointer relative overflow-hidden group border",
+                          codLogo ? "bg-white border-gray-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                        )}
+                        title="Click to upload/change picture"
+                      >
+                        {codLogo ? (
+                          <img src={codLogo} alt="Cash on Delivery" className="w-full h-full object-contain p-1.5" />
+                        ) : (
+                          <Coins size={22} />
+                        )}
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-white font-bold">
+                          Edit
+                        </div>
                       </div>
+                      <input 
+                        id="cod-logo-input" 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={handleUploadCodLogo} 
+                      />
                       <div className="space-y-0.5">
-                        <p className="text-sm font-black text-gray-900">Cash on delivery</p>
+                        <p className="text-sm font-black text-gray-900">Cash on delivery <span className="text-[10px] text-indigo-600 font-normal">(Click icon to upload picture)</span></p>
                         <p className="text-xs text-gray-500 font-medium">Customer pays the courier on delivery.</p>
                       </div>
                     </div>
@@ -1954,11 +2695,32 @@ export default function AdminSettings() {
                   <div className="p-6 bg-gray-50/50 rounded-2xl border border-gray-100 hover:border-gray-200 transition-all space-y-6">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-[#e2136e] text-white flex items-center justify-center font-bold font-sans text-sm tracking-tighter shadow-3xs">
-                          bK
+                        <div 
+                          onClick={() => document.getElementById('bkash-logo-input')?.click()}
+                          className={cn(
+                            "w-12 h-12 rounded-xl flex items-center justify-center font-bold font-sans text-sm tracking-tighter shadow-3xs cursor-pointer relative overflow-hidden group border",
+                            bkashLogo ? "bg-white border-gray-100" : "bg-[#e2136e] text-white border-transparent"
+                          )}
+                          title="Click to upload/change picture"
+                        >
+                          {bkashLogo ? (
+                            <img src={bkashLogo} alt="bKash" className="w-full h-full object-contain p-1.5" />
+                          ) : (
+                            <span>bK</span>
+                          )}
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-white font-bold">
+                            Edit
+                          </div>
                         </div>
+                        <input 
+                          id="bkash-logo-input" 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={handleUploadBkashLogo} 
+                        />
                         <div className="space-y-0.5">
-                          <p className="text-sm font-black text-gray-900">bKash</p>
+                          <p className="text-sm font-black text-gray-900">bKash <span className="text-[10px] text-indigo-600 font-normal">(Click logo to upload picture)</span></p>
                           <p className="text-xs text-gray-500 font-medium">Send Money to your bKash number.</p>
                         </div>
                       </div>
@@ -2013,11 +2775,32 @@ export default function AdminSettings() {
                   <div className="p-6 bg-gray-50/50 rounded-2xl border border-gray-100 hover:border-gray-200 transition-all space-y-6">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-[#f47321] text-white flex items-center justify-center font-bold font-sans text-sm tracking-tighter shadow-3xs">
-                          Ng
+                        <div 
+                          onClick={() => document.getElementById('nagad-logo-input')?.click()}
+                          className={cn(
+                            "w-12 h-12 rounded-xl flex items-center justify-center font-bold font-sans text-sm tracking-tighter shadow-3xs cursor-pointer relative overflow-hidden group border",
+                            nagadLogo ? "bg-white border-gray-100" : "bg-[#f47321] text-white border-transparent"
+                          )}
+                          title="Click to upload/change picture"
+                        >
+                          {nagadLogo ? (
+                            <img src={nagadLogo} alt="Nagad" className="w-full h-full object-contain p-1.5" />
+                          ) : (
+                            <span>Ng</span>
+                          )}
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-white font-bold">
+                            Edit
+                          </div>
                         </div>
+                        <input 
+                          id="nagad-logo-input" 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={handleUploadNagadLogo} 
+                        />
                         <div className="space-y-0.5">
-                          <p className="text-sm font-black text-gray-900">Nagad</p>
+                          <p className="text-sm font-black text-gray-900">Nagad <span className="text-[10px] text-indigo-600 font-normal">(Click logo to upload picture)</span></p>
                           <p className="text-xs text-gray-500 font-medium">Send Money to your Nagad number.</p>
                         </div>
                       </div>
@@ -2067,6 +2850,152 @@ export default function AdminSettings() {
                       </div>
                     )}
                   </div>
+
+                  {/* Rocket */}
+                  <div className="p-6 bg-gray-50/50 rounded-2xl border border-gray-100 hover:border-gray-200 transition-all space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div 
+                          onClick={() => document.getElementById('rocket-logo-input')?.click()}
+                          className={cn(
+                            "w-12 h-12 rounded-xl flex items-center justify-center font-bold font-sans text-sm tracking-tighter shadow-3xs cursor-pointer relative overflow-hidden group border",
+                            rocketLogo ? "bg-white border-gray-100" : "bg-[#8c0c5c] text-white border-transparent"
+                          )}
+                          title="Click to upload/change picture"
+                        >
+                          {rocketLogo ? (
+                            <img src={rocketLogo} alt="Rocket" className="w-full h-full object-contain p-1.5" />
+                          ) : (
+                            <span>Rk</span>
+                          )}
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-white font-bold">
+                            Edit
+                          </div>
+                        </div>
+                        <input 
+                          id="rocket-logo-input" 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={handleUploadRocketLogo} 
+                        />
+                        <div className="space-y-0.5">
+                          <p className="text-sm font-black text-gray-900">Rocket <span className="text-[10px] text-indigo-600 font-normal">(Click logo to upload picture)</span></p>
+                          <p className="text-xs text-gray-500 font-medium">Send Money to your Rocket number.</p>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer select-none">
+                        <input 
+                          type="checkbox" 
+                          checked={rocketEnabled}
+                          onChange={(e) => setRocketEnabled(e.target.checked)}
+                          className="sr-only peer" 
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5850ec]"></div>
+                      </label>
+                    </div>
+
+                    {rocketEnabled && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-200/50">
+                        <div className="space-y-2 col-span-1">
+                          <label className="block text-xs font-black uppercase tracking-wider text-gray-600">Rocket number</label>
+                          <input
+                            type="text"
+                            value={rocketNumber}
+                            onChange={(e) => setRocketNumber(e.target.value)}
+                            placeholder="e.g. 017XXXXXXXX-X"
+                            className="w-full bg-white border border-gray-200 py-3 px-4.5 rounded-xl outline-none focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-[#5850ec] transition-all font-mono text-sm font-bold text-gray-900"
+                          />
+                        </div>
+
+                        <div className="space-y-2 col-span-1">
+                          <label className="block text-xs font-black uppercase tracking-wider text-gray-600">Account type</label>
+                          <div className="flex gap-2.5">
+                            {(['Personal', 'Merchant', 'Agent'] as const).map((type) => (
+                              <button
+                                key={type}
+                                onClick={() => setRocketType(type)}
+                                className={cn(
+                                  "flex-1 py-3 px-4.5 text-xs font-bold rounded-xl border transition-all cursor-pointer text-center",
+                                  rocketType === type
+                                    ? "bg-indigo-50 border-indigo-200 text-indigo-700 font-extrabold"
+                                    : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
+                                )}
+                              >
+                                {type}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Customer bKash / Nagad / Rocket Payment Transactions Section */}
+              <div className="bg-white border border-gray-200/80 rounded-3xl p-8 space-y-6 shadow-3xs text-left">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                  <div>
+                    <h4 className="text-base font-extrabold text-gray-900">bKash, Nagad & Rocket Payment Transactions</h4>
+                    <p className="text-xs text-gray-500 mt-0.5">Orders where customers sent money via bKash, Nagad, or Rocket and provided their Transaction ID (Tran ID).</p>
+                  </div>
+                  <span className="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full font-mono">
+                    {orders.filter(o => o.paymentMethod === 'bkash' || o.paymentMethod === 'nagad' || o.paymentMethod === 'rocket' || (o.transactionId && o.transactionId.trim() !== '')).length} Transactions
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
+                        <th className="py-3 px-4">Order ID</th>
+                        <th className="py-3 px-4">Customer</th>
+                        <th className="py-3 px-4">Phone</th>
+                        <th className="py-3 px-4">Gateway</th>
+                        <th className="py-3 px-4">Transaction ID (Tran ID)</th>
+                        <th className="py-3 px-4">Amount</th>
+                        <th className="py-3 px-4">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {orders.filter(o => o.paymentMethod === 'bkash' || o.paymentMethod === 'nagad' || o.paymentMethod === 'rocket' || (o.transactionId && o.transactionId.trim() !== '')).length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="py-8 text-center text-gray-400 font-medium">
+                            No bKash, Nagad, or Rocket payment transaction records found yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        orders
+                          .filter(o => o.paymentMethod === 'bkash' || o.paymentMethod === 'nagad' || o.paymentMethod === 'rocket' || (o.transactionId && o.transactionId.trim() !== ''))
+                          .map(order => (
+                            <tr key={order.id} className="hover:bg-gray-50/50 transition-colors">
+                              <td className="py-3 px-4 font-bold text-gray-900">#{order.id.slice(-6)}</td>
+                              <td className="py-3 px-4 font-bold text-gray-900">{order.customerName}</td>
+                              <td className="py-3 px-4 font-mono text-gray-600">{order.phone}</td>
+                              <td className="py-3 px-4">
+                                <span className={cn(
+                                  "px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider",
+                                  order.paymentMethod === 'bkash' ? "bg-pink-50 text-pink-700 border border-pink-200" :
+                                  order.paymentMethod === 'nagad' ? "bg-orange-50 text-orange-700 border border-orange-200" :
+                                  order.paymentMethod === 'rocket' ? "bg-purple-50 text-purple-700 border border-purple-200" :
+                                  "bg-gray-100 text-gray-700"
+                                )}>
+                                  {order.paymentMethod || 'Manual'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 font-mono font-bold text-[#5850ec]">{order.transactionId || 'N/A'}</td>
+                              <td className="py-3 px-4 font-extrabold text-gray-900">৳{order.total}</td>
+                              <td className="py-3 px-4">
+                                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-gray-100 text-gray-800">
+                                  {order.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
@@ -2216,7 +3145,7 @@ export default function AdminSettings() {
                       type="text"
                       value={pathaoBaseUrl}
                       onChange={(e) => setPathaoBaseUrl(e.target.value)}
-                      placeholder="https://courier-api.pathao.com"
+                      placeholder="https://api-hermes.pathao.com"
                       className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
                     />
                   </div>

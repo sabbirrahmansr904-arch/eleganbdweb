@@ -26,7 +26,7 @@ export default function Checkout() {
   const { currency, rate } = useCurrency();
   const { shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter } = useBranding();
   const navigate = useNavigate();
-  const { addOrder } = useOrders();
+  const { addOrder, getNextOrderId } = useOrders();
   const { products, updateProduct } = useProducts();
   const { addTransaction } = useInventory();
   const { currentUser, customerUser, loginCustomer } = useAuth();
@@ -62,12 +62,19 @@ export default function Checkout() {
 
   const [paymentsConfig, setPaymentsConfig] = useState({
     codEnabled: true,
+    codLogo: '',
     bkashEnabled: true,
     bkashNumber: '01619835133',
     bkashType: 'Personal',
+    bkashLogo: '',
     nagadEnabled: true,
     nagadNumber: '01619835133',
-    nagadType: 'Personal'
+    nagadType: 'Personal',
+    nagadLogo: '',
+    rocketEnabled: true,
+    rocketNumber: '01619835133',
+    rocketType: 'Personal',
+    rocketLogo: ''
   });
 
   useEffect(() => {
@@ -78,12 +85,19 @@ export default function Checkout() {
           const data = docSnap.data();
           const config = {
             codEnabled: data.codEnabled !== undefined ? data.codEnabled : true,
+            codLogo: data.codLogo || '',
             bkashEnabled: data.bkashEnabled !== undefined ? data.bkashEnabled : true,
             bkashNumber: data.bkashNumber || '01619835133',
             bkashType: data.bkashType || 'Personal',
+            bkashLogo: data.bkashLogo || '',
             nagadEnabled: data.nagadEnabled !== undefined ? data.nagadEnabled : true,
             nagadNumber: data.nagadNumber || '01619835133',
-            nagadType: data.nagadType || 'Personal'
+            nagadType: data.nagadType || 'Personal',
+            nagadLogo: data.nagadLogo || '',
+            rocketEnabled: data.rocketEnabled !== undefined ? data.rocketEnabled : true,
+            rocketNumber: data.rocketNumber || '01619835133',
+            rocketType: data.rocketType || 'Personal',
+            rocketLogo: data.rocketLogo || ''
           };
           setPaymentsConfig(config);
 
@@ -93,6 +107,8 @@ export default function Checkout() {
               setFormData(prev => ({ ...prev, paymentMethod: 'bkash' }));
             } else if (config.nagadEnabled) {
               setFormData(prev => ({ ...prev, paymentMethod: 'nagad' }));
+            } else if (config.rocketEnabled) {
+              setFormData(prev => ({ ...prev, paymentMethod: 'rocket' }));
             }
           }
         }
@@ -322,7 +338,7 @@ export default function Checkout() {
     // Simulate API call
     setTimeout(() => {
       const newOrder: Order = {
-        id: `ORD-${Math.floor(Math.random() * 900000) + 100000}`,
+        id: getNextOrderId(),
         customerId: `CUST-${Math.floor(Math.random() * 10000) + 1000}`,
         customerName: formData.fullName,
         email: formData.email,
@@ -438,7 +454,7 @@ export default function Checkout() {
             quantities: { [item.selectedSize]: item.quantity },
             totalQuantity: item.quantity,
             category: product.category || 'Website Order',
-            authorizedBy: 'System (Customer Order)',
+            authorizedBy: 'Website',
             notes: `Order ${newOrder.id} - ${formData.fullName}`
           });
         }
@@ -633,8 +649,8 @@ export default function Checkout() {
                 <h2 className="text-sm font-black uppercase tracking-[0.15em] text-[#0C1421]">PAYMENT METHOD</h2>
               </div>
 
-              {/* Three Column selector matching bKash, Nagad, COD */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+              {/* Beautiful 4-column/2-column responsive selector matching bKash, Nagad, Rocket, COD */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
                 
                 {/* Option: Cash on Delivery (COD) */}
                 {paymentsConfig.codEnabled && (
@@ -653,11 +669,22 @@ export default function Checkout() {
                       className="absolute opacity-0"
                     />
                     <div className="flex items-center gap-3">
-                      <Coins size={18} className="text-emerald-600 shrink-0" />
+                      <div className="w-10 h-10 rounded-xl bg-white shrink-0 border border-gray-100 shadow-3xs flex items-center justify-center relative overflow-hidden">
+                        {paymentsConfig.codLogo ? (
+                          <img 
+                            src={paymentsConfig.codLogo} 
+                            alt="Cash on Delivery" 
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-contain p-1"
+                          />
+                        ) : (
+                          <Coins size={20} className="text-emerald-600 shrink-0" />
+                        )}
+                      </div>
                       <div className="flex flex-col text-left">
-                        <span className="text-[10.5px] font-black uppercase tracking-wider text-[#0C1421] flex items-center gap-1.5 flex-wrap">
-                          CASH ON DELIVERY 
-                          <span className="text-emerald-600 font-extrabold text-[11px] font-sans tracking-normal">(COD)</span>
+                        <span className="text-[10.5px] font-black uppercase tracking-wider text-[#0C1421] flex items-center gap-0.5 flex-wrap">
+                          CASH ON 
+                          <span className="text-emerald-600 font-extrabold text-[11px] font-sans tracking-normal">COD</span>
                         </span>
                       </div>
                     </div>
@@ -681,19 +708,19 @@ export default function Checkout() {
                       className="absolute opacity-0"
                     />
                     <div className="flex items-center gap-3">
-                      <div className="w-6.5 h-6.5 rounded-lg overflow-hidden flex items-center justify-center bg-white shrink-0 shadow-3xs border border-pink-100 relative">
+                      <div className="w-10 h-10 rounded-xl bg-white shrink-0 border border-gray-100 shadow-3xs flex items-center justify-center relative overflow-hidden">
                         <img 
-                          src="https://upload.wikimedia.org/wikipedia/commons/7/7a/BKash_Logo.svg" 
+                          src={paymentsConfig.bkashLogo || "https://upload.wikimedia.org/wikipedia/commons/7/7a/BKash_Logo.svg"} 
                           alt="bKash" 
                           referrerPolicy="no-referrer"
-                          className="w-full h-full object-contain p-0.5"
+                          className="w-full h-full object-contain p-1"
                           onError={(e) => {
                             e.currentTarget.style.display = 'none';
                             const fb = e.currentTarget.parentElement?.querySelector('.fallback-bkash') as HTMLElement;
                             if (fb) fb.style.display = 'flex';
                           }}
                         />
-                        <div className="fallback-bkash hidden absolute inset-0 bg-[#D12053] items-center justify-center text-white text-[9px] font-black">bK</div>
+                        <div className="fallback-bkash hidden absolute inset-0 bg-[#D12053] items-center justify-center text-white text-[10px] font-black">bK</div>
                       </div>
                       <div className="flex flex-col text-left">
                         <span className="text-[10.5px] font-black uppercase tracking-wider text-[#0C1421]">bKash</span>
@@ -719,22 +746,60 @@ export default function Checkout() {
                       className="absolute opacity-0"
                     />
                     <div className="flex items-center gap-3">
-                      <div className="w-6.5 h-6.5 rounded-lg overflow-hidden flex items-center justify-center bg-white shrink-0 shadow-3xs border border-orange-100 relative">
+                      <div className="w-10 h-10 rounded-xl bg-white shrink-0 border border-gray-100 shadow-3xs flex items-center justify-center relative overflow-hidden">
                         <img 
-                          src="https://upload.wikimedia.org/wikipedia/commons/1/1b/Nagad_logo.png" 
+                          src={paymentsConfig.nagadLogo || "https://upload.wikimedia.org/wikipedia/commons/1/1b/Nagad_logo.png"} 
                           alt="Nagad" 
                           referrerPolicy="no-referrer"
-                          className="w-full h-full object-contain p-0.5"
+                          className="w-full h-full object-contain p-1"
                           onError={(e) => {
                             e.currentTarget.style.display = 'none';
                             const fb = e.currentTarget.parentElement?.querySelector('.fallback-nagad') as HTMLElement;
                             if (fb) fb.style.display = 'flex';
                           }}
                         />
-                        <div className="fallback-nagad hidden absolute inset-0 bg-[#F47216] items-center justify-center text-white text-[9px] font-black">Ng</div>
+                        <div className="fallback-nagad hidden absolute inset-0 bg-[#F47216] items-center justify-center text-white text-[10px] font-black">Ng</div>
                       </div>
                       <div className="flex flex-col text-left">
                         <span className="text-[10.5px] font-black uppercase tracking-wider text-[#0C1421]">Nagad</span>
+                      </div>
+                    </div>
+                  </label>
+                )}
+
+                {/* Option: Rocket (Manual rocket payments) */}
+                {paymentsConfig.rocketEnabled && (
+                  <label className={cn(
+                    "flex items-center justify-between cursor-pointer p-4.5 rounded-2xl border transition-all shadow-3xs relative overflow-hidden",
+                    formData.paymentMethod === 'rocket' 
+                      ? "border-[#0C1421] bg-gray-50/30 ring-1 ring-[#0C1421]" 
+                      : "border-gray-200 hover:border-gray-300 bg-white"
+                  )}>
+                    <input 
+                      type="radio" 
+                      name="paymentMethod" 
+                      value="rocket" 
+                      checked={formData.paymentMethod === 'rocket'} 
+                      onChange={handleInputChange}
+                      className="absolute opacity-0"
+                    />
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-white shrink-0 border border-gray-100 shadow-3xs flex items-center justify-center relative overflow-hidden">
+                        <img 
+                          src={paymentsConfig.rocketLogo || "https://upload.wikimedia.org/wikipedia/commons/8/82/Rocket_logo.svg"} 
+                          alt="Rocket" 
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-contain p-1"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const fb = e.currentTarget.parentElement?.querySelector('.fallback-rocket') as HTMLElement;
+                            if (fb) fb.style.display = 'flex';
+                          }}
+                        />
+                        <div className="fallback-rocket hidden absolute inset-0 bg-[#8c0c5c] items-center justify-center text-white text-[10px] font-black">Rk</div>
+                      </div>
+                      <div className="flex flex-col text-left">
+                        <span className="text-[10.5px] font-black uppercase tracking-wider text-[#0C1421]">Rocket</span>
                       </div>
                     </div>
                   </label>
@@ -745,7 +810,8 @@ export default function Checkout() {
               {/* Secure Manual Mobile Banking Instructions (Clean Monochrome High Contrast Aesthetics) */}
               <AnimatePresence>
                 {((formData.paymentMethod === 'bkash' && paymentsConfig.bkashEnabled) || 
-                  (formData.paymentMethod === 'nagad' && paymentsConfig.nagadEnabled)) && (
+                  (formData.paymentMethod === 'nagad' && paymentsConfig.nagadEnabled) ||
+                  (formData.paymentMethod === 'rocket' && paymentsConfig.rocketEnabled)) && (
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -754,17 +820,17 @@ export default function Checkout() {
                   >
                     <p className="text-[10px] uppercase tracking-widest font-black text-[#0C1421] flex items-center gap-2">
                       <CreditCard size={12} />
-                      Payment Instructions ({formData.paymentMethod === 'bkash' ? 'bKash' : 'Nagad'} Manual Send Money)
+                      Payment Instructions ({formData.paymentMethod === 'bkash' ? 'bKash' : formData.paymentMethod === 'nagad' ? 'Nagad' : 'Rocket'} Manual Send Money)
                     </p>
                     <div className="text-[12.5px] space-y-3.5 text-[#0C1421] leading-relaxed font-sans font-bold">
-                      <p>১. নিচের নাম্বারে <span className="font-extrabold underline">{formData.paymentMethod === 'bkash' ? 'bKash' : 'Nagad'} {formData.paymentMethod === 'bkash' ? paymentsConfig.bkashType : paymentsConfig.nagadType}</span> এ <span className="font-extrabold">Send Money</span> করুন।</p>
-                      <p>২. নাম্বার: <span className="text-[#0C1421] font-black text-base tracking-wider bg-white border border-gray-200 px-2.5 py-1 rounded-md shadow-3xs ml-1 font-mono">{formData.paymentMethod === 'bkash' ? paymentsConfig.bkashNumber : paymentsConfig.nagadNumber}</span></p>
+                      <p>১. নিচের নাম্বারে <span className="font-extrabold underline">{formData.paymentMethod === 'bkash' ? 'bKash' : formData.paymentMethod === 'nagad' ? 'Nagad' : 'Rocket'} {formData.paymentMethod === 'bkash' ? paymentsConfig.bkashType : formData.paymentMethod === 'nagad' ? paymentsConfig.nagadType : paymentsConfig.rocketType}</span> এ <span className="font-extrabold">Send Money</span> করুন।</p>
+                      <p>২. নাম্বার: <span className="text-[#0C1421] font-black text-base tracking-wider bg-white border border-gray-200 px-2.5 py-1 rounded-md shadow-3xs ml-1 font-mono">{formData.paymentMethod === 'bkash' ? paymentsConfig.bkashNumber : formData.paymentMethod === 'nagad' ? paymentsConfig.nagadNumber : paymentsConfig.rocketNumber}</span></p>
                       <p>৩. টাকা পাঠানো হয়ে গেলে ট্রানজেকশন আইডি টি নিচের বক্সে লিখে অর্ডার সম্পন্ন করুন।</p>
                       
                       <div className="space-y-2 pt-3">
                         <label className="block text-[9.5px] font-extrabold uppercase tracking-widest text-[#62758A]">৪. TRANSACTION ID (ট্রানজেকশন আইডি)</label>
                         <input
-                          required={formData.paymentMethod === 'bkash' || formData.paymentMethod === 'nagad'}
+                          required={formData.paymentMethod === 'bkash' || formData.paymentMethod === 'nagad' || formData.paymentMethod === 'rocket'}
                           type="text"
                           name="transactionId"
                           value={formData.transactionId}

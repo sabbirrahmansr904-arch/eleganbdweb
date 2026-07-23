@@ -58,7 +58,7 @@ export interface Order {
   deliveryCharge: number;
   total: number;
   status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Printed' | 'Hold' | 'Returned' | 'QC' | 'ORDER PLACED' | 'PREPARING' | 'PICK UP CANCEL' | 'SUCCESS' | 'PARTIAL DELIVERY';
-  paymentMethod: 'cod' | 'bkash' | 'nagad' | 'card';
+  paymentMethod: 'cod' | 'bkash' | 'nagad' | 'rocket' | 'card';
   transactionId?: string;
   notes?: string;
   discount?: number;
@@ -111,7 +111,7 @@ export interface CheckoutFormData {
   city: string;
   thana?: string;
   phone: string;
-  paymentMethod: 'cod' | 'card' | 'bkash' | 'nagad';
+  paymentMethod: 'cod' | 'card' | 'bkash' | 'nagad' | 'rocket';
   transactionId?: string;
 }
 

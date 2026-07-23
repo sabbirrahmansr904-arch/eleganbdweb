@@ -18,11 +18,34 @@ interface OrderContextType {
   updateOrder: (id: string, data: Partial<Order> & Record<string, any>) => Promise<void>;
   deleteOrder: (id: string) => Promise<void>;
   addOrder: (order: Order) => Promise<void>;
+  getNextOrderId: () => string;
   loading: boolean;
   lastOrder?: Order | null;
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
+
+export const generateNextOrderId = (orders: Order[]): string => {
+  const BASE_ID = 2670000;
+  let maxId = BASE_ID - 1;
+
+  if (Array.isArray(orders)) {
+    for (const o of orders) {
+      if (o && o.id) {
+        const cleaned = o.id.replace(/[^0-9]/g, '');
+        if (cleaned.length >= 6) {
+          const num = parseInt(cleaned, 10);
+          if (!isNaN(num) && num >= BASE_ID && num > maxId) {
+            maxId = num;
+          }
+        }
+      }
+    }
+  }
+
+  const nextNum = maxId < BASE_ID ? BASE_ID : maxId + 1;
+  return String(nextNum);
+};
 
 const NOTIFICATION_SOUND = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3';
 
@@ -136,6 +159,13 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     return cleaned;
   };
 
+  const getAuthorizedBy = (order: Order) => {
+    if (order.invoiceBy && order.invoiceBy.toLowerCase().includes('website')) {
+      return 'Website';
+    }
+    return order.invoiceBy || currentUser?.displayName || currentUser?.email || 'Admin';
+  };
+
   const restoreOrderStock = async (order: Order) => {
     try {
       console.log(`[OrderContext] Restoring stock for order: ${order.id}`);
@@ -162,7 +192,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             quantities: { [item.selectedSize]: item.quantity },
             totalQuantity: item.quantity,
             category: product.category,
-            authorizedBy: 'Order System',
+            authorizedBy: getAuthorizedBy(order),
             notes: `Restored: Order #${order.id.slice(-6)} Cancelled/Deleted`
           });
         }
@@ -198,7 +228,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             quantities: { [item.selectedSize]: item.quantity },
             totalQuantity: item.quantity,
             category: product.category,
-            authorizedBy: 'Order System',
+            authorizedBy: getAuthorizedBy(order),
             notes: `Re-deducted: Order #${order.id.slice(-6)} Restored status`
           });
         }
@@ -275,6 +305,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const getNextOrderId = () => generateNextOrderId(orders);
+
   const addOrder = async (order: Order) => {
     try {
       const targetCustomerId = currentUser
@@ -287,15 +319,21 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       const maxInvoice = existingInvoices.length > 0 ? Math.max(...existingInvoices) : 999;
       const nextInvoiceNo = maxInvoice + 1;
 
+      // Assign serial order ID starting from 2670000 if not already assigned
+      const finalOrderId = (order.id && /^\d{7,}$/.test(order.id))
+        ? order.id
+        : generateNextOrderId(orders);
+
       const newOrder = {
         ...order,
+        id: finalOrderId,
         invoiceNo: nextInvoiceNo,
         customerId: targetCustomerId,
         createdAt: order.createdAt || new Date().toISOString(),
         updatedAt: Date.now()
       };
       const cleaned = removeUndefined(newOrder);
-      await setDoc(doc(db, 'orders', order.id), cleaned);
+      await setDoc(doc(db, 'orders', finalOrderId), cleaned);
 
       // Automatically reduce stock and log inventory transactions
       for (const item of order.items) {
@@ -321,8 +359,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             quantities: { [item.selectedSize]: item.quantity },
             totalQuantity: item.quantity,
             category: product.category,
-            authorizedBy: 'Order System',
-            notes: `Order #${order.id.slice(-6)}`
+            authorizedBy: getAuthorizedBy(newOrder),
+            notes: `Order #${finalOrderId}`
           });
         }
       }
@@ -346,7 +384,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <OrderContext.Provider value={{ orders, updateOrderStatus, updateOrder, deleteOrder, addOrder, loading, lastOrder }}>
+    <OrderContext.Provider value={{ orders, updateOrderStatus, updateOrder, deleteOrder, addOrder, getNextOrderId, loading, lastOrder }}>
       {children}
     </OrderContext.Provider>
   );

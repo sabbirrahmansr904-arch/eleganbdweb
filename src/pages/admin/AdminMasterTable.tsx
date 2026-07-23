@@ -194,9 +194,9 @@ export default function AdminMasterTable(): React.JSX.Element {
   };
 
   // Save edited cell to Firestore/context
-  const handleSaveCell = async () => {
-    if (!editingCell) return;
-    const { productId, field, value } = editingCell;
+  const handleSaveCell = async (targetCell = editingCell) => {
+    if (!targetCell) return;
+    const { productId, field, value } = targetCell;
     const numValue = Number(value);
 
     // Find the product
@@ -247,12 +247,39 @@ export default function AdminMasterTable(): React.JSX.Element {
 
       await updateProduct(updatedProduct);
       toast.success('Matrix updated successfully');
-      setEditingCell(null);
+      setEditingCell(prev => (prev === targetCell ? null : prev));
     } catch (error) {
       console.error(error);
       toast.error('Failed to save changes');
     } finally {
       setSavingId(null);
+    }
+  };
+
+  const handleKeyDown = async (e: React.KeyboardEvent, productId: string, currentSize: string, sizesList: string[]) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      await handleSaveCell();
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      const current = editingCell;
+      if (current) {
+        await handleSaveCell(current);
+        const currentIndex = sizesList.indexOf(currentSize);
+        if (currentIndex >= 0 && currentIndex < sizesList.length - 1) {
+          const nextSize = sizesList[currentIndex + 1];
+          const product = products.find(p => p.id === productId);
+          if (product) {
+            setEditingCell({
+              productId,
+              field: nextSize,
+              value: String(product.sizeStock?.[nextSize] ?? 0)
+            });
+          }
+        }
+      }
+    } else if (e.key === 'Escape') {
+      setEditingCell(null);
     }
   };
 
@@ -465,10 +492,10 @@ export default function AdminMasterTable(): React.JSX.Element {
                                                 type="number" 
                                                 value={editingCell.value} 
                                                 onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })} 
-                                                onKeyDown={(e) => { 
-                                                  if (e.key === 'Enter') handleSaveCell(); 
-                                                  if (e.key === 'Escape') setEditingCell(null); 
-                                                }} 
+                                                onKeyDown={(e) => handleKeyDown(e, product.id, size, shirtSizes)}
+                                                onBlur={() => {
+                                                  if (editingCell) handleSaveCell();
+                                                }}
                                                 className="w-16 text-center py-1 text-xs bg-white border border-blue-500 rounded outline-none font-bold text-black" 
                                               />
                                             </div>
@@ -630,10 +657,10 @@ export default function AdminMasterTable(): React.JSX.Element {
                                                 type="number" 
                                                 value={editingCell.value} 
                                                 onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })} 
-                                                onKeyDown={(e) => { 
-                                                  if (e.key === 'Enter') handleSaveCell(); 
-                                                  if (e.key === 'Escape') setEditingCell(null); 
-                                                }} 
+                                                onKeyDown={(e) => handleKeyDown(e, product.id, size, pantSizes)}
+                                                onBlur={() => {
+                                                  if (editingCell) handleSaveCell();
+                                                }}
                                                 className="w-16 text-center py-1 text-xs bg-white border border-blue-500 rounded outline-none font-bold text-black" 
                                               />
                                             </div>

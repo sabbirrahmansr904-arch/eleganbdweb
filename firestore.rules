@@ -111,18 +111,26 @@ service cloud.firestore {
     }
 
     match /admins/{adminId} {
-      allow read: if isSignedIn() && (adminId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && adminId == request.auth.uid && (
-        request.auth.token.email == 'sabbirrahmansr904@gmail.com' ||
-        (
-          get(/databases/$(database)/documents/config/admin_settings).exists() &&
-          incoming().signupCode == get(/databases/$(database)/documents/config/admin_settings).data.signupCode
-        )
+      allow read, list: if isSignedIn();
+      allow create: if isSignedIn() && (
+        adminId == request.auth.uid || 
+        isAdmin()
       );
       allow update, delete: if isSignedIn() && (
+        request.auth.token.email == 'sabbirrahmansr904@gmail.com' ||
         request.auth.token.email == 'eleganbd.ltd@gmail.com' ||
         isAdmin()
       );
+    }
+
+    match /admin_permissions/{docId} {
+      allow read, list: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    match /admin_invites/{docId} {
+      allow read, list: if isSignedIn();
+      allow write: if isSignedIn();
     }
 
     function isValidStockTransaction(data) {

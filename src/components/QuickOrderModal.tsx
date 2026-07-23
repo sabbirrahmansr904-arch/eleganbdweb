@@ -18,7 +18,7 @@ interface QuickOrderModalProps {
 
 export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrderModalProps) {
   const { currency, rate } = useCurrency();
-  const { addOrder } = useOrders();
+  const { addOrder, getNextOrderId } = useOrders();
   const { updateProduct } = useProducts();
   const { shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter } = useBranding();
   const isBag = (product.category || '').toLowerCase().includes('bag');
@@ -77,7 +77,7 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
     const total = product.price + shipping;
 
     const newOrder = {
-      id: `QORD-${Math.floor(Math.random() * 9000) + 1000}`,
+      id: getNextOrderId(),
       customerId: `GUEST-${Math.floor(Math.random() * 1000)}`,
       customerName: formData.name,
       phone: formData.phone,
