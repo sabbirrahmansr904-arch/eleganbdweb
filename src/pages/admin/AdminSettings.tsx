@@ -45,10 +45,22 @@ import { useProducts } from '../../contexts/ProductContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOrders } from '../../contexts/OrderContext';
 import { db } from '../../lib/firebase';
-import { doc, getDoc, getDocs, setDoc, deleteDoc, collection } from 'firebase/firestore';
+import { doc, getDoc, getDocs, setDoc, deleteDoc, collection, onSnapshot } from 'firebase/firestore';
 import { compressImage } from '../../utils/imageCompressor';
 import { Coupon } from '../../types';
 import toast from 'react-hot-toast';
+
+const formatLastActive = (timestamp: number) => {
+  if (!timestamp) return 'Offline';
+  const diff = Date.now() - timestamp;
+  if (diff < 60000) return 'Just now';
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+};
 
 export default function AdminSettings() {
   const location = useLocation();
@@ -537,6 +549,7 @@ export default function AdminSettings() {
   };
 
   // Pathao Courier API States
+  const [courierSubTab, setCourierSubTab] = useState<'pathao' | 'steadfast'>('pathao');
   const [pathaoClientId, setPathaoClientId] = useState('nXe0A73axr');
   const [pathaoClientSecret, setPathaoClientSecret] = useState('0LyQiusPk4HguMTc3oZJaXIeKzjXWH7Yq0LsjPKc');
   const [pathaoUsername, setPathaoUsername] = useState('eleganbd.ltd@gmail.com');
@@ -548,6 +561,14 @@ export default function AdminSettings() {
   const [isPathaoLoading, setIsPathaoLoading] = useState(false);
   const [isSavingPathao, setIsSavingPathao] = useState(false);
   const [isTestingPathao, setIsTestingPathao] = useState(false);
+
+  // Steadfast Courier API States
+  const [steadfastApiKey, setSteadfastApiKey] = useState('');
+  const [steadfastSecretKey, setSteadfastSecretKey] = useState('');
+  const [steadfastEnabled, setSteadfastEnabled] = useState(false);
+  const [isSteadfastLoading, setIsSteadfastLoading] = useState(false);
+  const [isSavingSteadfast, setIsSavingSteadfast] = useState(false);
+  const [isTestingSteadfast, setIsTestingSteadfast] = useState(false);
 
   const loadPathaoConfig = async () => {
     setIsPathaoLoading(true);
@@ -572,9 +593,27 @@ export default function AdminSettings() {
     }
   };
 
+  const loadSteadfastConfig = async () => {
+    setIsSteadfastLoading(true);
+    try {
+      const docSnap = await getDoc(doc(db, 'config', 'steadfast'));
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setSteadfastApiKey(data.apiKey || '');
+        setSteadfastSecretKey(data.secretKey || '');
+        setSteadfastEnabled(data.enabled !== undefined ? data.enabled : false);
+      }
+    } catch (err) {
+      console.error("Error loading Steadfast config:", err);
+    } finally {
+      setIsSteadfastLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'Courier' || activeTab === 'Pathao') {
       loadPathaoConfig();
+      loadSteadfastConfig();
     }
   }, [activeTab]);
 
@@ -602,6 +641,56 @@ export default function AdminSettings() {
       toast.error('Failed to save Pathao credentials.', { id: loadingToast });
     } finally {
       setIsSavingPathao(false);
+    }
+  };
+
+  const handleSaveSteadfastConfig = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setIsSavingSteadfast(true);
+    const loadingToast = toast.loading('Saving Steadfast Courier API credentials...');
+    try {
+      const payload = {
+        apiKey: steadfastApiKey.trim(),
+        secretKey: steadfastSecretKey.trim(),
+        enabled: steadfastEnabled,
+        updatedAt: Date.now()
+      };
+      await setDoc(doc(db, 'config', 'steadfast'), payload, { merge: true });
+      toast.success('Steadfast Courier credentials saved & activated successfully!', { id: loadingToast });
+    } catch (err: any) {
+      console.error("Error saving Steadfast config:", err);
+      toast.error('Failed to save Steadfast credentials.', { id: loadingToast });
+    } finally {
+      setIsSavingSteadfast(false);
+    }
+  };
+
+  const handleTestSteadfastConnection = async () => {
+    if (!steadfastApiKey || !steadfastSecretKey) {
+      toast.error('Please fill in both API Key and Secret Key first.');
+      return;
+    }
+    setIsTestingSteadfast(true);
+    const loadingToast = toast.loading('Connecting to Steadfast API...');
+    try {
+      const res = await fetch('/api/steadfast/test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey: steadfastApiKey.trim(),
+          secretKey: steadfastSecretKey.trim()
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(`Connection established! Account balance: ৳ ${data.balance}`, { id: loadingToast, duration: 5000 });
+      } else {
+        toast.error(data.error || 'Connection failed. Please check credentials.', { id: loadingToast });
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to communicate with proxy server.', { id: loadingToast });
+    } finally {
+      setIsTestingSteadfast(false);
     }
   };
 
@@ -1046,8 +1135,13 @@ export default function AdminSettings() {
     }, 1200);
   };
 
+  const unsubAdminsRef = React.useRef<(() => void) | null>(null);
+
   const loadAdminConfigAndList = async () => {
     setLoadingAdmins(true);
+    if (unsubAdminsRef.current) {
+      unsubAdminsRef.current();
+    }
     try {
       // 1. Get Code
       const settingsDoc = await getDoc(doc(db, 'config', 'admin_settings'));
@@ -1057,14 +1151,12 @@ export default function AdminSettings() {
         setAdminCode('ELEGAN-VIP-2026');
       }
 
-      const adminMap = new Map<string, any>();
-
-      // 1. Load from admins collection
-      const adminsSnapshot = await getDocs(collection(db, 'admins'));
-      adminsSnapshot.forEach(docSnap => {
+      const permsMap = new Map<string, any>();
+      const permsSnapshot = await getDocs(collection(db, 'admin_permissions'));
+      permsSnapshot.forEach(docSnap => {
         const data = docSnap.data();
         const emailKey = (data.email || docSnap.id).toLowerCase().trim();
-        adminMap.set(emailKey, {
+        permsMap.set(emailKey, {
           id: docSnap.id,
           email: data.email || docSnap.id,
           role: data.role || 'admin',
@@ -1072,52 +1164,74 @@ export default function AdminSettings() {
           permissions: (data.permissions && data.permissions.length > 0) 
             ? data.permissions 
             : ['dashboard', 'orders', 'issues'],
-          updatedAt: data.updatedAt || Date.now()
-        });
-      });
-
-      // 2. Load from admin_permissions collection
-      const permsSnapshot = await getDocs(collection(db, 'admin_permissions'));
-      permsSnapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        const emailKey = (data.email || docSnap.id).toLowerCase().trim();
-        const existing = adminMap.get(emailKey) || {};
-        adminMap.set(emailKey, {
-          id: existing.id || docSnap.id,
-          email: data.email || docSnap.id,
-          role: data.role || existing.role || 'admin',
-          department: data.department || existing.department || (emailKey === 'eleganbd.ltd@gmail.com' ? 'CEO & Founder' : 'Sales Executive Department'),
-          permissions: (data.permissions && data.permissions.length > 0) 
-            ? data.permissions 
-            : (existing.permissions || ['dashboard', 'orders', 'issues']),
-          updatedAt: data.updatedAt || existing.updatedAt || Date.now(),
+          updatedAt: data.updatedAt || Date.now(),
           isDirectAccess: true
         });
       });
 
-      // 3. Load from admin_invites collection
+      const invitesMap = new Map<string, any>();
       const invitesSnapshot = await getDocs(collection(db, 'admin_invites'));
       invitesSnapshot.forEach(docSnap => {
         const data = docSnap.data();
         const emailKey = (data.email || docSnap.id).toLowerCase().trim();
-        const existing = adminMap.get(emailKey) || {};
-        adminMap.set(emailKey, {
-          id: existing.id || docSnap.id,
+        invitesMap.set(emailKey, {
+          id: docSnap.id,
           email: data.email || docSnap.id,
-          role: data.role || existing.role || 'admin',
-          department: data.department || existing.department || (emailKey === 'eleganbd.ltd@gmail.com' ? 'CEO & Founder' : 'Sales Executive Department'),
+          role: data.role || 'admin',
+          department: data.department || 'Sales Executive Department',
           permissions: (data.permissions && data.permissions.length > 0) 
             ? data.permissions 
-            : (existing.permissions || ['dashboard', 'orders', 'issues']),
-          updatedAt: data.updatedAt || existing.updatedAt || Date.now(),
+            : ['dashboard', 'orders', 'issues'],
+          updatedAt: data.updatedAt || Date.now(),
           isDirectAccess: true
         });
       });
 
-      setAdminList(Array.from(adminMap.values()));
+      unsubAdminsRef.current = onSnapshot(collection(db, 'admins'), (snapshot) => {
+        const adminMap = new Map<string, any>();
+
+        permsMap.forEach((val, key) => adminMap.set(key, { ...val }));
+        invitesMap.forEach((val, key) => {
+          if (!adminMap.has(key)) {
+            adminMap.set(key, { ...val });
+          }
+        });
+
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          const emailKey = (data.email || docSnap.id).toLowerCase().trim();
+          const existing = adminMap.get(emailKey) || {};
+          adminMap.set(emailKey, {
+            ...existing,
+            id: docSnap.id,
+            email: data.email || docSnap.id,
+            role: data.role || existing.role || 'admin',
+            department: data.department || existing.department || (emailKey === 'eleganbd.ltd@gmail.com' ? 'CEO & Founder' : 'Sales Executive Department'),
+            permissions: (data.permissions && data.permissions.length > 0) 
+              ? data.permissions 
+              : (existing.permissions || ['dashboard', 'orders', 'issues']),
+            updatedAt: data.updatedAt || existing.updatedAt || Date.now(),
+            lastActive: data.lastActive || 0,
+            isOnline: data.isOnline || false
+          });
+        });
+
+        const sortedList = Array.from(adminMap.values()).sort((a, b) => {
+          const aOnline = a.isOnline && (Date.now() - (a.lastActive || 0) < 90000);
+          const bOnline = b.isOnline && (Date.now() - (b.lastActive || 0) < 90000);
+          if (aOnline && !bOnline) return -1;
+          if (!aOnline && bOnline) return 1;
+          return (b.lastActive || 0) - (a.lastActive || 0);
+        });
+
+        setAdminList(sortedList);
+        setLoadingAdmins(false);
+      }, (error) => {
+        console.error("Admins snapshot error:", error);
+        setLoadingAdmins(false);
+      });
     } catch (err) {
       console.error("Error loading admin system stats:", err);
-    } finally {
       setLoadingAdmins(false);
     }
   };
@@ -1126,6 +1240,11 @@ export default function AdminSettings() {
     if (activeTab === 'Admin Access' && isSuperAdmin) {
       loadAdminConfigAndList();
     }
+    return () => {
+      if (unsubAdminsRef.current) {
+        unsubAdminsRef.current();
+      }
+    };
   }, [activeTab, isSuperAdmin]);
 
   const handleOpenAddModal = () => {
@@ -1778,7 +1897,7 @@ export default function AdminSettings() {
                             value={directAccessEmail}
                             disabled={isEditingAccess}
                             onChange={(e) => setDirectAccessEmail(e.target.value)}
-                            className="w-full p-4 border border-gray-200 rounded-2xl text-sm font-semibold focus:border-black outline-none transition-all disabled:bg-gray-100 disabled:text-gray-500"
+                            className="w-full p-4 border border-gray-200 rounded-2xl text-sm font-semibold focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all disabled:bg-gray-100 disabled:text-gray-500"
                           />
                         </div>
 
@@ -1859,7 +1978,7 @@ export default function AdminSettings() {
                                         setSelectedPermissions(selectedPermissions.filter(p => p !== mod.id));
                                       }
                                     }}
-                                    className="mt-1 w-4 h-4 rounded text-black focus:ring-black accent-black cursor-pointer"
+                                    className="mt-1 w-4 h-4 rounded text-blue-600 focus:ring-blue-600 accent-blue-600 cursor-pointer"
                                   />
                                   <div className="space-y-0.5 min-w-0">
                                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -1934,6 +2053,9 @@ export default function AdminSettings() {
                         const isSuperAdminUser = isCeo || emailKey === 'sabbirrahmansr904@gmail.com';
                         const perms = admin.permissions || [];
                         const deptName = admin.department || (isCeo ? 'CEO & Founder' : 'Sales Executive Department');
+                        
+                        const lastActiveTime = admin.lastActive || 0;
+                        const isOnlineNow = admin.isOnline && (Date.now() - lastActiveTime < 90000);
 
                         return (
                           <div key={admin.id || admin.email} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50/50 transition-all">
@@ -1955,6 +2077,19 @@ export default function AdminSettings() {
                                 <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-800 border border-indigo-200">
                                   {deptName}
                                 </span>
+
+                                {/* Live Online Status Badge */}
+                                {isOnlineNow ? (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    Active Now
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-gray-50 text-gray-500 border border-gray-200">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                                    Offline {lastActiveTime > 0 ? `(${formatLastActive(lastActiveTime)})` : ''}
+                                  </span>
+                                )}
                               </div>
 
                               {/* Permitted Modules Badges */}
@@ -1985,7 +2120,7 @@ export default function AdminSettings() {
                             <div className="flex items-center gap-2 shrink-0">
                               <button
                                 onClick={() => handleOpenEditModal(admin)}
-                                className="px-3.5 py-2 bg-gray-100 hover:bg-black hover:text-white text-gray-900 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs"
+                                className="px-3.5 py-2 bg-gray-100 hover:bg-blue-600 hover:text-white text-gray-900 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs"
                                 title="Edit Department & Module Permissions"
                               >
                                 <span>Edit Access</span>
@@ -3098,158 +3233,268 @@ export default function AdminSettings() {
                 <div>
                   <h3 className="serif text-2xl text-black italic tracking-tighter uppercase font-black flex items-center gap-2">
                     <Truck size={24} className="text-red-600" />
-                    Pathao Courier API Integration
+                    Courier API Integrations
                   </h3>
                   <p className="text-xs text-gray-400 font-semibold mt-1">
-                    Manage Merchant OAuth credentials for automatic order dispatch and tracking.
+                    Manage Courier credentials for automatic order dispatch and tracking.
                   </p>
                 </div>
-                <span className={cn(
-                  "px-3 py-1 text-[10px] font-black uppercase rounded-full border",
-                  pathaoEnabled ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-gray-100 text-gray-500 border-gray-200"
-                )}>
-                  {pathaoEnabled ? 'API Active' : 'API Disabled'}
-                </span>
               </div>
 
-              {/* Pathao Status Card */}
-              <div className="p-6 bg-slate-900 text-white rounded-3xl space-y-4 shadow-xl border border-slate-800">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-red-600/20 text-red-500 rounded-2xl flex items-center justify-center font-black shrink-0">
-                      <Truck size={20} />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-black text-white">Pathao Merchant Credentials</h4>
-                      <p className="text-xs text-slate-400 font-medium">Store ID: {pathaoStoreId || 'Not Set'} ({pathaoEnv.toUpperCase()})</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleTestPathaoConnection}
-                    disabled={isTestingPathao}
-                    className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0"
-                  >
-                    <RefreshCw size={12} className={isTestingPathao ? "animate-spin text-red-400" : "text-emerald-400"} />
-                    <span>Test OAuth Connection</span>
-                  </button>
-                </div>
+              {/* Courier Sub Tabs */}
+              <div className="flex gap-2 p-1.5 bg-gray-100 rounded-2xl w-fit">
+                <button
+                  type="button"
+                  onClick={() => setCourierSubTab('pathao')}
+                  className={cn(
+                    "px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer",
+                    courierSubTab === 'pathao' ? "bg-white text-black shadow-md" : "text-gray-400 hover:text-black"
+                  )}
+                >
+                  Pathao Courier
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCourierSubTab('steadfast')}
+                  className={cn(
+                    "px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer",
+                    courierSubTab === 'steadfast' ? "bg-white text-black shadow-md" : "text-gray-400 hover:text-black"
+                  )}
+                >
+                  Steadfast Courier
+                </button>
               </div>
 
-              {/* Form Settings */}
-              <form onSubmit={handleSavePathaoConfig} className="space-y-6 bg-gray-50 p-6 md:p-8 rounded-3xl border border-gray-100">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase tracking-wider font-extrabold text-gray-500 block">
-                      Client ID (নম্বর/কোড) *
-                    </label>
-                    <input
-                      type="text"
-                      value={pathaoClientId}
-                      onChange={(e) => setPathaoClientId(e.target.value)}
-                      placeholder="e.g. nXe0A73axr"
-                      required
-                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
-                    />
+              {courierSubTab === 'pathao' ? (
+                <div className="space-y-8">
+                  {/* Pathao Status Card */}
+                  <div className="p-6 bg-slate-900 text-white rounded-3xl space-y-4 shadow-xl border border-slate-800">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-red-600/20 text-red-500 rounded-2xl flex items-center justify-center font-black shrink-0">
+                          <Truck size={20} />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-black text-white">Pathao Merchant Credentials</h4>
+                          <p className="text-xs text-slate-400 font-medium">Store ID: {pathaoStoreId || 'Not Set'} ({pathaoEnv.toUpperCase()})</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleTestPathaoConnection}
+                        disabled={isTestingPathao}
+                        className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0"
+                      >
+                        <RefreshCw size={12} className={isTestingPathao ? "animate-spin text-red-400" : "text-emerald-400"} />
+                        <span>Test OAuth Connection</span>
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase tracking-wider font-extrabold text-gray-500 block">
-                      Client Secret (সিক্রেট কি) *
-                    </label>
-                    <input
-                      type="text"
-                      value={pathaoClientSecret}
-                      onChange={(e) => setPathaoClientSecret(e.target.value)}
-                      placeholder="e.g. 0LyQiusPk4Hgu..."
-                      required
-                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
-                    />
-                  </div>
+                  {/* Form Settings */}
+                  <form onSubmit={handleSavePathaoConfig} className="space-y-6 bg-gray-50 p-6 md:p-8 rounded-3xl border border-gray-100">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-wider font-extrabold text-gray-500 block">
+                          Client ID (নম্বর/কোড) *
+                        </label>
+                        <input
+                          type="text"
+                          value={pathaoClientId}
+                          onChange={(e) => setPathaoClientId(e.target.value)}
+                          placeholder="e.g. nXe0A73axr"
+                          required
+                          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                        />
+                      </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase tracking-wider font-extrabold text-gray-500 block">
-                      Username (ইউজারনেম / ইমেইল) *
-                    </label>
-                    <input
-                      type="email"
-                      value={pathaoUsername}
-                      onChange={(e) => setPathaoUsername(e.target.value)}
-                      placeholder="e.g. eleganbd.ltd@gmail.com"
-                      required
-                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
-                    />
-                  </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-wider font-extrabold text-gray-500 block">
+                          Client Secret (সিক্রেট কি) *
+                        </label>
+                        <input
+                          type="text"
+                          value={pathaoClientSecret}
+                          onChange={(e) => setPathaoClientSecret(e.target.value)}
+                          placeholder="e.g. 0LyQiusPk4Hgu..."
+                          required
+                          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                        />
+                      </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase tracking-wider font-extrabold text-gray-500 block">
-                      Password (পাসওয়ার্ড) *
-                    </label>
-                    <input
-                      type="password"
-                      value={pathaoPassword}
-                      onChange={(e) => setPathaoPassword(e.target.value)}
-                      placeholder="Pathao password..."
-                      required
-                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
-                    />
-                  </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-wider font-extrabold text-gray-500 block">
+                          Username (ইউজারনেম / ইমেইল) *
+                        </label>
+                        <input
+                          type="email"
+                          value={pathaoUsername}
+                          onChange={(e) => setPathaoUsername(e.target.value)}
+                          placeholder="e.g. eleganbd.ltd@gmail.com"
+                          required
+                          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                        />
+                      </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase tracking-wider font-extrabold text-gray-500 block">
-                      Store ID (স্টোর আইডি) *
-                    </label>
-                    <input
-                      type="text"
-                      value={pathaoStoreId}
-                      onChange={(e) => setPathaoStoreId(e.target.value)}
-                      placeholder="e.g. 376372"
-                      required
-                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
-                    />
-                  </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-wider font-extrabold text-gray-500 block">
+                          Password (পাসওয়ার্ড) *
+                        </label>
+                        <input
+                          type="password"
+                          value={pathaoPassword}
+                          onChange={(e) => setPathaoPassword(e.target.value)}
+                          placeholder="Pathao password..."
+                          required
+                          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                        />
+                      </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase tracking-wider font-extrabold text-gray-500 block">
-                      Base URL (Pathao Endpoint)
-                    </label>
-                    <input
-                      type="text"
-                      value={pathaoBaseUrl}
-                      onChange={(e) => setPathaoBaseUrl(e.target.value)}
-                      placeholder="https://api-hermes.pathao.com"
-                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
-                    />
-                  </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-wider font-extrabold text-gray-500 block">
+                          Store ID (স্টোর আইডি) *
+                        </label>
+                        <input
+                          type="text"
+                          value={pathaoStoreId}
+                          onChange={(e) => setPathaoStoreId(e.target.value)}
+                          placeholder="e.g. 376372"
+                          required
+                          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-wider font-extrabold text-gray-500 block">
+                          Base URL (Pathao Endpoint)
+                        </label>
+                        <input
+                          type="text"
+                          value={pathaoBaseUrl}
+                          onChange={(e) => setPathaoBaseUrl(e.target.value)}
+                          placeholder="https://api-hermes.pathao.com"
+                          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-200">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={pathaoEnabled}
+                          onChange={(e) => setPathaoEnabled(e.target.checked)}
+                          className="w-4 h-4 text-red-600 rounded focus:ring-red-500 border-gray-300"
+                        />
+                        <span className="text-xs font-extrabold text-gray-700 uppercase tracking-wider">
+                          Enable Pathao Automatic Dispatch
+                        </span>
+                      </label>
+
+                      <button
+                        type="submit"
+                        disabled={isSavingPathao}
+                        className="w-full sm:w-auto px-8 py-3.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs uppercase tracking-widest rounded-2xl transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        {isSavingPathao ? (
+                          <RefreshCw size={14} className="animate-spin text-white" />
+                        ) : (
+                          <Save size={14} />
+                        )}
+                        <span>Save Pathao Credentials</span>
+                      </button>
+                    </div>
+                  </form>
                 </div>
+              ) : (
+                <div className="space-y-8">
+                  {/* Steadfast Status Card */}
+                  <div className="p-6 bg-slate-900 text-white rounded-3xl space-y-4 shadow-xl border border-slate-800">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-indigo-600/20 text-indigo-400 rounded-2xl flex items-center justify-center font-black shrink-0">
+                          <Truck size={20} />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-black text-white">Steadfast Merchant Credentials</h4>
+                          <p className="text-xs text-slate-400 font-medium">
+                            Status: {steadfastEnabled ? 'Activated (Direct Booking Ready)' : 'Disabled'}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleTestSteadfastConnection}
+                        disabled={isTestingSteadfast}
+                        className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0"
+                      >
+                        <RefreshCw size={12} className={isTestingSteadfast ? "animate-spin text-indigo-400" : "text-emerald-400"} />
+                        <span>Test API Key Connection</span>
+                      </button>
+                    </div>
+                  </div>
 
-                <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-200">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={pathaoEnabled}
-                      onChange={(e) => setPathaoEnabled(e.target.checked)}
-                      className="w-4 h-4 text-red-600 rounded focus:ring-red-500 border-gray-300"
-                    />
-                    <span className="text-xs font-extrabold text-gray-700 uppercase tracking-wider">
-                      Enable Pathao Automatic Dispatch
-                    </span>
-                  </label>
+                  {/* Steadfast Form Settings */}
+                  <form onSubmit={handleSaveSteadfastConfig} className="space-y-6 bg-gray-50 p-6 md:p-8 rounded-3xl border border-gray-100">
+                    <div className="grid grid-cols-1 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-wider font-extrabold text-gray-500 block">
+                          API Key (এপিআই কি) *
+                        </label>
+                        <input
+                          type="text"
+                          value={steadfastApiKey}
+                          onChange={(e) => setSteadfastApiKey(e.target.value)}
+                          placeholder="e.g. steadfast_api_key_xxxxxxxxxxxxx"
+                          required
+                          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                        />
+                      </div>
 
-                  <button
-                    type="submit"
-                    disabled={isSavingPathao}
-                    className="w-full sm:w-auto px-8 py-3.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs uppercase tracking-widest rounded-2xl transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    {isSavingPathao ? (
-                      <RefreshCw size={14} className="animate-spin text-white" />
-                    ) : (
-                      <Save size={14} />
-                    )}
-                    <span>Save Pathao Credentials</span>
-                  </button>
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase tracking-wider font-extrabold text-gray-500 block">
+                          Secret Key (সিক্রেট কি) *
+                        </label>
+                        <input
+                          type="text"
+                          value={steadfastSecretKey}
+                          onChange={(e) => setSteadfastSecretKey(e.target.value)}
+                          placeholder="e.g. steadfast_secret_key_xxxxxxxxxxxxx"
+                          required
+                          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-200">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={steadfastEnabled}
+                          onChange={(e) => setSteadfastEnabled(e.target.checked)}
+                          className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300"
+                        />
+                        <span className="text-xs font-extrabold text-gray-700 uppercase tracking-wider">
+                          Enable Steadfast Automatic Dispatch
+                        </span>
+                      </label>
+
+                      <button
+                        type="submit"
+                        disabled={isSavingSteadfast}
+                        className="w-full sm:w-auto px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs uppercase tracking-widest rounded-2xl transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        {isSavingSteadfast ? (
+                          <RefreshCw size={14} className="animate-spin text-white" />
+                        ) : (
+                          <Save size={14} />
+                        )}
+                        <span>Save Steadfast Credentials</span>
+                      </button>
+                    </div>
+                  </form>
                 </div>
-              </form>
+              )}
             </div>
           )}
 
@@ -3351,7 +3596,7 @@ export default function AdminSettings() {
                       placeholder="Search products..."
                       value={offerSearchQuery}
                       onChange={(e) => setOfferSearchQuery(e.target.value)}
-                      className="w-full pl-8 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-black transition-colors"
+                      className="w-full pl-8 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-colors"
                     />
                     <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
                   </div>
@@ -3450,7 +3695,7 @@ export default function AdminSettings() {
                     value={editOfferName}
                     onChange={(e) => setEditOfferName(e.target.value)}
                     placeholder="Enter product title"
-                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-black transition-colors"
+                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-colors"
                   />
                 </div>
 
@@ -3463,7 +3708,7 @@ export default function AdminSettings() {
                       value={editOfferPrice}
                       onChange={(e) => setEditOfferPrice(Number(e.target.value))}
                       placeholder="e.g. 1200"
-                      className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-black transition-colors"
+                      className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-colors"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -3473,7 +3718,7 @@ export default function AdminSettings() {
                       value={editOfferRegularPrice}
                       onChange={(e) => setEditOfferRegularPrice(e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="e.g. 1600"
-                      className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-black transition-colors"
+                      className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-colors"
                     />
                   </div>
                 </div>
@@ -3486,7 +3731,7 @@ export default function AdminSettings() {
                     onChange={(e) => setEditOfferDescription(e.target.value)}
                     placeholder="Add materials, fitting, details..."
                     rows={4}
-                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-black transition-colors resize-none animate-none"
+                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-colors resize-none animate-none"
                   />
                 </div>
 

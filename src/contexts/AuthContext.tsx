@@ -278,7 +278,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await createUserWithEmailAndPassword(auth, email, pass);
   };
 
+  useEffect(() => {
+    if (!currentUser || !isAdmin) return;
+
+    const updateHeartbeat = async () => {
+      try {
+        const adminRef = doc(db, 'admins', currentUser.uid);
+        await setDoc(adminRef, {
+          email: currentUser.email || '',
+          lastActive: Date.now(),
+          isOnline: true,
+          updatedAt: Date.now()
+        }, { merge: true });
+      } catch (e) {
+        // Silently ignore to avoid noise
+      }
+    };
+
+    // Update immediately on mount / state transition
+    updateHeartbeat();
+
+    // Update status every 30 seconds
+    const interval = setInterval(updateHeartbeat, 30000);
+
+    return () => clearInterval(interval);
+  }, [currentUser, isAdmin]);
+
   const signOut = async () => {
+    if (currentUser && isAdmin) {
+      try {
+        const adminRef = doc(db, 'admins', currentUser.uid);
+        await setDoc(adminRef, {
+          isOnline: false,
+          lastActive: Date.now()
+        }, { merge: true });
+      } catch (e) {
+        // Silently ignore
+      }
+    }
     await firebaseSignOut(auth);
   };
 

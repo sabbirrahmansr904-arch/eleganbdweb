@@ -77,13 +77,13 @@ export default function AdminInventoryLog() {
       <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm space-y-8">
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="relative flex-1 group">
-            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-black transition-colors" size={18} />
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-600 transition-colors" size={18} />
             <input
               type="text"
               placeholder="Search by product, SKU, user, or note..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-14 pr-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-black transition-all text-xs font-black uppercase tracking-widest italic text-black placeholder:text-gray-400"
+              className="w-full pl-14 pr-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all text-xs font-black uppercase tracking-widest italic text-black placeholder:text-gray-400"
             />
           </div>
           

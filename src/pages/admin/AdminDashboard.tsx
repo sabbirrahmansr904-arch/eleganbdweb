@@ -3,8 +3,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { db } from '../../lib/firebase';
+import { collection, onSnapshot } from 'firebase/firestore';
+
+const formatLastActive = (timestamp: number) => {
+  if (!timestamp) return 'Offline';
+  const diff = Date.now() - timestamp;
+  if (diff < 60000) return 'Just now';
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+};
 import { 
   Package, 
   ShoppingBag,
@@ -44,6 +58,40 @@ export default function AdminDashboard(): React.JSX.Element {
   const { transactions } = useInventory();
   const { currency, rate } = useCurrency();
   const [daysRange, setDaysRange] = useState<7 | 30 | 90 | 365>(30);
+  const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [loadingAdmins, setLoadingAdmins] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'admins'), (snapshot) => {
+      const list: any[] = [];
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        list.push({
+          id: docSnap.id,
+          ...data,
+          email: data.email || docSnap.id,
+          lastActive: data.lastActive || 0,
+          isOnline: data.isOnline || false,
+          department: data.department || 'Sales Executive Department'
+        });
+      });
+      
+      list.sort((a, b) => {
+        const aOnline = a.isOnline && (Date.now() - (a.lastActive || 0) < 90000);
+        const bOnline = b.isOnline && (Date.now() - (b.lastActive || 0) < 90000);
+        if (aOnline && !bOnline) return -1;
+        if (!aOnline && bOnline) return 1;
+        return (b.lastActive || 0) - (a.lastActive || 0);
+      });
+      setAdminUsers(list);
+      setLoadingAdmins(false);
+    }, (err) => {
+      console.error("Admins dashboard status sync error:", err);
+      setLoadingAdmins(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   // Use the actual orders from database
   const effectiveOrders = orders;
@@ -334,11 +382,11 @@ export default function AdminDashboard(): React.JSX.Element {
         </div>
       </div>
 
-      {/* 4. LATEST ORDERS & STOCK ALERT ROW */}
+      {/* 4. LATEST ORDERS, STOCK ALERT & ACTIVE ADMINS ROW */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Latest Orders Column */}
-        <div className="bg-white rounded-[20px] p-6 border border-[#EFF2F6] shadow-xs lg:col-span-2 flex flex-col justify-between">
+        <div className="bg-white rounded-[20px] p-6 border border-[#EFF2F6] shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex justify-between items-center mb-5">
               <h3 className="text-base font-black text-black tracking-tight uppercase tracking-wide">Latest orders</h3>
@@ -406,6 +454,71 @@ export default function AdminDashboard(): React.JSX.Element {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+
+        {/* Active Admins Column */}
+        <div className="bg-white rounded-[20px] p-6 border border-[#EFF2F6] shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-base font-black text-black tracking-tight uppercase tracking-wide">Active Admins</h3>
+              <span className="bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-widest flex items-center gap-1 animate-pulse">
+                Live
+              </span>
+            </div>
+            
+            {loadingAdmins ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <span className="w-6 h-6 border-2 border-brand-gold/30 border-t-indigo-600 rounded-full animate-spin mb-2" />
+                <p className="text-[9px] uppercase tracking-widest font-black text-gray-400">Loading active admins...</p>
+              </div>
+            ) : adminUsers.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-xs text-gray-400 font-bold italic">No admins currently configured.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-[#EFF2F6] max-h-[300px] overflow-y-auto pr-1">
+                {adminUsers.map((admin, index) => {
+                  const lastActiveTime = admin.lastActive || 0;
+                  const isOnlineNow = admin.isOnline && (Date.now() - lastActiveTime < 90000);
+                  const isCeo = admin.email?.toLowerCase().trim() === 'eleganbd.ltd@gmail.com';
+
+                  return (
+                    <div key={admin.id || index} className="py-3 flex items-center justify-between first:pt-0 last:pb-0">
+                      <div className="space-y-0.5 min-w-0 pr-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-xs font-black text-black truncate max-w-[130px]" title={admin.email}>
+                            {admin.email?.split('@')[0]}
+                          </p>
+                          {isCeo && (
+                            <span className="text-[8px] font-black uppercase bg-amber-50 text-amber-700 px-1 py-0.2 rounded border border-amber-200">
+                              CEO
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider truncate max-w-[140px]">
+                          {admin.department}
+                        </p>
+                      </div>
+
+                      <div className="text-right flex flex-col items-end gap-0.5">
+                        {isOnlineNow ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Online
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-gray-50 text-gray-500 border border-gray-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                            {lastActiveTime > 0 ? formatLastActive(lastActiveTime) : 'Offline'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 

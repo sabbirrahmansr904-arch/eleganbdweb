@@ -369,7 +369,7 @@ export default function AdminMasterTable(): React.JSX.Element {
               placeholder="Search..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 bg-white border border-gray-200 text-[10px] font-semibold rounded-lg placeholder-gray-400 text-black focus:ring-1 focus:ring-black/10 focus:border-black outline-none transition-all"
+              className="w-full pl-8 pr-3 py-1.5 bg-white border border-gray-200 text-[10px] font-semibold rounded-lg placeholder-gray-400 text-black focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all"
             />
           </div>
 
@@ -378,7 +378,7 @@ export default function AdminMasterTable(): React.JSX.Element {
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full pl-3 pr-8 py-1.5 bg-white border border-gray-200 text-[9px] font-black uppercase tracking-wider rounded-lg text-gray-500 focus:ring-1 focus:ring-black/10 focus:border-black outline-none transition-all appearance-none cursor-pointer"
+              className="w-full pl-3 pr-8 py-1.5 bg-white border border-gray-200 text-[9px] font-black uppercase tracking-wider rounded-lg text-gray-500 focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all appearance-none cursor-pointer"
             >
               <option value="All">CAT: ALL</option>
               {categoriesList.map(cat => (
@@ -393,7 +393,7 @@ export default function AdminMasterTable(): React.JSX.Element {
             <select
               value={stockFilter}
               onChange={(e) => setStockFilter(e.target.value)}
-              className="w-full pl-3 pr-8 py-1.5 bg-white border border-gray-200 text-[9px] font-black uppercase tracking-wider rounded-lg text-gray-500 focus:ring-1 focus:ring-black/10 focus:border-black outline-none transition-all appearance-none cursor-pointer"
+              className="w-full pl-3 pr-8 py-1.5 bg-white border border-gray-200 text-[9px] font-black uppercase tracking-wider rounded-lg text-gray-500 focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all appearance-none cursor-pointer"
             >
               <option value="All">STOCK: ALL</option>
               <option value="Low">LOW STOCK (1-5)</option>

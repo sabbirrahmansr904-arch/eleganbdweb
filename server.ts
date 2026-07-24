@@ -362,6 +362,113 @@ async function startServer() {
     }
   });
 
+  // API route to test Steadfast Courier connection
+  app.post("/api/steadfast/test-connection", async (req, res) => {
+    const { apiKey, secretKey } = req.body;
+    if (!apiKey || !secretKey) {
+      return res.status(400).json({ success: false, error: "Please fill in API Key and Secret Key." });
+    }
+
+    try {
+      const response = await fetch(`https://cpanel.steadfast.com.bd/api/v1/get_balance`, {
+        method: 'GET',
+        headers: {
+          'Api-Key': apiKey,
+          'Secret-Key': secretKey,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data: any = await response.json();
+      if (response.ok && data.status === 200) {
+        return res.json({ success: true, balance: data.current_balance });
+      } else {
+        const errorMsg = data.message || "Steadfast Authentication Failed";
+        return res.status(400).json({ success: false, error: errorMsg });
+      }
+    } catch (error: any) {
+      console.error("Steadfast test connection error:", error);
+      return res.status(500).json({ success: false, error: error.message || "Failed to connect to Steadfast API server" });
+    }
+  });
+
+  // API route to create/book order in Steadfast Courier
+  app.post("/api/steadfast/create-order", async (req, res) => {
+    const { order, credentials } = req.body;
+
+    if (!order) {
+      return res.status(400).json({ success: false, error: "Order details are missing" });
+    }
+
+    let creds = credentials;
+    if (!creds || !creds.apiKey) {
+      try {
+        const sfRef = doc(db, 'config', 'steadfast');
+        const sfSnap = await getDoc(sfRef);
+        if (sfSnap.exists()) {
+          creds = sfSnap.data();
+        }
+      } catch (e) {
+        console.warn("Could not load Steadfast credentials from Firestore", e);
+      }
+    }
+
+    if (!creds || !creds.apiKey || !creds.secretKey) {
+      return res.status(400).json({ success: false, error: "Steadfast API credentials missing in Admin Settings" });
+    }
+
+    try {
+      let phone = (order.phone || '').replace(/[^0-9]/g, '');
+      if (phone.startsWith('880')) phone = phone.slice(2);
+      if (!phone.startsWith('0') && phone.length === 10) phone = '0' + phone;
+
+      let address = `${order.address || ''}${order.thana ? `, ${order.thana}` : ''}${order.city ? `, ${order.city}` : ''}`.trim();
+      if (address.length < 10) {
+        address = (address + ', Dhaka, Bangladesh').trim();
+      }
+
+      const itemsDesc = (order.items || []).map((i: any) => `${i.name}${i.selectedSize ? ` (${i.selectedSize})` : ''} x${i.quantity || 1}`).join(', ');
+
+      const payload = {
+        invoice: order.id,
+        recipient_name: order.customerName || 'Customer',
+        recipient_phone: phone,
+        recipient_address: address,
+        cod_amount: (order.paymentMethod === 'COD' || order.paymentStatus !== 'Paid') ? Number(order.total || 0) : 0,
+        note: order.orderNote || itemsDesc || 'Garments / Apparel'
+      };
+
+      const orderRes = await fetch(`https://cpanel.steadfast.com.bd/api/v1/create_order`, {
+        method: 'POST',
+        headers: {
+          'Api-Key': creds.apiKey,
+          'Secret-Key': creds.secretKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const orderData: any = await orderRes.json();
+
+      if (orderRes.ok && orderData.status === 200) {
+        const consignment = orderData.order;
+        return res.json({
+          success: true,
+          consignmentId: consignment.consignment_id,
+          trackingCode: consignment.tracking_code,
+          status: consignment.status,
+          rawResponse: orderData
+        });
+      } else {
+        const errorMsg = orderData.message || (orderData.errors ? JSON.stringify(orderData.errors) : "Steadfast Order Creation Failed");
+        return res.status(400).json({ success: false, error: errorMsg });
+      }
+    } catch (error: any) {
+      console.error("Steadfast create order error:", error);
+      return res.status(500).json({ success: false, error: error.message || "Failed to create order in Steadfast" });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

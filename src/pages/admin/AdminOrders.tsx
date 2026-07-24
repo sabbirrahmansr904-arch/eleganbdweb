@@ -141,6 +141,12 @@ export default function AdminOrders(): React.JSX.Element {
   const [pathaoDeliveryType, setPathaoDeliveryType] = useState('48'); // 48: Normal, 12 or 24: Express
   const [pathaoSpecialInstruction, setPathaoSpecialInstruction] = useState('');
   const [pathaoSuccessResult, setPathaoSuccessResult] = useState<{ success: boolean; consignment_id?: string; sms_text?: string } | null>(null);
+
+  // Steadfast Booking Modal States
+  const [steadfastBookingOrder, setSteadfastBookingOrder] = useState<Order | null>(null);
+  const [isBookingToSteadfast, setIsBookingToSteadfast] = useState(false);
+  const [steadfastSuccessResult, setSteadfastSuccessResult] = useState<{ success: boolean; consignment_id: string; tracking_code: string; sms_text: string } | null>(null);
+  const [steadfastNote, setSteadfastNote] = useState('');
   
   // HTML5 QrCode camera tracking states
   const html5QrcodeRef = React.useRef<Html5Qrcode | null>(null);
@@ -774,6 +780,56 @@ export default function AdminOrders(): React.JSX.Element {
       toast.error(`Network Error: ${err.message}`, { id: loadingToast });
     } finally {
       setBookingToPathao(false);
+    }
+  };
+
+  const handleBookSteadfast = async () => {
+    if (!steadfastBookingOrder) return;
+    setIsBookingToSteadfast(true);
+
+    const updatedOrder = {
+      ...steadfastBookingOrder,
+      orderNote: steadfastNote
+    };
+
+    const shortCode = steadfastBookingOrder.id.slice(-6).toUpperCase();
+    const loadingToast = toast.loading(`Booking Order #${shortCode} with Steadfast API...`);
+
+    try {
+      const res = await fetch('/api/steadfast/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order: updatedOrder })
+      });
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        const consignmentId = data.consignmentId || "SF000000";
+        const trackingCode = data.trackingCode || consignmentId;
+        if (updateOrder) {
+          await updateOrder(steadfastBookingOrder.id, { 
+            status: 'Shipped', 
+            trackingCode: trackingCode, 
+            steadfastConsignmentId: consignmentId 
+          });
+        } else {
+          await updateOrderStatus(steadfastBookingOrder.id, 'Shipped');
+        }
+
+        setSteadfastSuccessResult({
+          success: true,
+          consignment_id: String(consignmentId),
+          tracking_code: trackingCode,
+          sms_text: `Dear ${steadfastBookingOrder.customerName || 'Customer'}, your order #${shortCode} has been booked via Steadfast Courier. Tracking code is ${trackingCode}. Thank you for choosing ELEGAN.`
+        });
+        toast.success("Successfully booked Steadfast courier!", { id: loadingToast });
+      } else {
+        toast.error(`Steadfast Error: ${data.error || 'Failed to book order'}`, { id: loadingToast });
+      }
+    } catch (err: any) {
+      toast.error(`Network Error: ${err.message}`, { id: loadingToast });
+    } finally {
+      setIsBookingToSteadfast(false);
     }
   };
 
@@ -1640,7 +1696,7 @@ export default function AdminOrders(): React.JSX.Element {
         )}
 
         {/* Table representation */}
-        <div className="overflow-x-auto elegant-scrollbar pb-3 min-h-[480px]">
+        <div className="overflow-x-auto elegant-scrollbar pb-3 min-h-[720px]">
           <table className="w-full text-left border-collapse min-w-[1500px]">
             <thead>
               <tr className="border-b border-slate-100 text-[11px] font-black tracking-wider text-slate-400 h-14 bg-white select-none uppercase">
@@ -4688,7 +4744,156 @@ export default function AdminOrders(): React.JSX.Element {
                         setPathaoBookingOrder(null);
                         setPathaoSuccessResult(null);
                       }}
-                      className="w-full py-4 bg-slate-900 hover:bg-black text-white rounded-[16px] text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 cursor-pointer"
+                      className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-[16px] text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 cursor-pointer"
+                    >
+                      Done
+                    </button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* STEADFAST BOOKING CUSTOM MODAL */}
+      <AnimatePresence>
+        {steadfastBookingOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-[28px] w-full max-w-[540px] overflow-hidden shadow-2xl border border-gray-100 flex flex-col font-sans max-h-[92vh]"
+            >
+              {/* Modal Header */}
+              <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-indigo-50/20">
+                <div className="flex items-center gap-3 text-left">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-100">
+                    <Send className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black text-slate-900 tracking-tight leading-tight">Book via Steadfast</h2>
+                    <p className="text-[11px] text-slate-400 font-bold mt-0.5">Order {steadfastBookingOrder.id.slice(-8).toUpperCase()}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => {
+                    setSteadfastBookingOrder(null);
+                    setSteadfastSuccessResult(null);
+                  }}
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-all cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 overflow-y-auto bg-[#F1F3F7] p-6 space-y-4 text-left">
+                {!steadfastSuccessResult ? (
+                  <>
+                    {/* Recipient Box */}
+                    <div className="bg-white/90 border border-white rounded-[20px] p-5 space-y-3 shadow-[0_4px_20px_rgba(0,0,0,0.015)]">
+                      <p className="text-[9px] font-extrabold text-slate-400 tracking-widest uppercase">Recipient</p>
+                      <div className="space-y-2.5">
+                        <div className="flex items-center gap-2.5 text-slate-800">
+                          <User size={15} className="text-slate-400 shrink-0" />
+                          <span className="text-sm font-black">{steadfastBookingOrder.customerName}</span>
+                        </div>
+                        <div className="flex items-center gap-2.5 text-slate-600">
+                          <Phone size={15} className="text-slate-400 shrink-0" />
+                          <span className="text-xs font-bold font-mono">{steadfastBookingOrder.phone}</span>
+                        </div>
+                        <div className="flex items-start gap-2.5 text-slate-500 leading-relaxed">
+                          <MapPin size={15} className="text-slate-400 shrink-0 mt-0.5" />
+                          <span className="text-xs font-medium">{steadfastBookingOrder.address}, {steadfastBookingOrder.city}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-slate-400 font-bold">COD Amount:</span>
+                          <span className="text-sm font-black text-[#FF5A5F]">{formatPrice(steadfastBookingOrder.total)}</span>
+                        </div>
+                        <span className="text-xs text-slate-400 font-bold">• Items: {steadfastBookingOrder.items.reduce((sum, item) => sum + (item.quantity || 1), 0)}</span>
+                      </div>
+                    </div>
+
+                    {/* Note / Special Instructions */}
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-extrabold text-slate-500 tracking-widest uppercase ml-1">Special Instruction / Note</label>
+                      <textarea 
+                        value={steadfastNote}
+                        onChange={(e) => setSteadfastNote(e.target.value)}
+                        placeholder="Deliver safely, call before delivery..."
+                        className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-4 py-3 text-xs text-slate-800 font-bold h-24 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all resize-none leading-normal"
+                      />
+                    </div>
+
+                    {/* Action Button */}
+                    <div className="pt-3">
+                      <button
+                        onClick={handleBookSteadfast}
+                        disabled={isBookingToSteadfast}
+                        className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[16px] text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2.5 transition-all shadow-md hover:shadow-lg shadow-indigo-500/10 active:scale-98 cursor-pointer disabled:opacity-80 disabled:cursor-not-allowed"
+                      >
+                        {isBookingToSteadfast ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            <span>Booking parcel...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4 fill-white" />
+                            <span>Book Steadfast Delivery</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  /* Success State Box */
+                  <div className="py-6 flex flex-col items-center justify-center text-center space-y-6">
+                    <div className="w-20 h-20 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 animate-pulse">
+                      <CheckCircle2 size={56} className="stroke-[2.5]" />
+                    </div>
+                    
+                    <div className="space-y-1.5">
+                      <h3 className="text-xl font-black text-slate-900">Successfully Booked!</h3>
+                      <p className="text-xs text-slate-500 font-medium">Your order has been recorded into the Steadfast network.</p>
+                    </div>
+
+                    {/* Details Box */}
+                    <div className="w-full bg-white border border-indigo-100 rounded-[20px] p-5 space-y-4 shadow-sm text-left">
+                      <div>
+                        <span className="text-[9px] font-black tracking-widest uppercase text-slate-400">Consignment ID / Tracking Code</span>
+                        <div className="mt-1 flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3">
+                          <span className="text-lg font-black text-indigo-800 font-mono tracking-wider">
+                            {steadfastSuccessResult.tracking_code}
+                          </span>
+                          <span className="text-[10px] font-black text-indigo-600 bg-indigo-100 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                            Active tracking
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-slate-100 pt-3">
+                        <span className="text-[9px] font-black tracking-widest uppercase text-slate-400">SMS Notification Details</span>
+                        <div className="mt-2 bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-600 leading-relaxed font-mono relative">
+                          <div className="absolute top-1.5 right-2 w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
+                          <div className="absolute top-1.5 right-2 w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                          <p className="font-sans pr-4">{steadfastSuccessResult.sms_text}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Done Button */}
+                    <button
+                      onClick={() => {
+                        setSteadfastBookingOrder(null);
+                        setSteadfastSuccessResult(null);
+                      }}
+                      className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-[16px] text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 cursor-pointer"
                     >
                       Done
                     </button>

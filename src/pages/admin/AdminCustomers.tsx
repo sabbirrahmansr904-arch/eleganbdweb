@@ -101,13 +101,13 @@ export default function AdminCustomers() {
       <div className="bg-white border border-gray-100 shadow-sm rounded-3xl overflow-hidden">
         <div className="p-8 border-b border-gray-100 flex flex-col md:flex-row gap-6 justify-between items-center">
           <div className="relative w-full md:w-[450px] group">
-            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-black transition-colors" size={18} />
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-blue-600 transition-colors" size={18} />
             <input 
               type="text"
               placeholder="Search by name, email or telephone identification..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-14 pr-6 py-4 outline-none focus:border-black text-black placeholder:text-gray-300 transition-all text-sm font-medium"
+              className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-14 pr-6 py-4 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 text-black placeholder:text-gray-300 transition-all text-sm font-medium"
             />
           </div>
           <button 
