@@ -239,6 +239,7 @@ export default function AdminLayout() {
         { name: 'Settings', path: '/admin/settings', icon: Settings, perm: 'settings' },
         { name: 'Branding', path: '/admin/settings?tab=Branding', icon: Palette, perm: 'settings' },
         { name: 'Banners', path: '/admin/settings?tab=Banners', icon: Globe, perm: 'settings' },
+        { name: 'Offers Settings', path: '/admin/settings?tab=Offers', icon: Tag, perm: 'settings' },
         { name: 'Notifications', path: '/admin/settings?tab=Notifications', icon: Bell, perm: 'settings' },
         { name: 'Pathao Courier', path: '/admin/settings?tab=Courier', icon: Truck, perm: 'settings' },
       ]

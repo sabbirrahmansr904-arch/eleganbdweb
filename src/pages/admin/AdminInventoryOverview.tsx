@@ -166,7 +166,7 @@ export default function AdminInventoryOverview(): React.JSX.Element {
           {isActiveFilter && (
             <button 
               onClick={handleReset} 
-              className="rounded-full px-5 py-2.5 bg-[#0C1421] text-white hover:bg-gray-800 transition-all uppercase font-black text-[10px] tracking-wider flex items-center space-x-1.5 shadow-[0_4px_12px_rgba(12,20,33,0.15)]"
+              className="rounded-full px-5 py-2.5 bg-blue-600 text-white hover:bg-blue-700 transition-all uppercase font-black text-[10px] tracking-wider flex items-center space-x-1.5 shadow-[0_4px_12px_rgba(37,99,235,0.15)]"
             >
               <XCircle size={14} className="stroke-[2.5]" />
               <span>Clear All Filters</span>

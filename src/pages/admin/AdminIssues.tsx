@@ -332,7 +332,7 @@ export default function AdminIssues() {
                     className={cn(
                       "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all",
                       activeTab === tab 
-                        ? "bg-[#0C1421] text-white border-[#0C1421] shadow-md" 
+                        ? "bg-blue-600 text-white border-blue-600 shadow-md" 
                         : "bg-white text-gray-400 border-gray-100 hover:border-gray-200"
                     )}
                   >
@@ -1120,7 +1120,7 @@ export default function AdminIssues() {
                       `);
                       iframeDoc.close();
                     }}
-                    className="bg-[#0C1421] hover:bg-black text-white font-black text-xs px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-md hover:shadow-lg"
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-black text-xs px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-md hover:shadow-lg"
                   >
                     <Printer size={13} />
                     <span>Print Now</span>

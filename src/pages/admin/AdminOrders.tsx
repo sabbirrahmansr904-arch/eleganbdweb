@@ -36,7 +36,8 @@ import {
   Edit3,
   Trash2,
   DollarSign,
-  Clock
+  Clock,
+  Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatPrice, cn } from '../../lib/utils';
@@ -46,6 +47,7 @@ import { useProducts } from '../../contexts/ProductContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Order, CartItem } from '../../types';
 import { useNavigate } from 'react-router-dom';
+import { DISTRICT_THANAS } from '../../data/locations';
 import { Html5Qrcode } from 'html5-qrcode';
 
 const formatOrderDate = (dateStr: string) => {
@@ -129,13 +131,24 @@ export default function AdminOrders(): React.JSX.Element {
   const [showLiveCameraSimulator, setShowLiveCameraSimulator] = useState(false);
   const [bookingToPathao, setBookingToPathao] = useState(false);
   
+  // Pathao Booking Modal States
+  const [pathaoBookingOrder, setPathaoBookingOrder] = useState<Order | null>(null);
+  const [pathaoPickupStore, setPathaoPickupStore] = useState('Eleganbd—198/3 East Ahmed Nagar Paikpara Habuler Pukurpar Madrasha Galli, Dhaka 1216');
+  const [pathaoCity, setPathaoCity] = useState('1'); // Default to Dhaka City ID
+  const [pathaoZone, setPathaoZone] = useState('');
+  const [pathaoArea, setPathaoArea] = useState('');
+  const [pathaoWeight, setPathaoWeight] = useState('0.5');
+  const [pathaoDeliveryType, setPathaoDeliveryType] = useState('48'); // 48: Normal, 12 or 24: Express
+  const [pathaoSpecialInstruction, setPathaoSpecialInstruction] = useState('');
+  const [pathaoSuccessResult, setPathaoSuccessResult] = useState<{ success: boolean; consignment_id?: string; sms_text?: string } | null>(null);
+  
   // HTML5 QrCode camera tracking states
   const html5QrcodeRef = React.useRef<Html5Qrcode | null>(null);
   const [cameraPermissionError, setCameraPermissionError] = useState<string | null>(null);
   const [isCameraScannerActive, setIsCameraScannerActive] = useState(false);
   
   // Pagination State
-  const [visibleCount, setVisibleCount] = useState(15);
+  const [visibleCount, setVisibleCount] = useState(50);
   
   // Bulk Selection
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
@@ -708,6 +721,62 @@ export default function AdminOrders(): React.JSX.Element {
     toast.success(`Scanned Order #${order.id.slice(-6).toUpperCase()}!`);
   };
 
+  const handleBookPathao = async () => {
+    if (!pathaoBookingOrder) return;
+    setBookingToPathao(true);
+    
+    // Build the custom order object to send to the backend
+    const updatedOrder = {
+      ...pathaoBookingOrder,
+      cityId: Number(pathaoCity),
+      zoneId: Number(pathaoZone) || 1,
+      areaId: Number(pathaoArea) || 1,
+      orderNote: pathaoSpecialInstruction,
+      item_weight: Number(pathaoWeight) || 0.5,
+      delivery_type: Number(pathaoDeliveryType) || 48
+    };
+
+    const shortCode = pathaoBookingOrder.id.slice(-6).toUpperCase();
+    const loadingToast = toast.loading(`Booking Order #${shortCode} with Pathao API...`);
+
+    try {
+      const res = await fetch('/api/pathao/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order: updatedOrder })
+      });
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        const consignment_id = data.consignment_id || "PL-000000";
+        // Update Firestore status
+        if (updateOrder) {
+          await updateOrder(pathaoBookingOrder.id, { 
+            status: 'Shipped', 
+            trackingCode: consignment_id, 
+            pathaoConsignmentId: consignment_id 
+          });
+        } else {
+          await updateOrderStatus(pathaoBookingOrder.id, 'Shipped');
+        }
+
+        // Display success box and mock SMS send info
+        setPathaoSuccessResult({
+          success: true,
+          consignment_id,
+          sms_text: `Dear ${pathaoBookingOrder.customerName || 'Customer'}, your order #${shortCode} has been booked via Pathao Courier. Tracking Consignment ID is ${consignment_id}. Thank you for choosing ELEGAN.`
+        });
+        toast.success("Successfully booked Pathao courier!", { id: loadingToast });
+      } else {
+        toast.error(`Pathao Error: ${data.error || 'Failed to book order'}`, { id: loadingToast });
+      }
+    } catch (err: any) {
+      toast.error(`Network Error: ${err.message}`, { id: loadingToast });
+    } finally {
+      setBookingToPathao(false);
+    }
+  };
+
   const handleConfirmPathaoEntry = async () => {
     if (!activeScanOrder) return;
     
@@ -879,6 +948,194 @@ export default function AdminOrders(): React.JSX.Element {
       toast.success('Spreadsheet exported successfully');
     } catch {
       toast.error('Failed to export data');
+    }
+  };
+
+  const handleExportSelectedCSV = () => {
+    try {
+      if (selectedOrderIds.length === 0) {
+        toast.error('No orders selected');
+        return;
+      }
+
+      const selectedOrders = orders.filter(o => selectedOrderIds.includes(o.id));
+
+      let csvContent = 'DATE,TIME,ORDER_NO,INVOICE_BY,INVOICE_NO,CUSTOMER_NAME,PHONE,ADDRESS,CITY,DELIVERY_CHARGE,TOTAL_TOTAL,STATUS\r\n';
+
+      selectedOrders.forEach(o => {
+        const dateObj = new Date(o.createdAt);
+        const dateStr = dateObj.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: '2-digit' });
+        const timeStr = dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true });
+        
+        const row = [
+          `"${dateStr}"`,
+          `"${timeStr}"`,
+          `"${o.id}"`,
+          `"${getInvoiceBy(o)}"`,
+          `"${o.id}"`,
+          `"${o.customerName.replace(/"/g, '""')}"`,
+          `"${o.phone}"`,
+          `"${o.address.replace(/"/g, '""')}"`,
+          `"${o.city}"`,
+          o.deliveryCharge,
+          o.total,
+          `"${o.status}"`
+        ].join(',');
+        csvContent += row + '\r\n';
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Elegan_BD_Selected_Orders_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success(`${selectedOrders.length} orders exported successfully`);
+    } catch {
+      toast.error('Failed to export selected data');
+    }
+  };
+
+  const handlePrintSelectedInvoices = async () => {
+    try {
+      if (selectedOrderIds.length === 0) {
+        toast.error('No orders selected for printing');
+        return;
+      }
+
+      // Mark the selected orders as PRINTED
+      await Promise.all(
+        selectedOrderIds.map(async (id) => {
+          const o = orders.find(item => item.id === id);
+          if (o && normalizeStatus(o.status) !== 'PRINTED') {
+            await updateOrderStatus(id, 'PRINTED');
+          }
+        })
+      );
+
+      const items = document.querySelectorAll('.bulk-invoice-item');
+      if (items.length === 0) {
+        toast.error('Invoices not loaded yet. Please try again.');
+        return;
+      }
+
+      // Create a hidden iframe
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      document.body.appendChild(iframe);
+
+      const iframeDoc = iframe.contentWindow?.document || iframe.contentDocument;
+      if (!iframeDoc) {
+        toast.error('Failed to prepare print document');
+        return;
+      }
+
+      // Assemble the body content containing all the invoice pages
+      let pagesHtml = '';
+      items.forEach((item) => {
+        pagesHtml += `
+          <div class="invoice-page">
+            ${item.innerHTML}
+          </div>
+        `;
+      });
+
+      iframeDoc.open();
+      iframeDoc.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Print Invoices</title>
+            <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
+            <script src="https://cdn.tailwindcss.com"></script>
+            <script>
+              tailwind.config = {
+                theme: {
+                  extend: {
+                    colors: {
+                      gray: {
+                        150: '#eceff1',
+                      }
+                    }
+                  }
+                }
+              }
+            </script>
+            <style>
+              @page {
+                size: A5 portrait;
+                margin: 0;
+              }
+              body {
+                margin: 0;
+                padding: 0;
+                background-color: #ffffff !important;
+                color: #111827 !important;
+              }
+              .invoice-page {
+                display: block !important;
+                page-break-after: always !important;
+                page-break-inside: avoid !important;
+                width: 148mm !important;
+                height: 210mm !important;
+                padding: 12mm 10mm 10mm 10mm !important;
+                box-sizing: border-box !important;
+                position: relative !important;
+                overflow: hidden !important;
+                background: white !important;
+              }
+              /* Clean preview overrides so it prints perfectly standard A5 */
+              .invoice-page > div {
+                box-shadow: none !important;
+                border: none !important;
+                border-radius: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                position: relative !important;
+                transform: none !important;
+                display: block !important;
+              }
+              .font-serif-luxury {
+                font-family: 'Cormorant Garamond', serif !important;
+              }
+              .font-mono-numbers {
+                font-family: 'JetBrains Mono', monospace !important;
+              }
+            </style>
+          </head>
+          <body class="bg-white">
+            \${pagesHtml}
+            <script>
+              window.onload = function() {
+                window.focus();
+                setTimeout(function() {
+                  window.print();
+                  setTimeout(function() {
+                    window.parent.document.body.removeChild(window.frameElement);
+                  }, 1500);
+                }, 500);
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      iframeDoc.close();
+      
+      // Clear selection after printing
+      setSelectedOrderIds([]);
+      toast.success('Invoices sent to printer');
+    } catch (err) {
+      console.error('[Bulk Print Error]', err);
+      toast.error('Failed to launch printer');
     }
   };
 
@@ -1128,6 +1385,18 @@ export default function AdminOrders(): React.JSX.Element {
         <InvoiceTemplate order={invoiceOrder} preview={false} />,
         document.body
       )}
+
+      {selectedOrderIds.length > 0 && (
+        <div id="bulk-invoices-to-print" className="hidden">
+          {orders
+            .filter(o => selectedOrderIds.includes(o.id))
+            .map(order => (
+              <div key={order.id} className="bulk-invoice-item">
+                <InvoiceTemplate order={order} preview={true} />
+              </div>
+            ))}
+        </div>
+      )}
       
       {/* Brand & Page Header matching screenshot EXACTLY */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1 pb-1">
@@ -1199,39 +1468,39 @@ export default function AdminOrders(): React.JSX.Element {
       <div className="bg-white rounded-2xl border border-gray-200 p-4 md:p-5 shadow-[0_4px_30px_rgba(0,0,0,0.015)] space-y-4">
         
         {/* Interactive Filters Grid / Bar matching screenshot */}
-        <div className="flex flex-wrap items-center gap-3 bg-[#F8FAFC]/60 p-4 rounded-2xl border border-slate-100">
+        <div className="flex flex-row items-center gap-1.5 bg-[#F8FAFC]/60 p-2 rounded-2xl border border-slate-100 overflow-x-auto no-scrollbar whitespace-nowrap">
           {/* Search Input */}
-          <div className="relative flex-1 min-w-[280px]">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 stroke-[2.5]" />
+          <div className="relative flex-1 min-w-[140px] max-w-[180px] shrink-0">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 w-3.5 h-3.5 stroke-[2]" />
             <input 
               type="text"
-              placeholder="Search Order #, Phone, SKU..."
+              placeholder="Search order..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 text-xs font-semibold rounded-xl placeholder-gray-400 text-slate-800 focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+              className="w-full pl-8 pr-2 py-1.5 bg-white border border-slate-200 text-[11px] font-semibold rounded-xl placeholder-gray-400 text-slate-800 focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all"
             />
           </div>
 
           {/* Date Picker matching mm/dd/yyyy - mm/dd/yyyy in screenshot */}
-          <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-3xs shrink-0">
-            <div className="relative flex items-center gap-1.5 text-xs text-slate-700 font-semibold">
-              <Calendar size={13} className="text-slate-400" />
+          <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-2 py-1.5 shadow-3xs shrink-0">
+            <div className="relative flex items-center gap-1 text-[11px] text-slate-700 font-semibold">
+              <Calendar size={11} className="text-slate-400" />
               <input 
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="bg-transparent border-none p-0 text-xs font-bold focus:ring-0 focus:outline-none cursor-pointer w-[105px] text-slate-800"
+                className="bg-transparent border-none p-0 text-[11px] font-bold focus:ring-0 focus:outline-none cursor-pointer w-[80px] text-slate-800"
                 placeholder="mm/dd/yyyy"
               />
             </div>
-            <span className="text-slate-300 font-black">—</span>
-            <div className="relative flex items-center gap-1.5 text-xs text-slate-700 font-semibold">
-              <Calendar size={13} className="text-slate-400" />
+            <span className="text-slate-300 font-bold">-</span>
+            <div className="relative flex items-center gap-1 text-[11px] text-slate-700 font-semibold">
+              <Calendar size={11} className="text-slate-400" />
               <input 
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="bg-transparent border-none p-0 text-xs font-bold focus:ring-0 focus:outline-none cursor-pointer w-[105px] text-slate-800"
+                className="bg-transparent border-none p-0 text-[11px] font-bold focus:ring-0 focus:outline-none cursor-pointer w-[80px] text-slate-800"
                 placeholder="mm/dd/yyyy"
               />
             </div>
@@ -1242,13 +1511,13 @@ export default function AdminOrders(): React.JSX.Element {
             <select
               value={filterIssue}
               onChange={(e) => setFilterIssue(e.target.value)}
-              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-4 pr-9 py-2 text-[11px] font-black tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-2.5 pr-6 py-1.5 text-[10px] font-extrabold tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
             >
               <option value="All">⚠️ ISSUES: ALL</option>
               <option value="Issues">⚠️ ISSUES ONLY</option>
               <option value="No Issues">✔️ NO ISSUES</option>
             </select>
-            <ChevronDown size={11} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none stroke-[2.5]" />
+            <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none stroke-[2]" />
           </div>
 
           {/* STATUS Dropdown */}
@@ -1256,7 +1525,7 @@ export default function AdminOrders(): React.JSX.Element {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-4 pr-9 py-2 text-[11px] font-black tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-2.5 pr-6 py-1.5 text-[10px] font-extrabold tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
             >
               <option value="All">📦 STATUS: ALL</option>
               <option value="ORDER PLACED">ORDER PLACED</option>
@@ -1269,7 +1538,7 @@ export default function AdminOrders(): React.JSX.Element {
               <option value="RETURNED">RETURNED</option>
               <option value="CANCELLED">CANCELLED</option>
             </select>
-            <ChevronDown size={11} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none stroke-[2.5]" />
+            <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none stroke-[2]" />
           </div>
 
           {/* PARTNER Dropdown */}
@@ -1277,14 +1546,14 @@ export default function AdminOrders(): React.JSX.Element {
             <select
               value={filterPartner}
               onChange={(e) => setFilterPartner(e.target.value)}
-              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-4 pr-9 py-2 text-[11px] font-black tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-2.5 pr-6 py-1.5 text-[10px] font-extrabold tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
             >
               <option value="All">🤝 PARTNER: ALL</option>
               {uniquePartners.map(p => (
                 <option key={p} value={p}>{p.toUpperCase()}</option>
               ))}
             </select>
-            <ChevronDown size={11} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none stroke-[2.5]" />
+            <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none stroke-[2]" />
           </div>
 
           {/* COURIER Dropdown */}
@@ -1292,7 +1561,7 @@ export default function AdminOrders(): React.JSX.Element {
             <select
               value={filterCourier}
               onChange={(e) => setFilterCourier(e.target.value)}
-              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-4 pr-9 py-2 text-[11px] font-black tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-2.5 pr-6 py-1.5 text-[10px] font-extrabold tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
             >
               <option value="All">🚚 COURIER: ALL</option>
               <option value="Pathao">PATHAO</option>
@@ -1301,7 +1570,7 @@ export default function AdminOrders(): React.JSX.Element {
                 <option key={c} value={c}>{c.toUpperCase()}</option>
               ))}
             </select>
-            <ChevronDown size={11} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none stroke-[2.5]" />
+            <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none stroke-[2]" />
           </div>
 
           {/* CREATOR Dropdown */}
@@ -1309,14 +1578,14 @@ export default function AdminOrders(): React.JSX.Element {
             <select
               value={filterCreator}
               onChange={(e) => setFilterCreator(e.target.value)}
-              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-4 pr-9 py-2 text-[11px] font-black tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-2.5 pr-6 py-1.5 text-[10px] font-extrabold tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
             >
               <option value="All">👤 CREATOR: ALL</option>
               {uniqueCreators.map(cr => (
                 <option key={cr} value={cr}>{cr.toUpperCase()}</option>
               ))}
             </select>
-            <ChevronDown size={11} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none stroke-[2.5]" />
+            <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none stroke-[2]" />
           </div>
 
           {/* DELIVERY Dropdown */}
@@ -1324,13 +1593,13 @@ export default function AdminOrders(): React.JSX.Element {
             <select
               value={filterDelivery}
               onChange={(e) => setFilterDelivery(e.target.value)}
-              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-4 pr-9 py-2 text-[11px] font-black tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-2.5 pr-6 py-1.5 text-[10px] font-extrabold tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
             >
               <option value="All">📍 DELIVERY: ALL</option>
               <option value="Inside Dhaka">INSIDE DHAKA</option>
               <option value="Outside Dhaka">OUTSIDE DHAKA</option>
             </select>
-            <ChevronDown size={11} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none stroke-[2.5]" />
+            <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none stroke-[2]" />
           </div>
         </div>
 
@@ -1339,97 +1608,30 @@ export default function AdminOrders(): React.JSX.Element {
           <motion.div 
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="p-4 bg-gray-900 text-white rounded-[16px] flex items-center justify-between shadow-lg"
+            className="p-4 bg-blue-600 text-white rounded-[16px] flex items-center justify-between shadow-lg"
           >
             <div className="flex items-center gap-3">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-xs font-bold uppercase tracking-wider">{selectedOrderIds.length} orders highlighted</span>
             </div>
-            <div className="flex gap-2">
-              {isSuperAdmin && (
-                <button 
-                  onClick={() => {
-                    const count = selectedOrderIds.length;
-                    setDeleteConfirm({
-                      isOpen: true,
-                      title: 'Delete Selected Orders?',
-                      message: `Are you sure you want to PERMANENTLY DELETE ${count} highlighted orders? This will remove them from the database forever and cannot be undone.`,
-                      onConfirm: async () => {
-                        try {
-                          toast.loading(`Deleting ${count} orders...`, { id: 'bulk-delete' });
-                          await Promise.all(selectedOrderIds.map(id => deleteOrder(id)));
-                          toast.success(`Deleted ${count} orders successfully`, { id: 'bulk-delete' });
-                          setSelectedOrderIds([]);
-                        } catch (err: any) {
-                          console.error('[AdminOrders Bulk] Delete failed:', err);
-                          toast.error('Failed to delete some orders', { id: 'bulk-delete' });
-                        } finally {
-                          setDeleteConfirm(prev => ({ ...prev, isOpen: false }));
-                        }
-                      }
-                    });
-                  }}
-                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] tracking-wider uppercase rounded-lg transition-all cursor-pointer"
-                >
-                  Delete
-                </button>
-              )}
+            <div className="flex gap-2.5">
               <button 
-                onClick={async () => {
-                  if (selectedOrderIds.length === 0) return;
-                  const loadingToast = toast.loading(`Booking ${selectedOrderIds.length} orders to Pathao Merchant Portal...`);
-                  let successCount = 0;
-                  let failCount = 0;
-                  
-                  const selectedOrdersList = orders.filter(o => selectedOrderIds.includes(o.id));
-
-                  for (const targetOrder of selectedOrdersList) {
-                    try {
-                      const res = await fetch('/api/pathao/create-order', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ order: targetOrder })
-                      });
-                      const data = await res.json();
-                      if (res.ok && data.success) {
-                        if (updateOrder) {
-                          await updateOrder(targetOrder.id, { status: 'Shipped', trackingCode: data.consignment_id, pathaoConsignmentId: data.consignment_id });
-                        } else {
-                          await updateOrderStatus(targetOrder.id, 'Shipped');
-                        }
-                        successCount++;
-                      } else {
-                        failCount++;
-                      }
-                    } catch (e) {
-                      failCount++;
-                    }
-                  }
-
-                  if (successCount > 0) {
-                    toast.success(`Successfully booked ${successCount} orders to Pathao Courier!${failCount > 0 ? ` (${failCount} failed)` : ''}`, { id: loadingToast, duration: 6000 });
-                  } else {
-                    toast.error(`Failed to book orders to Pathao. Please check credentials in Admin Settings.`, { id: loadingToast, duration: 6000 });
-                  }
-                  setSelectedOrderIds([]);
-                }}
-                className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-[10px] tracking-wider uppercase rounded-lg transition-all cursor-pointer"
+                onClick={handleExportSelectedCSV}
+                className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2"
               >
-                Pathao Send
+                <Download size={13} />
+                <span>Export Download</span>
               </button>
               <button 
-                onClick={async () => {
-                  await Promise.all(selectedOrderIds.map(id => updateOrderStatus(id, 'Shipped')));
-                  toast.success(`Marked ${selectedOrderIds.length} orders as SHIPPED`);
-                  setSelectedOrderIds([]);
-                }}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] tracking-wider uppercase rounded-lg transition-all cursor-pointer"
+                onClick={handlePrintSelectedInvoices}
+                className="px-5 py-2.5 bg-white hover:bg-gray-100 text-black font-black text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2 shadow-md"
               >
-                Shipped
+                <Printer size={13} />
+                <span>Print ({selectedOrderIds.length} Pcs - {formatPrice(orders.filter(o => selectedOrderIds.includes(o.id)).reduce((sum, o) => sum + (o.total || 0), 0), currency, rate)})</span>
               </button>
               <button 
                 onClick={() => setSelectedOrderIds([])}
-                className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-[10px] tracking-wider uppercase rounded-lg transition-all cursor-pointer"
+                className="px-3.5 py-2.5 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white font-bold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer"
               >
                 Clear
               </button>
@@ -1438,7 +1640,7 @@ export default function AdminOrders(): React.JSX.Element {
         )}
 
         {/* Table representation */}
-        <div className="overflow-x-auto elegant-scrollbar pb-3">
+        <div className="overflow-x-auto elegant-scrollbar pb-3 min-h-[480px]">
           <table className="w-full text-left border-collapse min-w-[1500px]">
             <thead>
               <tr className="border-b border-slate-100 text-[11px] font-black tracking-wider text-slate-400 h-14 bg-white select-none uppercase">
@@ -1754,21 +1956,21 @@ export default function AdminOrders(): React.JSX.Element {
                       </td>
 
                       {/* Actions */}
-                      <td className="py-4 px-6 sticky right-0 bg-white z-10 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">
+                      <td className="py-2.5 px-4 sticky right-0 bg-white z-10 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">
                         <div className="flex items-center justify-center">
-                          <div className="flex items-center gap-0.5 bg-[#F8FAFC] p-1 rounded-xl border border-[#EDF2F7] shadow-sm">
+                          <div className="flex items-center gap-0.5 bg-[#F8FAFC] p-0.5 rounded-lg border border-[#EDF2F7] shadow-sm">
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedOrder(order);
                               }} 
                               title="View Details"
-                              className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
+                              className="p-1 hover:bg-white hover:shadow-sm rounded-md transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
                             >
-                              <Eye size={15} className="stroke-[2.5]" />
+                              <Eye size={13} className="stroke-[2.5]" />
                             </button>
                             
-                            <div className="w-[1px] h-4 bg-[#E2E8F0] mx-0.5" />
+                            <div className="w-[1px] h-3.5 bg-[#E2E8F0] mx-0.5" />
                             
                             <button 
                               onClick={(e) => {
@@ -1777,19 +1979,19 @@ export default function AdminOrders(): React.JSX.Element {
                               }} 
                               title="Order Issues"
                               className={cn(
-                                "p-2 rounded-lg transition-all cursor-pointer relative",
+                                "p-1 rounded-md transition-all cursor-pointer relative",
                                 order.issueType && order.issueStatus !== 'resolved'
                                   ? "text-rose-600 bg-rose-50 hover:bg-rose-100"
                                   : "text-[#64748B] hover:text-[#0F172A] hover:bg-white hover:shadow-sm"
                               )}
                             >
-                              <MessageSquare size={15} className={cn("stroke-[2.5]", order.issueType && order.issueStatus !== 'resolved' && "animate-pulse")} />
+                              <MessageSquare size={13} className={cn("stroke-[2.5]", order.issueType && order.issueStatus !== 'resolved' && "animate-pulse")} />
                               {order.issueType && order.issueStatus !== 'resolved' && (
-                                <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-rose-600 rounded-full border border-white" />
+                                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-rose-600 rounded-full border border-white" />
                               )}
                             </button>
                             
-                            <div className="w-[1px] h-4 bg-[#E2E8F0] mx-0.5" />
+                            <div className="w-[1px] h-3.5 bg-[#E2E8F0] mx-0.5" />
                             
                             <button 
                               onClick={(e) => {
@@ -1801,12 +2003,12 @@ export default function AdminOrders(): React.JSX.Element {
                                 }
                               }} 
                               title="Print Invoice"
-                              className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
+                              className="p-1 hover:bg-white hover:shadow-sm rounded-md transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
                             >
-                              <Printer size={15} className="stroke-[2.5]" />
+                              <Printer size={13} className="stroke-[2.5]" />
                             </button>
                             
-                            <div className="w-[1px] h-4 bg-[#E2E8F0] mx-0.5" />
+                            <div className="w-[1px] h-3.5 bg-[#E2E8F0] mx-0.5" />
                             
                             <button 
                               onClick={(e) => {
@@ -1830,12 +2032,12 @@ export default function AdminOrders(): React.JSX.Element {
                                 setIsEditingDetails(true);
                               }} 
                               title="Edit Order"
-                              className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
+                              className="p-1 hover:bg-white hover:shadow-sm rounded-md transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
                             >
-                              <Tag size={15} className="stroke-[2.5]" />
+                              <Tag size={13} className="stroke-[2.5]" />
                             </button>
                             
-                            <div className="w-[1px] h-4 bg-[#E2E8F0] mx-0.5" />
+                            <div className="w-[1px] h-3.5 bg-[#E2E8F0] mx-0.5" />
                             
                             <button 
                               onClick={(e) => {
@@ -1843,53 +2045,109 @@ export default function AdminOrders(): React.JSX.Element {
                                 handleStatusChange(order.id, 'Processing');
                               }} 
                               title="Mark as Paid/Processing"
-                              className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
+                              className="p-1 hover:bg-white hover:shadow-sm rounded-md transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
                             >
-                              <DollarSign size={15} className="stroke-[2.5]" />
+                              <DollarSign size={13} className="stroke-[2.5]" />
                             </button>
                             
-                            <div className="w-[1px] h-4 bg-[#E2E8F0] mx-0.5" />
+                            <div className="w-[1px] h-3.5 bg-[#E2E8F0] mx-0.5" />
                             
                             <button 
-                              onClick={async (e) => {
+                              onClick={(e) => {
                                 e.stopPropagation();
                                 if (order.issueType && order.issueStatus !== 'resolved') {
                                   toast.error("Cannot book order with active issue!");
                                   return;
                                 }
-                                const shortCode = order.id.slice(-6).toUpperCase();
-                                const toastId = toast.loading(`Booking Order #${shortCode} to Pathao Courier...`);
-                                try {
-                                  const res = await fetch('/api/pathao/create-order', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ order })
-                                  });
-                                  const data = await res.json();
-                                  if (res.ok && data.success) {
-                                    if (updateOrder) {
-                                      await updateOrder(order.id, { status: 'Shipped', trackingCode: data.consignment_id, pathaoConsignmentId: data.consignment_id });
-                                    } else {
-                                      await updateOrderStatus(order.id, 'Shipped');
+                                
+                                const addressLower = ((order.address || '') + ' ' + (order.thana || '') + ' ' + (order.city || '')).toLowerCase();
+                                
+                                // Determine district/city key and city ID
+                                let matchedDistrictKey = 'Dhaka';
+                                let cityId = '1';
+
+                                if (addressLower.includes('chittagong') || addressLower.includes('ctg') || addressLower.includes('chattogram')) {
+                                  matchedDistrictKey = 'Chittagong';
+                                  cityId = '2';
+                                } else if (addressLower.includes('sylhet')) {
+                                  matchedDistrictKey = 'Sylhet';
+                                  cityId = '3';
+                                } else if (addressLower.includes('khulna')) {
+                                  matchedDistrictKey = 'Khulna';
+                                  cityId = '4';
+                                } else if (addressLower.includes('rajshahi')) {
+                                  matchedDistrictKey = 'Rajshahi';
+                                  cityId = '5';
+                                } else if (addressLower.includes('barisal')) {
+                                  matchedDistrictKey = 'Barisal';
+                                  cityId = '6';
+                                } else if (addressLower.includes('rangpur')) {
+                                  matchedDistrictKey = 'Rangpur';
+                                  cityId = '7';
+                                } else if (addressLower.includes('mymensingh')) {
+                                  matchedDistrictKey = 'Mymensingh';
+                                  cityId = '8';
+                                } else {
+                                  for (const key of Object.keys(DISTRICT_THANAS)) {
+                                    if (addressLower.includes(key.toLowerCase())) {
+                                      matchedDistrictKey = key;
+                                      break;
                                     }
-                                    toast.success(`Order #${shortCode} booked in Pathao! Consignment ID: ${data.consignment_id}`, { id: toastId, duration: 8000 });
-                                  } else {
-                                    toast.error(`Pathao Error: ${data.error || 'Failed to book order'}`, { id: toastId, duration: 7000 });
                                   }
-                                } catch (err: any) {
-                                  toast.error(`Network Error: ${err.message}`, { id: toastId });
                                 }
+
+                                // Match best thana/zone name
+                                let matchedZone = '';
+                                const thanasForDistrict = DISTRICT_THANAS[matchedDistrictKey] || [];
+                                // Sort thanas by length descending to match most specific first
+                                const sortedThanas = [...thanasForDistrict].sort((a, b) => b.length - a.length);
+
+                                if (order.thana) {
+                                  const thanaLower = order.thana.toLowerCase().trim();
+                                  const directMatch = sortedThanas.find(t => t.toLowerCase() === thanaLower);
+                                  if (directMatch) {
+                                    matchedZone = directMatch;
+                                  } else {
+                                    const partialMatch = sortedThanas.find(t => thanaLower.includes(t.toLowerCase()) || t.toLowerCase().includes(thanaLower));
+                                    if (partialMatch) {
+                                      matchedZone = partialMatch;
+                                    }
+                                  }
+                                }
+
+                                if (!matchedZone) {
+                                  const found = sortedThanas.find(t => {
+                                    const tLower = t.toLowerCase();
+                                    return addressLower.includes(tLower);
+                                  });
+                                  if (found) {
+                                    matchedZone = found;
+                                  }
+                                }
+
+                                if (!matchedZone) {
+                                  matchedZone = order.thana || '';
+                                }
+
+                                setPathaoBookingOrder(order);
+                                setPathaoCity(cityId);
+                                setPathaoZone(matchedZone);
+                                setPathaoArea('');
+                                setPathaoWeight('0.5');
+                                setPathaoDeliveryType('48');
+                                setPathaoSpecialInstruction(order.notes || '');
+                                setPathaoSuccessResult(null);
                               }} 
-                              title="Auto Book to Pathao Courier"
-                              className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 text-emerald-700 font-extrabold text-[11px] rounded-md transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                              title="Book via Pathao Courier"
+                              className="px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 text-emerald-700 font-extrabold text-[10px] rounded-md transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
                             >
-                              <Send size={13} className="text-emerald-600 stroke-[2.5]" />
+                              <Send size={11} className="text-emerald-600 stroke-[2.5]" />
                               <span>Pathao</span>
                             </button>
 
                             {isSuperAdmin && (
                               <>
-                                <div className="w-[1px] h-4 bg-[#E2E8F0] mx-0.5" />
+                                <div className="w-[1px] h-3.5 bg-[#E2E8F0] mx-0.5" />
                                 
                                 <button 
                                   onClick={(e) => {
@@ -1921,9 +2179,9 @@ export default function AdminOrders(): React.JSX.Element {
                                     });
                                   }} 
                                   title="Delete Order"
-                                  className="p-2 hover:bg-rose-100 rounded-lg transition-all text-rose-500 hover:text-rose-700 cursor-pointer flex items-center justify-center relative z-10"
+                                  className="p-1 hover:bg-rose-100 rounded-md transition-all text-rose-500 hover:text-rose-700 cursor-pointer flex items-center justify-center relative z-10"
                                 >
-                                  <Trash2 size={16} className="stroke-[2.5]" />
+                                  <Trash2 size={13} className="stroke-[2.5]" />
                                 </button>
                               </>
                             )}
@@ -1937,20 +2195,22 @@ export default function AdminOrders(): React.JSX.Element {
             </tbody>
           </table>
         </div>
-      </div>
 
-      {/* Load More Button matching beautiful screenshot style */}
-      {filteredOrders.length > visibleCount && (
-        <div className="pt-4 text-center">
-          <button 
-            onClick={() => setVisibleCount(prev => prev + 15)}
-            className="rounded-full px-7 py-3 border border-gray-200 bg-white hover:bg-gray-50 text-gray-900 font-bold text-[12px] tracking-wider uppercase flex items-center justify-center gap-2 mx-auto transition-all shadow-[0_4px_12px_rgba(0,0,0,0.02)] active:scale-95 cursor-pointer"
-          >
-            <RefreshCw size={13} className="stroke-[2.5] text-indigo-600 animate-spin-slow" />
-            <span>Load More Orders</span>
-          </button>
-        </div>
-      )}
+        {/* Centered Show More button outside the scroll container, matching screenshot style */}
+        {filteredOrders.length > visibleCount && (
+          <div className="flex justify-center pt-5 pb-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setVisibleCount(prev => prev + 50);
+              }}
+              className="px-8 py-3.5 bg-white border border-gray-200 hover:border-blue-400 text-blue-600 hover:text-blue-700 font-bold text-sm rounded-[14px] transition-all shadow-xs hover:shadow-md cursor-pointer flex items-center justify-center gap-2 active:scale-98"
+            >
+              <span>Show more</span>
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Creating manual orders Modal Dialog block */}
       <AnimatePresence>
@@ -2016,44 +2276,59 @@ export default function AdminOrders(): React.JSX.Element {
 
                   {/* Catalog list container */}
                   <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 no-scrollbar text-left">
-                    {matchedProductsForLeftSearch.length === 0 && leftSearchVal.trim() && (
+                    {!leftSearchVal.trim() ? (
+                      <div className="py-20 text-center flex flex-col items-center justify-center">
+                        <Scan size={36} className="text-gray-300 mb-3 animate-pulse" />
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Search or scan code to add items</p>
+                        <p className="text-[10px] text-gray-400 mt-1 max-w-xs leading-relaxed text-center">
+                          Enter SKU, barcode, or product name in the search box above to view details, available sizes, and stock count.
+                        </p>
+                      </div>
+                    ) : matchedProductsForLeftSearch.length === 0 ? (
                       <div className="py-12 text-center">
                         <AlertCircle className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                         <p className="text-xs font-bold text-gray-400 uppercase">No products found matching "{leftSearchVal}"</p>
                       </div>
-                    )}
-                    {(leftSearchVal.trim() ? matchedProductsForLeftSearch : products.slice(0, 8)).map(prod => (
-                      <div key={prod.id} className="p-3 border border-gray-150 rounded-2xl bg-[#FAFBFD]/50 hover:bg-[#FAFBFD] transition-all flex flex-col gap-2.5">
-                        <div className="flex gap-3">
-                          <img 
-                            src={(prod.images && prod.images[0]) || 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=100'} 
-                            alt={prod.name} 
-                            className="w-12 h-12 rounded-xl object-cover border border-gray-200 bg-white"
-                            referrerPolicy="no-referrer"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 font-mono">SKU: EP-{prod.id.slice(-4).toUpperCase()}</span>
-                            <p className="text-xs font-black text-[#0C1421] truncate mt-0.5" title={prod.name}>{prod.name}</p>
-                            <p className="text-xs font-black text-blue-600 font-mono mt-0.5">{formatPrice(prod.price, currency, rate)}</p>
+                    ) : (
+                      matchedProductsForLeftSearch.map(prod => (
+                        <div key={prod.id} className="p-3 border border-gray-150 rounded-2xl bg-[#FAFBFD]/50 hover:bg-[#FAFBFD] transition-all flex flex-col gap-2.5">
+                          <div className="flex gap-3">
+                            <img 
+                              src={(prod.images && prod.images[0]) || 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=100'} 
+                              alt={prod.name} 
+                              className="w-12 h-12 rounded-xl object-cover border border-gray-200 bg-white"
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 font-mono">SKU: EP-{prod.id.slice(-4).toUpperCase()}</span>
+                              <p className="text-xs font-black text-[#0C1421] truncate mt-0.5" title={prod.name}>{prod.name}</p>
+                              <p className="text-xs font-black text-blue-600 font-mono mt-0.5">{formatPrice(prod.price, currency, rate)}</p>
+                            </div>
+                          </div>
+                          
+                          {/* Sizes selector pills to quickly add to memo */}
+                          <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-dashed border-gray-200">
+                            <span className="text-[9px] font-extrabold text-gray-400 uppercase mr-1">ADD SIZE:</span>
+                            {prod.sizes.map(sz => {
+                              const stockQty = prod.sizeStock?.[sz] ?? 0;
+                              return (
+                                <button
+                                  key={sz}
+                                  type="button"
+                                  onClick={() => handleAddProductToNewOrder(prod, sz)}
+                                  className="px-2.5 py-1 bg-white hover:bg-blue-600 hover:text-white border border-gray-200 text-[10px] font-black uppercase rounded-lg transition-all active:scale-95 shadow-3xs flex items-center gap-1.5 cursor-pointer"
+                                >
+                                  <span>{sz}</span>
+                                  <span className={`text-[9px] font-extrabold ${stockQty <= 5 ? 'text-red-500 font-bold' : 'text-emerald-500 font-bold'}`}>
+                                    ({stockQty} pcs)
+                                  </span>
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
-                        
-                        {/* Sizes selector pills to quickly add to memo */}
-                        <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-dashed border-gray-200">
-                          <span className="text-[9px] font-extrabold text-gray-400 uppercase mr-1">ADD SIZE:</span>
-                          {prod.sizes.map(sz => (
-                            <button
-                              key={sz}
-                              type="button"
-                              onClick={() => handleAddProductToNewOrder(prod, sz)}
-                              className="px-2.5 py-1 bg-white hover:bg-blue-600 hover:text-white border border-gray-200 text-[10px] font-black uppercase rounded-lg transition-all active:scale-95 shadow-3xs"
-                            >
-                              {sz}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
 
                 </div>
@@ -2200,27 +2475,23 @@ export default function AdminOrders(): React.JSX.Element {
                                 const region = e.target.value;
                                   setNewCustomerCity(region);
                                   // Dynamic region charge setting!
-                                  if (region === 'Dhaka City' || region === 'Dhaka') {
+                                  if (region === 'Inside Dhaka') {
                                     setNewDeliveryCharge(80);
-                                  } else if (region === 'Dhaka Suburbs' || region === 'Dhaka Suburbs / Sub Area') {
+                                  } else if (region === 'Sub Area') {
                                     setNewDeliveryCharge(110);
-                                  } else if (region) {
+                                  } else if (region === 'Outside Dhaka') {
                                     setNewDeliveryCharge(130);
+                                  } else if (region === 'Store Pickup') {
+                                    setNewDeliveryCharge(0);
                                   }
                               }}
                               className="w-full pl-10 pr-8 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all appearance-none cursor-pointer shadow-3xs"
                             >
                               <option value="" disabled>Select Region</option>
-                              <option value="Dhaka City">Dhaka City (৳80)</option>
-                              <option value="Dhaka Suburbs">Dhaka Suburbs / Sub Area (৳110)</option>
-                              <option value="Chittagong">Chittagong (৳130)</option>
-                              <option value="Sylhet">Sylhet (৳130)</option>
-                              <option value="Rajshahi">Rajshahi (৳130)</option>
-                              <option value="Khulna">Khulna (৳130)</option>
-                              <option value="Barisal">Barisal (৳130)</option>
-                              <option value="Rangpur">Rangpur (৳130)</option>
-                              <option value="Mymensingh">Mymensingh (৳130)</option>
-                              <option value="Outside Dhaka">Outside Dhaka (৳130)</option>
+                              <option value="Inside Dhaka">Inside Dhaka</option>
+                              <option value="Sub Area">Sub Area</option>
+                              <option value="Outside Dhaka">Outside Dhaka</option>
+                              <option value="Store Pickup">Store Pickup</option>
                             </select>
                             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
                           </div>
@@ -2594,7 +2865,7 @@ export default function AdminOrders(): React.JSX.Element {
                             "w-full py-4 uppercase font-black text-xs tracking-widest rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 active:scale-98",
                             (!newCustomerName || !newCustomerPhone || !newCustomerAddress || !newCustomerCity || newOrderItems.length === 0)
                               ? "bg-[#94A3B8] text-white cursor-not-allowed opacity-80"
-                              : "bg-[#0F172A] hover:bg-black text-white cursor-pointer hover:shadow-lg hover:shadow-slate-500/10"
+                              : "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer hover:shadow-lg hover:shadow-slate-500/10"
                           )}
                         >
                           <CheckCircle2 size={14} className="stroke-[3.5]" />
@@ -3951,7 +4222,7 @@ export default function AdminOrders(): React.JSX.Element {
                               updateOrderStatus(selectedOrder.id, 'PRINTED');
                             }
                           }}
-                          className="w-full py-4 bg-[#0F172A] hover:bg-black text-white font-black text-xs uppercase tracking-widest rounded-[20px] transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center justify-center gap-2 border border-slate-700/30"
+                          className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-widest rounded-[20px] transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center justify-center gap-2 border border-slate-700/30"
                         >
                           <Printer size={14} className="stroke-[2.5]" />
                           <span>Print Invoice</span>
@@ -4120,7 +4391,7 @@ export default function AdminOrders(): React.JSX.Element {
                       `);
                       iframeDoc.close();
                     }}
-                    className="bg-[#0C1421] hover:bg-black text-white font-black text-xs px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-md hover:shadow-lg"
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-black text-xs px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-md hover:shadow-lg"
                   >
                     <Printer size={13} />
                     <span>Print Now</span>
@@ -4195,6 +4466,234 @@ export default function AdminOrders(): React.JSX.Element {
                 >
                   Confirm Delete
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* PATHAO BOOKING CUSTOM MODAL */}
+      <AnimatePresence>
+        {pathaoBookingOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-[28px] w-full max-w-[540px] overflow-hidden shadow-2xl border border-gray-100 flex flex-col font-sans max-h-[92vh]"
+            >
+              {/* Modal Header */}
+              <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-emerald-50/20">
+                <div className="flex items-center gap-3 text-left">
+                  <div className="w-12 h-12 rounded-2xl bg-[#00B074] text-white flex items-center justify-center shadow-md shadow-emerald-100">
+                    <Send className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black text-slate-900 tracking-tight leading-tight">Book via Pathao</h2>
+                    <p className="text-[11px] text-slate-400 font-bold mt-0.5">Order {pathaoBookingOrder.id.slice(-8).toUpperCase()}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => {
+                    setPathaoBookingOrder(null);
+                    setPathaoSuccessResult(null);
+                  }}
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-all cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 overflow-y-auto bg-[#F1F3F7] p-6 space-y-4 text-left">
+                {!pathaoSuccessResult ? (
+                  <>
+                    {/* Recipient Box */}
+                    <div className="bg-white/90 border border-white rounded-[20px] p-5 space-y-3 shadow-[0_4px_20px_rgba(0,0,0,0.015)]">
+                      <p className="text-[9px] font-extrabold text-slate-400 tracking-widest uppercase">Recipient</p>
+                      <div className="space-y-2.5">
+                        <div className="flex items-center gap-2.5 text-slate-800">
+                          <User size={15} className="text-slate-400 shrink-0" />
+                          <span className="text-sm font-black">{pathaoBookingOrder.customerName}</span>
+                        </div>
+                        <div className="flex items-center gap-2.5 text-slate-600">
+                          <Phone size={15} className="text-slate-400 shrink-0" />
+                          <span className="text-xs font-bold font-mono">{pathaoBookingOrder.phone}</span>
+                        </div>
+                        <div className="flex items-start gap-2.5 text-slate-500 leading-relaxed">
+                          <MapPin size={15} className="text-slate-400 shrink-0 mt-0.5" />
+                          <span className="text-xs font-medium">{pathaoBookingOrder.address}, {pathaoBookingOrder.city}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-slate-400 font-bold">COD Amount:</span>
+                          <span className="text-sm font-black text-[#FF5A5F]">{formatPrice(pathaoBookingOrder.total)}</span>
+                        </div>
+                        <span className="text-xs text-slate-400 font-bold">• Items: {pathaoBookingOrder.items.reduce((sum, item) => sum + (item.quantity || 1), 0)}</span>
+                      </div>
+                    </div>
+
+                    {/* Pickup Store Info */}
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-extrabold text-slate-500 tracking-widest uppercase ml-1">Pickup Store</label>
+                      <input 
+                        type="text" 
+                        value={pathaoPickupStore}
+                        onChange={(e) => setPathaoPickupStore(e.target.value)}
+                        className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-4 py-3.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                      />
+                    </div>
+
+                    {/* Location Selection Grid */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-extrabold text-slate-500 tracking-widest uppercase ml-1">City</label>
+                        <select
+                          value={pathaoCity}
+                          onChange={(e) => setPathaoCity(e.target.value)}
+                          className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-3 py-3.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 focus:bg-white transition-all cursor-pointer"
+                        >
+                          <option value="1">Dhaka City</option>
+                          <option value="2">Chittagong</option>
+                          <option value="3">Sylhet</option>
+                          <option value="4">Khulna</option>
+                          <option value="5">Rajshahi</option>
+                          <option value="6">Barisal</option>
+                          <option value="7">Rangpur</option>
+                          <option value="8">Mymensingh</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-extrabold text-slate-500 tracking-widest uppercase ml-1">Zone</label>
+                        <input 
+                          type="text" 
+                          value={pathaoZone}
+                          onChange={(e) => setPathaoZone(e.target.value)}
+                          placeholder="Zone"
+                          className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-3 py-3.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-extrabold text-slate-500 tracking-widest uppercase ml-1">Area</label>
+                        <input 
+                          type="text" 
+                          value={pathaoArea}
+                          onChange={(e) => setPathaoArea(e.target.value)}
+                          placeholder="Area (optional)"
+                          className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-3 py-3.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Weight & Delivery Type Grid */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-extrabold text-slate-500 tracking-widest uppercase ml-1">Weight (KG)</label>
+                        <input 
+                          type="text" 
+                          value={pathaoWeight}
+                          onChange={(e) => setPathaoWeight(e.target.value)}
+                          className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-4 py-3.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-extrabold text-slate-500 tracking-widest uppercase ml-1">Delivery Type</label>
+                        <select
+                          value={pathaoDeliveryType}
+                          onChange={(e) => setPathaoDeliveryType(e.target.value)}
+                          className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-4 py-3.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 focus:bg-white transition-all cursor-pointer"
+                        >
+                          <option value="48">Normal Delivery (48h)</option>
+                          <option value="24">Express Delivery (24h)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Special Instructions */}
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-extrabold text-slate-500 tracking-widest uppercase ml-1">Special Instruction</label>
+                      <textarea 
+                        value={pathaoSpecialInstruction}
+                        onChange={(e) => setPathaoSpecialInstruction(e.target.value)}
+                        placeholder="Handle with care, call before delivery..."
+                        className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-4 py-3 text-xs text-slate-800 font-bold h-20 focus:outline-none focus:border-emerald-500 focus:bg-white transition-all resize-none leading-normal"
+                      />
+                    </div>
+
+                    {/* Action Button */}
+                    <div className="pt-3">
+                      <button
+                        onClick={handleBookPathao}
+                        disabled={bookingToPathao}
+                        className="w-full py-4 bg-[#00B074] hover:bg-[#009c66] text-white rounded-[16px] text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2.5 transition-all shadow-md hover:shadow-lg shadow-emerald-500/10 active:scale-98 cursor-pointer disabled:opacity-80 disabled:cursor-not-allowed"
+                      >
+                        {bookingToPathao ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            <span>Booking parcel...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4 fill-white" />
+                            <span>Book Pathao Delivery</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  /* Success State Box */
+                  <div className="py-6 flex flex-col items-center justify-center text-center space-y-6">
+                    <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 animate-pulse">
+                      <CheckCircle2 size={56} className="stroke-[2.5]" />
+                    </div>
+                    
+                    <div className="space-y-1.5">
+                      <h3 className="text-xl font-black text-slate-900">Successfully Booked!</h3>
+                      <p className="text-xs text-slate-500 font-medium">Your order has been recorded into the Pathao network.</p>
+                    </div>
+
+                    {/* Details Box */}
+                    <div className="w-full bg-white border border-emerald-100 rounded-[20px] p-5 space-y-4 shadow-sm text-left">
+                      <div>
+                        <span className="text-[9px] font-black tracking-widest uppercase text-slate-400">Consignment ID</span>
+                        <div className="mt-1 flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
+                          <span className="text-lg font-black text-emerald-800 font-mono tracking-wider">
+                            {pathaoSuccessResult.consignment_id}
+                          </span>
+                          <span className="text-[10px] font-black text-emerald-600 bg-emerald-100 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                            Active tracking
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-slate-100 pt-3">
+                        <span className="text-[9px] font-black tracking-widest uppercase text-slate-400">SMS Notification Details</span>
+                        <div className="mt-2 bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-600 leading-relaxed font-mono relative">
+                          <div className="absolute top-1.5 right-2 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                          <div className="absolute top-1.5 right-2 w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          <p className="font-sans pr-4">{pathaoSuccessResult.sms_text}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Done Button */}
+                    <button
+                      onClick={() => {
+                        setPathaoBookingOrder(null);
+                        setPathaoSuccessResult(null);
+                      }}
+                      className="w-full py-4 bg-slate-900 hover:bg-black text-white rounded-[16px] text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 cursor-pointer"
+                    >
+                      Done
+                    </button>
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>

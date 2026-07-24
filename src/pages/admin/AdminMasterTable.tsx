@@ -289,7 +289,7 @@ export default function AdminMasterTable(): React.JSX.Element {
       {/* Top Title & Quick Stock Card - Compacted */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-gray-100 pb-4 mb-4">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-black text-white flex items-center justify-center shrink-0 shadow-sm">
+          <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
             <Boxes className="w-5 h-5" />
           </div>
           <div>
@@ -337,8 +337,8 @@ export default function AdminMasterTable(): React.JSX.Element {
                 }}
                 className={`px-4 py-1.5 rounded-md text-[9px] font-black uppercase tracking-wider transition-all duration-200 cursor-pointer group flex items-center gap-1.5 ${
                   activeMode === mode 
-                    ? 'bg-black text-white shadow-xs' 
-                    : 'text-gray-400 hover:text-black hover:bg-gray-50'
+                    ? 'bg-blue-600 text-white shadow-xs' 
+                    : 'text-gray-400 hover:text-blue-600 hover:bg-gray-50'
                 }`}
               >
                 {mode === 'PRICE' && <DollarSign size={9} />}

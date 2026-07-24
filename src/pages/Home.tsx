@@ -11,7 +11,7 @@ import ReviewsCarousel from '../components/ReviewsCarousel';
 import { cn } from '../lib/utils';
 
 const Home = () => {
-  const { products, loading: productsLoading } = useProducts();
+  const { products, loading: productsLoading, offerProductIds = [] } = useProducts();
   const { categories } = useCategories();
   const { banners } = useBanners();
   const { heroBannerUrl, subHeroBannerUrl, collectionsBannerUrl, featureBannerUrl, poloBannerUrl, showHeroBanner, showCountdownBanner, categoryImages } = useBranding();
@@ -54,6 +54,7 @@ const Home = () => {
     const cat = (p.category || '').toLowerCase().trim();
     return cat === 'polo t-shirt' || cat === 'polo-t-shirt' || cat === 'polo t shirt';
   }).slice(0, 8);
+  const offerProducts = products.filter(p => offerProductIds.includes(p.id)).slice(0, 8);
   const allCollection = products.slice(0, 12);
 
   return (
@@ -226,6 +227,31 @@ const Home = () => {
 
         {/* Customer Reviews & Testimonials section */}
         <ReviewsCarousel />
+
+        {/* Exclusive Offers */}
+        {offerProducts.length > 0 && (
+          <section className="py-12 bg-red-50/20 border-t border-red-100/50 mt-6">
+            <div className="max-w-7xl mx-auto px-4">
+              <div className="mb-8 text-center">
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-100 text-red-600 rounded-full text-[10px] font-black uppercase tracking-wider mb-2">
+                  <Zap size={10} className="fill-red-600 text-red-600" /> Hot Deals
+                </span>
+                <h3 className="text-2xl md:text-3xl font-black italic tracking-tighter uppercase text-red-600">Exclusive Offers</h3>
+                <div className="w-12 h-0.5 bg-red-600 mx-auto mt-2 rounded-full" />
+              </div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
+                {offerProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+              <div className="mt-8 flex justify-center">
+                <Link to="/category/offers" className="text-[10px] font-black uppercase tracking-[0.3em] text-red-600 hover:text-red-700 transition-colors flex items-center gap-2">
+                  View All Offers <ArrowRight size={14} />
+                </Link>
+              </div>
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );

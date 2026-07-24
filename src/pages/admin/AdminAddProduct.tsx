@@ -293,7 +293,7 @@ export default function AdminAddProduct() {
           <button 
             type="submit"
             form="product-form"
-            className="px-6 py-2.5 bg-black text-white rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-md active:scale-95 flex items-center gap-2"
+            className="px-6 py-2.5 bg-blue-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-md active:scale-95 flex items-center gap-2"
           >
             <Save size={16} />
             {isEditMode ? 'Save Changes' : 'Save Product'}

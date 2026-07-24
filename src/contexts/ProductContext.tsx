@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Product } from '../types';
 import { PRODUCTS as INITIAL_PRODUCTS } from '../constants';
 import { db } from '../lib/firebase';
-import { collection, onSnapshot, doc, setDoc, deleteDoc, writeBatch, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, writeBatch, getDocs, getDoc } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 
@@ -12,6 +12,8 @@ interface ProductContextType {
   updateProduct: (product: Product) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   loading: boolean;
+  offerProductIds: string[];
+  updateOfferProducts: (ids: string[]) => Promise<void>;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
@@ -61,7 +63,31 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return INITIAL_PRODUCTS;
   });
   const [loading, setLoading] = useState(true);
+  const [offerProductIds, setOfferProductIds] = useState<string[]>(() => {
+    try {
+      const cached = localStorage.getItem('eleganbd_offers');
+      return cached ? JSON.parse(cached) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const { isAdmin } = useAuth();
+
+  useEffect(() => {
+    const fetchOffers = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'config', 'offers'));
+        if (snap.exists()) {
+          const ids = snap.data().productIds || [];
+          setOfferProductIds(ids);
+          localStorage.setItem('eleganbd_offers', JSON.stringify(ids));
+        }
+      } catch (err) {
+        console.error("Failed to fetch offers config:", err);
+      }
+    };
+    fetchOffers();
+  }, []);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -191,8 +217,19 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
+  const updateOfferProducts = async (ids: string[]) => {
+    try {
+      await setDoc(doc(db, 'config', 'offers'), { productIds: ids });
+      setOfferProductIds(ids);
+      localStorage.setItem('eleganbd_offers', JSON.stringify(ids));
+    } catch (error) {
+      console.error("Failed to update offers config:", error);
+      throw error;
+    }
+  };
+
   return (
-    <ProductContext.Provider value={{ products, addProduct, updateProduct, deleteProduct, loading }}>
+    <ProductContext.Provider value={{ products, addProduct, updateProduct, deleteProduct, loading, offerProductIds, updateOfferProducts }}>
       {children}
     </ProductContext.Provider>
   );

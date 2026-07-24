@@ -68,8 +68,8 @@ export default function AdminCustomers() {
 
       {/* Stats row for Customers */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-8 border border-gray-100 rounded-2xl flex items-center space-x-6 shadow-sm group hover:border-black transition-all">
-          <div className="w-14 h-14 bg-black text-white rounded-xl flex items-center justify-center shadow-lg">
+        <div className="bg-white p-8 border border-gray-100 rounded-2xl flex items-center space-x-6 shadow-sm group hover:border-blue-600 transition-all">
+          <div className="w-14 h-14 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg">
             <Users size={28} />
           </div>
           <div>
@@ -77,7 +77,7 @@ export default function AdminCustomers() {
             <p className="text-2xl font-black text-black italic tracking-tighter">{customers.length}</p>
           </div>
         </div>
-        <div className="bg-white p-8 border border-gray-100 rounded-2xl flex items-center space-x-6 shadow-sm group hover:border-black transition-all">
+        <div className="bg-white p-8 border border-gray-100 rounded-2xl flex items-center space-x-6 shadow-sm group hover:border-blue-600 transition-all">
           <div className="w-14 h-14 bg-gray-50 text-black rounded-xl flex items-center justify-center border border-gray-100">
             <TrendingUp size={28} />
           </div>

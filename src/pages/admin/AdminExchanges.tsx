@@ -735,7 +735,7 @@ export default function AdminExchanges() {
           <motion.div 
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="p-4 bg-gray-900 text-white rounded-[16px] flex items-center justify-between shadow-lg"
+            className="p-4 bg-blue-600 text-white rounded-[16px] flex items-center justify-between shadow-lg"
           >
             <div className="flex items-center gap-3">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />

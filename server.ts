@@ -318,11 +318,11 @@ async function startServer() {
         recipient_address: address,
         recipient_city: Number(order.cityId || creds.defaultCityId || 1),
         recipient_zone: Number(order.zoneId || creds.defaultZoneId || 1),
-        delivery_type: 48,
+        delivery_type: Number(order.delivery_type || 48),
         item_type: 2,
-        special_instruction: order.orderNote || 'Handle with care',
+        special_instruction: (order.orderNote !== undefined && order.orderNote !== null) ? order.orderNote : 'Handle with care',
         item_quantity: totalQty || 1,
-        item_weight: 0.5,
+        item_weight: Number(order.item_weight || 0.5),
         amount_to_collect: (order.paymentMethod === 'COD' || order.paymentStatus !== 'Paid') ? Number(order.total || 0) : 0,
         item_description: itemsDesc || 'Garments / Apparel item'
       };

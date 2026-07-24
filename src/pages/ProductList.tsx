@@ -8,7 +8,7 @@ import { cn } from '../lib/utils';
 
 const ProductList = () => {
   const { category } = useParams<{ category: string }>();
-  const { products, loading } = useProducts();
+  const { products, loading, offerProductIds = [] } = useProducts();
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState('newest');
 
@@ -20,7 +20,9 @@ const ProductList = () => {
     let filtered = products;
 
     // Filter by Category
-    if (category && category !== 'all' && category !== 'new-arrivals') {
+    if (category === 'offers') {
+      filtered = filtered.filter(p => offerProductIds.includes(p.id));
+    } else if (category && category !== 'all' && category !== 'new-arrivals') {
       filtered = filtered.filter(p => {
         const pCat = p.category.toLowerCase();
         const paramCat = category.toLowerCase();

@@ -47,8 +47,6 @@ export const generateNextOrderId = (orders: Order[]): string => {
   return String(nextNum);
 };
 
-const NOTIFICATION_SOUND = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3';
-
 export function OrderProvider({ children }: { children: React.ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,11 +55,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const { products, updateProduct } = useProducts();
   const { addTransaction } = useInventory();
   const isInitialLoad = useRef(true);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    audioRef.current = new Audio(NOTIFICATION_SOUND);
-  }, []);
 
   useEffect(() => {
     if (!currentUser) {
@@ -82,13 +75,10 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         ordersData.push({ id: doc.id, ...doc.data() } as Order);
       });
 
-      // Sound notification for Admin when a new order arrives
+      // Notification for Admin when a new order arrives
       if (!isInitialLoad.current && isAdmin && snapshot.docChanges().some(change => change.type === 'added')) {
         const newOrder = ordersData[0];
         setLastOrder(newOrder);
-        if (audioRef.current) {
-          audioRef.current.play().catch(e => console.warn("Audio play blocked by browser", e));
-        }
         // Native Browser Notification
         if ("Notification" in window && Notification.permission === "granted") {
           new Notification("New Order Received!", {

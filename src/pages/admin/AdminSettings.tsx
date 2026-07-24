@@ -12,26 +12,28 @@ import {
   Image as ImageIcon, 
   Lock, 
   Bell, 
-  Store,
-  Save,
-  Plus,
-  Upload,
-  Trash2,
-  RefreshCw,
-  Megaphone,
-  Sparkles,
-  Ticket,
-  Check,
-  X,
-  Calendar,
-  Gift,
-  MessageSquare,
-  CreditCard,
-  Coins,
-  Truck,
-  Key,
-  CheckCircle2,
-  CheckSquare
+  Store, 
+  Save, 
+  Plus, 
+  Upload, 
+  Trash2, 
+  RefreshCw, 
+  Megaphone, 
+  Sparkles, 
+  Ticket, 
+  Check, 
+  X, 
+  Calendar, 
+  Gift, 
+  MessageSquare, 
+  CreditCard, 
+  Coins, 
+  Truck, 
+  Key, 
+  CheckCircle2, 
+  CheckSquare,
+  Search,
+  Pencil
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -72,11 +74,81 @@ export default function AdminSettings() {
     showShowcase,
     setShowShowcase
   } = useBranding();
-  const { products } = useProducts();
+  const { products, offerProductIds = [], updateOfferProducts, updateProduct } = useProducts();
   const { currentUser, isSuperAdmin } = useAuth();
   const { orders } = useOrders();
 
   const [activeTab, setActiveTab ] = useState('General');
+  const [offerSearchQuery, setOfferSearchQuery] = useState('');
+  const [editingOfferProduct, setEditingOfferProduct] = useState<any | null>(null);
+  const [editOfferName, setEditOfferName] = useState('');
+  const [editOfferPrice, setEditOfferPrice] = useState<number>(0);
+  const [editOfferRegularPrice, setEditOfferRegularPrice] = useState<number | ''>('');
+  const [editOfferDescription, setEditOfferDescription] = useState('');
+  const [editOfferImages, setEditOfferImages] = useState<string[]>([]);
+  const [editOfferSaving, setEditOfferSaving] = useState(false);
+
+  const handleOfferImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const MAX_WIDTH = 800;
+          const MAX_HEIGHT = 800;
+          if (width > height) {
+            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+          } else {
+            if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          setEditOfferImages(prev => [...prev, dataUrl]);
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleSaveOfferProduct = async () => {
+    if (!editingOfferProduct) return;
+    if (!editOfferName.trim()) {
+      toast.error('Product name cannot be empty');
+      return;
+    }
+    if (isNaN(Number(editOfferPrice)) || Number(editOfferPrice) <= 0) {
+      toast.error('Please enter a valid price');
+      return;
+    }
+
+    setEditOfferSaving(true);
+    try {
+      const updatedProduct = {
+        ...editingOfferProduct,
+        name: editOfferName.trim(),
+        price: Number(editOfferPrice),
+        regularPrice: editOfferRegularPrice === '' ? null : Number(editOfferRegularPrice),
+        description: editOfferDescription.trim(),
+        images: editOfferImages
+      };
+      await updateProduct(updatedProduct);
+      toast.success('Offer product updated successfully!');
+      setEditingOfferProduct(null);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to update product details');
+    } finally {
+      setEditOfferSaving(false);
+    }
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -1563,7 +1635,7 @@ export default function AdminSettings() {
                     />
                     <span className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-black">Standard Context</span>
                   </div>
-                  <div className="p-10 bg-black border border-black rounded-2xl flex flex-col items-center space-y-6 shadow-xl">
+                  <div className="p-10 bg-blue-900 border border-blue-900 rounded-2xl flex flex-col items-center space-y-6 shadow-xl">
                     <img 
                       src={tempLogo} 
                       className="h-12 w-auto object-contain brightness-0 invert" 
@@ -1613,7 +1685,7 @@ export default function AdminSettings() {
                     onClick={() => setShowShowcase(!showShowcase)}
                     className={cn(
                       "w-16 h-8 rounded-full transition-all relative flex items-center px-1 border-2",
-                      showShowcase ? "bg-black border-black shadow-lg" : "bg-gray-200 border-gray-300"
+                      showShowcase ? "bg-blue-600 border-blue-600 shadow-lg" : "bg-gray-200 border-gray-300"
                     )}
                   >
                     <motion.div 
@@ -1630,7 +1702,7 @@ export default function AdminSettings() {
               <div className="pt-8">
                  <button 
                   onClick={handleApplyBranding}
-                  className="bg-black text-white px-12 py-5 text-xs font-black uppercase tracking-[0.3em] hover:bg-gray-800 transition-all rounded-2xl shadow-xl transform-gpu active:scale-95 flex items-center gap-3"
+                  className="bg-blue-600 text-white px-12 py-5 text-xs font-black uppercase tracking-[0.3em] hover:bg-blue-700 transition-all rounded-2xl shadow-xl transform-gpu active:scale-95 flex items-center gap-3"
                  >
                     <Save size={18} />
                     <span>Propagate Brand Assets</span>
@@ -1663,7 +1735,7 @@ export default function AdminSettings() {
                   </div>
                   <button
                     onClick={handleOpenAddModal}
-                    className="bg-black text-white px-5 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider hover:bg-gray-800 transition-all shadow-md flex items-center justify-center gap-2 shrink-0"
+                    className="bg-blue-600 text-white px-5 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider hover:bg-blue-700 transition-all shadow-md flex items-center justify-center gap-2 shrink-0"
                   >
                     <Plus size={16} />
                     <span>+ নতুন এডমিন পারমিশন দিন</span>
@@ -1725,7 +1797,7 @@ export default function AdminSettings() {
                                   onClick={() => handleDepartmentChange(dept.id)}
                                   className={`p-3 text-left rounded-2xl border transition-all flex flex-col justify-between ${
                                     isSelected 
-                                      ? 'bg-black text-white border-black shadow-md' 
+                                      ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
                                       : 'bg-gray-50 text-gray-800 border-gray-200 hover:border-gray-300'
                                   }`}
                                 >
@@ -1815,7 +1887,7 @@ export default function AdminSettings() {
                           type="button"
                           onClick={handleSaveDirectAccess}
                           disabled={isSavingDirectAccess}
-                          className="px-6 py-3 bg-black text-white text-xs font-black uppercase tracking-wider rounded-2xl hover:bg-gray-800 transition-all flex items-center gap-2 shadow-lg"
+                          className="px-6 py-3 bg-blue-600 text-white text-xs font-black uppercase tracking-wider rounded-2xl hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg"
                         >
                           {isSavingDirectAccess ? (
                             <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -3180,8 +3252,154 @@ export default function AdminSettings() {
               </form>
             </div>
           )}
+
+          {activeTab === 'Offers' && (
+            <div className="space-y-8 max-w-5xl relative z-10 font-sans text-left">
+              {/* Header */}
+              <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 tracking-tight">Campaign & Offers Settings</h3>
+                  <p className="text-xs text-gray-500 mt-1">Select and manage products featured in the OFFERS section and homepage.</p>
+                </div>
+              </div>
+
+              {/* Currently in Offers */}
+              <div className="bg-white border border-gray-200/80 rounded-2xl shadow-3xs overflow-hidden">
+                <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900">Current Offer Products</h4>
+                    <p className="text-xs text-gray-500 mt-0.5">These products are visible in the OFFERS menu and Home page.</p>
+                  </div>
+                  <div className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100 text-xs font-bold">
+                    {offerProductIds.length} Products Active
+                  </div>
+                </div>
+                <div className="p-6">
+                  {offerProductIds.length === 0 ? (
+                    <div className="text-center py-10 border-2 border-dashed border-gray-100 rounded-2xl">
+                      <Tag size={32} className="mx-auto text-gray-300 mb-2 animate-pulse" />
+                      <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">No products added to offers yet</p>
+                      <p className="text-xs text-gray-400 mt-1">Use the section below to search and add some products.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                      {products
+                        .filter(p => offerProductIds.includes(p.id))
+                        .map(p => (
+                          <div key={p.id} className="group border border-gray-100 rounded-xl overflow-hidden bg-white hover:shadow-xs transition-all relative flex flex-col">
+                            <div className="aspect-square bg-gray-50 relative overflow-hidden">
+                              <img 
+                                src={p.images?.[0] || 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b'} 
+                                alt={p.name} 
+                                className="w-full h-full object-cover" 
+                                referrerPolicy="no-referrer"
+                              />
+                            </div>
+                            <div className="p-3 flex-1 flex flex-col justify-between">
+                              <div>
+                                <span className="text-[9px] uppercase tracking-wider font-extrabold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
+                                  {p.category}
+                                </span>
+                                <h5 className="text-xs font-bold text-gray-900 truncate mt-1.5">{p.name}</h5>
+                                <p className="text-xs font-extrabold text-gray-900 mt-1">৳ {p.price}</p>
+                              </div>
+                              <div className="flex gap-1.5 mt-3">
+                                <button
+                                  onClick={() => {
+                                    setEditingOfferProduct(p);
+                                    setEditOfferName(p.name);
+                                    setEditOfferPrice(p.price);
+                                    setEditOfferRegularPrice(p.regularPrice || '');
+                                    setEditOfferDescription(p.description || '');
+                                    setEditOfferImages(p.images || []);
+                                  }}
+                                  className="flex-1 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[10px] font-black uppercase tracking-wider rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                                >
+                                  <Pencil size={11} />
+                                  <span>Edit</span>
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    const newIds = offerProductIds.filter(id => id !== p.id);
+                                    await updateOfferProducts(newIds);
+                                    toast.success('Removed from offers successfully');
+                                  }}
+                                  className="flex-1 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-black uppercase tracking-wider rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                                >
+                                  <Trash2 size={11} />
+                                  <span>Remove</span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Add more products */}
+              <div className="bg-white border border-gray-200/80 rounded-2xl shadow-3xs overflow-hidden">
+                <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900">Add Products to Offers</h4>
+                    <p className="text-xs text-gray-500 mt-0.5">Search and add other items to the campaign.</p>
+                  </div>
+                  <div className="w-full sm:w-64 relative">
+                    <input
+                      type="text"
+                      placeholder="Search products..."
+                      value={offerSearchQuery}
+                      onChange={(e) => setOfferSearchQuery(e.target.value)}
+                      className="w-full pl-8 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-black transition-colors"
+                    />
+                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  </div>
+                </div>
+                <div className="p-6 max-h-[500px] overflow-y-auto">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {products
+                      .filter(p => !offerProductIds.includes(p.id))
+                      .filter(p => !offerSearchQuery || p.name.toLowerCase().includes(offerSearchQuery.toLowerCase()) || p.category.toLowerCase().includes(offerSearchQuery.toLowerCase()))
+                      .map(p => (
+                        <div key={p.id} className="border border-gray-100 rounded-xl overflow-hidden bg-white hover:shadow-xs transition-all relative flex flex-col">
+                          <div className="aspect-square bg-gray-50 relative overflow-hidden">
+                            <img 
+                              src={p.images?.[0] || 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b'} 
+                              alt={p.name} 
+                              className="w-full h-full object-cover" 
+                              referrerPolicy="no-referrer"
+                            />
+                          </div>
+                          <div className="p-3 flex-1 flex flex-col justify-between">
+                            <div>
+                              <span className="text-[9px] uppercase tracking-wider font-extrabold text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded">
+                                {p.category}
+                              </span>
+                              <h5 className="text-xs font-bold text-gray-900 truncate mt-1.5">{p.name}</h5>
+                              <p className="text-xs font-extrabold text-gray-900 mt-1">৳ {p.price}</p>
+                            </div>
+                            <button
+                              onClick={async () => {
+                                const newIds = [...offerProductIds, p.id];
+                                await updateOfferProducts(newIds);
+                                toast.success('Added to offers successfully');
+                              }}
+                              className="mt-3 w-full py-2 bg-[#4F46E5] hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-wider rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                            >
+                              <Plus size={12} />
+                              <span>Add to Offer</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           
-          {activeTab !== 'General' && activeTab !== 'Banners' && activeTab !== 'Categories' && activeTab !== 'Notifications' && activeTab !== 'Branding' && activeTab !== 'Admin Access' && activeTab !== 'Payments' && activeTab !== 'Pixel & Analytics' && activeTab !== 'Coupons' && activeTab !== 'SMS' && activeTab !== 'Courier' && activeTab !== 'Pathao' && (
+          {activeTab !== 'General' && activeTab !== 'Banners' && activeTab !== 'Categories' && activeTab !== 'Notifications' && activeTab !== 'Branding' && activeTab !== 'Admin Access' && activeTab !== 'Payments' && activeTab !== 'Pixel & Analytics' && activeTab !== 'Coupons' && activeTab !== 'SMS' && activeTab !== 'Courier' && activeTab !== 'Pathao' && activeTab !== 'Offers' && (
              <div className="flex flex-col items-center justify-center py-32 text-center opacity-20 relative z-10 font-sans">
                 <Settings size={64} className="mb-6 animate-spin-slow text-brand-gold" />
                 <h3 className="serif text-3xl text-black italic tracking-tighter uppercase font-black">Under Construction</h3>
@@ -3193,6 +3411,150 @@ export default function AdminSettings() {
 
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
+        {editingOfferProduct && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setEditingOfferProduct(null)}
+              className="absolute inset-0 bg-black/45 backdrop-blur-xs"
+            />
+            <motion.div 
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.95 }}
+              className="bg-white border border-gray-100 rounded-2xl max-w-2xl w-full relative shadow-2xl z-20 overflow-hidden flex flex-col max-h-[90vh] text-left font-sans"
+            >
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 tracking-tight">Edit Offer Product</h3>
+                  <p className="text-xs text-gray-500">Modify title, pricing, description, and images for this item.</p>
+                </div>
+                <button 
+                  onClick={() => setEditingOfferProduct(null)}
+                  className="p-1.5 hover:bg-gray-100 text-gray-400 hover:text-black rounded-lg transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="p-6 overflow-y-auto space-y-5 flex-1">
+                {/* Product Name */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">Product Name</label>
+                  <input
+                    type="text"
+                    value={editOfferName}
+                    onChange={(e) => setEditOfferName(e.target.value)}
+                    placeholder="Enter product title"
+                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-black transition-colors"
+                  />
+                </div>
+
+                {/* Price & Regular Price */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">Offer Price (৳)</label>
+                    <input
+                      type="number"
+                      value={editOfferPrice}
+                      onChange={(e) => setEditOfferPrice(Number(e.target.value))}
+                      placeholder="e.g. 1200"
+                      className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-black transition-colors"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">Regular Price (৳) - optional</label>
+                    <input
+                      type="number"
+                      value={editOfferRegularPrice}
+                      onChange={(e) => setEditOfferRegularPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                      placeholder="e.g. 1600"
+                      className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-black transition-colors"
+                    />
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">Description / Details</label>
+                  <textarea
+                    value={editOfferDescription}
+                    onChange={(e) => setEditOfferDescription(e.target.value)}
+                    placeholder="Add materials, fitting, details..."
+                    rows={4}
+                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-black transition-colors resize-none animate-none"
+                  />
+                </div>
+
+                {/* Product Images */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">Product Images</label>
+                  <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
+                    {editOfferImages.map((img, idx) => (
+                      <div key={idx} className="aspect-square bg-gray-50 border border-gray-100 rounded-xl overflow-hidden relative group">
+                        <img 
+                          src={img} 
+                          alt="Product" 
+                          className="w-full h-full object-cover" 
+                          referrerPolicy="no-referrer"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setEditOfferImages(prev => prev.filter((_, i) => i !== idx))}
+                          className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white cursor-pointer"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                    <div 
+                      onClick={() => document.getElementById('offer-product-file-input')?.click()}
+                      className="aspect-square border border-dashed border-gray-200 hover:border-gray-400 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors text-gray-400 hover:text-black bg-gray-50/30 text-xs"
+                    >
+                      <Upload size={18} />
+                      <span className="text-[8px] font-bold uppercase tracking-wider mt-1">Upload</span>
+                    </div>
+                  </div>
+                  <input
+                    type="file"
+                    id="offer-product-file-input"
+                    multiple
+                    accept="image/*"
+                    onChange={handleOfferImageUpload}
+                    className="hidden"
+                  />
+                </div>
+              </div>
+
+              {/* Footer Actions */}
+              <div className="px-6 py-4 border-t border-gray-100 flex gap-3 justify-end bg-gray-50/30">
+                <button 
+                  onClick={() => setEditingOfferProduct(null)}
+                  className="px-4 py-2 text-[10px] uppercase tracking-wider font-bold bg-white text-gray-400 hover:text-black transition-all rounded-lg border border-gray-200 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleSaveOfferProduct}
+                  disabled={editOfferSaving}
+                  className="px-5 py-2 text-[10px] uppercase tracking-wider font-black bg-[#4F46E5] text-white hover:bg-indigo-700 transition-all rounded-lg shadow-sm cursor-pointer flex items-center gap-1.5"
+                >
+                  {editOfferSaving ? (
+                    <RefreshCw size={12} className="animate-spin" />
+                  ) : (
+                    <Save size={12} />
+                  )}
+                  <span>{editOfferSaving ? 'Saving...' : 'Save Changes'}</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
         {deleteConfirm && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
             <motion.div 
@@ -3228,7 +3590,7 @@ export default function AdminSettings() {
                     toast.success(`${deleteConfirm.name} deleted.`);
                     setDeleteConfirm(null);
                   }}
-                  className="flex-1 py-3 text-[10px] uppercase tracking-wider font-bold bg-black text-white hover:bg-gray-800 transition-all rounded-lg shadow-sm cursor-pointer"
+                  className="flex-1 py-3 text-[10px] uppercase tracking-wider font-bold bg-blue-600 text-white hover:bg-blue-700 transition-all rounded-lg shadow-sm cursor-pointer"
                 >
                   Delete
                 </button>

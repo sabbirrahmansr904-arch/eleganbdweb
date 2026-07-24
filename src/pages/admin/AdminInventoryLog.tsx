@@ -47,7 +47,7 @@ export default function AdminInventoryLog() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-gray-50 p-8 rounded-[2rem] border border-gray-100 shadow-sm transition-all hover:bg-gray-100/50">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-black text-white rounded-2xl shadow-xl">
+            <div className="p-3 bg-blue-600 text-white rounded-2xl shadow-xl">
               <History size={24} />
             </div>
             <h1 className="text-3xl font-black text-black italic tracking-tighter uppercase font-sans">Audit Matrix</h1>
@@ -96,8 +96,8 @@ export default function AdminInventoryLog() {
                   className={cn(
                     "px-8 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
                     selectedType === type 
-                      ? "bg-black text-white shadow-lg" 
-                      : "text-gray-400 hover:text-black"
+                      ? "bg-blue-600 text-white shadow-lg" 
+                      : "text-gray-400 hover:text-blue-600"
                   )}
                 >
                   {type === 'all' ? 'All Activity' : type === 'in' ? 'Stock In' : 'Stock Out'}
@@ -179,7 +179,7 @@ export default function AdminInventoryLog() {
                     </td>
                     <td className="px-8 py-8">
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-2xl bg-black text-white flex items-center justify-center text-[11px] font-black italic shadow-lg">
+                        <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-[11px] font-black italic shadow-lg">
                           {authorizedBy.charAt(0).toUpperCase()}
                         </div>
                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic">{authorizedBy}</span>
@@ -213,7 +213,7 @@ export default function AdminInventoryLog() {
                 </div>
                 <button 
                   onClick={() => { setSearchQuery(''); setSelectedType('all'); }}
-                  className="mt-4 px-10 py-4 bg-black text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] hover:bg-gray-800 shadow-xl transition-all font-bold"
+                  className="mt-4 px-10 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] shadow-xl transition-all font-bold"
                 >
                   Reset Parameters
                 </button>
