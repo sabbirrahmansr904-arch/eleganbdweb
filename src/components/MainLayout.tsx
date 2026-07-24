@@ -2,7 +2,6 @@ import React from 'react';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import BottomNav from './BottomNav';
-import FloatingWhatsApp from './FloatingWhatsApp';
 import ComboOfferBanner from './ComboOfferBanner';
 import CartDrawer from './CartDrawer';
 import { useCart } from '../contexts/CartContext';
@@ -29,7 +28,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         {children}
       </main>
       <Footer />
-      <FloatingWhatsApp />
 
       {/* Floating Order Now Widget when Cart has 3+ items */}
       <AnimatePresence>
