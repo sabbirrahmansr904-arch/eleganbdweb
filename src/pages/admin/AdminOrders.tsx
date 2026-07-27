@@ -134,7 +134,7 @@ export default function AdminOrders(): React.JSX.Element {
   // Pathao Booking Modal States
   const [pathaoBookingOrder, setPathaoBookingOrder] = useState<Order | null>(null);
   const [pathaoPickupStore, setPathaoPickupStore] = useState('Eleganbd—198/3 East Ahmed Nagar Paikpara Habuler Pukurpar Madrasha Galli, Dhaka 1216');
-  const [pathaoCity, setPathaoCity] = useState('1'); // Default to Dhaka City ID
+  const [pathaoCity, setPathaoCity] = useState('Dhaka'); // Default to Dhaka
   const [pathaoZone, setPathaoZone] = useState('');
   const [pathaoArea, setPathaoArea] = useState('');
   const [pathaoWeight, setPathaoWeight] = useState('0.5');
@@ -731,10 +731,25 @@ export default function AdminOrders(): React.JSX.Element {
     if (!pathaoBookingOrder) return;
     setBookingToPathao(true);
     
+    const PATHAO_CITY_MAP: Record<string, number> = {
+      'Dhaka': 1,
+      'Chittagong': 2,
+      'Sylhet': 3,
+      'Khulna': 4,
+      'Rajshahi': 5,
+      'Barisal': 6,
+      'Rangpur': 7,
+      'Mymensingh': 8
+    };
+
+    const cityIdNum = PATHAO_CITY_MAP[pathaoCity] || 1;
+
     // Build the custom order object to send to the backend
     const updatedOrder = {
       ...pathaoBookingOrder,
-      cityId: Number(pathaoCity),
+      city: pathaoCity,
+      thana: pathaoZone,
+      cityId: cityIdNum,
       zoneId: Number(pathaoZone) || 1,
       areaId: Number(pathaoArea) || 1,
       orderNote: pathaoSpecialInstruction,
@@ -2116,34 +2131,24 @@ export default function AdminOrders(): React.JSX.Element {
                                   return;
                                 }
                                 
-                                const addressLower = ((order.address || '') + ' ' + (order.thana || '') + ' ' + (order.city || '')).toLowerCase();
-                                
-                                // Determine district/city key and city ID
+                                // Determine district/city key
+                                const cityTrim = (order.city || '').trim();
                                 let matchedDistrictKey = 'Dhaka';
-                                let cityId = '1';
 
-                                if (addressLower.includes('chittagong') || addressLower.includes('ctg') || addressLower.includes('chattogram')) {
-                                  matchedDistrictKey = 'Chittagong';
-                                  cityId = '2';
-                                } else if (addressLower.includes('sylhet')) {
-                                  matchedDistrictKey = 'Sylhet';
-                                  cityId = '3';
-                                } else if (addressLower.includes('khulna')) {
-                                  matchedDistrictKey = 'Khulna';
-                                  cityId = '4';
-                                } else if (addressLower.includes('rajshahi')) {
-                                  matchedDistrictKey = 'Rajshahi';
-                                  cityId = '5';
-                                } else if (addressLower.includes('barisal')) {
-                                  matchedDistrictKey = 'Barisal';
-                                  cityId = '6';
-                                } else if (addressLower.includes('rangpur')) {
-                                  matchedDistrictKey = 'Rangpur';
-                                  cityId = '7';
-                                } else if (addressLower.includes('mymensingh')) {
-                                  matchedDistrictKey = 'Mymensingh';
-                                  cityId = '8';
-                                } else {
+                                if (cityTrim) {
+                                  const directMatch = Object.keys(DISTRICT_THANAS).find(d => d.toLowerCase() === cityTrim.toLowerCase());
+                                  if (directMatch) {
+                                    matchedDistrictKey = directMatch;
+                                  } else {
+                                    const partialMatch = Object.keys(DISTRICT_THANAS).find(d => d.toLowerCase().includes(cityTrim.toLowerCase()) || cityTrim.toLowerCase().includes(d.toLowerCase()));
+                                    if (partialMatch) {
+                                      matchedDistrictKey = partialMatch;
+                                    }
+                                  }
+                                }
+
+                                if (matchedDistrictKey === 'Dhaka' && cityTrim.toLowerCase() !== 'dhaka') {
+                                  const addressLower = ((order.address || '') + ' ' + (order.thana || '') + ' ' + (order.city || '')).toLowerCase();
                                   for (const key of Object.keys(DISTRICT_THANAS)) {
                                     if (addressLower.includes(key.toLowerCase())) {
                                       matchedDistrictKey = key;
@@ -2155,39 +2160,36 @@ export default function AdminOrders(): React.JSX.Element {
                                 // Match best thana/zone name
                                 let matchedZone = '';
                                 const thanasForDistrict = DISTRICT_THANAS[matchedDistrictKey] || [];
-                                // Sort thanas by length descending to match most specific first
                                 const sortedThanas = [...thanasForDistrict].sort((a, b) => b.length - a.length);
 
                                 if (order.thana) {
-                                  const thanaLower = order.thana.toLowerCase().trim();
-                                  const directMatch = sortedThanas.find(t => t.toLowerCase() === thanaLower);
-                                  if (directMatch) {
-                                    matchedZone = directMatch;
+                                  const thanaTrim = order.thana.trim();
+                                  const directThana = sortedThanas.find(t => t.toLowerCase() === thanaTrim.toLowerCase());
+                                  if (directThana) {
+                                    matchedZone = directThana;
                                   } else {
-                                    const partialMatch = sortedThanas.find(t => thanaLower.includes(t.toLowerCase()) || t.toLowerCase().includes(thanaLower));
-                                    if (partialMatch) {
-                                      matchedZone = partialMatch;
+                                    const partialThana = sortedThanas.find(t => thanaTrim.toLowerCase().includes(t.toLowerCase()) || t.toLowerCase().includes(thanaTrim.toLowerCase()));
+                                    if (partialThana) {
+                                      matchedZone = partialThana;
+                                    } else {
+                                      matchedZone = order.thana;
                                     }
                                   }
                                 }
 
                                 if (!matchedZone) {
-                                  const found = sortedThanas.find(t => {
-                                    const tLower = t.toLowerCase();
-                                    return addressLower.includes(tLower);
-                                  });
-                                  if (found) {
-                                    matchedZone = found;
+                                  const addressLower = ((order.address || '')).toLowerCase();
+                                  const foundInAddr = sortedThanas.find(t => addressLower.includes(t.toLowerCase()));
+                                  if (foundInAddr) {
+                                    matchedZone = foundInAddr;
+                                  } else if (thanasForDistrict.length > 0) {
+                                    matchedZone = thanasForDistrict[0];
                                   }
                                 }
 
-                                if (!matchedZone) {
-                                  matchedZone = order.thana || '';
-                                }
-
                                 setPathaoBookingOrder(order);
-                                setPathaoCity(cityId);
-                                setPathaoZone(matchedZone);
+                                setPathaoCity(matchedDistrictKey);
+                                setPathaoZone(matchedZone || (thanasForDistrict[0] || ''));
                                 setPathaoArea('');
                                 setPathaoWeight('0.5');
                                 setPathaoDeliveryType('48');
@@ -4608,29 +4610,35 @@ export default function AdminOrders(): React.JSX.Element {
                         <label className="text-[9px] font-extrabold text-slate-500 tracking-widest uppercase ml-1">City</label>
                         <select
                           value={pathaoCity}
-                          onChange={(e) => setPathaoCity(e.target.value)}
+                          onChange={(e) => {
+                            const newCity = e.target.value;
+                            setPathaoCity(newCity);
+                            const thanas = DISTRICT_THANAS[newCity] || [];
+                            setPathaoZone(thanas[0] || '');
+                          }}
                           className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-3 py-3.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 focus:bg-white transition-all cursor-pointer"
                         >
-                          <option value="1">Dhaka City</option>
-                          <option value="2">Chittagong</option>
-                          <option value="3">Sylhet</option>
-                          <option value="4">Khulna</option>
-                          <option value="5">Rajshahi</option>
-                          <option value="6">Barisal</option>
-                          <option value="7">Rangpur</option>
-                          <option value="8">Mymensingh</option>
+                          {Object.keys(DISTRICT_THANAS).map(district => (
+                            <option key={district} value={district}>{district}</option>
+                          ))}
                         </select>
                       </div>
 
                       <div className="space-y-1.5">
                         <label className="text-[9px] font-extrabold text-slate-500 tracking-widest uppercase ml-1">Zone</label>
-                        <input 
-                          type="text" 
+                        <select
                           value={pathaoZone}
                           onChange={(e) => setPathaoZone(e.target.value)}
-                          placeholder="Zone"
-                          className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-3 py-3.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
-                        />
+                          className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-3 py-3.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 focus:bg-white transition-all cursor-pointer"
+                        >
+                          <option value="">Select Zone / Thana</option>
+                          {(DISTRICT_THANAS[pathaoCity] || []).map(thana => (
+                            <option key={thana} value={thana}>{thana}</option>
+                          ))}
+                          {pathaoZone && !(DISTRICT_THANAS[pathaoCity] || []).includes(pathaoZone) && (
+                            <option value={pathaoZone}>{pathaoZone}</option>
+                          )}
+                        </select>
                       </div>
 
                       <div className="space-y-1.5">
