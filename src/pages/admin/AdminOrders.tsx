@@ -1729,25 +1729,25 @@ export default function AdminOrders(): React.JSX.Element {
                     }}
                   />
                 </th>
-                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Date</th>
-                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Time</th>
-                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Order No</th>
-                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Invoice By</th>
-                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Status</th>
-                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Courier</th>
-                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Name</th>
-                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Phone</th>
-                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Email</th>
-                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Address</th>
-                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">SKU</th>
-                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Size</th>
-                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Qty</th>
-                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Subtotal</th>
-                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Advance</th>
-                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Collectable</th>
-                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Note</th>
-                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px]">Tracking ID</th>
-                <th className="py-3 px-6 font-bold text-center text-slate-500 uppercase tracking-wider text-[10px] sticky right-0 bg-white z-10 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">Action</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Date</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Time</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Invoice No</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Invoice By</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Status</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Courier</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Name</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Phone</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Email</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Address</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">SKU</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Size</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Qty</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Subtotal</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Advance</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Collectable</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Note</th>
+                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Tracking ID</th>
+                <th className="py-3 px-6 font-bold text-center text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap sticky right-0 bg-white z-10 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
@@ -1764,7 +1764,7 @@ export default function AdminOrders(): React.JSX.Element {
               ) : (
                 filteredOrders.slice(0, visibleCount).map((order) => {
                   const dateTime = formatOrderDateTime(order.createdAt);
-                  const cleanId = order.id.replace('ORD-', '').replace('#', '');
+                  const cleanId = order.invoiceNo ? String(order.invoiceNo) : order.id.replace('ORD-', '').replace('#', '');
 
                   // Initial letter for customer avatar
                   const initial = order.customerName ? order.customerName.charAt(0).toUpperCase() : 'A';
@@ -3371,7 +3371,7 @@ export default function AdminOrders(): React.JSX.Element {
                   <div className="text-left">
                     <h2 className="text-base font-black text-[#0D1829] tracking-tight">Order Issue Conversation</h2>
                     <p className="text-[11px] font-bold text-indigo-600/70 font-mono mt-0.5">
-                      Internal discussion thread for Order No: <span className="text-indigo-600 font-black">{issueConversationOrder.id.slice(-10).toUpperCase()}</span>
+                      Internal discussion thread for Invoice No: <span className="text-indigo-600 font-black">{issueConversationOrder.invoiceNo ? String(issueConversationOrder.invoiceNo) : issueConversationOrder.id.replace(/^ORD-?/i, '')}</span>
                     </p>
                   </div>
                 </div>
@@ -4155,16 +4155,8 @@ export default function AdminOrders(): React.JSX.Element {
                           </div>
                           <div className="col-span-2 border-t border-slate-100/80 pt-3">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Invoice No</span>
-                            <span className="text-sm font-black text-indigo-600 font-mono block">
-                              {(() => {
-                                const dateObj = new Date(selectedOrder.createdAt);
-                                const yy = String(dateObj.getFullYear()).slice(-2);
-                                const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-                                const dd = String(dateObj.getDate()).padStart(2, '0');
-                                const lastDigits = selectedOrder.id.replace(/[^0-9]/g, '').slice(-4).padStart(4, '0');
-                                const orderSlug = lastDigits.length >= 4 ? lastDigits : String(parseInt(selectedOrder.id.slice(-4), 36) || 0).slice(-4).padStart(4, '0');
-                                return `${yy}${mm}${dd}${orderSlug}`;
-                              })()}
+                            <span className="text-sm font-black text-indigo-600 font-mono block whitespace-nowrap">
+                              {selectedOrder.invoiceNo ? String(selectedOrder.invoiceNo) : selectedOrder.id.replace(/^ORD-?/i, '')}
                             </span>
                           </div>
                           <div className="col-span-2">

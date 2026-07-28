@@ -143,7 +143,7 @@ const ProductCard = React.memo(({ product, onAddToCart, loading = "lazy" }: Prod
       </Link>
 
       <div className="mt-4 flex flex-col items-center text-center">
-        <h3 className="text-[11px] md:text-[13px] uppercase tracking-wider font-bold text-black mb-1 group-hover:text-brand-gold transition-colors line-clamp-1 px-2">
+        <h3 className="text-xs md:text-sm lg:text-base uppercase tracking-wider font-extrabold text-black mb-1 group-hover:text-brand-gold transition-colors line-clamp-1 px-2">
           <Link to={`/product/${product.id}`}>{product.name}</Link>
         </h3>
         {rating > 0 && (
@@ -164,11 +164,11 @@ const ProductCard = React.memo(({ product, onAddToCart, loading = "lazy" }: Prod
           </div>
         )}
         <div className="flex items-center gap-2">
-           <p className="text-sm md:text-base font-bold text-black">
+           <p className="text-base md:text-lg lg:text-xl font-black text-black">
              {formatPrice(product.price, currency, rate)}
            </p>
            {product.regularPrice && product.regularPrice > product.price && (
-             <p className="text-[10px] md:text-[12px] text-gray-400 line-through">
+             <p className="text-xs md:text-sm text-gray-400 line-through">
                {formatPrice(product.regularPrice, currency, rate)}
              </p>
            )}
@@ -178,15 +178,15 @@ const ProductCard = React.memo(({ product, onAddToCart, loading = "lazy" }: Prod
         <div className="w-full mt-3 px-1 flex flex-col gap-2">
           <button 
             onClick={handleQuickAdd}
-            className="w-full bg-white text-[#1b49c4] border border-[#1b49c4] py-2 px-3 rounded-lg text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-blue-50/50 transition-colors cursor-pointer"
+            className="w-full bg-white text-[#1b49c4] border border-[#1b49c4] py-2 px-3 rounded-lg text-xs md:text-sm font-bold flex items-center justify-center gap-1.5 hover:bg-blue-50/50 transition-colors cursor-pointer"
           >
-            <ShoppingCart size={14} className="text-[#1b49c4]" />
+            <ShoppingCart size={15} className="text-[#1b49c4]" />
             <span>Add to cart</span>
           </button>
           
           <button 
             onClick={handleQuickOrder}
-            className="w-full bg-[#1b49c4] text-white py-2.5 px-3 rounded-lg text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5 border border-[#1b49c4] hover:bg-[#153899] transition-colors cursor-pointer"
+            className="w-full bg-[#1b49c4] text-white py-2.5 px-3 rounded-lg text-xs md:text-sm font-bold flex items-center justify-center gap-1.5 border border-[#1b49c4] hover:bg-[#153899] transition-colors cursor-pointer"
           >
             <span>Order Now</span>
           </button>

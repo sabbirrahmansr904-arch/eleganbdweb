@@ -93,13 +93,13 @@ export default function Navbar() {
           <div className="flex items-center justify-start gap-1 md:gap-4 text-white">
             <button 
               onClick={() => setIsOpen(true)}
-              className="p-2 text-white hover:text-brand-gold transition-colors"
+              className="p-2 text-white hover:text-gray-300 transition-colors"
             >
               <Menu size={24} strokeWidth={1.5} />
             </button>
             <button 
               onClick={() => setIsSearchOpen(true)}
-              className="p-2 text-white hover:text-brand-gold transition-colors"
+              className="p-2 text-white hover:text-gray-300 transition-colors"
             >
               <Search size={22} strokeWidth={1.5} />
             </button>
@@ -116,7 +116,7 @@ export default function Navbar() {
                 />
               )}
               <span className="font-black text-lg md:text-2xl uppercase tracking-tighter text-white whitespace-nowrap">
-                Elegan <span className="text-brand-gold">BD</span>
+                Elegan BD
               </span>
             </Link>
           </div>
@@ -126,23 +126,23 @@ export default function Navbar() {
             {isAdmin && (
                <Link 
                   to="/admin"
-                  className="hidden md:flex items-center gap-2 text-brand-gold hover:text-white transition-colors p-2" 
+                  className="hidden md:flex items-center gap-2 text-white hover:text-gray-300 transition-colors p-2" 
                   title="Admin Panel"
                 >
                   <User size={20} strokeWidth={1.5} />
-                  <span className="hidden lg:inline text-[10px] font-black uppercase tracking-widest">Admin</span>
+                  <span className="hidden lg:inline text-[10px] font-black uppercase tracking-widest text-white">Admin</span>
                 </Link>
             )}
             {currentUser ? (
-              <Link to="/dashboard" className="flex items-center gap-2 text-white hover:text-brand-gold transition-colors p-2" title="My Account">
+              <Link to="/dashboard" className="flex items-center gap-2 text-white hover:text-gray-300 transition-colors p-2" title="My Account">
                 <User size={22} strokeWidth={1.5} />
-                <span className="hidden lg:inline text-[10px] font-black uppercase tracking-widest">Account</span>
+                <span className="hidden lg:inline text-[10px] font-black uppercase tracking-widest text-white">Account</span>
               </Link>
             ) : customerUser ? (
               <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1 rounded-full text-white">
                 <div className="flex flex-col text-right">
                   <span className="text-[7.5px] uppercase tracking-widest text-white/50 font-black">Verified Client</span>
-                  <span className="text-[9.5px] font-mono font-black text-brand-gold leading-none">{customerUser.email}</span>
+                  <span className="text-[9.5px] font-mono font-black text-white leading-none">{customerUser.email}</span>
                 </div>
                 <button 
                   onClick={logoutCustomer}
@@ -153,23 +153,23 @@ export default function Navbar() {
                 </button>
               </div>
             ) : (
-              <button onClick={() => setIsLoginOpen(true)} className="flex items-center gap-2 text-white hover:text-brand-gold transition-colors p-2" title="Sign In">
+              <button onClick={() => setIsLoginOpen(true)} className="flex items-center gap-2 text-white hover:text-gray-300 transition-colors p-2" title="Sign In">
                 <User size={22} strokeWidth={1.5} />
-                <span className="hidden lg:inline text-[10px] font-black uppercase tracking-widest">Login</span>
+                <span className="hidden lg:inline text-[10px] font-black uppercase tracking-widest text-white">Login</span>
               </button>
             )}
 
             <button 
               onClick={handleCartClick} 
-              className="relative group p-2 text-white hover:text-brand-gold transition-colors"
+              className="relative group p-2 text-white hover:text-gray-300 transition-colors"
             >
               <ShoppingBag size={22} strokeWidth={1.5} />
               {cartCount > 0 && (
-                <span className="absolute top-1 right-0 w-4 h-4 bg-brand-gold text-white text-[8px] rounded-full flex items-center justify-center font-black">
+                <span className="absolute top-1 right-0 w-4 h-4 bg-white text-black text-[8px] rounded-full flex items-center justify-center font-black">
                   {cartCount}
                 </span>
               )}
-              <span className="hidden lg:inline-block ml-2 text-[10px] font-black uppercase tracking-widest translate-y-[1px]">Bag</span>
+              <span className="hidden lg:inline-block ml-2 text-[10px] font-black uppercase tracking-widest translate-y-[1px] text-white">Bag</span>
             </button>
           </div>
         </div>
@@ -180,22 +180,22 @@ export default function Navbar() {
             <Link 
               to="/category/all"
               className={cn(
-                "text-[11px] font-bold tracking-widest text-brand-gold transition-colors relative group py-3"
+                "text-[11px] font-bold tracking-widest text-white hover:text-gray-300 transition-colors relative group py-3"
               )}
             >
               ALL COLLECTION
-              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-brand-gold transition-all group-hover:w-full" />
+              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-white transition-all group-hover:w-full" />
             </Link>
             {Array.isArray(categories) && categories.map((cat) => (
               <Link 
                 key={cat.id}
                 to={`/category/${cat.name.toLowerCase().replace(/\s+/g, '-')}`}
                 className={cn(
-                  "text-[11px] font-bold tracking-widest text-white/80 hover:text-brand-gold transition-colors relative group py-3 whitespace-nowrap"
+                  "text-[11px] font-bold tracking-widest text-white hover:text-gray-300 transition-colors relative group py-3 whitespace-nowrap"
                 )}
               >
                 {cat.name.toUpperCase()}
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-brand-gold transition-all group-hover:w-full" />
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-white transition-all group-hover:w-full" />
               </Link>
             ))}
             {['NEW ARRIVALS', 'OFFERS'].map((cat) => (
@@ -203,11 +203,11 @@ export default function Navbar() {
                 key={cat}
                 to={`/category/${cat.toLowerCase().replace(/\s+/g, '-')}`}
                 className={cn(
-                  "text-[11px] font-bold tracking-widest text-white/80 hover:text-brand-gold transition-colors relative group py-3 whitespace-nowrap"
+                  "text-[11px] font-bold tracking-widest text-white hover:text-gray-300 transition-colors relative group py-3 whitespace-nowrap"
                 )}
               >
                 {cat}
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-brand-gold transition-all group-hover:w-full" />
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-white transition-all group-hover:w-full" />
               </Link>
             ))}
           </div>
@@ -231,10 +231,10 @@ export default function Navbar() {
                 <div className="flex justify-between items-center mb-8">
                   <Link to="/" onClick={() => setIsOpen(false)} className="flex items-center gap-2">
                     <span className="font-black text-xl md:text-2xl uppercase tracking-tighter text-white">
-                      Elegan <span className="text-brand-gold">BD</span>
+                      Elegan BD
                     </span>
                   </Link>
-                  <button onClick={() => setIsOpen(false)} className="text-white hover:text-brand-gold transition-colors">
+                  <button onClick={() => setIsOpen(false)} className="text-white hover:text-gray-300 transition-colors">
                     <X size={24} />
                   </button>
                 </div>
@@ -243,10 +243,10 @@ export default function Navbar() {
                   <Link 
                     to="/category/all"
                     onClick={() => setIsOpen(false)}
-                    className="text-sm font-bold uppercase tracking-widest py-3 border-b border-white/10 flex items-center justify-between group text-brand-gold"
+                    className="text-sm font-bold uppercase tracking-widest py-3 border-b border-white/10 flex items-center justify-between group text-white"
                   >
                     ALL COLLECTION
-                    <ChevronRight size={14} className="text-white/20 group-hover:text-brand-gold transition-colors" />
+                    <ChevronRight size={14} className="text-white/40 group-hover:text-white transition-colors" />
                   </Link>
 
                   {Array.isArray(categories) && categories.map((cat) => (
@@ -254,10 +254,10 @@ export default function Navbar() {
                       key={cat.id}
                       to={`/category/${cat.name.toLowerCase().replace(/\s+/g, '-')}`}
                       onClick={() => setIsOpen(false)}
-                      className="text-sm font-bold uppercase tracking-widest py-3 border-b border-white/10 flex items-center justify-between group text-white/80"
+                      className="text-sm font-bold uppercase tracking-widest py-3 border-b border-white/10 flex items-center justify-between group text-white"
                     >
                       {cat.name}
-                      <ChevronRight size={14} className="text-white/20 group-hover:text-brand-gold transition-colors" />
+                      <ChevronRight size={14} className="text-white/40 group-hover:text-white transition-colors" />
                     </Link>
                   ))}
 
@@ -267,11 +267,11 @@ export default function Navbar() {
                       to={cat === 'ABOUT' ? '/about' : cat === 'SUPPORT' ? '/contact' : `/category/${cat.toLowerCase().replace(/\s+/g, '-')}`}
                       onClick={() => setIsOpen(false)}
                       className={cn(
-                        "text-sm font-bold uppercase tracking-widest py-3 border-b border-white/10 flex items-center justify-between group text-white/80"
+                        "text-sm font-bold uppercase tracking-widest py-3 border-b border-white/10 flex items-center justify-between group text-white"
                       )}
                     >
                       {cat}
-                      <ChevronRight size={14} className="text-white/20 group-hover:text-brand-gold transition-colors" />
+                      <ChevronRight size={14} className="text-white/40 group-hover:text-white transition-colors" />
                     </Link>
                   ))}
                   
@@ -279,7 +279,7 @@ export default function Navbar() {
                     <Link
                       to="/admin"
                       onClick={() => setIsOpen(false)}
-                      className="text-sm font-bold uppercase tracking-widest py-3 border-b border-white/10 text-brand-gold"
+                      className="text-sm font-bold uppercase tracking-widest py-3 border-b border-white/10 text-white"
                     >
                       Admin Panel
                     </Link>
@@ -291,13 +291,13 @@ export default function Navbar() {
                         signOut();
                         setIsOpen(false);
                       }}
-                      className="text-sm font-bold uppercase tracking-widest py-3 border-b border-white/10 text-left flex items-center gap-2 text-white/80"
+                      className="text-sm font-bold uppercase tracking-widest py-3 border-b border-white/10 text-left flex items-center gap-2 text-white"
                     >
                       <LogOut size={18} /> Sign Out (Admin)
                     </button>
                   ) : customerUser ? (
                     <div className="py-3 border-b border-white/10 text-left space-y-2">
-                      <div className="flex items-center gap-2 text-brand-gold">
+                      <div className="flex items-center gap-2 text-white">
                         <User size={18} strokeWidth={1.5} />
                         <span className="text-xs font-mono font-black">{customerUser.email} (Verified)</span>
                       </div>
@@ -317,7 +317,7 @@ export default function Navbar() {
                         signInWithGoogle();
                         setIsOpen(false);
                       }}
-                      className="text-sm font-bold uppercase tracking-widest py-3 border-b border-white/10 text-left flex items-center gap-2 text-white/80"
+                      className="text-sm font-bold uppercase tracking-widest py-3 border-b border-white/10 text-left flex items-center gap-2 text-white"
                     >
                       <User size={18} /> Login / Register
                     </button>

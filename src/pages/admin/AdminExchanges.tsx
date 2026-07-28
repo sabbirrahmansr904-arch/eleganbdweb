@@ -828,17 +828,17 @@ export default function AdminExchanges() {
                       className="rounded border-gray-200 text-indigo-600 focus:ring-indigo-500/20 h-4 w-4 cursor-pointer"
                     />
                   </th>
-                  <th className="py-4 px-4 font-semibold text-left">Date</th>
-                  <th className="py-4 px-4 font-semibold text-left">Time</th>
-                  <th className="py-4 px-4 font-semibold text-left">Exchange No</th>
-                  <th className="py-4 px-4 font-semibold text-left">Order No</th>
-                  <th className="py-4 px-4 font-semibold text-left">Customer Name</th>
-                  <th className="py-4 px-4 font-semibold text-left">Number</th>
-                  <th className="py-4 px-4 font-semibold text-left">Returned Items</th>
-                  <th className="py-4 px-4 font-semibold text-left">Sent / Replacement</th>
-                  <th className="py-4 px-4 font-semibold text-right">Net Balance</th>
-                  <th className="py-4 px-4 font-semibold text-left">Status</th>
-                  <th className="py-4 px-6 font-semibold text-center sticky right-0 bg-gray-50/50 z-10 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">Actions</th>
+                  <th className="py-4 px-4 font-semibold text-left whitespace-nowrap">Date</th>
+                  <th className="py-4 px-4 font-semibold text-left whitespace-nowrap">Time</th>
+                  <th className="py-4 px-4 font-semibold text-left whitespace-nowrap">Exchange No</th>
+                  <th className="py-4 px-4 font-semibold text-left whitespace-nowrap">Invoice No</th>
+                  <th className="py-4 px-4 font-semibold text-left whitespace-nowrap">Customer Name</th>
+                  <th className="py-4 px-4 font-semibold text-left whitespace-nowrap">Number</th>
+                  <th className="py-4 px-4 font-semibold text-left whitespace-nowrap">Returned Items</th>
+                  <th className="py-4 px-4 font-semibold text-left whitespace-nowrap">Sent / Replacement</th>
+                  <th className="py-4 px-4 font-semibold text-right whitespace-nowrap">Net Balance</th>
+                  <th className="py-4 px-4 font-semibold text-left whitespace-nowrap">Status</th>
+                  <th className="py-4 px-6 font-semibold text-center whitespace-nowrap sticky right-0 bg-gray-50/50 z-10 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 bg-white">

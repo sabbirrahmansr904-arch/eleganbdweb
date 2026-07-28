@@ -100,20 +100,6 @@ const Home = () => {
 
 
 
-      {/* Secondary Hero Banner */}
-      {subHeroBannerUrl && (
-        <section className="max-w-7xl mx-auto px-4 py-4 md:py-6">
-          <div className="relative w-full overflow-hidden rounded-2xl shadow-sm border border-gray-100">
-            <img 
-              src={subHeroBannerUrl} 
-              alt="Secondary Promotion Banner" 
-              className="w-full h-auto block select-none pointer-events-none"
-              referrerPolicy="no-referrer"
-            />
-          </div>
-        </section>
-      )}
-
       {/* Explore Our Top Collections Catalog */}
       <section className="max-w-7xl mx-auto px-4 py-8 md:py-12">
         <div className="text-center mb-10">
@@ -124,8 +110,8 @@ const Home = () => {
           <div className="w-16 h-0.5 bg-black mx-auto mt-3 rounded-full" />
         </div>
 
-        {/* Textual Navigation Underline Bar exactly like the user's second screenshot */}
-        <div className="border-b border-gray-100 pb-4 flex flex-wrap justify-center gap-6 md:gap-12 text-xs font-black tracking-[0.2em] uppercase">
+        {/* Category Filter Buttons in Blue Boxes */}
+        <div className="flex flex-wrap justify-center gap-3 md:gap-5 my-6">
           {[
             { name: 'SHIRT', link: '/category/formal-shirt' },
             { name: 'PANT', link: '/category/formal-pant' },
@@ -135,10 +121,9 @@ const Home = () => {
             <Link 
               key={item.name}
               to={item.link}
-              className="relative py-2 text-gray-500 hover:text-black transition-colors group"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs md:text-sm tracking-wider uppercase px-5 py-2 md:px-6 md:py-2.5 rounded-lg shadow-sm hover:shadow-md transition-all transform hover:-translate-y-0.5 active:translate-y-0"
             >
-              <span>{item.name}</span>
-              <span className="absolute bottom-0 left-0 w-0 h-[2px] bg-black transition-all duration-300 group-hover:w-full" />
+              {item.name}
             </Link>
           ))}
         </div>
@@ -167,36 +152,13 @@ const Home = () => {
           </section>
         )}
 
-
-
-        {/* Polo T-shirts */}
-        {poloTshirts.length > 0 && (
-          <section className="py-10 bg-gray-50">
-            <div className="max-w-7xl mx-auto px-4">
-              <div className="mb-6 text-center">
-                <h3 className="text-xl md:text-3xl font-black italic tracking-tighter uppercase text-black">Polo T-shirts</h3>
-              </div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {poloTshirts.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
-              <div className="mt-8 flex justify-center">
-                <Link to="/category/polo-t-shirt" className="text-[10px] font-black uppercase tracking-[0.3em] text-black hover:text-brand-gold transition-colors flex items-center gap-2">
-                  View All Polo T-shirts <ArrowRight size={14} />
-                </Link>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* Intermediate Promo Banner 2 - Feature Collection */}
-        {featureBannerUrl && (
+        {/* Promotion Combo Banner - Below Formal Pants, Above Formal Shirts */}
+        {(subHeroBannerUrl || featureBannerUrl) && (
           <section className="max-w-7xl mx-auto px-4 py-4 md:py-6">
-            <div className="relative w-full overflow-hidden rounded-2xl shadow-sm">
+            <div className="relative w-full overflow-hidden rounded-2xl shadow-sm border border-gray-100">
               <img 
-                src={featureBannerUrl} 
-                alt="Feature Collection" 
+                src={subHeroBannerUrl || featureBannerUrl} 
+                alt="Promotion Banner" 
                 className="w-full h-auto block select-none pointer-events-none"
                 referrerPolicy="no-referrer"
               />
@@ -219,6 +181,27 @@ const Home = () => {
               <div className="mt-8 flex justify-center">
                 <Link to="/category/formal-shirt" className="text-[10px] font-black uppercase tracking-[0.3em] text-black hover:text-brand-gold transition-colors flex items-center gap-2">
                   View All Formal Shirts <ArrowRight size={14} />
+                </Link>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Polo T-shirts */}
+        {poloTshirts.length > 0 && (
+          <section className="py-10 bg-gray-50">
+            <div className="max-w-7xl mx-auto px-4">
+              <div className="mb-6 text-center">
+                <h3 className="text-xl md:text-3xl font-black italic tracking-tighter uppercase text-black">Polo T-shirts</h3>
+              </div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {poloTshirts.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+              <div className="mt-8 flex justify-center">
+                <Link to="/category/polo-t-shirt" className="text-[10px] font-black uppercase tracking-[0.3em] text-black hover:text-brand-gold transition-colors flex items-center gap-2">
+                  View All Polo T-shirts <ArrowRight size={14} />
                 </Link>
               </div>
             </div>

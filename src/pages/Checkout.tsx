@@ -15,7 +15,7 @@ import { useCart } from '../contexts/CartContext';
 import { useBranding } from '../contexts/BrandingContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useInventory } from '../contexts/InventoryContext';
-import { ArrowLeft, CheckCircle2, User, Phone, Mail, MapPin, FileText, ShoppingBag, Gift, CreditCard, Coins, ShieldCheck, RefreshCw, Truck } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, User, Phone, Mail, MapPin, FileText, ShoppingBag, Gift, CreditCard, Coins, ShieldCheck, RefreshCw, Truck, Lock, Award, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import { db } from '../lib/firebase';
@@ -990,6 +990,43 @@ export default function Checkout() {
 
       </div>
 </form>
+
+      {/* Trust Badges Section below Checkout */}
+      <div className="mt-12 pt-8 border-t border-gray-200/80">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+          <div className="bg-white border border-gray-100 p-5 rounded-2xl shadow-2xs flex flex-col items-center text-center space-y-2.5 hover:border-blue-200 hover:shadow-sm transition-all group">
+            <div className="w-11 h-11 rounded-xl bg-blue-50 text-[#1b49c4] flex items-center justify-center group-hover:bg-[#1b49c4] group-hover:text-white transition-colors">
+              <Lock size={20} />
+            </div>
+            <h4 className="text-xs font-black uppercase tracking-wider text-[#0C1421]">Secure Payment</h4>
+            <p className="text-[10px] text-gray-500 font-medium leading-relaxed">100% Encrypted & Safe Mobile Banking / Cash on Delivery</p>
+          </div>
+
+          <div className="bg-white border border-gray-100 p-5 rounded-2xl shadow-2xs flex flex-col items-center text-center space-y-2.5 hover:border-blue-200 hover:shadow-sm transition-all group">
+            <div className="w-11 h-11 rounded-xl bg-blue-50 text-[#1b49c4] flex items-center justify-center group-hover:bg-[#1b49c4] group-hover:text-white transition-colors">
+              <Truck size={20} />
+            </div>
+            <h4 className="text-xs font-black uppercase tracking-wider text-[#0C1421]">Fast Delivery</h4>
+            <p className="text-[10px] text-gray-500 font-medium leading-relaxed">Express Shipping Nationwide within 24–48 Hours</p>
+          </div>
+
+          <div className="bg-white border border-gray-100 p-5 rounded-2xl shadow-2xs flex flex-col items-center text-center space-y-2.5 hover:border-blue-200 hover:shadow-sm transition-all group">
+            <div className="w-11 h-11 rounded-xl bg-blue-50 text-[#1b49c4] flex items-center justify-center group-hover:bg-[#1b49c4] group-hover:text-white transition-colors">
+              <Award size={20} />
+            </div>
+            <h4 className="text-xs font-black uppercase tracking-wider text-[#0C1421]">Quality Assured</h4>
+            <p className="text-[10px] text-gray-500 font-medium leading-relaxed">100% Premium Export Quality Fabrics & Stitching</p>
+          </div>
+
+          <div className="bg-white border border-gray-100 p-5 rounded-2xl shadow-2xs flex flex-col items-center text-center space-y-2.5 hover:border-blue-200 hover:shadow-sm transition-all group">
+            <div className="w-11 h-11 rounded-xl bg-blue-50 text-[#1b49c4] flex items-center justify-center group-hover:bg-[#1b49c4] group-hover:text-white transition-colors">
+              <RotateCcw size={20} />
+            </div>
+            <h4 className="text-xs font-black uppercase tracking-wider text-[#0C1421]">Easy Exchange</h4>
+            <p className="text-[10px] text-gray-500 font-medium leading-relaxed">Hassle-Free Size & Product Exchange Guarantee</p>
+          </div>
+        </div>
+      </div>
 
       {/* OTP verification Modal */}
       <AnimatePresence>

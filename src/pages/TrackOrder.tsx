@@ -6,7 +6,7 @@
 import React, { useState, useEffect, FormEvent } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { db } from '../lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { formatPrice, cn } from '../lib/utils';
 import { Order } from '../types';
@@ -25,7 +25,10 @@ import {
   CreditCard,
   AlertCircle,
   HelpCircle,
-  Hash
+  Hash,
+  MessageCircle,
+  Printer,
+  ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -36,6 +39,7 @@ export default function TrackOrder() {
   
   const [orderIdInput, setOrderIdInput] = useState('');
   const [order, setOrder] = useState<Order | null>(null);
+  const [matchedOrders, setMatchedOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -56,18 +60,78 @@ export default function TrackOrder() {
     setErrorMsg('');
     setSearched(true);
     setOrder(null);
+    setMatchedOrders([]);
 
-    // Clean prefix hash if entered by user
-    const targetId = id.replace('#', '').trim();
+    // Clean input
+    const cleanInput = id.replace('#', '').trim();
+    const isNumeric = /^\d+$/.test(cleanInput);
 
     try {
-      const docRef = doc(db, 'orders', targetId);
-      const snapshot = await getDoc(docRef);
+      let foundOrders: Order[] = [];
 
-      if (snapshot.exists()) {
-        setOrder({ id: snapshot.id, ...snapshot.data() } as Order);
+      // 1. Try direct doc ID lookup
+      try {
+        const docRef = doc(db, 'orders', cleanInput);
+        const snapshot = await getDoc(docRef);
+        if (snapshot.exists()) {
+          foundOrders.push({ id: snapshot.id, ...snapshot.data() } as Order);
+        }
+      } catch (e) {
+        console.warn('Doc lookup fail:', e);
+      }
+
+      // 2. If numeric, search by invoiceNo
+      if (isNumeric && foundOrders.length === 0) {
+        const numVal = Number(cleanInput);
+        const qInvoiceNum = query(collection(db, 'orders'), where('invoiceNo', '==', numVal));
+        const snapInvoice = await getDocs(qInvoiceNum);
+        snapInvoice.forEach((d) => {
+          if (!foundOrders.some(o => o.id === d.id)) {
+            foundOrders.push({ id: d.id, ...d.data() } as Order);
+          }
+        });
+      }
+
+      // 3. Search by Phone Number (check variants with or without leading zero or +88)
+      if (foundOrders.length === 0) {
+        const phoneVariants = [
+          cleanInput,
+          cleanInput.startsWith('0') ? cleanInput.substring(1) : '0' + cleanInput,
+          '+88' + cleanInput,
+          '88' + cleanInput,
+        ];
+
+        for (const phoneVar of phoneVariants) {
+          const qPhone = query(collection(db, 'orders'), where('phone', '==', phoneVar));
+          const snapPhone = await getDocs(qPhone);
+          snapPhone.forEach((d) => {
+            if (!foundOrders.some(o => o.id === d.id)) {
+              foundOrders.push({ id: d.id, ...d.data() } as Order);
+            }
+          });
+          if (foundOrders.length > 0) break;
+        }
+      }
+
+      // 4. Search by custom ID field if stored as string
+      if (foundOrders.length === 0) {
+        const qId = query(collection(db, 'orders'), where('id', '==', cleanInput));
+        const snapId = await getDocs(qId);
+        snapId.forEach((d) => {
+          if (!foundOrders.some(o => o.id === d.id)) {
+            foundOrders.push({ id: d.id, ...d.data() } as Order);
+          }
+        });
+      }
+
+      if (foundOrders.length === 1) {
+        setOrder(foundOrders[0]);
+      } else if (foundOrders.length > 1) {
+        // Sort newest first
+        foundOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setMatchedOrders(foundOrders);
       } else {
-        setErrorMsg(`We couldn't find an order with Reference ID #${targetId}. Please double check the ID from your invoice or SMS.`);
+        setErrorMsg(`No order found matching "${cleanInput}". Please double-check your Invoice Number or Mobile Phone Number.`);
       }
     } catch (err: any) {
       console.error("Firestore loading error:", err);
@@ -85,6 +149,8 @@ export default function TrackOrder() {
   };
 
   // Status mapping for visual timeline progress indicator
+  const statuses: Order['status'][] = ['Pending', 'Processing', 'Shipped', 'Delivered'];
+
   const getStatusStepIndex = (status: Order['status']) => {
     const s = (status || '').toUpperCase();
     if (s === 'CANCELLED' || s === 'HOLD' || s === 'RETURNED') return -1;
@@ -146,7 +212,7 @@ export default function TrackOrder() {
         <div className="bg-white rounded-[2rem] p-6 sm:p-8 border border-gray-100 shadow-sm mb-6">
           <form onSubmit={handleSearchSubmit} className="space-y-4">
             <label className="block text-[10px] sm:text-xs font-black uppercase tracking-widest text-black mb-1">
-              Enter Invoice Reference or GSM Order ID
+              Enter Invoice No or Mobile Phone Number
             </label>
             <div className="relative flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
@@ -157,7 +223,7 @@ export default function TrackOrder() {
                   type="text" 
                   value={orderIdInput}
                   onChange={(e) => setOrderIdInput(e.target.value)}
-                  placeholder="e.g. 1717215243" 
+                  placeholder="e.g. 2670001 or 01712345678" 
                   className="w-full h-14 bg-gray-50 border border-gray-200 rounded-2xl pl-8 pr-4 text-black text-base font-black tracking-tight focus:bg-white focus:border-black transition-all outline-none"
                   required
                 />
@@ -171,6 +237,9 @@ export default function TrackOrder() {
                 <span>Track Now</span>
               </button>
             </div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span>💡 You can search by Invoice No (e.g. 2670001) or Mobile Phone Number</span>
+            </p>
           </form>
         </div>
 
@@ -180,7 +249,56 @@ export default function TrackOrder() {
             <div className="w-10 h-10 border-4 border-black/10 border-t-black rounded-full animate-spin" />
             <div>
               <p className="text-sm font-black text-black uppercase tracking-wide">Syncing records...</p>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Quering secure firestore datastore</p>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Searching database records</p>
+            </div>
+          </div>
+        )}
+
+        {/* Multiple Matched Orders Selection List */}
+        {!loading && matchedOrders.length > 1 && (
+          <div className="bg-white rounded-[2rem] p-6 sm:p-8 border border-gray-100 shadow-sm space-y-4 mb-6">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <div>
+                <h3 className="text-sm font-black text-black uppercase tracking-wider">Multiple Orders Found ({matchedOrders.length})</h3>
+                <p className="text-[10px] font-bold text-gray-500 uppercase">Select an invoice below to view complete tracking details</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {matchedOrders.map((mo) => (
+                <button
+                  key={mo.id}
+                  onClick={() => {
+                    setOrder(mo);
+                    setMatchedOrders([]);
+                  }}
+                  className="w-full p-4 bg-gray-50 hover:bg-blue-50/60 border border-gray-200/80 hover:border-blue-300 rounded-2xl transition-all flex items-center justify-between text-left group"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-blue-600 font-mono">
+                        Invoice #{mo.invoiceNo ? String(mo.invoiceNo) : mo.id.replace(/^ORD-?/i, '')}
+                      </span>
+                      <span className={cn(
+                        "text-[9px] font-black uppercase px-2 py-0.5 rounded-md border",
+                        getStatusStyle(mo.status)
+                      )}>
+                        {mo.status}
+                      </span>
+                    </div>
+                    <p className="text-[10px] font-bold text-gray-600">
+                      Placed on {new Date(mo.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })} • Total: <span className="font-black text-black">{formatPrice(mo.total, currency, rate)}</span>
+                    </p>
+                    <p className="text-[10px] text-gray-400 truncate max-w-sm">
+                      {mo.items?.map(i => `${i.name} (×${i.quantity})`).join(', ')}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs font-black text-[#1b49c4] group-hover:translate-x-1 transition-transform">
+                    <span>View Details</span>
+                    <ChevronRight size={16} />
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
         )}
@@ -219,8 +337,8 @@ export default function TrackOrder() {
                       LIVE DISPATCH
                     </span>
                     <h3 className="text-lg font-black text-black tracking-tight uppercase flex items-center gap-1.5">
-                      <span>Order</span>
-                      <span className="text-brand-gold italic">#{order.id}</span>
+                      <span>Invoice</span>
+                      <span className="text-[#1b49c4] font-mono">#{order.invoiceNo ? String(order.invoiceNo) : order.id.replace(/^ORD-?/i, '')}</span>
                     </h3>
                     <p className="text-[10px] font-bold text-gray-500 mt-0.5">
                       Registered on {new Date(order.createdAt).toLocaleDateString(undefined, { dateStyle: 'long' })}

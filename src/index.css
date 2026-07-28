@@ -2,13 +2,13 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-gold: #FFFFFF;
+  --color-brand-gold: #1b49c4;
   --color-brand-black: #1A1A1A;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
-  --brand-accent: #FFFFFF;
+  --brand-accent: #1b49c4;
 }
 
 body {
