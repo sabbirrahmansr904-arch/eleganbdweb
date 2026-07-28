@@ -757,7 +757,7 @@ export default function AdminOrders(): React.JSX.Element {
       delivery_type: Number(pathaoDeliveryType) || 48
     };
 
-    const shortCode = pathaoBookingOrder.id.slice(-6).toUpperCase();
+    const shortCode = pathaoBookingOrder.invoiceNo ? String(pathaoBookingOrder.invoiceNo) : pathaoBookingOrder.id.replace(/^ORD-?/i, '');
     const loadingToast = toast.loading(`Booking Order #${shortCode} with Pathao API...`);
 
     try {
@@ -3801,7 +3801,7 @@ export default function AdminOrders(): React.JSX.Element {
                       </div>
                       <div className="text-left">
                         <h2 className="text-base font-black text-[#0D1829] tracking-tight">Edit Order Details</h2>
-                        <p className="text-xs text-slate-500 font-bold">Modifying order record #ORD-{selectedOrder.id}</p>
+                        <p className="text-xs text-slate-500 font-bold">Modifying order record #{selectedOrder.invoiceNo || selectedOrder.id.replace(/^ORD-?/i, '')}</p>
                       </div>
                     </div>
                     <button 
@@ -4548,7 +4548,7 @@ export default function AdminOrders(): React.JSX.Element {
                   </div>
                   <div>
                     <h2 className="text-lg font-black text-slate-900 tracking-tight leading-tight">Book via Pathao</h2>
-                    <p className="text-[11px] text-slate-400 font-bold mt-0.5">Order {pathaoBookingOrder.id.slice(-8).toUpperCase()}</p>
+                    <p className="text-[11px] text-slate-400 font-bold mt-0.5">Invoice #{pathaoBookingOrder.invoiceNo || pathaoBookingOrder.id.replace(/^ORD-?/i, '')}</p>
                   </div>
                 </div>
                 <button 

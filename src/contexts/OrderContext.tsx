@@ -88,17 +88,28 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Auto-assign sequential Invoice No starting from 1000 for any orders missing them
+      // Auto-assign / migrate sequential Invoice No starting from 2670000
       if (isAdmin && ordersData.length > 0) {
         const assignedInvoices = ordersData
-          .filter(o => typeof o.invoiceNo === 'number')
-          .map(o => o.invoiceNo as number);
+          .map(o => {
+            if (typeof o.invoiceNo === 'number' && o.invoiceNo >= 2670000) return o.invoiceNo;
+            if (o.id && /^\d{7,}$/.test(o.id)) {
+              const num = parseInt(o.id, 10);
+              if (!isNaN(num) && num >= 2670000) return num;
+            }
+            return null;
+          })
+          .filter((v): v is number => v !== null);
         
-        let highestInvoice = assignedInvoices.length > 0 ? Math.max(...assignedInvoices) : 999;
+        let highestInvoice = assignedInvoices.length > 0 ? Math.max(...assignedInvoices) : 2669999;
         
-        // Filter orders missing invoiceNo, sorted chronologically by creation date (oldest first)
+        // Filter orders missing valid invoiceNo >= 2670000, sorted chronologically by creation date (oldest first)
         const missing = ordersData
-          .filter(o => typeof o.invoiceNo !== 'number')
+          .filter(o => {
+            const validInvoice = typeof o.invoiceNo === 'number' && o.invoiceNo >= 2670000;
+            const validId = o.id && /^\d{7,}$/.test(o.id) && parseInt(o.id, 10) >= 2670000;
+            return !validInvoice && !validId;
+          })
           .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
           
         if (missing.length > 0) {
@@ -106,6 +117,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           Promise.all(missing.map(async (order) => {
             highestInvoice++;
             const assignedNo = highestInvoice;
+            order.invoiceNo = assignedNo; // update in memory
             try {
               await setDoc(doc(db, 'orders', order.id), { invoiceNo: assignedNo }, { merge: true });
             } catch (err) {
@@ -304,9 +316,17 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         : (order.customerId || `GUEST-${Math.floor(Math.random() * 1000)}`);
         
       const existingInvoices = orders
-        .filter(o => typeof o.invoiceNo === 'number')
-        .map(o => o.invoiceNo as number);
-      const maxInvoice = existingInvoices.length > 0 ? Math.max(...existingInvoices) : 999;
+        .map(o => {
+          if (typeof o.invoiceNo === 'number' && o.invoiceNo >= 2670000) return o.invoiceNo;
+          if (o.id && /^\d{7,}$/.test(o.id)) {
+            const num = parseInt(o.id, 10);
+            if (!isNaN(num) && num >= 2670000) return num;
+          }
+          return null;
+        })
+        .filter((v): v is number => v !== null);
+
+      const maxInvoice = existingInvoices.length > 0 ? Math.max(...existingInvoices) : 2669999;
       const nextInvoiceNo = maxInvoice + 1;
 
       // Assign serial order ID starting from 2670000 if not already assigned

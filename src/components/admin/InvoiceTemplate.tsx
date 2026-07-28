@@ -14,16 +14,22 @@ export default function InvoiceTemplate({ order, preview = false }: InvoiceProps
   
   const subTotal = order.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   
-  // Format order ID for ON field
-  const orderNumber = (order.id.length <= 8 || /^\d+$/.test(order.id)) ? order.id : order.id.slice(-6).toUpperCase();
-  const onCode = order.id.slice(-3).toUpperCase();
+  // Format order/invoice ID
+  const rawInvoiceNo = (order.invoiceNo && Number(order.invoiceNo) >= 2670000)
+    ? String(order.invoiceNo)
+    : (order.id && /^\d{6,}$/.test(order.id)
+      ? order.id
+      : String(order.invoiceNo || order.id || '2670000'));
 
   const formatDate = (dateInput: any) => {
     try {
       if (!dateInput) return '';
       const date = new Date(dateInput);
       if (isNaN(date.getTime())) return '';
-      return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }).replace(/\//g, '-');
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = String(date.getFullYear()).slice(-2);
+      return `${day}/${month}/${year}`;
     } catch (e) {
       return '';
     }
@@ -32,25 +38,21 @@ export default function InvoiceTemplate({ order, preview = false }: InvoiceProps
   return (
     <div 
       id="invoice-to-print" 
-      className={`bg-white text-gray-900 mx-auto select-none text-[11px] leading-relaxed box-border ${
+      className={`bg-white text-black mx-auto select-none text-[11px] leading-relaxed box-border ${
         preview 
-          ? "w-[148mm] h-[210mm] p-6 shadow-2xl border border-gray-200 rounded-2xl relative block scale-[0.95] md:scale-100 origin-top overflow-hidden" 
-          : "hidden print:block w-[148mm] h-[210mm] overflow-hidden"
+          ? "w-[148mm] min-h-[210mm] p-6 shadow-2xl border border-gray-200 rounded-2xl relative block scale-[0.95] md:scale-100 origin-top overflow-hidden" 
+          : "hidden print:block w-[148mm] min-h-[210mm] overflow-hidden p-6"
       }`}
       style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
     >
-      {/* Dynamic Style Injection for premium typography and print options */}
+      {/* Dynamic Style Injection for print layout */}
       <style dangerouslySetInnerHTML={{ __html: `
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,600;1,700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700;800&display=swap');
 
         #invoice-to-print {
           font-family: 'Plus Jakarta Sans', sans-serif !important;
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
-        }
-        
-        .font-serif-luxury {
-          font-family: 'Cormorant Garamond', serif !important;
         }
 
         .font-mono-numbers {
@@ -65,13 +67,11 @@ export default function InvoiceTemplate({ order, preview = false }: InvoiceProps
           html, body {
             margin: 0 !important;
             padding: 0 !important;
-            height: auto !important;
             background: white !important;
           }
           body {
             visibility: hidden !important;
           }
-          /* Show only our portal container */
           #invoice-to-print {
             display: block !important;
             visibility: visible !important;
@@ -79,7 +79,7 @@ export default function InvoiceTemplate({ order, preview = false }: InvoiceProps
             left: 0 !important;
             top: 0 !important;
             width: 148mm !important;
-            height: 210mm !important;
+            min-height: 210mm !important;
             margin: 0 !important;
             padding: 8mm 8mm 6mm 8mm !important;
             box-sizing: border-box !important;
@@ -88,201 +88,162 @@ export default function InvoiceTemplate({ order, preview = false }: InvoiceProps
             border-radius: 0 !important;
             overflow: hidden !important;
           }
-          /* Ensure all nested elements are visible */
           #invoice-to-print * {
             visibility: visible !important;
           }
         }
       ` }} />
 
-      {/* Top Border Accent */}
-      <div className="h-1 bg-gray-900 w-full mb-3 rounded-full" />
-
-      {/* Header section */}
-      <div className="flex justify-between items-start mb-3">
+      {/* Top Header Section */}
+      <div className="flex justify-between items-start mb-2">
+        {/* Left: Brand Name, Subtitle, Location, Phone, Barcode */}
         <div className="text-left flex-1">
-          <h1 className="text-3xl font-black tracking-[0.18em] text-gray-900 uppercase leading-none">INVOICE</h1>
-          <p className="text-[9px] font-bold text-indigo-600 uppercase tracking-widest mt-1.5 font-mono-numbers">#EB-{orderNumber}</p>
-          <div className="mt-2 text-gray-500 font-medium text-[9px] leading-relaxed max-w-xs">
-            <p>202/2, Ahmmed Nagar, PaikPara, Senpara</p>
-            <p>Parbata, Madrasha Road, Mirpur-1, Dhaka</p>
+          <h1 className="text-3xl font-black tracking-tight text-black uppercase leading-none">
+            Elegan BD
+          </h1>
+          <p className="text-[9.5px] font-bold tracking-wider text-black uppercase mt-1">
+            Fashion in everyday life make you stylist
+          </p>
+          <div className="mt-1 text-[9.5px] font-medium text-gray-600 leading-tight">
+            <span>Mirpur-1, Dhaka, Bangladesh</span>
+            <span className="mx-1">|</span>
+            <span className="font-mono-numbers">01631496122</span>
           </div>
-        </div>
-        
-        <div className="text-right flex-1">
-          <h2 className="text-3xl font-serif-luxury font-bold italic tracking-tight text-gray-900 leading-none">Elegan BD</h2>
-          <div className="text-[9.5px] font-serif-luxury italic font-semibold text-gray-500 leading-snug mt-1.5">
-            <p>Fashion in everyday life makes</p>
-            <p>you stylish</p>
-          </div>
-        </div>
-      </div>
-      
-      {/* Hotline & Social Section */}
-      <div className="mt-3 mb-4">
-        <div className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-1.5 flex justify-between items-center">
-          <span className="font-extrabold text-[9px] text-gray-700 tracking-wider uppercase">Hotline: <span className="font-mono-numbers text-indigo-600 ml-1">01631496122</span></span>
-          <span className="font-extrabold text-[9px] text-gray-400 tracking-widest uppercase">EleganBD.com</span>
-        </div>
-      </div>
-      
-      {/* Bill To & Metadata Section */}
-      <div className="grid grid-cols-12 gap-4 mb-4 items-start">
-        {/* Bill To Column */}
-        <div className="col-span-7 text-left pr-2">
-          <span className="text-[9px] font-black uppercase tracking-[0.15em] text-gray-400 block mb-1.5">Recipient / Bill To</span>
-          <div className="space-y-1 bg-gray-50/50 rounded-2xl p-3.5 border border-gray-100/70">
-            <p className="text-sm font-black text-gray-900 tracking-tight">{order.customerName}</p>
-            <p className="text-xs font-bold text-indigo-600 font-mono-numbers tracking-tight mt-0.5">{order.phone}</p>
-            <div className="text-[10px] font-medium leading-relaxed text-gray-500 mt-1 line-clamp-2">
-              {order.address}{order.thana && `, Thana: ${order.thana}`}, {order.city}
-            </div>
-          </div>
-        </div>
-        
-        {/* Metadata Column */}
-        <div className="col-span-5 flex flex-col justify-between h-full min-h-[90px] pl-2">
-          <div className="space-y-1">
-            <div className="flex justify-between items-center text-[10px]">
-              <span className="font-extrabold uppercase tracking-widest text-gray-400 text-[8.5px]">Date</span>
-              <span className="font-bold text-gray-800 font-mono-numbers">{formatDate(order.createdAt)}</span>
-            </div>
-            <div className="flex justify-between items-center text-[10px]">
-              <span className="font-extrabold uppercase tracking-widest text-gray-400 text-[8.5px]">Invoice#</span>
-              <span className="font-extrabold text-indigo-600 font-mono-numbers">{order.invoiceNo || 1000}</span>
-            </div>
-            <div className="flex justify-between items-center text-[10px]">
-              <span className="font-extrabold uppercase tracking-widest text-gray-400 text-[8.5px]">Order No</span>
-              <span className="font-extrabold text-gray-800 font-mono-numbers">EB-{orderNumber}</span>
-            </div>
-            <div className="flex justify-between items-center text-[10px]">
-              <span className="font-extrabold uppercase tracking-widest text-gray-400 text-[8.5px]">Online Code</span>
-              <span className="font-extrabold text-indigo-600 font-mono-numbers">{onCode}</span>
-            </div>
-          </div>
-          
-          {/* Real Scannable Barcode representation */}
-          <div className="mt-auto pt-2 flex justify-end">
+
+          {/* Barcode encoding the invoice number, aligned left under location */}
+          <div className="mt-2 text-left">
             <Barcode 
-              value={order.invoiceNo || 1000} 
-              height={26} 
-              barWidth={1.2} 
+              value={rawInvoiceNo} 
+              height={36} 
+              barWidth={1.3} 
               showText={true}
-              className="!border-none !p-0 !bg-transparent !rounded-none"
+              align="left"
+              className="!border-none !p-0 !bg-transparent"
             />
           </div>
         </div>
+        
+        {/* Right: Big Invoice Number & Date */}
+        <div className="text-right">
+          <p className="text-2xl font-black text-black tracking-tight font-mono-numbers">
+            {rawInvoiceNo}
+          </p>
+          <p className="text-xs font-bold text-gray-500 mt-0.5 font-mono-numbers">
+            {formatDate(order.createdAt)}
+          </p>
+        </div>
       </div>
 
-      {/* Items Table */}
-      <div className="border border-gray-200 rounded-2xl overflow-hidden mb-4">
+      {/* Thick Divider Line */}
+      <div className="w-full h-[2.5px] bg-black my-3.5" />
+
+      {/* Customer Summary & Order Details */}
+      <div className="grid grid-cols-2 gap-4 mb-4 items-start">
+        {/* Left Column: Customer Summary */}
+        <div className="text-left">
+          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+            CUSTOMER SUMMARY
+          </span>
+          <p className="text-sm font-black text-black leading-snug">{order.customerName}</p>
+          <p className="text-xs font-semibold text-gray-800 font-mono-numbers mt-0.5">{order.phone}</p>
+          <p className="text-[11px] font-medium text-gray-500 mt-0.5 leading-snug">
+            {order.address}{order.thana ? `, ${order.thana}` : ''}{order.city ? `, ${order.city}` : ''}
+          </p>
+        </div>
+
+        {/* Right Column: Order Details */}
+        <div className="text-right">
+          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+            ORDER DETAILS
+          </span>
+          <p className="text-xs font-bold text-black font-mono-numbers">
+            Ref: <span className="font-extrabold">{rawInvoiceNo}</span>
+          </p>
+          <p className="text-[11px] font-medium text-gray-600 mt-0.5">
+            Partner: {order.courier || 'N/A'}
+          </p>
+          <p className="text-[11px] font-medium text-gray-600 italic mt-0.5">
+            By: {order.invoiceBy || 'Abrar Shaekh'}
+          </p>
+        </div>
+      </div>
+
+      {/* Table Section */}
+      <div className="border-t border-b border-black py-2 mb-4">
         <table className="w-full border-collapse">
           <thead>
-            <tr className="bg-gray-50/80 border-b border-gray-200">
-              <th className="p-2 uppercase font-black text-left pl-4 text-[9px] text-gray-400 tracking-wider w-1/2">Item Description</th>
-              <th className="p-2 uppercase font-black text-center text-[9px] text-gray-400 tracking-wider w-16">Size</th>
-              <th className="p-2 uppercase font-black text-center text-[9px] text-gray-400 tracking-wider w-16">Qty</th>
-              <th className="p-2 uppercase font-black text-right pr-4 text-[9px] text-gray-400 tracking-wider w-24">Amount</th>
+            <tr className="border-b border-gray-200 text-left text-[9px] font-extrabold text-gray-900 uppercase tracking-wider">
+              <th className="pb-2 text-left">DESCRIPTION</th>
+              <th className="pb-2 text-center w-14">QTY</th>
+              <th className="pb-2 text-right w-24">PRICE</th>
+              <th className="pb-2 text-right w-24">TOTAL</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {order.items.map((item, index) => (
-              <tr key={index} className="h-8">
-                <td className="p-2 pl-4 font-bold text-[10px] text-left uppercase tracking-tight text-gray-800">
-                  {item.name}
+              <tr key={index} className="align-top">
+                <td className="py-2.5 pr-2 text-left">
+                  <p className="font-bold text-xs text-black leading-snug">{item.name}</p>
+                  <p className="text-[10px] font-medium text-gray-500 mt-0.5">
+                    Size: {item.selectedSize || 'Free'} | SKU: {item.sku || (item as any).code || '-'}
+                  </p>
                 </td>
-                <td className="p-2 text-center font-extrabold text-[10px] text-gray-600">
-                  <span className="inline-block px-1.5 py-0.5 rounded-md border border-gray-150 bg-gray-50 text-[9px]">
-                    {item.selectedSize || '-'}
-                  </span>
-                </td>
-                <td className="p-2 text-center font-bold text-[10px] text-gray-500 font-mono-numbers">
+                <td className="py-2.5 text-center font-bold text-xs text-black font-mono-numbers">
                   {item.quantity}
                 </td>
-                <td className="p-2 text-right pr-4 font-bold text-[10px] text-gray-800 font-mono-numbers">
+                <td className="py-2.5 text-right font-semibold text-xs text-gray-600 font-mono-numbers">
+                  {formatPrice(item.price, currency, rate)}
+                </td>
+                <td className="py-2.5 text-right font-bold text-xs text-black font-mono-numbers">
                   {formatPrice(item.price * item.quantity, currency, rate)}
                 </td>
               </tr>
             ))}
-            
-            {/* Filler rows to ensure minimum table height */}
-            {[...Array(Math.max(0, 2 - order.items.length))].map((_, i) => (
-              <tr key={`filler-${i}`} className="h-8 bg-white">
-                <td className="p-2" />
-                <td className="p-2" />
-                <td className="p-2" />
-                <td className="p-2" />
-              </tr>
-            ))}
-
-            {/* Calculations and Totals */}
-            <tr className="border-t border-gray-200 bg-gray-50/40">
-              <td colSpan={3} className="p-1.5 text-right font-extrabold text-[9px] uppercase tracking-wider text-gray-400">Sub Total</td>
-              <td className="p-1.5 text-right pr-4 font-bold text-[10px] text-gray-700 font-mono-numbers">{formatPrice(subTotal, currency, rate)}</td>
-            </tr>
-            <tr className="bg-gray-50/40">
-              <td colSpan={3} className="p-1.5 text-right font-extrabold text-[9px] uppercase tracking-wider text-gray-400">Delivery Charge</td>
-              <td className="p-1.5 text-right pr-4 font-bold text-[10px] text-gray-700 font-mono-numbers">+{formatPrice(order.deliveryCharge || 0, currency, rate)}</td>
-            </tr>
-            {order.advancePayment ? (
-              <tr className="bg-gray-50/40">
-                <td colSpan={3} className="p-1.5 text-right font-extrabold text-[9px] uppercase tracking-wider text-emerald-600">Advance Payment</td>
-                <td className="p-1.5 text-right pr-4 font-bold text-[10px] text-emerald-600 font-mono-numbers">-{formatPrice(order.advancePayment || 0, currency, rate)}</td>
-              </tr>
-            ) : null}
-            {order.discount ? (
-              <tr className="bg-gray-50/40">
-                <td colSpan={3} className="p-1.5 text-right font-extrabold text-[9px] uppercase tracking-wider text-rose-500">Discount</td>
-                <td className="p-1.5 text-right pr-4 font-bold text-[10px] text-rose-500 font-mono-numbers">-{formatPrice(order.discount || 0, currency, rate)}</td>
-              </tr>
-            ) : null}
-            <tr className="border-t border-gray-200 bg-gray-900 text-white font-black h-9">
-              <td colSpan={3} className="p-2 text-right text-[10px] uppercase tracking-widest pl-4">TOTAL COLLECTABLE</td>
-              <td className="p-2 text-right pr-4 text-[11px] font-mono-numbers font-black tracking-tight text-white">
-                {formatPrice(order.total, currency, rate)}
-              </td>
-            </tr>
           </tbody>
         </table>
       </div>
 
-      {/* Note, Invoice By, & Authorized Signature section */}
-      <div className="grid grid-cols-12 gap-4 text-left items-end">
-        {/* Notes & Staff column */}
-        <div className="col-span-7 space-y-2">
-          <div>
-            <span className="text-[8px] font-black uppercase tracking-[0.15em] text-gray-400 block mb-0.5">Invoice Issued By</span>
-            <p className="font-extrabold text-[9.5px] text-indigo-600 uppercase tracking-wider">
-              {order.invoiceBy || 'Sabbir'}
-            </p>
+      {/* Calculations / Summary */}
+      <div className="flex justify-end mb-6">
+        <div className="w-64 space-y-1.5 text-xs">
+          <div className="flex justify-between text-gray-600 font-medium">
+            <span>Subtotal</span>
+            <span className="font-mono-numbers text-gray-800">{formatPrice(subTotal, currency, rate)}</span>
           </div>
-          
-          <div>
-            <span className="text-[8px] font-black uppercase tracking-[0.15em] text-gray-400 block mb-0.5">Staff Notes</span>
-            <div className="border border-gray-150 rounded-xl p-2.5 bg-gray-50/30 text-[9px] font-medium text-gray-600 italic leading-normal min-h-[32px]">
-              {order.notes || "No standard notes attached to this record."}
+          <div className="flex justify-between text-gray-600 font-medium">
+            <span>Delivery Charge (+)</span>
+            <span className="font-mono-numbers text-gray-800">+{formatPrice(order.deliveryCharge || 0, currency, rate)}</span>
+          </div>
+          {order.discount ? (
+            <div className="flex justify-between text-rose-600 font-bold">
+              <span>Discount (-)</span>
+              <span className="font-mono-numbers">-{formatPrice(order.discount, currency, rate)}</span>
             </div>
-          </div>
-        </div>
+          ) : null}
+          {order.advancePayment ? (
+            <div className="flex justify-between text-emerald-600 font-bold">
+              <span>Advance Payment (-) [{order.paymentMethod || 'bKash'}]</span>
+              <span className="font-mono-numbers">-{formatPrice(order.advancePayment, currency, rate)}</span>
+            </div>
+          ) : null}
 
-        {/* Signature Line column */}
-        <div className="col-span-5 text-right pb-1">
-          <div className="w-36 ml-auto mr-1 space-y-1">
-            {/* Elegant tiny line representation */}
-            <div className="border-b border-gray-300 w-full pt-10" />
-            <span className="text-[8px] font-black uppercase tracking-[0.15em] text-gray-400 block text-center">
-              Authorized Sign
+          <div className="border-t border-black pt-2 mt-2 flex justify-between items-baseline">
+            <span className="text-[10px] font-black uppercase tracking-wider text-gray-500">COLLECTABLE</span>
+            <span className="text-xl font-black text-black font-mono-numbers">
+              {formatPrice(order.total, currency, rate)}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Return policy footer matching screenshot */}
-      <div className="text-center mt-4 pt-3 border-t border-dashed border-gray-200 space-y-1">
-        <div className="inline-flex items-center gap-2 px-2.5 py-0.5 bg-indigo-50/40 border border-indigo-100/40 rounded-full">
-          <span className="font-black text-[8px] text-indigo-600 uppercase tracking-[0.15em]">3 Days Exchange & Return Available</span>
-        </div>
-        <p className="text-xs font-serif-luxury italic font-bold text-gray-500 mt-0.5">Thanks For Choosing Elegan BD</p>
+      {/* Elegant Footer Thank You Message */}
+      <div className="mt-8 pt-4 border-t border-dashed border-gray-300 text-center space-y-0.5">
+        <p className="text-sm font-bold text-gray-900 italic tracking-wide" style={{ fontFamily: "'Playfair Display', serif" }}>
+          Thanks For Purchase
+        </p>
+        <p className="text-[8.5px] font-extrabold uppercase tracking-[0.25em] text-gray-400">
+          Elegan BD — Fashion in everyday life make you stylist
+        </p>
       </div>
     </div>
   );

@@ -312,7 +312,7 @@ async function startServer() {
 
       const payload: any = {
         store_id: Number(creds.storeId),
-        merchant_order_id: order.id,
+        merchant_order_id: order.invoiceNo ? String(order.invoiceNo) : String(order.id || '').replace(/^ORD-?/i, ''),
         recipient_name: order.customerName || 'Customer',
         recipient_phone: phone,
         recipient_address: address,
