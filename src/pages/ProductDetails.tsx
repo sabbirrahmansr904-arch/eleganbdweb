@@ -10,7 +10,6 @@ import { formatPrice, cn } from '../lib/utils';
 import toast from 'react-hot-toast';
 import QuickOrderModal from '../components/QuickOrderModal';
 import ProductCard from '../components/ProductCard';
-import ComboOfferBanner from '../components/ComboOfferBanner';
 import { db } from '../lib/firebase';
 import { collection, query, where, orderBy, onSnapshot, addDoc } from 'firebase/firestore';
 import { Review } from '../types';
@@ -306,7 +305,6 @@ const ProductDetails = () => {
 
           {/* Info Section */}
           <div className="lg:col-span-5 space-y-4.5">
-            {Math.random() < 0.5 && <ComboOfferBanner />}
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 mb-1">ELEGAN BD ORIGINAL</p>
               <h1 className="text-2xl md:text-3xl font-black italic tracking-tighter uppercase text-black mb-2">

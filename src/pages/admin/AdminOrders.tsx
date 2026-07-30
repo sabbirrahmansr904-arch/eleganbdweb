@@ -1541,14 +1541,14 @@ export default function AdminOrders(): React.JSX.Element {
         {/* Interactive Filters Grid / Bar matching screenshot */}
         <div className="flex flex-row items-center gap-1.5 bg-[#F8FAFC]/60 p-2 rounded-2xl border border-slate-100 overflow-x-auto no-scrollbar whitespace-nowrap">
           {/* Search Input */}
-          <div className="relative flex-1 min-w-[140px] max-w-[180px] shrink-0">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 w-3.5 h-3.5 stroke-[2]" />
+          <div className="relative flex-1 min-w-[220px] sm:min-w-[300px] max-w-[420px] shrink-0">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 stroke-[2.2]" />
             <input 
               type="text"
-              placeholder="Search order..."
+              placeholder="Search Order #, Phone, Name, SKU..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-2 py-1.5 bg-white border border-slate-200 text-[11px] font-semibold rounded-xl placeholder-gray-400 text-slate-800 focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all"
+              className="w-full pl-10 pr-3 py-2 bg-white border border-slate-200 text-xs sm:text-sm font-semibold rounded-xl placeholder-gray-400 text-slate-800 focus:ring-2 focus:ring-[#2563EB]/15 focus:border-[#2563EB]/40 outline-none transition-all shadow-2xs"
             />
           </div>
 
@@ -1710,9 +1710,59 @@ export default function AdminOrders(): React.JSX.Element {
           </motion.div>
         )}
 
-        {/* Table representation */}
+        {/* Table/Card representation */}
         <div className="overflow-x-auto elegant-scrollbar pb-3 min-h-[720px]">
-          <table className="w-full text-left border-collapse min-w-[1500px]">
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-4 px-4">
+            {filteredOrders.slice(0, visibleCount).map((order) => (
+              <div key={order.id} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100" onClick={() => setSelectedOrder(order)}>
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                      checked={selectedOrderIds.includes(order.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={() => {
+                        if (selectedOrderIds.includes(order.id)) {
+                          setSelectedOrderIds(selectedOrderIds.filter(id => id !== order.id));
+                        } else {
+                          setSelectedOrderIds([...selectedOrderIds, order.id]);
+                        }
+                      }}
+                    />
+                    <span className="font-bold text-slate-800">{order.invoiceNo || order.id.slice(-6)}</span>
+                  </div>
+                  <span className="text-[10px] font-black px-2 py-1 rounded-full bg-indigo-50 text-indigo-600 uppercase">{order.status}</span>
+                </div>
+                <div className="text-sm font-semibold text-slate-700">{order.customerName}</div>
+                <div className="text-xs text-slate-500 mb-2">{order.phone}</div>
+                <div className="text-xs text-slate-400 mb-4">{formatOrderDateTimeStr(order.createdAt)}</div>
+                
+                <div className="bg-slate-50 p-3 rounded-xl mb-4">
+                  <div className="text-sm font-bold text-slate-800 mb-1">
+                    {order.items.map(i => i.name).join(', ')}
+                  </div>
+                  <div className="text-xs text-slate-600">
+                    {order.items.map(i => `${i.selectedSize || 'M'} (x${i.quantity})`).join(', ')}
+                  </div>
+                </div>
+                
+                <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-100">
+                  <div className="text-sm font-black text-indigo-600">{formatPrice(order.total, currency, rate)}</div>
+                  <div className="flex gap-2">
+                    <button onClick={(e) => { e.stopPropagation(); setSelectedOrder(order); }} title="View Details" className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 rounded-lg"><Eye size={18} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); setIssueConversationOrder(order); }} title="Order Issues" className="p-2 text-slate-400 hover:text-rose-600 bg-slate-50 rounded-lg"><MessageSquare size={18} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); setInvoiceOrder(order); setShowInvoiceModal(true); if (normalizeStatus(order.status) !== 'PRINTED') { updateOrderStatus(order.id, 'PRINTED'); } }} title="Print Invoice" className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 rounded-lg"><Printer size={18} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); setSelectedOrder(order); /* ... (setting state for editing) */ setIsEditingDetails(true); }} title="Edit Order" className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 rounded-lg"><Tag size={18} /></button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Table View */}
+          <table className="hidden md:table w-full text-left border-collapse min-w-[1500px]">
             <thead>
               <tr className="border-b border-slate-100 text-[11px] font-black tracking-wider text-slate-400 h-14 bg-white select-none uppercase">
                 <th className="py-3 px-4 font-semibold text-left w-12">
@@ -1765,11 +1815,7 @@ export default function AdminOrders(): React.JSX.Element {
                 filteredOrders.slice(0, visibleCount).map((order) => {
                   const dateTime = formatOrderDateTime(order.createdAt);
                   const cleanId = order.invoiceNo ? String(order.invoiceNo) : order.id.replace('ORD-', '').replace('#', '');
-
-                  // Initial letter for customer avatar
                   const initial = order.customerName ? order.customerName.charAt(0).toUpperCase() : 'A';
-
-                  // Format items description
                   const itemsSummary = order.items && order.items.length > 0
                     ? order.items.map(item => `${item.name}${item.selectedSize ? ` — Pant Size: ${item.selectedSize}` : ''}`).join(', ')
                     : 'No items';
@@ -3359,7 +3405,12 @@ export default function AdminOrders(): React.JSX.Element {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-[#E5E9F0] rounded-[32px] w-full max-w-2xl overflow-hidden shadow-2xl relative z-10 flex flex-col text-slate-800 font-sans max-h-[92vh] border border-white/20"
+              className={cn(
+                "rounded-[32px] w-full max-w-2xl overflow-hidden shadow-2xl relative z-10 flex flex-col text-slate-800 font-sans max-h-[92vh] border border-white/20",
+                issueConversationOrder.issueType && issueConversationOrder.issueStatus !== 'resolved'
+                  ? "bg-rose-50"
+                  : "bg-[#E5E9F0]"
+              )}
             >
               
               {/* Header block with chat icon, Title, Subtitle and View Order button */}
@@ -3604,14 +3655,21 @@ export default function AdminOrders(): React.JSX.Element {
                           if (issueConversationOrder.issueType && issueConversationOrder.issueStatus !== 'resolved') {
                             setReadyToShipClicked(true);
                           } else {
+                            // Only set to Shipped if not already Shipped, 
+                            // though this logic path assumes resolved issues
                             await handleStatusChange(issueConversationOrder.id, 'Shipped');
                             toast.success("Order marked as ready to ship!");
                           }
                         }}
-                        className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 bg-[#5E50F9] hover:bg-[#4E40E9] text-white font-extrabold text-[10.5px] rounded-full uppercase tracking-wider transition-all shadow-md cursor-pointer hover:shadow-lg"
+                        className={cn(
+                          "flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 font-extrabold text-[10.5px] rounded-full uppercase tracking-wider transition-all shadow-md cursor-pointer hover:shadow-lg",
+                          issueConversationOrder.issueType && issueConversationOrder.issueStatus !== 'resolved'
+                            ? "bg-rose-500 hover:bg-rose-600 text-white animate-pulse"
+                            : "bg-[#5E50F9] hover:bg-[#4E40E9] text-white"
+                        )}
                       >
                         <Clock size={12} className="stroke-[2.5]" />
-                        READY TO SHIP
+                        {issueConversationOrder.issueType && issueConversationOrder.issueStatus !== 'resolved' ? 'SOLVE' : 'READY TO SHIP'}
                       </button>
 
                       <button 
@@ -4286,24 +4344,7 @@ export default function AdminOrders(): React.JSX.Element {
                           <span>Edit in Order Page (নতুন অর্ডার পেজ)</span>
                         </button>
 
-                        <button 
-                          onClick={() => {
-                            setEditName(selectedOrder.customerName || '');
-                            setEditPhone(selectedOrder.phone || '');
-                            setEditAddress(selectedOrder.address || '');
-                            setEditCity(selectedOrder.city || '');
-                            setEditStatus(selectedOrder.status || 'Pending');
-                            setEditDeliveryCharge(selectedOrder.deliveryCharge ?? 100);
-                            setEditDiscount((selectedOrder as any).discount ?? 0);
-                            setEditAdvancePayment((selectedOrder as any).advancePayment ?? 0);
-                            setEditNotes((selectedOrder as any).notes || '');
-                            setEditInvoiceBy(selectedOrder.invoiceBy || 'Website order');
-                            setIsEditingDetails(true);
-                          }}
-                          className="w-full py-3 bg-white/70 hover:bg-white text-slate-800 border border-slate-300/40 font-black text-[11px] uppercase tracking-widest rounded-[20px] transition-all shadow-sm cursor-pointer flex items-center justify-center gap-2"
-                        >
-                          <span>Quick Inline Edit</span>
-                        </button>
+
                       </div>
 
                     </div>
