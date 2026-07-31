@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Star } from 'lucide-react';
 import { cn } from '../lib/utils';
+import AllProductsImageScroll from './AllProductsImageScroll';
 
 interface Review {
   id: string;
@@ -101,6 +102,8 @@ export const Reviews: React.FC<ReviewsProps> = ({ productId }) => {
           </div>
         ))}
       </div>
+
+      <AllProductsImageScroll />
     </div>
   );
 };

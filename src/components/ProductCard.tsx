@@ -8,7 +8,7 @@ import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { Product } from '../types';
 import { formatPrice, cn } from '../lib/utils';
-import { ShoppingBag, ShoppingCart, Star, Zap, Heart } from 'lucide-react';
+import { ShoppingBag, ShoppingCart, Star, Zap, Heart, Eye } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
@@ -102,13 +102,13 @@ const ProductCard = React.memo(({ product, onAddToCart, loading = "lazy" }: Prod
       transition={{ duration: 0.3, ease: 'easeOut' }}
       className="group relative"
     >
-      <Link to={`/product/${product.id}`} className="block overflow-hidden relative aspect-[3/4] bg-gray-50 border border-gray-100 rounded-lg">
+      <Link to={`/product/${product.id}`} className="block overflow-hidden relative aspect-[3/4] bg-gray-50 border border-gray-100 rounded-lg group/img">
         {product.images && product.images.length > 0 && product.images[0] ? (
           <motion.img
             src={product.images[0]}
             alt={product.name}
             className={cn(
-              "w-full h-full bg-transparent transition-all duration-350",
+              "w-full h-full bg-transparent transition-transform duration-500 ease-out group-hover:scale-110",
               "object-contain bg-white p-2",
               product.stock === 0 && "grayscale"
             )}
@@ -121,6 +121,18 @@ const ProductCard = React.memo(({ product, onAddToCart, loading = "lazy" }: Prod
             <span className="text-xs uppercase tracking-widest font-bold">No Image</span>
           </div>
         )}
+
+        {/* Center Hover Zoom Eye Icon */}
+        <div className="absolute inset-0 bg-black/15 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center pointer-events-none">
+          <button
+            type="button"
+            onClick={handleQuickView}
+            className="pointer-events-auto w-12 h-12 md:w-14 md:h-14 rounded-full bg-white text-blue-600 flex items-center justify-center shadow-xl transform scale-75 group-hover:scale-100 transition-all duration-300 hover:bg-blue-600 hover:text-white cursor-pointer"
+            title="Quick View Product"
+          >
+            <Eye size={24} className="stroke-[2.5]" />
+          </button>
+        </div>
         
         {/* Badges */}
         <div className="absolute top-4 right-4 flex flex-col space-y-2">

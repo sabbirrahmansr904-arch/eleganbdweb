@@ -37,7 +37,7 @@ export default function Contact() {
               </div>
               <div>
                 <h4 className="text-[10px] uppercase tracking-widest text-brand-ink/40 font-bold mb-2">Call Us</h4>
-                <p className="text-xl font-serif">+880 1712-345678</p>
+                <p className="text-xl font-serif">+880 1327-772213</p>
               </div>
             </div>
 

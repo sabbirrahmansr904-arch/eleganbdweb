@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { cn } from '../lib/utils';
+import AllProductsImageScroll from './AllProductsImageScroll';
 
 interface Review {
   id: number;
@@ -214,7 +215,7 @@ export default function ReviewsCarousel() {
         </div>
 
         {/* Bullet Indicators (Visual highlight) */}
-        <div className="flex justify-center gap-1.5 mt-8">
+        <div className="flex justify-center gap-1.5 mt-8 mb-4">
           {reviewsData.slice(0, 10).map((_, idx) => {
             const isActive = Math.floor(currentIndex / 10) === idx;
             return (
@@ -233,6 +234,9 @@ export default function ReviewsCarousel() {
             );
           })}
         </div>
+
+        {/* 1 Line Horizontal Product Image Scroll under Reviews */}
+        <AllProductsImageScroll />
       </div>
     </section>
   );

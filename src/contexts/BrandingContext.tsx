@@ -62,14 +62,20 @@ interface BrandingContextType {
   setAboutText: (text: string) => void;
 }
 
-const DEFAULT_LOGO = "https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=500&auto=format";
-const DEFAULT_SIZE_CHART = "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=1000";
-const DEFAULT_COLLECTIONS_BANNER = "https://images.unsplash.com/photo-1441991271612-42177c385b00?q=80&w=2000&auto=format";
-const DEFAULT_HERO_BANNER = "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2000&auto=format";
-const DEFAULT_SUB_HERO_BANNER = "https://images.unsplash.com/photo-1544441893-675973e31985?q=80&w=2000&auto=format";
-const DEFAULT_FEATURE_BANNER = "https://images.unsplash.com/photo-1563124803-db51591028f1?q=80&w=2000&auto=format";
-const DEFAULT_POLO_BANNER = "https://images.unsplash.com/photo-1581655353564-df123a1eb820?q=80&w=2000&auto=format";
-const DEFAULT_COMBO_OFFER_BANNER = "https://storage.googleapis.com/genai-studio-artifacts-storage/1600-tl-combo-offer-image.png";
+const cleanUrl = (url?: string) => {
+  if (!url) return "";
+  if (url.includes('unsplash.com') || url.includes('genai-studio-artifacts-storage')) return "";
+  return url;
+};
+
+const DEFAULT_LOGO = "";
+const DEFAULT_SIZE_CHART = "";
+const DEFAULT_COLLECTIONS_BANNER = "";
+const DEFAULT_HERO_BANNER = "";
+const DEFAULT_SUB_HERO_BANNER = "";
+const DEFAULT_FEATURE_BANNER = "";
+const DEFAULT_POLO_BANNER = "";
+const DEFAULT_COMBO_OFFER_BANNER = "";
 
 const DEFAULT_ANNOUNCEMENT_MSG = "🔥 Special Combo Deal: Buy 3 Shirts for Only ৳1,799";
 const DEFAULT_ABOUT_TEXT = "Premium minimalist fashion for the modern individual.";
@@ -81,80 +87,80 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const cached = localStorage.getItem('eleganbd_branding');
     if (cached) {
       try {
-        return JSON.parse(cached).logoUrl || DEFAULT_LOGO;
-      } catch (e) { return DEFAULT_LOGO; }
+        return cleanUrl(JSON.parse(cached).logoUrl);
+      } catch (e) { return ""; }
     }
-    return DEFAULT_LOGO;
+    return "";
   });
   
   const [sizeChartUrl, setSizeChartUrlState] = useState<string>(() => {
     const cached = localStorage.getItem('eleganbd_branding');
     if (cached) {
       try {
-        return JSON.parse(cached).sizeChartUrl || DEFAULT_SIZE_CHART;
-      } catch (e) { return DEFAULT_SIZE_CHART; }
+        return cleanUrl(JSON.parse(cached).sizeChartUrl);
+      } catch (e) { return ""; }
     }
-    return DEFAULT_SIZE_CHART;
+    return "";
   });
 
   const [collectionsBannerUrl, setCollectionsBannerUrlState] = useState<string>(() => {
     const cached = localStorage.getItem('eleganbd_banners_large');
     if (cached) {
       try {
-        return JSON.parse(cached).collectionsBannerUrl || DEFAULT_COLLECTIONS_BANNER;
-      } catch (e) { return DEFAULT_COLLECTIONS_BANNER; }
+        return cleanUrl(JSON.parse(cached).collectionsBannerUrl);
+      } catch (e) { return ""; }
     }
-    return DEFAULT_COLLECTIONS_BANNER;
+    return "";
   });
 
   const [heroBannerUrl, setHeroBannerUrlState] = useState<string>(() => {
     const cached = localStorage.getItem('eleganbd_banners_large');
     if (cached) {
       try {
-        return JSON.parse(cached).heroBannerUrl || DEFAULT_HERO_BANNER;
-      } catch (e) { return DEFAULT_HERO_BANNER; }
+        return cleanUrl(JSON.parse(cached).heroBannerUrl);
+      } catch (e) { return ""; }
     }
-    return DEFAULT_HERO_BANNER;
+    return "";
   });
 
   const [subHeroBannerUrl, setSubHeroBannerUrlState] = useState<string>(() => {
     const cached = localStorage.getItem('eleganbd_banners_large');
     if (cached) {
       try {
-        return JSON.parse(cached).subHeroBannerUrl || DEFAULT_SUB_HERO_BANNER;
-      } catch (e) { return DEFAULT_SUB_HERO_BANNER; }
+        return cleanUrl(JSON.parse(cached).subHeroBannerUrl);
+      } catch (e) { return ""; }
     }
-    return DEFAULT_SUB_HERO_BANNER;
+    return "";
   });
 
   const [featureBannerUrl, setFeatureBannerUrlState] = useState<string>(() => {
     const cached = localStorage.getItem('eleganbd_banners_large');
     if (cached) {
       try {
-        return JSON.parse(cached).featureBannerUrl || DEFAULT_FEATURE_BANNER;
-      } catch (e) { return DEFAULT_FEATURE_BANNER; }
+        return cleanUrl(JSON.parse(cached).featureBannerUrl);
+      } catch (e) { return ""; }
     }
-    return DEFAULT_FEATURE_BANNER;
+    return "";
   });
 
   const [poloBannerUrl, setPoloBannerUrlState] = useState<string>(() => {
     const cached = localStorage.getItem('eleganbd_banners_large');
     if (cached) {
       try {
-        return JSON.parse(cached).poloBannerUrl || DEFAULT_POLO_BANNER;
-      } catch (e) { return DEFAULT_POLO_BANNER; }
+        return cleanUrl(JSON.parse(cached).poloBannerUrl);
+      } catch (e) { return ""; }
     }
-    return DEFAULT_POLO_BANNER;
+    return "";
   });
 
   const [comboOfferBannerUrl, setComboOfferBannerUrlState] = useState<string>(() => {
     const cached = localStorage.getItem('eleganbd_banners_large');
     if (cached) {
       try {
-        return JSON.parse(cached).comboOfferBannerUrl || DEFAULT_COMBO_OFFER_BANNER;
-      } catch (e) { return DEFAULT_COMBO_OFFER_BANNER; }
+        return cleanUrl(JSON.parse(cached).comboOfferBannerUrl);
+      } catch (e) { return ""; }
     }
-    return DEFAULT_COMBO_OFFER_BANNER;
+    return "";
   });
 
   const [showShowcase, setShowShowcaseState] = useState<boolean>(() => {
@@ -318,8 +324,8 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const brandingSnap = await getDoc(brandingRef);
         if (brandingSnap.exists()) {
           const data = brandingSnap.data();
-          if (data.logoUrl) setLogoUrlState(data.logoUrl);
-          if (data.sizeChartUrl) setSizeChartUrlState(data.sizeChartUrl);
+          if (data.logoUrl) setLogoUrlState(cleanUrl(data.logoUrl));
+          if (data.sizeChartUrl) setSizeChartUrlState(cleanUrl(data.sizeChartUrl));
           if (data.showShowcase !== undefined) setShowShowcaseState(data.showShowcase);
           
           if (data.showAnnouncementBar !== undefined) setShowAnnouncementBarState(data.showAnnouncementBar);
@@ -345,7 +351,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         for (const key of bannerKeys) {
             const snap = await getDoc(doc(db, 'config', `banner_${key}`));
             if (snap.exists()) {
-                const url = snap.data().url;
+                const url = cleanUrl(snap.data().url);
                 const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
                 localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, [`${key === 'sub_hero' ? 'subHero' : key}BannerUrl`]: url }));
                 if (key === 'hero') setHeroBannerUrlState(url);

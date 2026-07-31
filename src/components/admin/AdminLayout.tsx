@@ -215,9 +215,35 @@ export default function AdminLayout() {
 
   const isPermitted = (key: string) => {
     if (isSuperAdmin) return true;
-    if (!permissions || permissions.length === 0) return true; // Default fallback if not set
-    return permissions.includes(key);
+    if (key === 'dashboard') return true;
+    if (!permissions || permissions.length === 0) return false;
+    return permissions.includes(key) || permissions.includes('all');
   };
+
+  const getRequiredPermissionForPath = (path: string): string | null => {
+    if (path === '/admin' || path === '/admin/') return 'dashboard';
+    if (path.startsWith('/admin/orders')) return 'orders';
+    if (
+      path.startsWith('/admin/products') ||
+      path.startsWith('/admin/add-product') ||
+      path.startsWith('/admin/edit-product') ||
+      path.startsWith('/admin/stock-in') ||
+      path.startsWith('/admin/stock-out') ||
+      path.startsWith('/admin/inventory') ||
+      path.startsWith('/admin/media') ||
+      path.startsWith('/admin/fix-sizes')
+    ) return 'products';
+    if (path.startsWith('/admin/customers') || path.startsWith('/admin/customer-profiler')) return 'customers';
+    if (path.startsWith('/admin/exchanges')) return 'exchanges';
+    if (path.startsWith('/admin/issues')) return 'issues';
+    if (path.startsWith('/admin/master-table') || path.startsWith('/admin/inventory-log')) return 'masterTable';
+    if (path.startsWith('/admin/settings')) return 'settings';
+    if (path.startsWith('/admin/finance') || path.startsWith('/admin/expenses')) return 'finance';
+    return null;
+  };
+
+  const currentRequiredPerm = getRequiredPermissionForPath(location.pathname);
+  const isCurrentRouteAllowed = !currentRequiredPerm || isPermitted(currentRequiredPerm);
 
   const rawMenuGroups = [
     {
@@ -763,7 +789,27 @@ export default function AdminLayout() {
 
         {/* Content Area */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6 no-scrollbar scroll-smooth">
-          <Outlet />
+          {isCurrentRouteAllowed ? (
+            <Outlet />
+          ) : (
+            <div className="flex-1 p-8 flex flex-col items-center justify-center text-center min-h-[60vh] bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm my-auto">
+              <div className="w-16 h-16 rounded-2xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 flex items-center justify-center mb-4 shadow-md">
+                <Lock size={32} />
+              </div>
+              <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-2">
+                Access Restricted • এক্সেস সীমিত
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mb-6 leading-relaxed">
+                আপনার এডমিন অ্যাকাউন্টে এই মডিউলটি ({currentRequiredPerm?.toUpperCase()}) ব্যবহারের পারমিশন দেওয়া হয়নি। আপনি শুধুমাত্র আপনার জন্য নির্ধারিত অনুমোদিত মডিউলে কাজ করতে পারবেন।
+              </p>
+              <Link
+                to="/admin"
+                className="bg-black hover:bg-brand-gold hover:text-black text-white dark:bg-white dark:text-black transition-all px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest shadow-md flex items-center gap-2"
+              >
+                <Home size={16} /> Return to Admin Dashboard
+              </Link>
+            </div>
+          )}
         </main>
       </div>
     </div>

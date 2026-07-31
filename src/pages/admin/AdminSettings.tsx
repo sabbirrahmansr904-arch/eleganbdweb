@@ -541,7 +541,7 @@ export default function AdminSettings() {
       setNagadType(originalPayments.nagadType);
       setNagadLogo(originalPayments.nagadLogo || '');
       setRocketEnabled(originalPayments.rocketEnabled !== undefined ? originalPayments.rocketEnabled : true);
-      setRocketNumber(originalPayments.rocketNumber || '01619835133');
+      setRocketNumber(originalPayments.rocketNumber || '01327772213');
       setRocketType(originalPayments.rocketType || 'Personal');
       setRocketLogo(originalPayments.rocketLogo || '');
       toast.success('Unsaved changes discarded.');
@@ -978,7 +978,7 @@ export default function AdminSettings() {
       if (logsList.length === 0) {
         const defaultLogs = [
           {
-            phone: '8801619835133',
+            phone: '8801327772213',
             message: 'Dear Customer, welcome to Elegan BD! Your verification code is 5824. Do not share this OTP.',
             status: 'Sent',
             sentAt: '10 Jul, 13:54',
@@ -1402,14 +1402,16 @@ export default function AdminSettings() {
     const params = new URLSearchParams(location.search);
     const tabParam = params.get('tab');
     
-    if (tabParam) {
+    if (tabParam === 'Admin Access' && !isSuperAdmin) {
+      setActiveTab('General');
+    } else if (tabParam) {
       setActiveTab(tabParam);
     } else if (location.pathname.includes('banners')) {
       setActiveTab('Banners');
     } else {
       setActiveTab('General');
     }
-  }, [location.pathname, location.search]);
+  }, [location.pathname, location.search, isSuperAdmin]);
 
   const [isSaving, setIsSaving] = useState(false);
 

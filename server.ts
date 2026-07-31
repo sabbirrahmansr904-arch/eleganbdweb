@@ -19,7 +19,38 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json({ limit: '50mb' }));
+  // Security Headers Middleware
+  app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    next();
+  });
+
+  // Simple In-Memory Rate Limiter Map for API Security
+  const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+  const rateLimiter = (maxRequests: number, windowMs: number) => {
+    return (req: any, res: any, next: any) => {
+      const ip = (req.headers['x-forwarded-for'] as string || req.ip || 'unknown').split(',')[0].trim();
+      const now = Date.now();
+      const record = rateLimitMap.get(ip);
+
+      if (!record || now > record.resetTime) {
+        rateLimitMap.set(ip, { count: 1, resetTime: now + windowMs });
+        return next();
+      }
+
+      if (record.count >= maxRequests) {
+        return res.status(429).json({ error: 'Too many requests. Please try again later for security.' });
+      }
+
+      record.count += 1;
+      next();
+    };
+  };
+
+  app.use(express.json({ limit: '10mb' }));
 
   // Custom error handler for JSON body parser (including payload too large)
   app.use((err: any, req: any, res: any, next: any) => {
@@ -30,12 +61,16 @@ async function startServer() {
     }
   });
 
-  // API route to send OTP
-  app.post("/api/send-otp", async (req, res) => {
+  // API route to send OTP with Rate Limit & Email Input Validation
+  app.post("/api/send-otp", rateLimiter(5, 15 * 60 * 1000), async (req, res) => {
     const { email } = req.body;
+    if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return res.status(400).json({ error: "Invalid email address format." });
+    }
+    const cleanEmail = email.trim().toLowerCase();
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     
-    const otpRef = doc(db, 'otps', email);
+    const otpRef = doc(db, 'otps', cleanEmail);
     await setDoc(otpRef, {
       otp,
       createdAt: new Date().toISOString(),
@@ -479,7 +514,7 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
+    app.get('*all', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

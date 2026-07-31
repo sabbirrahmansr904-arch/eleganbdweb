@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckoutFormData, Order } from '../types';
+import { CheckoutFormData, Order, SavedAddress } from '../types';
 import { formatPrice, cn, calculateCartSubtotal, getCartPriceBreakdown } from '../lib/utils';
 import { DISTRICT_THANAS } from '../data/locations';
 import { useCurrency } from '../contexts/CurrencyContext';
@@ -15,7 +15,7 @@ import { useCart } from '../contexts/CartContext';
 import { useBranding } from '../contexts/BrandingContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useInventory } from '../contexts/InventoryContext';
-import { ArrowLeft, CheckCircle2, User, Phone, Mail, MapPin, FileText, ShoppingBag, Gift, CreditCard, Coins, ShieldCheck, RefreshCw, Truck, Lock, Award, RotateCcw } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, User, Phone, Mail, MapPin, FileText, ShoppingBag, Gift, CreditCard, Coins, ShieldCheck, RefreshCw, Truck, Lock, Award, RotateCcw, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import { db } from '../lib/firebase';
@@ -118,6 +118,70 @@ export default function Checkout() {
     };
     fetchPaymentsConfig();
   }, []);
+
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+
+  // Auto-fill address from Saved Delivery Locations
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('elegan_saved_addresses');
+      let addrList: SavedAddress[] = [];
+      if (saved) {
+        addrList = JSON.parse(saved);
+      }
+      
+      // Fallback check profile if saved list is empty
+      if (addrList.length === 0) {
+        const profSaved = localStorage.getItem('elegan_customer_profile');
+        if (profSaved) {
+          const prof = JSON.parse(profSaved);
+          if (prof.address || prof.phone) {
+            addrList = [{
+              id: 'prof_default',
+              title: 'Home',
+              name: prof.name || '',
+              phone: prof.phone || '',
+              address: prof.address || '',
+              city: prof.city || 'Dhaka',
+              thana: prof.thana || '',
+              isDefault: true
+            }];
+          }
+        }
+      }
+
+      if (addrList.length > 0) {
+        setSavedAddresses(addrList);
+        const def = addrList.find(a => a.isDefault) || addrList[0];
+        setSelectedAddressId(def.id);
+        setFormData(prev => ({
+          ...prev,
+          fullName: prev.fullName || def.name || currentUser?.displayName || customerUser?.name || '',
+          phone: prev.phone || def.phone || '',
+          address: prev.address || def.address || '',
+          city: prev.city || def.city || 'Dhaka',
+          thana: prev.thana || def.thana || '',
+          email: prev.email || currentUser?.email || customerUser?.email || ''
+        }));
+      }
+    } catch (err) {
+      console.error("Error loading saved addresses in checkout:", err);
+    }
+  }, [currentUser, customerUser]);
+
+  const handleSelectSavedAddress = (addr: SavedAddress) => {
+    setSelectedAddressId(addr.id);
+    setFormData(prev => ({
+      ...prev,
+      fullName: addr.name || prev.fullName,
+      phone: addr.phone || prev.phone,
+      address: addr.address || prev.address,
+      city: addr.city || prev.city || 'Dhaka',
+      thana: addr.thana || prev.thana || ''
+    }));
+    toast.success(`Selected "${addr.title}" address`);
+  };
 
   useEffect(() => {
     const fetchCouponConfig = async () => {
@@ -527,6 +591,49 @@ export default function Checkout() {
                 
                 <div className="space-y-5">
                   
+                  {/* Saved Locations Quick Selector */}
+                  {savedAddresses.length > 0 && (
+                    <div className="bg-blue-50/70 p-4 rounded-2xl border border-blue-200/80 mb-2">
+                      <div className="flex items-center justify-between mb-2.5">
+                        <span className="text-xs font-extrabold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                          <MapPin size={15} className="text-blue-600" />
+                          Select Saved Delivery Location
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => navigate('/dashboard?tab=addresses')}
+                          className="text-[11px] font-extrabold text-blue-700 hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Plus size={13} /> Manage / Add Location
+                        </button>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {savedAddresses.map(addr => (
+                          <button
+                            key={addr.id}
+                            type="button"
+                            onClick={() => handleSelectSavedAddress(addr)}
+                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all text-left flex items-center gap-2 cursor-pointer ${
+                              selectedAddressId === addr.id
+                                ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-600/30'
+                                : 'bg-white text-gray-800 border border-gray-200 hover:border-blue-300'
+                            }`}
+                          >
+                            <span>{addr.title.toLowerCase().includes('office') ? '🏢' : '🏠'}</span>
+                            <div>
+                              <span className="block font-black">{addr.title}</span>
+                              <span className="text-[10px] opacity-85 block truncate max-w-[140px] font-medium">
+                                {addr.city} • {addr.phone}
+                              </span>
+                            </div>
+                            {selectedAddressId === addr.id && <CheckCircle2 size={14} className="ml-1 text-white shrink-0" />}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Full name input */}
                   <div className="text-left">
                     <div className="relative">

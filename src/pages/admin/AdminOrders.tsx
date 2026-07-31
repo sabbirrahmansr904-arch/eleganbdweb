@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import InvoiceTemplate from '../../components/admin/InvoiceTemplate';
+import { useInvoiceByOptions } from '../../hooks/useInvoiceByOptions';
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import { 
@@ -23,6 +24,7 @@ import {
   AlertCircle,
   AlertTriangle,
   Plus,
+  UserPlus,
   Camera,
   MessageSquare,
   Printer,
@@ -191,6 +193,7 @@ export default function AdminOrders(): React.JSX.Element {
 
   // Invoice Preview Modal States
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [showBulkInvoiceModal, setShowBulkInvoiceModal] = useState(false);
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
 
   // Issue Conversation Modal States
@@ -280,7 +283,34 @@ export default function AdminOrders(): React.JSX.Element {
   const [tempTrackingId, setTempTrackingId] = useState('');
   const [newInternalNote, setNewInternalNote] = useState('');
   const [newDeliveryDate, setNewDeliveryDate] = useState('');
-  const [newInvoiceBy, setNewInvoiceBy] = useState<'Sabbir' | 'Nasir' | 'Shamiul' | 'Office Sale'>('Sabbir');
+  const { options: invoiceByOptions, addOption: addInvoiceByOption } = useInvoiceByOptions();
+  const [newInvoiceBy, setNewInvoiceBy] = useState<string>('Sabbir');
+  const [showAddInvoiceByModal, setShowAddInvoiceByModal] = useState(false);
+  const [customInvoiceByName, setCustomInvoiceByName] = useState('');
+  const [addingForField, setAddingForField] = useState<'create' | 'edit'>('create');
+
+  const handleAddCustomInvoiceBy = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = customInvoiceByName.trim();
+    if (!trimmed) {
+      toast.error('Please enter a name');
+      return;
+    }
+
+    const success = await addInvoiceByOption(trimmed);
+    if (success) {
+      toast.success(`"${trimmed}" has been added and published for all admins!`);
+      if (addingForField === 'create') {
+        setNewInvoiceBy(trimmed);
+      } else {
+        setEditInvoiceBy(trimmed);
+      }
+      setCustomInvoiceByName('');
+      setShowAddInvoiceByModal(false);
+    } else {
+      toast.error('Failed to save name. Please try again.');
+    }
+  };
   const [newOrderItems, setNewOrderItems] = useState<Array<{
     id: string;
     product: any;
@@ -1067,32 +1097,52 @@ export default function AdminOrders(): React.JSX.Element {
     } catch {
       toast.error('Failed to export selected data');
     }
+  };  const handlePrintSelectedInvoices = () => {
+    if (selectedOrderIds.length === 0) {
+      toast.error('No orders selected for printing');
+      return;
+    }
+    setShowBulkInvoiceModal(true);
   };
 
-  const handlePrintSelectedInvoices = async () => {
+  const executePrintBulkInvoices = async () => {
     try {
       if (selectedOrderIds.length === 0) {
         toast.error('No orders selected for printing');
         return;
       }
 
+      const selectedOrders = orders.filter(o => selectedOrderIds.includes(o.id));
+
       // Mark the selected orders as PRINTED
       await Promise.all(
-        selectedOrderIds.map(async (id) => {
-          const o = orders.find(item => item.id === id);
-          if (o && normalizeStatus(o.status) !== 'PRINTED') {
-            await updateOrderStatus(id, 'PRINTED');
+        selectedOrders.map(async (o) => {
+          if (normalizeStatus(o.status) !== 'PRINTED') {
+            await updateOrderStatus(o.id, 'PRINTED');
           }
         })
       );
 
       const items = document.querySelectorAll('.bulk-invoice-item');
       if (items.length === 0) {
-        toast.error('Invoices not loaded yet. Please try again.');
+        toast.error('Invoices preparing, please try again in a moment');
         return;
       }
 
-      // Create a hidden iframe
+      // Collect host document styles to preserve Tailwind and custom typography
+      const stylesHtml = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+        .map(el => el.outerHTML)
+        .join('\n');
+
+      let pagesHtml = '';
+      items.forEach((item) => {
+        pagesHtml += `
+          <div class="bulk-invoice-page">
+            ${item.innerHTML}
+          </div>
+        `;
+      });
+
       const iframe = document.createElement('iframe');
       iframe.style.position = 'fixed';
       iframe.style.right = '0';
@@ -1100,6 +1150,7 @@ export default function AdminOrders(): React.JSX.Element {
       iframe.style.width = '0';
       iframe.style.height = '0';
       iframe.style.border = '0';
+      iframe.style.zIndex = '-9999';
       document.body.appendChild(iframe);
 
       const iframeDoc = iframe.contentWindow?.document || iframe.contentDocument;
@@ -1108,72 +1159,51 @@ export default function AdminOrders(): React.JSX.Element {
         return;
       }
 
-      // Assemble the body content containing all the invoice pages
-      let pagesHtml = '';
-      items.forEach((item) => {
-        pagesHtml += `
-          <div class="invoice-page">
-            ${item.innerHTML}
-          </div>
-        `;
-      });
-
       iframeDoc.open();
       iframeDoc.write(`
         <!DOCTYPE html>
         <html>
           <head>
-            <title>Print Invoices</title>
+            <title>Print Selected Invoices (${selectedOrders.length})</title>
             <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
-            <script src="https://cdn.tailwindcss.com"></script>
-            <script>
-              tailwind.config = {
-                theme: {
-                  extend: {
-                    colors: {
-                      gray: {
-                        150: '#eceff1',
-                      }
-                    }
-                  }
-                }
-              }
-            </script>
+            ${stylesHtml}
             <style>
               @page {
                 size: A5 portrait;
                 margin: 0;
               }
-              body {
-                margin: 0;
-                padding: 0;
+              html, body {
+                margin: 0 !important;
+                padding: 0 !important;
                 background-color: #ffffff !important;
                 color: #111827 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
               }
-              .invoice-page {
+              .bulk-invoice-page {
                 display: block !important;
                 page-break-after: always !important;
                 page-break-inside: avoid !important;
                 width: 148mm !important;
-                height: 210mm !important;
-                padding: 12mm 10mm 10mm 10mm !important;
+                min-height: 210mm !important;
+                padding: 0 !important;
+                margin: 0 !important;
                 box-sizing: border-box !important;
                 position: relative !important;
-                overflow: hidden !important;
-                background: white !important;
+                background: #ffffff !important;
               }
-              /* Clean preview overrides so it prints perfectly standard A5 */
-              .invoice-page > div {
+              .bulk-invoice-page > div {
                 box-shadow: none !important;
                 border: none !important;
                 border-radius: 0 !important;
-                padding: 0 !important;
+                padding: 8mm 8mm 6mm 8mm !important;
                 margin: 0 !important;
-                width: 100% !important;
-                height: 100% !important;
+                width: 148mm !important;
+                min-height: 210mm !important;
                 position: relative !important;
                 transform: none !important;
                 display: block !important;
+                box-sizing: border-box !important;
               }
               .font-serif-luxury {
                 font-family: 'Cormorant Garamond', serif !important;
@@ -1184,26 +1214,27 @@ export default function AdminOrders(): React.JSX.Element {
             </style>
           </head>
           <body class="bg-white">
-            \${pagesHtml}
+            ${pagesHtml}
             <script>
               window.onload = function() {
                 window.focus();
                 setTimeout(function() {
                   window.print();
                   setTimeout(function() {
-                    window.parent.document.body.removeChild(window.frameElement);
+                    if (window.frameElement && window.frameElement.parentNode) {
+                      window.frameElement.parentNode.removeChild(window.frameElement);
+                    }
                   }, 1500);
-                }, 500);
+                }, 400);
               };
             </script>
           </body>
         </html>
       `);
       iframeDoc.close();
-      
-      // Clear selection after printing
-      setSelectedOrderIds([]);
-      toast.success('Invoices sent to printer');
+
+      setShowBulkInvoiceModal(false);
+      toast.success(`${selectedOrders.length} invoice(s) sent to printer`);
     } catch (err) {
       console.error('[Bulk Print Error]', err);
       toast.error('Failed to launch printer');
@@ -2678,18 +2709,31 @@ export default function AdminOrders(): React.JSX.Element {
 
                         {/* INVOICE BY */}
                         <div className="space-y-1 text-left">
-                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">INVOICE BY</label>
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">INVOICE BY</label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAddingForField('create');
+                                setShowAddInvoiceByModal(true);
+                              }}
+                              className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-lg transition-all cursor-pointer active:scale-95 shadow-3xs"
+                              title="Add new name"
+                            >
+                              <Plus size={12} className="stroke-[3]" />
+                              <span>Add</span>
+                            </button>
+                          </div>
                           <div className="relative">
                             <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                             <select 
                               value={newInvoiceBy}
-                              onChange={(e) => setNewInvoiceBy(e.target.value as any)}
+                              onChange={(e) => setNewInvoiceBy(e.target.value)}
                               className="w-full pl-10 pr-8 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all appearance-none cursor-pointer shadow-3xs"
                             >
-                              <option value="Sabbir">Sabbir</option>
-                              <option value="Nasir">Nasir</option>
-                              <option value="Shamiul">Shamiul</option>
-                              <option value="Office Sale">Office Sale</option>
+                              {invoiceByOptions.map((opt) => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
                             </select>
                             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
                           </div>
@@ -4026,17 +4070,30 @@ export default function AdminOrders(): React.JSX.Element {
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Invoice By</label>
+                        <div className="flex items-center justify-between">
+                          <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Invoice By</label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAddingForField('edit');
+                              setShowAddInvoiceByModal(true);
+                            }}
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-lg transition-all cursor-pointer active:scale-95 shadow-3xs"
+                            title="Add new name"
+                          >
+                            <Plus size={12} className="stroke-[3]" />
+                            <span>Add</span>
+                          </button>
+                        </div>
                         <select 
                           value={editInvoiceBy}
                           onChange={(e) => setEditInvoiceBy(e.target.value)}
                           className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white appearance-none cursor-pointer"
                         >
                           <option value="Website order">Website order</option>
-                          <option value="Sabbir">Sabbir</option>
-                          <option value="Nasir">Nasir</option>
-                          <option value="Shamiul">Shamiul</option>
-                          <option value="Office Sale">Office Sale</option>
+                          {invoiceByOptions.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
                         </select>
                       </div>
 
@@ -4510,6 +4567,80 @@ export default function AdminOrders(): React.JSX.Element {
         )}
       </AnimatePresence>
 
+      {/* Bulk Invoice Preview Modal */}
+      <AnimatePresence>
+        {showBulkInvoiceModal && selectedOrderIds.length > 0 && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 m-0 font-sans">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowBulkInvoiceModal(false)}
+              className="absolute inset-0 bg-black/70 backdrop-blur-xs"
+            />
+            
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-[20px] w-full max-w-[180mm] overflow-hidden shadow-2xl relative z-10 border border-gray-200 flex flex-col max-h-[92vh]"
+            >
+              {/* Header with actions */}
+              <div className="p-4 px-6 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <Printer size={18} className="text-indigo-600" />
+                  <div>
+                    <h3 className="font-extrabold text-gray-900 text-sm">Bulk Invoice Print Preview</h3>
+                    <p className="text-xs text-gray-500">{selectedOrderIds.length} orders selected for batch printing</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={executePrintBulkInvoices}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2 shadow-md hover:shadow-lg"
+                  >
+                    <Printer size={14} />
+                    <span>Print All ({selectedOrderIds.length} Invoices)</span>
+                  </button>
+                  <button
+                    onClick={() => setShowBulkInvoiceModal(false)}
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-extrabold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+
+              {/* Scrollable body containing preview sheets */}
+              <div className="p-6 overflow-y-auto bg-gray-100/70 space-y-6 max-h-[calc(92vh-80px)]">
+                {orders
+                  .filter(o => selectedOrderIds.includes(o.id))
+                  .map((order, idx) => (
+                    <div key={order.id} className="relative group">
+                      <div className="flex items-center justify-between bg-white px-4 py-2 rounded-t-xl border border-b-0 border-gray-200 text-xs font-bold text-gray-700">
+                        <span>Invoice #{idx + 1} of {selectedOrderIds.length} — Order #{order.invoiceNo || order.id} ({order.customerName})</span>
+                        <button 
+                          onClick={() => {
+                            const next = selectedOrderIds.filter(id => id !== order.id);
+                            setSelectedOrderIds(next);
+                            if (next.length === 0) setShowBulkInvoiceModal(false);
+                          }}
+                          className="text-red-500 hover:text-red-700 text-[11px] font-bold cursor-pointer"
+                        >
+                          Remove from Batch
+                        </button>
+                      </div>
+                      <div className="bg-white rounded-b-xl shadow-lg border border-gray-200 overflow-hidden flex justify-center p-2">
+                        <InvoiceTemplate order={order} preview={true} />
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Custom Confirmation Modal */}
       <AnimatePresence>
         {deleteConfirm.isOpen && (
@@ -4945,6 +5076,74 @@ export default function AdminOrders(): React.JSX.Element {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Modal to add custom Invoice By name */}
+      {showAddInvoiceByModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddInvoiceByModal(false);
+                setCustomInvoiceByName('');
+              }}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1 rounded-lg"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                <UserPlus size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-gray-900 dark:text-white uppercase tracking-tight">
+                  Add Sales Executive / Dispatcher
+                </h3>
+                <p className="text-[11px] text-gray-500 font-medium">
+                  ইনভয়েস প্রস্তুতকারীর নাম যোগ করুন
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleAddCustomInvoiceBy} className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider block mb-1">
+                  Executive Name / নাম
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  value={customInvoiceByName}
+                  onChange={(e) => setCustomInvoiceByName(e.target.value)}
+                  placeholder="e.g. Tanvir, Rakib, Office Sale..."
+                  className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-900 dark:text-white rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddInvoiceByModal(false);
+                    setCustomInvoiceByName('');
+                  }}
+                  className="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-1.5 active:scale-95"
+                >
+                  <Plus size={14} className="stroke-[3]" />
+                  Add Name
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

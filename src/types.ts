@@ -39,6 +39,17 @@ export interface Category {
   isMega?: boolean;
 }
 
+export interface SavedAddress {
+  id: string;
+  title: string;
+  name: string;
+  phone: string;
+  address: string;
+  city: string;
+  thana: string;
+  isDefault?: boolean;
+}
+
 export interface CartItem extends Product {
   selectedSize: string;
   quantity: number;

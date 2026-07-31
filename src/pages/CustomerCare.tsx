@@ -7,15 +7,15 @@ export default function CustomerCare() {
     {
       icon: Phone,
       title: "Call Us",
-      value: "+8801619835133",
-      href: "tel:+8801619835133",
+      value: "+8801327772213",
+      href: "tel:+8801327772213",
       desc: "Available daily 11:00 AM - 9:00 PM"
     },
     {
       icon: MessageSquare,
       title: "WhatsApp",
-      value: "+8801619835133",
-      href: "https://wa.me/8801619835133",
+      value: "+8801327772213",
+      href: "https://wa.me/8801327772213",
       desc: "Fastest support for order queries"
     },
     {

@@ -35,7 +35,7 @@ export default function Footer() {
             </p>
             <p className="flex items-center justify-center gap-2">
               <span>📞</span>
-              +880 1631 496122
+              +880 1327 772213
             </p>
             <p className="flex items-center justify-center gap-2">
               <span>✉️</span>

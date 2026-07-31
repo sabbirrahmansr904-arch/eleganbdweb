@@ -40,9 +40,12 @@ import {
   Calendar,
   Printer,
   X,
+  Plus,
+  UserPlus,
   Save
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useInvoiceByOptions } from '../../hooks/useInvoiceByOptions';
 
 interface Message {
   sender: 'customer' | 'admin';
@@ -90,6 +93,28 @@ export default function AdminIssues() {
   const [editAdvancePayment, setEditAdvancePayment] = useState(0);
   const [editNotes, setEditNotes] = useState('');
   const [editInvoiceBy, setEditInvoiceBy] = useState('');
+  const { options: invoiceByOptions, addOption: addInvoiceByOption } = useInvoiceByOptions();
+  const [showAddInvoiceByModal, setShowAddInvoiceByModal] = useState(false);
+  const [customInvoiceByName, setCustomInvoiceByName] = useState('');
+
+  const handleAddCustomInvoiceBy = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = customInvoiceByName.trim();
+    if (!trimmed) {
+      toast.error('Please enter a name');
+      return;
+    }
+
+    const success = await addInvoiceByOption(trimmed);
+    if (success) {
+      toast.success(`"${trimmed}" has been added and published for all admins!`);
+      setEditInvoiceBy(trimmed);
+      setCustomInvoiceByName('');
+      setShowAddInvoiceByModal(false);
+    } else {
+      toast.error('Failed to save name. Please try again.');
+    }
+  };
 
   const openOrderModal = (mode: 'view' | 'edit') => {
     if (!selectedIssue?.order) return;
@@ -892,17 +917,26 @@ export default function AdminIssues() {
 
                       {/* Invoice By dropdown */}
                       <div>
-                        <label className="text-[10px] text-gray-400 dark:text-gray-500 font-black uppercase tracking-widest mb-1.5 block">Sales Executive</label>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="text-[10px] text-gray-400 dark:text-gray-500 font-black uppercase tracking-widest block">Sales Executive</label>
+                          <button
+                            type="button"
+                            onClick={() => setShowAddInvoiceByModal(true)}
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 px-2 py-0.5 rounded-md transition-colors cursor-pointer"
+                          >
+                            <Plus size={11} className="stroke-[3]" />
+                            <span>Add</span>
+                          </button>
+                        </div>
                         <select
                           value={editInvoiceBy}
                           onChange={(e) => setEditInvoiceBy(e.target.value)}
                           className="w-full bg-gray-50 dark:bg-[#182235] border border-gray-200 dark:border-gray-850 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white appearance-none cursor-pointer"
                         >
                           <option value="Website order">Website order</option>
-                          <option value="Sabbir">Sabbir</option>
-                          <option value="Nasir">Nasir</option>
-                          <option value="Shamiul">Shamiul</option>
-                          <option value="Office Sale">Office Sale</option>
+                          {invoiceByOptions.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
                         </select>
                       </div>
 
@@ -1200,6 +1234,74 @@ export default function AdminIssues() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Modal to add custom Invoice By name */}
+      {showAddInvoiceByModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddInvoiceByModal(false);
+                setCustomInvoiceByName('');
+              }}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1 rounded-lg"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                <UserPlus size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-gray-900 dark:text-white uppercase tracking-tight">
+                  Add Sales Executive / Dispatcher
+                </h3>
+                <p className="text-[11px] text-gray-500 font-medium">
+                  ইনভয়েস প্রস্তুতকারীর নাম যোগ করুন
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleAddCustomInvoiceBy} className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider block mb-1">
+                  Executive Name / নাম
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  value={customInvoiceByName}
+                  onChange={(e) => setCustomInvoiceByName(e.target.value)}
+                  placeholder="e.g. Tanvir, Rakib, Office Sale..."
+                  className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-900 dark:text-white rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddInvoiceByModal(false);
+                    setCustomInvoiceByName('');
+                  }}
+                  className="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-1.5 active:scale-95"
+                >
+                  <Plus size={14} className="stroke-[3]" />
+                  Add Name
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { formatPrice, cn } from '../lib/utils';
 import toast from 'react-hot-toast';
 import QuickOrderModal from '../components/QuickOrderModal';
 import ProductCard from '../components/ProductCard';
+import AllProductsImageScroll from '../components/AllProductsImageScroll';
 import { db } from '../lib/firebase';
 import { collection, query, where, orderBy, onSnapshot, addDoc } from 'firebase/firestore';
 import { Review } from '../types';
@@ -89,7 +90,7 @@ const ProductDetails = () => {
       return;
     }
     const message = `হ্যালো EleganBD! আমি এই প্রোডাক্টটি অর্ডার করতে চাই:\n\n*প্রোডাক্ট:* ${product.name}\n*${isBag ? 'QN' : 'সাইজ'}:* ${selectedSize}\n*মূল্য:* ${formatPrice(product.price, currency, rate)}\n\nলিঙ্ক: ${window.location.href}`;
-    const url = `https://wa.me/8801619835133?text=${encodeURIComponent(message)}`;
+    const url = `https://wa.me/8801327772213?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
   };
   
@@ -712,6 +713,9 @@ const ProductDetails = () => {
               </form>
             </div>
           </div>
+
+          {/* 1 Line Horizontal Product Image Scroll under Reviews */}
+          <AllProductsImageScroll />
         </div>
 
         {/* Related Products */}

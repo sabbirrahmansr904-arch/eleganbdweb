@@ -50,13 +50,20 @@ service cloud.firestore {
 
     match /customers/{customerId} {
       allow read: if isAdmin();
-      allow create, update: if true;
+      allow create, update: if isValidId(customerId) && (
+        isAdmin() || (
+          incoming().keys().hasAll(['name']) &&
+          incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 200 &&
+          (!('phone' in incoming()) || (incoming().phone is string && incoming().phone.size() <= 50)) &&
+          (!('email' in incoming()) || (incoming().email is string && incoming().email.size() <= 200)) &&
+          (!('address' in incoming()) || (incoming().address is string && incoming().address.size() <= 1000))
+        )
+      );
     }
 
     match /products/{productId} {
       allow read, list: if true;
-      allow create: if isAdmin() && isValidId(productId) && isValidProduct(incoming());
-      allow update: if true; // Temporarily allow update to all for products to fix the permission issue, should refine later.
+      allow create, update: if isAdmin() && isValidId(productId) && isValidProduct(incoming());
       allow delete: if isAdmin() && isValidId(productId);
     }
 
@@ -103,7 +110,7 @@ service cloud.firestore {
 
     match /config/{configId} {
       allow read: if configId != 'admin_settings' || isAdmin();
-      allow write: if isAdmin() || isSignedIn();
+      allow write: if isAdmin();
     }
 
     match /test/connection {
@@ -116,21 +123,17 @@ service cloud.firestore {
         adminId == request.auth.uid || 
         isAdmin()
       );
-      allow update, delete: if isSignedIn() && (
-        request.auth.token.email == 'sabbirrahmansr904@gmail.com' ||
-        request.auth.token.email == 'eleganbd.ltd@gmail.com' ||
-        isAdmin()
-      );
+      allow update, delete: if isSignedIn() && isAdmin();
     }
 
     match /admin_permissions/{docId} {
-      allow read, list: if isSignedIn();
-      allow write: if isSignedIn();
+      allow read, list: if isSignedIn() && isAdmin();
+      allow write: if isAdmin();
     }
 
     match /admin_invites/{docId} {
-      allow read, list: if isSignedIn();
-      allow write: if isSignedIn();
+      allow read, list: if isSignedIn() && isAdmin();
+      allow write: if isAdmin();
     }
 
     function isValidStockTransaction(data) {
@@ -225,7 +228,7 @@ service cloud.firestore {
 
     match /sms_logs/{logId} {
       allow read, list: if isAdmin();
-      allow create: if true;
+      allow create: if isValidId(logId) && isValidSmsLog(incoming());
       allow update, delete: if false;
     }
 

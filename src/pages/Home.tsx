@@ -16,17 +16,24 @@ const Home = () => {
   const { banners } = useBanners();
   const { heroBannerUrl, subHeroBannerUrl, collectionsBannerUrl, featureBannerUrl, poloBannerUrl, showHeroBanner, showCountdownBanner, categoryImages } = useBranding();
   
-  const activeHeroBannersFromDb = banners.filter(b => b.active && b.type === 'hero');
-  const activeHeroBanners = activeHeroBannersFromDb.length > 0 ? activeHeroBannersFromDb.slice(0, 1) : [
-    {
-      id: 'default-hero-1',
-      active: true,
-      type: 'hero',
-      image: heroBannerUrl || 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2000&auto=format',
-      title: 'Premium Men\'s Fashion',
-      link: '/category/all'
-    }
-  ];
+  const activeHeroBannersFromDb = banners.filter(b => b.active && b.type === 'hero' && b.image && !b.image.includes('unsplash.com'));
+  
+  let activeHeroBanners: Array<{ id: string; active?: boolean; type?: string; image: string; title?: string; link?: string }> = [];
+
+  if (activeHeroBannersFromDb.length > 0) {
+    activeHeroBanners = activeHeroBannersFromDb;
+  } else if (heroBannerUrl && !heroBannerUrl.includes('unsplash.com')) {
+    activeHeroBanners = [
+      {
+        id: 'uploaded-hero-1',
+        active: true,
+        type: 'hero',
+        image: heroBannerUrl,
+        title: '',
+        link: '/category/all'
+      }
+    ];
+  }
 
   const [currentBanner, setCurrentBanner] = React.useState(0);
 
