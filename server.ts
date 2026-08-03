@@ -656,18 +656,9 @@ async function startServer() {
     }
   });
 
-  // Helper to serve index.html with dynamically injected absolute Open Graph meta tags for Facebook/WhatsApp link sharing
-  const serveDynamicHtml = async (req: express.Request, res: express.Response, htmlContent: string) => {
+  // Dynamic Open Graph Image Endpoint for Facebook, WhatsApp, & Social Crawlers
+  app.get("/api/og-image", async (req, res) => {
     try {
-      let protocol = ((req.headers['x-forwarded-proto'] as string) || req.protocol || 'https').split(',')[0].trim();
-      let host = (req.headers['x-forwarded-host'] as string) || req.headers.host || 'eleganbd.vercel.app';
-      if (!host || host.includes('localhost') || host.includes('127.0.0.1')) {
-        host = 'eleganbd.vercel.app';
-        protocol = 'https';
-      }
-      const baseUrl = `${protocol}://${host}`;
-      const fullPageUrl = `${baseUrl}${req.originalUrl || '/'}`;
-
       let heroImgUrl = '';
       try {
         const heroBannerSnap = await getDoc(doc(db, "config", "banner_hero"));
@@ -685,15 +676,53 @@ async function startServer() {
           }
         }
       } catch (e) {
-        console.error("Error fetching branding for meta tags:", e);
+        console.error("Error fetching branding for og-image:", e);
       }
 
-      let absoluteOgImage = `${baseUrl}/og-image.png`;
-      if (heroImgUrl && !heroImgUrl.startsWith('data:')) {
-        absoluteOgImage = heroImgUrl.startsWith('http') 
-          ? heroImgUrl 
-          : `${baseUrl}${heroImgUrl.startsWith('/') ? '' : '/'}${heroImgUrl}`;
+      if (heroImgUrl) {
+        if (heroImgUrl.startsWith('data:')) {
+          const matches = heroImgUrl.match(/^data:([^;]+);base64,(.+)$/);
+          if (matches && matches.length === 3) {
+            const contentType = matches[1];
+            const base64Data = matches[2];
+            const buffer = Buffer.from(base64Data, 'base64');
+            res.setHeader('Content-Type', contentType);
+            res.setHeader('Cache-Control', 'public, max-age=300');
+            return res.send(buffer);
+          }
+        } else if (heroImgUrl.startsWith('http')) {
+          const response = await fetch(heroImgUrl);
+          if (response.ok) {
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            const contentType = response.headers.get('content-type') || 'image/jpeg';
+            res.setHeader('Content-Type', contentType);
+            res.setHeader('Cache-Control', 'public, max-age=300');
+            return res.send(buffer);
+          }
+        }
       }
+
+      return res.redirect('/og-image.png');
+    } catch (err) {
+      console.error("OG Image generation error:", err);
+      return res.redirect('/og-image.png');
+    }
+  });
+
+  // Helper to serve index.html with dynamically injected absolute Open Graph meta tags for Facebook/WhatsApp link sharing
+  const serveDynamicHtml = async (req: express.Request, res: express.Response, htmlContent: string) => {
+    try {
+      let protocol = ((req.headers['x-forwarded-proto'] as string) || req.protocol || 'https').split(',')[0].trim();
+      let host = (req.headers['x-forwarded-host'] as string) || req.headers.host || 'eleganbd.vercel.app';
+      if (!host || host.includes('localhost') || host.includes('127.0.0.1')) {
+        host = 'eleganbd.vercel.app';
+        protocol = 'https';
+      }
+      const baseUrl = `${protocol}://${host}`;
+      const fullPageUrl = `${baseUrl}${req.originalUrl || '/'}`;
+
+      const absoluteOgImage = `${baseUrl}/api/og-image`;
 
       let injectedHtml = htmlContent
         .replace(/<meta property="og:image" content="[^"]*"\s*\/?>/gi, `<meta property="og:image" content="${absoluteOgImage}" />`)
