@@ -155,9 +155,9 @@ const Home = () => {
     <div className="flex flex-col min-h-screen bg-white">
       
       {/* TOP SECTION: HERO BANNER */}
-      <section className="max-w-7xl mx-auto w-full px-4 sm:px-6 pt-4 sm:pt-6 pb-6 sm:pb-8">
+      <section className="max-w-7xl mx-auto w-full px-4 sm:px-6 pt-3 sm:pt-4 pb-4 sm:pb-6">
         {activeHeroBanners.length > 0 && showHeroBanner ? (
-          <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden shadow-xs bg-gray-50 w-full">
+          <div className="relative rounded-xl sm:rounded-2xl md:rounded-3xl overflow-hidden shadow-xs bg-gray-950 w-full aspect-[21/8] sm:aspect-[24/8] md:aspect-[28/8] max-h-[220px] sm:max-h-[300px] md:max-h-[360px] flex items-center justify-center">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentBanner}
@@ -165,14 +165,14 @@ const Home = () => {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.5 }}
-                className="w-full"
+                className="w-full h-full"
               >
                 {activeHeroBanners[currentBanner].link ? (
-                  <Link to={activeHeroBanners[currentBanner].link} className="block w-full">
+                  <Link to={activeHeroBanners[currentBanner].link} className="block w-full h-full">
                     <img 
                       src={activeHeroBanners[currentBanner].image} 
                       alt="Hero Banner" 
-                      className="w-full h-auto block rounded-2xl sm:rounded-3xl"
+                      className="w-full h-full object-cover object-center block rounded-xl sm:rounded-2xl md:rounded-3xl"
                       referrerPolicy="no-referrer"
                     />
                   </Link>
@@ -180,7 +180,7 @@ const Home = () => {
                   <img 
                     src={activeHeroBanners[currentBanner].image} 
                     alt="Hero Banner" 
-                    className="w-full h-auto block rounded-2xl sm:rounded-3xl"
+                    className="w-full h-full object-cover object-center block rounded-xl sm:rounded-2xl md:rounded-3xl"
                     referrerPolicy="no-referrer"
                   />
                 )}
@@ -204,16 +204,16 @@ const Home = () => {
             )}
           </div>
         ) : (
-          <div className="bg-[#EAEAEA] rounded-2xl sm:rounded-3xl p-6 sm:p-10 md:p-12 relative overflow-hidden flex flex-col justify-between min-h-[220px] sm:min-h-[320px] md:min-h-[380px] shadow-xs">
+          <div className="bg-[#EAEAEA] rounded-xl sm:rounded-2xl md:rounded-3xl p-5 sm:p-8 md:p-10 relative overflow-hidden flex flex-col justify-between min-h-[160px] sm:min-h-[220px] md:min-h-[280px] max-h-[320px] shadow-xs">
             {/* Fallback Hero Banner matching exact image template */}
             <div className="relative z-10 max-w-xs sm:max-w-sm md:max-w-md my-auto">
               <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-[#B8860B] mb-1 sm:mb-2 block">
                 NEW COLLECTION 2024
               </span>
-              <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-gray-950 tracking-tight leading-[1.15] mb-2 sm:mb-4">
+              <h1 className="text-xl sm:text-3xl md:text-4xl font-black text-gray-950 tracking-tight leading-[1.15] mb-2 sm:mb-3">
                 Elevate Your Formal Style
               </h1>
-              <p className="text-[11px] sm:text-xs md:text-sm text-gray-600 font-medium mb-5 sm:mb-8 leading-relaxed max-w-xs">
+              <p className="text-[11px] sm:text-xs md:text-sm text-gray-600 font-medium mb-4 sm:mb-6 leading-relaxed max-w-xs">
                 Premium Quality, Perfect Fit For Every Occasion.
               </p>
               <Link 

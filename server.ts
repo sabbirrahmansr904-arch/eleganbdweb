@@ -657,13 +657,39 @@ async function startServer() {
   });
 
   // Helper to serve index.html with dynamically injected absolute Open Graph meta tags for Facebook/WhatsApp link sharing
-  const serveDynamicHtml = (req: express.Request, res: express.Response, htmlContent: string) => {
+  const serveDynamicHtml = async (req: express.Request, res: express.Response, htmlContent: string) => {
     try {
       const protocol = ((req.headers['x-forwarded-proto'] as string) || req.protocol || 'https').split(',')[0].trim();
       const host = (req.headers['x-forwarded-host'] as string) || req.headers.host || 'localhost:3000';
       const baseUrl = `${protocol}://${host}`;
       const fullPageUrl = `${baseUrl}${req.originalUrl || '/'}`;
-      const absoluteOgImage = `${baseUrl}/og-image.png`;
+
+      let heroImgUrl = '';
+      try {
+        const heroBannerSnap = await getDoc(doc(db, "config", "banner_hero"));
+        if (heroBannerSnap.exists() && heroBannerSnap.data().url) {
+          heroImgUrl = heroBannerSnap.data().url;
+        } else {
+          const brandingSnap = await getDoc(doc(db, "config", "branding"));
+          if (brandingSnap.exists()) {
+            const data = brandingSnap.data();
+            if (data.heroBannerUrl && !data.heroBannerUrl.includes('unsplash.com')) {
+              heroImgUrl = data.heroBannerUrl;
+            } else if (data.logoUrl && !data.logoUrl.includes('unsplash.com')) {
+              heroImgUrl = data.logoUrl;
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Error fetching branding for meta tags:", e);
+      }
+
+      let absoluteOgImage = `${baseUrl}/og-image.png`;
+      if (heroImgUrl) {
+        absoluteOgImage = heroImgUrl.startsWith('http') 
+          ? heroImgUrl 
+          : `${baseUrl}${heroImgUrl.startsWith('/') ? '' : '/'}${heroImgUrl}`;
+      }
 
       let injectedHtml = htmlContent
         .replace(/<meta property="og:image" content="[^"]*"\s*\/?>/gi, `<meta property="og:image" content="${absoluteOgImage}" />`)
@@ -695,7 +721,7 @@ async function startServer() {
           const indexPath = path.join(process.cwd(), 'index.html');
           let rawHtml = fs.readFileSync(indexPath, 'utf-8');
           rawHtml = await vite.transformIndexHtml(req.originalUrl, rawHtml);
-          return serveDynamicHtml(req, res, rawHtml);
+          return await serveDynamicHtml(req, res, rawHtml);
         } catch (e) {
           next(e);
         }
@@ -708,12 +734,12 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*all', (req, res) => {
+    app.get('*all', async (req, res) => {
       try {
         const fs = require('fs');
         const indexPath = path.join(distPath, 'index.html');
         const rawHtml = fs.readFileSync(indexPath, 'utf-8');
-        return serveDynamicHtml(req, res, rawHtml);
+        return await serveDynamicHtml(req, res, rawHtml);
       } catch (e) {
         res.sendFile(path.join(distPath, 'index.html'));
       }

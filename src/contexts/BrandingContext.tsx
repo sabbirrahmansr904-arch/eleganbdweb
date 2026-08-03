@@ -554,7 +554,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   useEffect(() => {
-    const targetImage = logoUrl || '/og-image.png';
+    const targetImage = heroBannerUrl || logoUrl || 'https://eleganbd.vercel.app/og-image.png';
     if (typeof document !== 'undefined') {
       const origin = window.location.origin;
       const fullImageUrl = targetImage.startsWith('http') 
@@ -574,7 +574,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         twitterImage.setAttribute('content', fullImageUrl);
       }
     }
-  }, [logoUrl]);
+  }, [heroBannerUrl, logoUrl]);
 
   return (
     <BrandingContext.Provider value={{ 
