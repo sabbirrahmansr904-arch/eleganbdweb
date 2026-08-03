@@ -1715,59 +1715,129 @@ export default function AdminSettings() {
           )}
 
           {activeTab === 'Branding' && (
-            <div className="space-y-12 max-w-3xl relative z-10 font-sans">
+            <div className="space-y-12 max-w-3xl relative z-10 font-sans text-left">
               <div className="space-y-8">
                 <div className="flex justify-between items-center border-b border-gray-100 pb-6">
-                  <h3 className="serif text-2xl text-black italic tracking-tighter uppercase">Brandmark Initialization</h3>
-                  <ImageIcon size={20} className="text-brand-gold" />
+                  <div>
+                    <h3 className="serif text-2xl text-black italic tracking-tighter uppercase font-black">Brandmark & Logo Management</h3>
+                    <p className="text-xs text-gray-500 mt-1">Upload a clean PNG/JPG or enter image URL to display your brand logo perfectly across the store navbar, header, invoices, and browser tabs.</p>
+                  </div>
+                  <ImageIcon size={22} className="text-brand-gold" />
                 </div>
-                <div className="p-12 border-2 border-dashed border-gray-100 rounded-3xl bg-gray-50 flex flex-col items-center justify-center text-center space-y-8 group hover:border-black/30 transition-all">
-                  <div className="w-64 h-40 bg-white flex items-center justify-center border border-gray-100 rounded-2xl overflow-hidden relative group/inner shadow-sm">
+
+                <div className="p-8 border-2 border-dashed border-gray-200 rounded-3xl bg-white shadow-xs flex flex-col items-center justify-center text-center space-y-6">
+                  <div className="w-56 h-36 bg-gray-50 flex items-center justify-center border border-gray-200 rounded-2xl overflow-hidden relative group/inner shadow-inner p-4">
                     <img 
-                      src={tempLogo} 
+                      src={tempLogo || '/logo.png'} 
                       alt="Logo Preview" 
-                      className="max-h-24 w-auto object-contain"
+                      className="max-h-24 max-w-full w-auto object-contain transition-transform group-hover/inner:scale-105"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement.prototype as any).src = '/logo.png';
+                      }}
                     />
-                    <div className="absolute inset-0 bg-black/90 opacity-0 group-hover/inner:opacity-100 transition-all flex items-center justify-center backdrop-blur-sm">
-                       <label className="text-white text-[10px] uppercase tracking-widest font-black cursor-pointer flex flex-col items-center gap-2">
-                          <Upload size={24} />
-                          <span>Modify Brandmark</span>
+                    <div className="absolute inset-0 bg-black/80 opacity-0 group-hover/inner:opacity-100 transition-all flex items-center justify-center backdrop-blur-xs">
+                       <label className="text-white text-xs uppercase tracking-wider font-extrabold cursor-pointer flex flex-col items-center gap-2">
+                          <Upload size={22} />
+                          <span>Upload New Picture</span>
                           <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
                        </label>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <p className="text-[10px] uppercase tracking-[0.2em] font-black text-brand-gold">Master Logotype Assets</p>
-                    <p className="text-xs text-gray-400">OPTIMAL: 512x512PX TRANSPARENT PNG</p>
+
+                  <div className="w-full max-w-md space-y-3">
+                    <label className="text-[11px] uppercase font-black tracking-wider text-gray-500 block">Or paste Direct Image URL</label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="url"
+                        placeholder="https://example.com/logo.png"
+                        value={tempLogo}
+                        onChange={(e) => {
+                          setTempLogo(e.target.value);
+                          setLogoUrl(e.target.value);
+                        }}
+                        className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-xs text-gray-900 bg-gray-50 focus:border-black outline-none font-medium"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTempLogo('/logo.png');
+                          setLogoUrl('/logo.png');
+                          toast.success('Reset to default logo.');
+                        }}
+                        className="px-4 py-2.5 border border-gray-200 hover:bg-gray-100 text-gray-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 pt-2">
+                    <label className="px-6 py-3 bg-black hover:bg-gray-800 text-white font-bold text-xs uppercase tracking-wider rounded-xl cursor-pointer transition-all shadow-md flex items-center gap-2">
+                      <Upload size={16} />
+                      <span>Browse Image File</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLogoUrl(tempLogo);
+                        toast.success('Logo saved and applied successfully across the store!');
+                      }}
+                      className="px-6 py-3 bg-[#1b49c4] hover:bg-[#153899] text-white font-bold text-xs uppercase tracking-wider rounded-xl cursor-pointer transition-all shadow-md flex items-center gap-2"
+                    >
+                      <Save size={16} />
+                      <span>Save Changes</span>
+                    </button>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-8">
-                <div className="flex justify-between items-center border-b border-gray-100 pb-6">
-                  <h3 className="serif text-2xl text-black italic tracking-tighter uppercase">Visual Interface Variants</h3>
+              <div className="space-y-6">
+                <div className="flex justify-between items-center border-b border-gray-100 pb-4">
+                  <h4 className="serif text-xl text-black italic tracking-tighter uppercase font-black">Live Preview on Store Navbar & Footer</h4>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="p-10 bg-gray-50 border border-gray-100 rounded-2xl flex flex-col items-center space-y-6 shadow-sm">
-                    <img 
-                      src={tempLogo} 
-                      className="h-12 w-auto object-contain" 
-                      alt="Full Context"
-                    />
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-black">Standard Context</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Navbar Dark Context */}
+                  <div className="p-6 bg-black rounded-2xl flex flex-col space-y-4 shadow-md">
+                    <span className="text-[10px] uppercase tracking-widest text-gray-400 font-black">Dark Navbar Context</span>
+                    <div className="flex items-center justify-between py-2 px-4 bg-black/90 border border-white/10 rounded-xl">
+                      <div className="flex items-center gap-2">
+                        <img 
+                          src={tempLogo || '/logo.png'} 
+                          className="h-7 w-auto object-contain" 
+                          alt="Dark Navbar Logo"
+                        />
+                        <span className="text-white font-serif font-bold text-sm tracking-widest">ELEGAN BD</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-white/70 text-xs">
+                        <span>Home</span>
+                        <span>Shop</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="p-10 bg-blue-900 border border-blue-900 rounded-2xl flex flex-col items-center space-y-6 shadow-xl">
-                    <img 
-                      src={tempLogo} 
-                      className="h-12 w-auto object-contain brightness-0 invert" 
-                      alt="Inverted Context"
-                    />
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-black">Inverted Context Matrix</span>
+
+                  {/* Light Context */}
+                  <div className="p-6 bg-white border border-gray-200 rounded-2xl flex flex-col space-y-4 shadow-sm">
+                    <span className="text-[10px] uppercase tracking-widest text-gray-500 font-black">Light Context Matrix</span>
+                    <div className="flex items-center justify-between py-2 px-4 bg-gray-50 border border-gray-200 rounded-xl">
+                      <div className="flex items-center gap-2">
+                        <img 
+                          src={tempLogo || '/logo.png'} 
+                          className="h-7 w-auto object-contain" 
+                          alt="Light Navbar Logo"
+                        />
+                        <span className="text-black font-serif font-bold text-sm tracking-widest">ELEGAN BD</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-gray-700 text-xs">
+                        <span>Home</span>
+                        <span>Shop</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-8 pt-12 border-t border-gray-100">
+              <div className="space-y-8 pt-8 border-t border-gray-100">
                 <div className="flex justify-between items-center border-b border-gray-100 pb-6">
                   <h3 className="serif text-2xl text-black italic tracking-tighter uppercase">Measurement Taxonomy</h3>
                 </div>
