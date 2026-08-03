@@ -356,7 +356,7 @@ export default function Reviews() {
                 <div>
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-900 to-black text-blue-500 font-black flex items-center justify-center text-xs shadow-xs border border-blue-500/60 shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-white text-blue-600 font-black flex items-center justify-center text-xs shadow-xs border border-blue-500 shrink-0">
                         {getInitials(rev.userName)}
                       </div>
                       <div>

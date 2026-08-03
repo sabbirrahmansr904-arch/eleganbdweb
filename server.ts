@@ -659,8 +659,12 @@ async function startServer() {
   // Helper to serve index.html with dynamically injected absolute Open Graph meta tags for Facebook/WhatsApp link sharing
   const serveDynamicHtml = async (req: express.Request, res: express.Response, htmlContent: string) => {
     try {
-      const protocol = ((req.headers['x-forwarded-proto'] as string) || req.protocol || 'https').split(',')[0].trim();
-      const host = (req.headers['x-forwarded-host'] as string) || req.headers.host || 'localhost:3000';
+      let protocol = ((req.headers['x-forwarded-proto'] as string) || req.protocol || 'https').split(',')[0].trim();
+      let host = (req.headers['x-forwarded-host'] as string) || req.headers.host || 'eleganbd.vercel.app';
+      if (!host || host.includes('localhost') || host.includes('127.0.0.1')) {
+        host = 'eleganbd.vercel.app';
+        protocol = 'https';
+      }
       const baseUrl = `${protocol}://${host}`;
       const fullPageUrl = `${baseUrl}${req.originalUrl || '/'}`;
 

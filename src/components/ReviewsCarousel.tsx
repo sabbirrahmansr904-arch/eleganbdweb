@@ -172,7 +172,7 @@ export default function ReviewsCarousel() {
               className="max-w-2xl px-12 md:px-16 flex flex-col items-center"
             >
               {/* Profile Name Initials Badge (No customer photos) */}
-              <div className="w-20 h-20 rounded-full bg-black text-blue-500 border-2 border-blue-500 flex items-center justify-center font-black text-2xl shadow-md mb-6 tracking-wider shadow-blue-500/20">
+              <div className="w-20 h-20 rounded-full bg-white text-blue-600 border-2 border-blue-600 flex items-center justify-center font-black text-2xl shadow-md mb-6 tracking-wider shadow-blue-500/10">
                 {getInitials(currentReview.name)}
               </div>
 

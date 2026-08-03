@@ -240,17 +240,17 @@ const Home = () => {
 
       {/* MIDDLE SECTION: CATEGORY BANNERS (SHIRTS & PANTS) - ONLY RENDERED WHEN UPLOADED IN ADMIN */}
       {(shirtBannerUrl || pantBannerUrl) && (
-        <section className="max-w-7xl mx-auto w-full px-4 pb-10">
+        <section className="max-w-7xl mx-auto w-full px-4 pb-6 sm:pb-10">
           <div className={cn(
-            "grid gap-6",
-            shirtBannerUrl && pantBannerUrl ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"
+            "grid",
+            shirtBannerUrl && pantBannerUrl ? "grid-cols-2 gap-2.5 sm:gap-4 md:gap-6" : "grid-cols-1 gap-4 md:gap-6"
           )}>
             
             {/* CATEGORY 1: SHIRTS BANNER */}
             {shirtBannerUrl && (
               <Link 
                 to="/category/formal-shirt"
-                className="group block relative rounded-3xl overflow-hidden min-h-[200px] md:min-h-[260px] bg-gray-100 shadow-sm border border-gray-100/80 transition-all hover:shadow-md"
+                className="group block relative rounded-xl sm:rounded-2xl md:rounded-3xl overflow-hidden min-h-[110px] sm:min-h-[180px] md:min-h-[260px] bg-gray-100 shadow-xs border border-gray-100/80 transition-all hover:shadow-md"
               >
                 <img 
                   src={shirtBannerUrl} 
@@ -265,7 +265,7 @@ const Home = () => {
             {pantBannerUrl && (
               <Link 
                 to="/category/formal-pant"
-                className="group block relative rounded-3xl overflow-hidden min-h-[200px] md:min-h-[260px] bg-gray-100 shadow-sm border border-gray-100/80 transition-all hover:shadow-md"
+                className="group block relative rounded-xl sm:rounded-2xl md:rounded-3xl overflow-hidden min-h-[110px] sm:min-h-[180px] md:min-h-[260px] bg-gray-100 shadow-xs border border-gray-100/80 transition-all hover:shadow-md"
               >
                 <img 
                   src={pantBannerUrl} 
