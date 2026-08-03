@@ -17,7 +17,7 @@ export default function Footer() {
           <Link to="/" className="inline-block transform transition-transform hover:scale-105">
             {logoUrl ? (
               <div className="flex flex-col items-center gap-1.5">
-                <img src={logoUrl} alt="Logo" className="h-8 w-auto" />
+                <img src={logoUrl} alt="Logo" className="h-16 w-auto object-contain" />
                 <h3 className="text-base md:text-lg font-black tracking-[0.25em] uppercase text-white mt-0.5">
                   ELEGAN BD
                 </h3>

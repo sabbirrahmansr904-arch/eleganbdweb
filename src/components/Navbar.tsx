@@ -104,7 +104,7 @@ export default function Navbar() {
                 <img 
                   src={logoUrl} 
                   alt="Elegan BD" 
-                  className="h-5 md:h-6 w-auto object-contain transition-transform group-hover:scale-105" 
+                  className="h-11 md:h-14 w-auto object-contain transition-transform group-hover:scale-105" 
                 />
               ) : (
                 <div className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-brand-gold text-black flex items-center justify-center font-black text-[10px] md:text-xs">
@@ -288,7 +288,7 @@ export default function Navbar() {
                   <div className="flex items-center justify-between mb-4">
                     <Link to="/" onClick={() => setIsOpen(false)} className="flex items-center gap-2 group">
                       {logoUrl ? (
-                        <img src={logoUrl} alt="Logo" className="h-7 w-auto object-contain" />
+                        <img src={logoUrl} alt="Logo" className="h-12 w-auto object-contain" />
                       ) : (
                         <div className="w-8 h-8 rounded-full bg-brand-gold text-black flex items-center justify-center font-black text-sm">
                           E
