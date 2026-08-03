@@ -171,6 +171,7 @@ export default function AdminSettings() {
   }, [location]);
 
   const [tempLogo, setTempLogo] = useState(logoUrl);
+  const [tempHeroBanner, setTempHeroBanner] = useState(heroBannerUrl);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     setter: (url: string) => void;
     name: string;
@@ -1392,10 +1393,26 @@ export default function AdminSettings() {
     }
   };
 
+  const handleHeroBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const loadingToast = toast.loading('Uploading Google search preview image...');
+      try {
+        const result = await compressImage(file, 1200, 630, 0.85);
+        setTempHeroBanner(result);
+        setHeroBannerUrl(result);
+        toast.success('Google search preview image updated successfully!', { id: loadingToast });
+      } catch (err) {
+        toast.error('Failed to upload image.', { id: loadingToast });
+      }
+    }
+  };
+
   const handleApplyBranding = () => {
     setLogoUrl(tempLogo);
     setSizeChartUrl(tempSizeChart);
-    toast.success('Brand identity and size guide updated successfully.');
+    setHeroBannerUrl(tempHeroBanner);
+    toast.success('Brand identity, Google search preview, and size guide updated successfully.');
   };
 
   useEffect(() => {
@@ -1833,6 +1850,113 @@ export default function AdminSettings() {
                         <span>Shop</span>
                       </div>
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Google Search & Social Share Preview Image */}
+              <div className="space-y-8 pt-8 border-t border-gray-100">
+                <div className="flex justify-between items-center border-b border-gray-100 pb-6">
+                  <div>
+                    <h3 className="serif text-2xl text-black italic tracking-tighter uppercase font-black">Google Search & Social Share Image (OG Image)</h3>
+                    <p className="text-xs text-gray-500 mt-1">Upload a high-resolution image (recommended 1200x630px) that appears in Google Search results, Facebook, WhatsApp, and social link shares next to your store name.</p>
+                  </div>
+                  <ImageIcon size={22} className="text-brand-gold" />
+                </div>
+
+                <div className="p-8 border-2 border-dashed border-gray-200 rounded-3xl bg-white shadow-xs flex flex-col items-center justify-center text-center space-y-6">
+                  <div className="w-full max-w-lg bg-gray-50 flex items-center justify-center border border-gray-200 rounded-2xl overflow-hidden relative group/inner shadow-inner p-4">
+                    <img 
+                      src={tempHeroBanner || heroBannerUrl || logoUrl || '/logo.png'} 
+                      alt="Google Search Preview" 
+                      className="max-h-48 max-w-full w-auto object-contain transition-transform group-hover/inner:scale-105 rounded-lg"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/logo.png';
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-black/80 opacity-0 group-hover/inner:opacity-100 transition-all flex items-center justify-center backdrop-blur-xs">
+                       <label className="text-white text-xs uppercase tracking-wider font-extrabold cursor-pointer flex flex-col items-center gap-2">
+                          <Upload size={22} />
+                          <span>Upload Google Search Image</span>
+                          <input type="file" accept="image/*" className="hidden" onChange={handleHeroBannerUpload} />
+                       </label>
+                    </div>
+                  </div>
+
+                  {/* Google Search Snippet Simulation */}
+                  <div className="w-full max-w-lg text-left bg-white border border-gray-200 rounded-2xl p-4 shadow-xs space-y-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Live Google Search Snippet Preview</span>
+                    <div className="flex gap-3 items-start pt-1">
+                      <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200">
+                        <img src={tempLogo || logoUrl || '/logo.png'} className="w-full h-full object-contain" alt="Favicon" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-700 truncate">Elegan BD · Premium Clothing</p>
+                        <p className="text-sm font-semibold text-blue-800 hover:underline cursor-pointer truncate">Elegan BD | Premium Clothing Brand in Bangladesh</p>
+                        <p className="text-[11px] text-gray-600 line-clamp-1">Discover minimalist luxury shirts, polos, and trousers. Premium fashion tailored for the modern individual.</p>
+                      </div>
+                    </div>
+                    {/* Share Card preview */}
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Social Share Card Preview (Facebook / WhatsApp / Twitter)</p>
+                      <div className="rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+                        <img 
+                          src={tempHeroBanner || heroBannerUrl || logoUrl || '/logo.png'} 
+                          alt="Share preview" 
+                          className="w-full h-32 object-cover"
+                        />
+                        <div className="p-2.5 bg-white text-left">
+                          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">eleganbd.vercel.app</p>
+                          <p className="text-xs font-bold text-black truncate">Elegan BD - Premium Clothing Brand</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="w-full max-w-md space-y-3">
+                    <label className="text-[11px] uppercase font-black tracking-wider text-gray-500 block">Or paste Direct Image URL</label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="url"
+                        placeholder="https://example.com/search-preview.png"
+                        value={tempHeroBanner}
+                        onChange={(e) => {
+                          setTempHeroBanner(e.target.value);
+                          setHeroBannerUrl(e.target.value);
+                        }}
+                        className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-xs text-gray-900 bg-gray-50 focus:border-black outline-none font-medium"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTempHeroBanner('');
+                          setHeroBannerUrl('');
+                          toast.success('Reset Google Search preview image.');
+                        }}
+                        className="px-4 py-2.5 border border-gray-200 hover:bg-gray-100 text-gray-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 pt-2">
+                    <label className="px-6 py-3 bg-black hover:bg-gray-800 text-white font-bold text-xs uppercase tracking-wider rounded-xl cursor-pointer transition-all shadow-md flex items-center gap-2">
+                      <Upload size={16} />
+                      <span>Browse Image File</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={handleHeroBannerUpload} />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHeroBannerUrl(tempHeroBanner);
+                        toast.success('Google Search & Social Share preview image saved successfully!');
+                      }}
+                      className="px-6 py-3 bg-[#1b49c4] hover:bg-[#153899] text-white font-bold text-xs uppercase tracking-wider rounded-xl cursor-pointer transition-all shadow-md flex items-center gap-2"
+                    >
+                      <Save size={16} />
+                      <span>Save Changes</span>
+                    </button>
                   </div>
                 </div>
               </div>

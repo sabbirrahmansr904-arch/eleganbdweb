@@ -555,11 +555,16 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   useEffect(() => {
     const targetImage = heroBannerUrl || logoUrl || 'https://eleganbd.vercel.app/og-image.png';
+    const faviconImage = logoUrl || heroBannerUrl || '/logo.png';
     if (typeof document !== 'undefined') {
       const origin = window.location.origin;
       const fullImageUrl = targetImage.startsWith('http') 
         ? targetImage 
         : `${origin}${targetImage.startsWith('/') ? '' : '/'}${targetImage}`;
+
+      const fullFaviconUrl = faviconImage.startsWith('http') 
+        ? faviconImage 
+        : `${origin}${faviconImage.startsWith('/') ? '' : '/'}${faviconImage}`;
 
       const ogImage = document.querySelector('meta[property="og:image"]');
       if (ogImage) {
@@ -572,6 +577,19 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const twitterImage = document.querySelector('meta[name="twitter:image"]');
       if (twitterImage) {
         twitterImage.setAttribute('content', fullImageUrl);
+      }
+
+      // Update favicon dynamically
+      const faviconLinks = document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]');
+      if (faviconLinks.length > 0) {
+        faviconLinks.forEach(link => {
+          link.setAttribute('href', fullFaviconUrl);
+        });
+      } else {
+        const link = document.createElement('link');
+        link.rel = 'icon';
+        link.href = fullFaviconUrl;
+        document.head.appendChild(link);
       }
     }
   }, [heroBannerUrl, logoUrl]);
