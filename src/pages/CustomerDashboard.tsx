@@ -1238,7 +1238,7 @@ export default function CustomerDashboard() {
                       toast.error('Please enter an Order ID to track');
                     }
                   }}
-                  className="bg-brand-ink text-white hover:bg-brand-gold hover:text-brand-ink font-bold text-xs px-6 py-3 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md"
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-6 py-3 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md"
                 >
                   <Search size={15} /> Track Now
                 </button>

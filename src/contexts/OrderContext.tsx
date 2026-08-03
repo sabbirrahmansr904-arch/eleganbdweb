@@ -57,15 +57,23 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const isInitialLoad = useRef(true);
 
   useEffect(() => {
-    if (!currentUser) {
-      setOrders([]);
-      setLoading(false);
-      return;
+    // Load from localStorage cache immediately
+    try {
+      const cached = localStorage.getItem('eleganbd_all_orders');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setOrders(parsed);
+          setLoading(false);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to load cached orders");
     }
 
     setLoading(true);
     let q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
-    if (!isAdmin) {
+    if (!isAdmin && currentUser) {
       q = query(collection(db, 'orders'), where('customerId', '==', currentUser.uid));
     }
 
@@ -78,13 +86,15 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       // Notification for Admin when a new order arrives
       if (!isInitialLoad.current && isAdmin && snapshot.docChanges().some(change => change.type === 'added')) {
         const newOrder = ordersData[0];
-        setLastOrder(newOrder);
-        // Native Browser Notification
-        if ("Notification" in window && Notification.permission === "granted") {
-          new Notification("New Order Received!", {
-            body: `Order #${newOrder.id.slice(-6)} from ${newOrder.customerName || 'Customer'}`,
-            icon: '/vite.svg'
-          });
+        if (newOrder) {
+          setLastOrder(newOrder);
+          // Native Browser Notification
+          if ("Notification" in window && Notification.permission === "granted") {
+            new Notification("New Order Received!", {
+              body: `Order #${newOrder.id.slice(-6)} from ${newOrder.customerName || 'Customer'}`,
+              icon: '/vite.svg'
+            });
+          }
         }
       }
 
@@ -132,7 +142,10 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       isInitialLoad.current = false;
 
       try {
-        localStorage.setItem(`eleganbd_orders_${currentUser.uid}`, JSON.stringify(ordersData));
+        localStorage.setItem('eleganbd_all_orders', JSON.stringify(ordersData));
+        if (currentUser) {
+          localStorage.setItem(`eleganbd_orders_${currentUser.uid}`, JSON.stringify(ordersData));
+        }
       } catch (e) {
         console.warn("Storage quota exceeded, skipping orders cache");
       }
@@ -255,6 +268,24 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
   const updateOrderStatus = async (id: string, status: Order['status']) => {
     try {
+      const currentUserEmail = auth.currentUser?.email ? auth.currentUser.email.toLowerCase().trim() : '';
+      const isCEOUser = currentUserEmail === 'eleganbd.ltd@gmail.com';
+      const targetStatus = (status || '').toUpperCase().trim();
+      const allowedStatuses = ['PENDING', 'ORDER PLACED', 'PRINTED', 'PREPARING', 'PROCESSING'];
+
+      if (!isCEOUser) {
+        const existingOrder = orders.find(o => o.id === id);
+        if (existingOrder) {
+          const currentStatus = (existingOrder.status || '').toUpperCase().trim();
+          if (currentStatus === 'SHIPPED' || currentStatus === 'DELIVERED') {
+            throw new Error('Only CEO (eleganbd.ltd@gmail.com) can modify orders that are already Shipped or Delivered.');
+          }
+        }
+        if (!allowedStatuses.includes(targetStatus)) {
+          throw new Error('Only CEO (eleganbd.ltd@gmail.com) can change order status to Shipped, Delivered, Cancelled, or other restricted statuses.');
+        }
+      }
+
       const order = orders.find(o => o.id === id);
       if (order) {
         await handleStatusChangeStock(order, status);
@@ -262,14 +293,85 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       const updatedData = { status, updatedAt: Date.now() };
       const cleaned = removeUndefined(updatedData);
       await setDoc(doc(db, 'orders', id), cleaned, { merge: true });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `orders/${id}`);
+
+      const updatedOrder = { ...(orders.find(o => o.id === id) || {}), ...updatedData } as Order;
+      await syncCustomerForOrder(updatedOrder, orders);
+    } catch (error: any) {
+      console.error("Error updating order status:", error);
+      throw error;
+    }
+  };
+
+  const syncCustomerForOrder = async (order: Order, allOrdersList: Order[]) => {
+    if (!order.phone) return;
+    try {
+      const phoneTrimmed = order.phone.trim();
+      const customerRef = doc(db, 'customers', phoneTrimmed);
+      
+      const customerOrders = allOrdersList.filter(o => o.phone && o.phone.trim() === phoneTrimmed);
+      if (!customerOrders.some(o => o.id === order.id)) {
+        customerOrders.push(order);
+      }
+
+      if (customerOrders.length === 0) {
+        // If no orders remain for this phone, we can update totals to 0 or leave/delete
+        await setDoc(customerRef, {
+          phone: phoneTrimmed,
+          totalOrders: 0,
+          totalSpent: 0,
+          deliveredOrders: 0,
+          cancelledOrders: 0,
+          exchanges: 0,
+        }, { merge: true });
+        return;
+      }
+
+      const totalOrders = customerOrders.length;
+      const totalSpent = customerOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+      const deliveredOrders = customerOrders.filter(o => (o.status || '').toLowerCase() === 'delivered').length;
+      const cancelledOrders = customerOrders.filter(o => (o.status || '').toLowerCase() === 'cancelled').length;
+      const exchanges = customerOrders.filter(o => (o.status || '').toLowerCase() === 'returned' || (o.status || '').toLowerCase() === 'exchange').length;
+
+      const latestOrder = customerOrders.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())[0];
+
+      await setDoc(customerRef, {
+        name: order.customerName || latestOrder?.customerName || 'Valued Customer',
+        email: order.email || latestOrder?.email || '',
+        phone: phoneTrimmed,
+        address: order.address || latestOrder?.address || '',
+        city: order.city || latestOrder?.city || '',
+        totalOrders,
+        totalSpent,
+        deliveredOrders,
+        cancelledOrders,
+        exchanges,
+        lastOrderDate: latestOrder?.createdAt || new Date().toISOString()
+      }, { merge: true });
+    } catch (err) {
+      console.error("Error syncing customer for order:", err);
     }
   };
 
   const updateOrder = async (id: string, data: Partial<Order> & Record<string, any>) => {
     try {
+      const currentUserEmail = auth.currentUser?.email ? auth.currentUser.email.toLowerCase().trim() : '';
+      const isCEOUser = currentUserEmail === 'eleganbd.ltd@gmail.com';
+      
       if (data.status) {
+        const targetStatus = (data.status || '').toUpperCase().trim();
+        const allowedStatuses = ['PENDING', 'ORDER PLACED', 'PRINTED', 'PREPARING', 'PROCESSING'];
+        if (!isCEOUser) {
+          const existingOrder = orders.find(o => o.id === id);
+          if (existingOrder) {
+            const currentStatus = (existingOrder.status || '').toUpperCase().trim();
+            if (currentStatus === 'SHIPPED' || currentStatus === 'DELIVERED') {
+              throw new Error('Only CEO (eleganbd.ltd@gmail.com) can modify orders that are already Shipped or Delivered.');
+            }
+          }
+          if (!allowedStatuses.includes(targetStatus)) {
+            throw new Error('Only CEO (eleganbd.ltd@gmail.com) can change order status to Shipped, Delivered, Cancelled, or other restricted statuses.');
+          }
+        }
         const order = orders.find(o => o.id === id);
         if (order) {
           await handleStatusChangeStock(order, data.status);
@@ -278,8 +380,13 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       const updatedData = { ...data, updatedAt: Date.now() };
       const cleaned = removeUndefined(updatedData);
       await setDoc(doc(db, 'orders', id), cleaned, { merge: true });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `orders/${id}`);
+
+      const updatedOrder = { ...(orders.find(o => o.id === id) || {}), ...updatedData } as Order;
+      const combinedOrders = orders.map(o => o.id === id ? updatedOrder : o);
+      await syncCustomerForOrder(updatedOrder, combinedOrders);
+    } catch (error: any) {
+      console.error("Error updating order:", error);
+      throw error;
     }
   };
 
@@ -298,8 +405,14 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       const orderRef = doc(db, 'orders', id);
       await deleteDoc(orderRef);
       console.log(`[OrderContext] SUCCESS: Deleted order document: ${id}`);
+      
+      const remainingOrders = orders.filter(o => o.id !== id);
       // Optimistic update
       setOrders(prev => prev.filter(order => order.id !== id));
+
+      if (order && order.phone) {
+        await syncCustomerForOrder(order, remainingOrders);
+      }
     } catch (error) {
       console.error(`[OrderContext] ERROR: Deleting order ${id}:`, error);
       handleFirestoreError(error, OperationType.DELETE, `orders/${id}`);
@@ -344,6 +457,9 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       };
       const cleaned = removeUndefined(newOrder);
       await setDoc(doc(db, 'orders', finalOrderId), cleaned);
+
+      const combinedOrders = [newOrder, ...orders];
+      await syncCustomerForOrder(newOrder, combinedOrders);
 
       // Automatically reduce stock and log inventory transactions
       for (const item of order.items) {

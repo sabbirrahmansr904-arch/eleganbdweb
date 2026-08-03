@@ -3,78 +3,49 @@
  */
 
 import React, { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { useFinance } from '../../contexts/FinanceContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { formatPrice } from '../../lib/utils';
 import { 
-  Users, 
   Plus, 
   Trash2, 
-  Edit2, 
+  Pencil,
   CreditCard, 
-  ArrowUpDown, 
-  Download, 
-  Check, 
   X, 
-  Percent, 
-  DollarSign, 
-  Wallet, 
   Building2,
-  TrendingUp,
-  Coins,
+  Wallet, 
   ArrowDownLeft,
   ArrowUpRight,
   RefreshCw,
   PlusCircle,
-  PiggyBank,
   Calendar
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AdminFinance(): React.JSX.Element {
   const {
-    partners,
-    partnerTransactions,
     bankAccounts,
     bankTransactions,
+    pathaoPayouts = [],
     loading,
-    updatePartner,
-    addPartnerTransaction,
-    deletePartnerTransaction,
-    distributeProfit,
     addBankAccount,
     updateBankAccount,
     deleteBankAccount,
     addBankTransaction,
-    deleteBankTransaction
+    deleteBankTransaction,
+    addPathaoPayout,
+    updatePathaoPayoutStatus,
+    deletePathaoPayout
   } = useFinance();
 
   const { currency, rate } = useCurrency();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = (searchParams.get('tab') as 'partnership' | 'bank') || 'partnership';
-  const setActiveTab = (tab: 'partnership' | 'bank') => setSearchParams({ tab });
 
   // Modals visibility states
-  const [showPartnerTxModal, setShowPartnerTxModal] = useState(false);
-  const [showProfitModal, setShowProfitModal] = useState(false);
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
   const [showBankTxModal, setShowBankTxModal] = useState(false);
-  const [editingPartnerId, setEditingPartnerId] = useState<string | null>(null);
+  const [showEditAccountModal, setShowEditAccountModal] = useState(false);
 
   // Form states
-  const [partnerTxForm, setPartnerTxForm] = useState({
-    partnerId: '',
-    type: 'investment' as 'investment' | 'withdrawal',
-    amount: '',
-    notes: ''
-  });
-
-  const [profitForm, setProfitForm] = useState({
-    totalProfit: '',
-    splitMethod: 'equal' as 'equal' | 'percentage'
-  });
-
   const [accountForm, setAccountForm] = useState({
     bankName: '',
     accountName: '',
@@ -82,6 +53,46 @@ export default function AdminFinance(): React.JSX.Element {
     branch: '',
     initialBalance: ''
   });
+
+  const [editAccountForm, setEditAccountForm] = useState({
+    id: '',
+    bankName: '',
+    accountName: '',
+    accountNumber: '',
+    branch: '',
+    balance: 0
+  });
+
+  const handleEditClick = (acc: any) => {
+    setEditAccountForm({
+      id: acc.id,
+      bankName: acc.bankName || '',
+      accountName: acc.accountName || '',
+      accountNumber: acc.accountNumber || '',
+      branch: acc.branch || '',
+      balance: acc.balance || 0
+    });
+    setShowEditAccountModal(true);
+  };
+
+  const handleEditAccountSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editAccountForm.bankName || !editAccountForm.accountName || !editAccountForm.accountNumber) {
+      toast.error('স্টার (*) চিহ্নিত ঘরগুলো পূরণ করা আবশ্যক।');
+      return;
+    }
+
+    await updateBankAccount({
+      id: editAccountForm.id,
+      bankName: editAccountForm.bankName,
+      accountName: editAccountForm.accountName,
+      accountNumber: editAccountForm.accountNumber,
+      branch: editAccountForm.branch,
+      balance: editAccountForm.balance
+    });
+
+    setShowEditAccountModal(false);
+  };
 
   const [bankTxForm, setBankTxForm] = useState({
     accountId: '',
@@ -92,10 +103,21 @@ export default function AdminFinance(): React.JSX.Element {
     notes: ''
   });
 
-  const [editingPartnerData, setEditingPartnerData] = useState({
-    name: '',
-    sharePercent: ''
+  // Pathao payout Form state
+  const [payoutForm, setPayoutForm] = useState({
+    accountId: '',
+    amount: '',
+    date: (() => {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    })(),
+    reference: '',
+    notes: ''
   });
+  const [isSubmittingPayout, setIsSubmittingPayout] = useState(false);
 
   // Daily deposits state
   const [dailyDate, setDailyDate] = useState<string>(() => {
@@ -109,49 +131,10 @@ export default function AdminFinance(): React.JSX.Element {
   const [dailyNotes, setDailyNotes] = useState<Record<string, string>>({});
   const [isSubmittingDaily, setIsSubmittingDaily] = useState(false);
 
-  // Calculate Partnership aggregates
-  const totalInvestment = partners.reduce((sum, p) => sum + (p.investment || 0), 0);
-  const totalWithdrawn = partners.reduce((sum, p) => sum + (p.withdrawn || 0), 0);
-  const remainingCapital = totalInvestment - totalWithdrawn;
-
   // Calculate Bank aggregates
   const totalBankBalance = bankAccounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
 
   // Form Submissions
-  const handlePartnerTxSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const amountNum = parseFloat(partnerTxForm.amount);
-    if (!partnerTxForm.partnerId || isNaN(amountNum) || amountNum <= 0) {
-      toast.error('দয়া করে সঠিক পার্টনার ও পরিমাণ ইনপুট দিন।');
-      return;
-    }
-
-    const partner = partners.find(p => p.id === partnerTxForm.partnerId);
-    await addPartnerTransaction({
-      partnerId: partnerTxForm.partnerId,
-      partnerName: partner?.name || 'Unknown',
-      type: partnerTxForm.type,
-      amount: amountNum,
-      notes: partnerTxForm.notes
-    });
-
-    setPartnerTxForm({ partnerId: '', type: 'investment', amount: '', notes: '' });
-    setShowPartnerTxModal(false);
-  };
-
-  const handleProfitSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const profitNum = parseFloat(profitForm.totalProfit);
-    if (isNaN(profitNum) || profitNum <= 0) {
-      toast.error('সঠিক লাভের পরিমাণ ইনপুট দিন।');
-      return;
-    }
-
-    await distributeProfit(profitNum, profitForm.splitMethod);
-    setProfitForm({ totalProfit: '', splitMethod: 'equal' });
-    setShowProfitModal(false);
-  };
-
   const handleAddAccountSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!accountForm.bankName || !accountForm.accountName || !accountForm.accountNumber) {
@@ -204,6 +187,54 @@ export default function AdminFinance(): React.JSX.Element {
     setShowBankTxModal(false);
   };
 
+  const handlePayoutSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amountNum = parseFloat(payoutForm.amount);
+    if (!payoutForm.accountId || isNaN(amountNum) || amountNum <= 0) {
+      toast.error('দয়া করে সঠিক ব্যাংক এবং পরিমাণ ইনপুট দিন।');
+      return;
+    }
+
+    setIsSubmittingPayout(true);
+    try {
+      const dateParts = payoutForm.date.split('-');
+      const targetDate = new Date(
+        parseInt(dateParts[0]),
+        parseInt(dateParts[1]) - 1,
+        parseInt(dateParts[2]),
+        12, 0, 0
+      );
+      const timestamp = targetDate.getTime();
+
+      await addPathaoPayout({
+        accountId: payoutForm.accountId,
+        amount: amountNum,
+        date: timestamp,
+        status: 'Pending',
+        reference: payoutForm.reference || undefined,
+        notes: payoutForm.notes || undefined
+      });
+
+      setPayoutForm({
+        accountId: '',
+        amount: '',
+        date: (() => {
+          const today = new Date();
+          const year = today.getFullYear();
+          const month = String(today.getMonth() + 1).padStart(2, '0');
+          const day = String(today.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        })(),
+        reference: '',
+        notes: ''
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmittingPayout(false);
+    }
+  };
+
   const handleSaveDailyEntries = async () => {
     const entriesToSave = Object.entries(dailyAmounts)
       .map(([accId, amountStr]) => {
@@ -229,7 +260,6 @@ export default function AdminFinance(): React.JSX.Element {
       const timestamp = targetDate.getTime();
 
       for (const entry of entriesToSave) {
-        const acc = bankAccounts.find(a => a.id === entry.accId);
         await addBankTransaction({
           accountId: entry.accId,
           type: 'deposit',
@@ -251,33 +281,6 @@ export default function AdminFinance(): React.JSX.Element {
     }
   };
 
-  const startEditPartner = (p: Partner) => {
-    setEditingPartnerId(p.id);
-    setEditingPartnerData({
-      name: p.name,
-      sharePercent: p.sharePercent.toString()
-    });
-  };
-
-  const handleSavePartnerEdit = async (id: string) => {
-    const original = partners.find(p => p.id === id);
-    if (!original) return;
-
-    const parsedPercent = parseFloat(editingPartnerData.sharePercent);
-    if (!editingPartnerData.name.trim() || isNaN(parsedPercent) || parsedPercent < 0 || parsedPercent > 100) {
-      toast.error('দয়া করে সঠিক নাম এবং শতাংশ (০-১০০) প্রদান করুন।');
-      return;
-    }
-
-    await updatePartner({
-      ...original,
-      name: editingPartnerData.name,
-      sharePercent: parsedPercent
-    });
-
-    setEditingPartnerId(null);
-  };
-
   if (loading) {
     return (
       <div className="min-h-[500px] flex flex-col items-center justify-center gap-2 font-sans bg-[#FBFBFD] rounded-[20px] p-12">
@@ -290,697 +293,449 @@ export default function AdminFinance(): React.JSX.Element {
   return (
     <div className="space-y-6 pb-12 font-sans bg-[#FBFBFD] min-h-screen text-black antialiased">
       
-      {/* Upper Navigation & Tabs Header */}
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-5">
         <div>
           <h1 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-            <Coins className="w-5 h-5 text-indigo-600" />
-            আর্থিক হিসাব-নিকাশ
+            <Building2 className="w-5 h-5 text-indigo-600" />
+            ব্যাংক অ্যাকাউন্ট & তহবিল
           </h1>
-          <p className="text-xs text-gray-400 font-medium">অংশীদারিত্ব মূলধন খতিয়ান এবং ব্যাংক ও পেমেন্ট গেটওয়ে তহবিল ট্র্যাকার</p>
+          <p className="text-xs text-gray-400 font-medium">ডিজিটাল ওয়ালেট, ব্যাংক অ্যাকাউন্ট ও পেমেন্ট গেটওয়ে তহবিল ট্র্যাকার</p>
         </div>
         
-        {/* Tab Buttons */}
-        <div className="flex bg-gray-100/80 p-1 rounded-xl self-start md:self-auto">
+        <div className="flex items-center gap-2">
           <button 
-            onClick={() => setActiveTab('partnership')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${activeTab === 'partnership' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-500 hover:text-black'}`}
+            onClick={() => setShowAddAccountModal(true)}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-sm cursor-pointer"
           >
-            <Users className="w-3.5 h-3.5" />
-            অংশীদারিত্ব লেজার (৩ জন অংশীদার)
+            <Plus className="w-4 h-4" />
+            নতুন অ্যাকাউন্ট যোগ
           </button>
           <button 
-            onClick={() => setActiveTab('bank')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${activeTab === 'bank' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-500 hover:text-black'}`}
+            onClick={() => setShowBankTxModal(true)}
+            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-sm cursor-pointer"
           >
-            <Building2 className="w-3.5 h-3.5" />
-            ব্যাংক অ্যাকাউন্ট & তহবিল
+            <RefreshCw className="w-4 h-4" />
+            তহবিল স্থানান্তরিত / লেনদেন
           </button>
         </div>
       </div>
 
-      {/* --- PARTNERSHIP TAB CONTENT --- */}
-      {activeTab === 'partnership' && (
-        <div className="space-y-6">
-          
-          {/* Stats Summary Widgets */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <div className="bg-white border border-gray-100 p-5 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">মোট অংশীদারি মূলধন</p>
-                <h3 className="text-2xl font-black text-gray-900 mt-1">{formatPrice(totalInvestment)}</h3>
-                <p className="text-[10px] text-gray-400 mt-0.5">পার্টনারদের মোট জমা করা মূলধন</p>
-              </div>
-              <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
-                <PiggyBank className="w-6 h-6" />
-              </div>
+      {/* BANK ACCOUNTS & PATHAO TRACKER DUAL-COLUMN LAYOUT */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* LEFT COLUMN: BANK ACCOUNTS AND TRANSACTION HISTORY (Spans 2 columns) */}
+        <div className="lg:col-span-2 space-y-6">
+        
+        {/* Bank Summary Statistics */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="bg-white border border-gray-100 p-5 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex items-center justify-between col-span-1 md:col-span-2">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">মোট ব্যাংক এবং গেটওয়ে তহবিল</p>
+              <h3 className="text-3xl font-black text-gray-900 mt-1">{formatPrice(totalBankBalance)}</h3>
+              <p className="text-xs text-gray-400 mt-1">সবগুলো সক্রিয় ডিজিটাল ওয়ালেট ও ব্যাংক অ্যাকাউন্টের মোট জমা স্থিতি</p>
             </div>
-
-            <div className="bg-white border border-gray-100 p-5 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-rose-500">মোট উত্তোলিত অর্থ</p>
-                <h3 className="text-2xl font-black text-gray-900 mt-1">{formatPrice(totalWithdrawn)}</h3>
-                <p className="text-[10px] text-gray-400 mt-0.5">মুনাফা এবং ব্যক্তিগত উত্তোলন</p>
-              </div>
-              <div className="w-12 h-12 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-600">
-                <ArrowUpRight className="w-6 h-6" />
-              </div>
-            </div>
-
-            <div className="bg-white border border-gray-100 p-5 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500">অবশিষ্ট নেট মূলধন</p>
-                <h3 className="text-2xl font-black text-gray-900 mt-1">{formatPrice(remainingCapital)}</h3>
-                <p className="text-[10px] text-gray-400 mt-0.5">ব্যবসায় চলমান অংশীদারদের তহবিল</p>
-              </div>
-              <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600">
-                <TrendingUp className="w-6 h-6" />
-              </div>
+            <div className="w-16 h-16 bg-indigo-50 rounded-[20px] flex items-center justify-center text-indigo-600">
+              <Wallet className="w-8 h-8" />
             </div>
           </div>
 
-          {/* Core Partnership Actions Banner */}
-          <div className="flex flex-wrap items-center justify-between gap-4 bg-white border border-gray-100 p-5 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.01)]">
-            <div className="space-y-1">
-              <h4 className="text-sm font-bold text-gray-900">মূলধন এবং লভ্যাংশ বন্টন গেটওয়ে</h4>
-              <p className="text-xs text-gray-400">সহজেই পার্টনারদের টাকা ইনভেস্টমেন্ট, উত্তোলন কিংবা লাভ বন্টন (সমান বা অনুপাত অনুযায়ী) হিসাব করুন</p>
+          <div className="bg-white border border-gray-100 p-5 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">মোট ব্যাংক অ্যাকাউন্ট</p>
+              <h3 className="text-3xl font-black text-gray-900 mt-1">{bankAccounts.length} টি</h3>
+              <p className="text-xs text-gray-400 mt-1">সক্রিয় পেমেন্ট একাউন্ট</p>
             </div>
-            <div className="flex gap-2">
-              <button 
-                onClick={() => setShowPartnerTxModal(true)}
-                className="bg-indigo-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-indigo-700 transition-colors shadow-sm flex items-center gap-1.5"
-              >
-                <PlusCircle className="w-3.5 h-3.5" />
-                টাকা জমা / উত্তোলন
-              </button>
-              <button 
-                onClick={() => setShowProfitModal(true)}
-                className="bg-emerald-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm flex items-center gap-1.5"
-              >
-                <Percent className="w-3.5 h-3.5" />
-                লাভ বন্টন (Profit Split)
-              </button>
+            <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-600">
+              <Building2 className="w-6 h-6" />
+            </div>
+          </div>
+        </div>
+
+        {/* Bank Accounts Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {bankAccounts.map(acc => (
+            <div key={acc.id} className="bg-white border border-gray-100 p-5 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-4 hover:border-gray-200 transition-all group relative">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h4 className="text-sm font-black text-gray-900">{acc.bankName}</h4>
+                  <p className="text-xs text-gray-500 font-bold mt-0.5">{acc.accountName}</p>
+                  <p className="text-[10px] text-gray-400 font-mono tracking-wider mt-1">{acc.accountNumber}</p>
+                  {acc.branch && <span className="inline-block text-[9px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md mt-1 font-semibold">{acc.branch}</span>}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button 
+                    onClick={() => handleEditClick(acc)}
+                    className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-colors cursor-pointer"
+                    title="সম্পাদনা করুন"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => {
+                      if(window.confirm('এই ব্যাংক অ্যাকাউন্টটি মুছতে চান?')){
+                        deleteBankAccount(acc.id);
+                      }
+                    }}
+                    className="text-gray-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-colors cursor-pointer"
+                    title="অ্যাকাউন্ট ডিলিট করুন"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-gray-50 flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">বর্তমান ব্যালেন্স</span>
+                <span className="text-lg font-black text-indigo-600">{formatPrice(acc.balance || 0)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* --- DAILY MULTI-ACCOUNT DEPOSIT ENTRY MODULE --- */}
+        <div className="bg-white border border-gray-100 rounded-[20px] shadow-sm p-6 space-y-5">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-gray-50 pb-4">
+            <div>
+              <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                <PlusCircle className="w-4 h-4 text-emerald-600" />
+                দৈনিক ব্যাংক / ওয়ালেট ব্যালেন্স ইনপুট এনট্রি
+              </h3>
+              <p className="text-[10px] text-gray-400 mt-0.5">প্রতিদিনের বিক্রীত বা সংগৃহীত টাকা সরাসরি বিভিন্ন একাউন্টে একবারে এনট্রি করুন</p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-gray-400" />
+              <input 
+                type="date" 
+                value={dailyDate}
+                onChange={(e) => setDailyDate(e.target.value)}
+                className="bg-gray-50 border border-gray-200 text-xs font-bold text-gray-700 px-3 py-1.5 rounded-xl outline-none focus:border-indigo-400"
+              />
             </div>
           </div>
 
-          {/* Partners Table & Inline Editor */}
-          <div className="bg-white border border-gray-100 rounded-[20px] shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">৩ জন অংশীদারদের তালিকা</h3>
-                <p className="text-[10px] text-gray-400 mt-0.5">নাম পরিবর্তন বা শেয়ার পারসেন্টেজ কাস্টমাইজ করতে এডিট করুন</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {bankAccounts.map(acc => (
+              <div key={acc.id} className="bg-gray-50/60 border border-gray-100 p-3.5 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-gray-800">{acc.bankName}</span>
+                  <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
+                    বর্তমান: {formatPrice(acc.balance)}
+                  </span>
+                </div>
+                <p className="text-[10px] text-gray-400 truncate font-mono">{acc.accountName} - {acc.accountNumber}</p>
+                
+                <div className="space-y-1.5 pt-1">
+                  <input 
+                    type="number"
+                    step="any"
+                    placeholder="আজকের জমার পরিমাণ (৳)"
+                    value={dailyAmounts[acc.id] || ''}
+                    onChange={(e) => setDailyAmounts({ ...dailyAmounts, [acc.id]: e.target.value })}
+                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-900 placeholder:text-gray-300 outline-none focus:border-emerald-500"
+                  />
+                  <input 
+                    type="text"
+                    placeholder="সংক্ষিপ্ত নোট (ঐচ্ছিক)"
+                    value={dailyNotes[acc.id] || ''}
+                    onChange={(e) => setDailyNotes({ ...dailyNotes, [acc.id]: e.target.value })}
+                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-1.5 text-[11px] font-medium text-gray-700 placeholder:text-gray-300 outline-none focus:border-indigo-400"
+                  />
+                </div>
               </div>
-              <span className="text-[10px] font-black uppercase bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-full">
-                অংশীদারিত্বের মোট শেয়ার: {partners.reduce((sum, p) => sum + p.sharePercent, 0).toFixed(2)}%
-              </span>
+            ))}
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <button
+              onClick={handleSaveDailyEntries}
+              disabled={isSubmittingDaily}
+              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white font-black text-xs rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer uppercase tracking-wider"
+            >
+              <PlusCircle className="w-4 h-4" />
+              {isSubmittingDaily ? 'সংরক্ষণ হচ্ছে...' : 'সবগুলো দৈনিক জমা সেভ করুন'}
+            </button>
+          </div>
+        </div>
+
+        {/* Bank Transactions History */}
+        <div className="bg-white border border-gray-100 rounded-[20px] shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">ব্যাংক ও ওয়ালেট লেনদেনের ইতিহাস</h3>
+              <p className="text-[10px] text-gray-400 mt-0.5">ডিপোজিট, উইথড্র ও ট্রান্সফারের বিস্তারিত খতিয়ান</p>
             </div>
-            
-            <div className="overflow-x-auto">
+          </div>
+
+          <div className="overflow-x-auto">
+            {bankTransactions.length === 0 ? (
+              <div className="p-8 text-center text-xs text-gray-400">কোনো ব্যাংক লেনদেন পাওয়া যায়নি।</div>
+            ) : (
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-gray-50/50 text-gray-400 border-b border-gray-100 uppercase tracking-wider font-black text-[9px]">
-                    <th className="py-4 px-6">নাম (Partner Name)</th>
-                    <th className="py-4 px-6 text-center">শেয়ার অংশ (%)</th>
-                    <th className="py-4 px-6 text-right">মোট মূলধন জমা (৳)</th>
-                    <th className="py-4 px-6 text-right">মোট উত্তোলন/লভ্যাংশ (৳)</th>
-                    <th className="py-4 px-6 text-right">নেট অবস্থান (৳)</th>
-                    <th className="py-4 px-6 text-center w-24">অ্যাকশন</th>
+                    <th className="py-4 px-6">তারিখ</th>
+                    <th className="py-4 px-6">অ্যাকাউন্ট</th>
+                    <th className="py-4 px-6">ধরণ</th>
+                    <th className="py-4 px-6">রেফারেন্স / নোট</th>
+                    <th className="py-4 px-6 text-right">পরিমাণ (৳)</th>
+                    <th className="py-4 px-6 text-center w-20">অ্যাকশন</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50 font-bold text-gray-700">
-                  {partners.map(p => (
-                    <tr key={p.id} className="hover:bg-gray-50/20 transition-colors">
-                      <td className="py-4 px-6">
-                        {editingPartnerId === p.id ? (
-                          <input 
-                            type="text" 
-                            value={editingPartnerData.name} 
-                            onChange={(e) => setEditingPartnerData({ ...editingPartnerData, name: e.target.value })}
-                            className="bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 font-bold focus:outline-none focus:border-indigo-500 w-full"
-                          />
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 bg-indigo-50 rounded-full flex items-center justify-center text-[10px] text-indigo-600 font-black">
-                              {p.name.slice(0, 2).toUpperCase()}
-                            </div>
-                            <span className="text-gray-900">{p.name}</span>
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-4 px-6 text-center">
-                        {editingPartnerId === p.id ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <input 
-                              type="number" 
-                              value={editingPartnerData.sharePercent} 
-                              onChange={(e) => setEditingPartnerData({ ...editingPartnerData, sharePercent: e.target.value })}
-                              className="bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 font-bold focus:outline-none focus:border-indigo-500 w-20 text-center"
-                              step="any"
-                              min="0"
-                              max="100"
-                            />
-                            <span>%</span>
-                          </div>
-                        ) : (
-                          <span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full text-[10px] font-black">
-                            {p.sharePercent.toFixed(2)}%
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-4 px-6 text-right text-indigo-600">{formatPrice(p.investment || 0)}</td>
-                      <td className="py-4 px-6 text-right text-rose-600">
-                        {p.withdrawn < 0 ? (
-                          <span className="text-emerald-600" title="লভ্যাংশ পাওনা">
-                            (পাওনা) {formatPrice(Math.abs(p.withdrawn))}
-                          </span>
-                        ) : (
-                          formatPrice(p.withdrawn || 0)
-                        )}
-                      </td>
-                      <td className="py-4 px-6 text-right text-gray-900">
-                        {formatPrice((p.investment || 0) - (p.withdrawn || 0))}
-                      </td>
-                      <td className="py-4 px-6 text-center">
-                        {editingPartnerId === p.id ? (
-                          <div className="flex justify-center gap-1">
-                            <button 
-                              onClick={() => handleSavePartnerEdit(p.id)}
-                              className="bg-emerald-500 text-white p-1.5 rounded-lg hover:bg-emerald-600 transition-colors"
-                              title="সংরক্ষণ করুন"
-                            >
-                              <Check className="w-3.5 h-3.5" />
-                            </button>
-                            <button 
-                              onClick={() => setEditingPartnerId(null)}
-                              className="bg-gray-200 text-gray-500 p-1.5 rounded-lg hover:bg-gray-300 transition-colors"
-                              title="বাতিল করুন"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ) : (
-                          <button 
-                            onClick={() => startEditPartner(p)}
-                            className="bg-gray-100 hover:bg-gray-200 text-gray-500 p-1.5 rounded-lg transition-colors mx-auto block"
-                            title="এডিট করুন"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Partnership Transactions History */}
-          <div className="bg-white border border-gray-100 rounded-[20px] shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-50">
-              <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">অংশীদারী লেনদেনের ইতিহাস</h3>
-              <p className="text-[10px] text-gray-400 mt-0.5">মূলধন জমা এবং লাভ উত্তোলনের বিস্তারিত হিসাব খতিয়ান</p>
-            </div>
-            
-            <div className="overflow-x-auto">
-              {partnerTransactions.length === 0 ? (
-                <div className="p-8 text-center text-xs text-gray-400">কোনো পার্টনার লেনদেন পাওয়া যায়নি।</div>
-              ) : (
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50/50 text-gray-400 border-b border-gray-100 uppercase tracking-wider font-black text-[9px]">
-                      <th className="py-4 px-6">তারিখ</th>
-                      <th className="py-4 px-6">অংশীদার</th>
-                      <th className="py-4 px-6">লেনদেনের ধরন</th>
-                      <th className="py-4 px-6">পরিমাণ (৳)</th>
-                      <th className="py-4 px-6">নোট / বিবরণ</th>
-                      <th className="py-4 px-6 text-center w-24">বাতিল</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50 font-bold text-gray-700">
-                    {partnerTransactions.map(tx => (
+                  {bankTransactions.map(tx => {
+                    const acc = bankAccounts.find(a => a.id === tx.accountId);
+                    return (
                       <tr key={tx.id} className="hover:bg-gray-50/20 transition-colors">
                         <td className="py-4 px-6 text-gray-400 text-[10px] font-medium">
                           {new Date(tx.date).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </td>
-                        <td className="py-4 px-6 text-gray-900">{tx.partnerName}</td>
                         <td className="py-4 px-6">
-                          <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase ${
-                            tx.type === 'investment' 
-                              ? 'bg-indigo-50 text-indigo-600' 
-                              : tx.type === 'withdrawal' 
+                          <span className="text-gray-900 font-bold">{acc?.bankName || 'Unknown Bank'}</span>
+                          <p className="text-[10px] text-gray-400 font-normal">{acc?.accountName}</p>
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase flex items-center gap-1 w-max ${
+                            tx.type === 'deposit' 
+                              ? 'bg-emerald-50 text-emerald-600' 
+                              : tx.type === 'withdraw' 
                               ? 'bg-rose-50 text-rose-600' 
-                              : 'bg-emerald-50 text-emerald-600'
+                              : 'bg-indigo-50 text-indigo-600'
                           }`}>
-                            {tx.type === 'investment' ? 'মূলধন জমা' : tx.type === 'withdrawal' ? 'ব্যক্তিগত উত্তোলন' : 'লভ্যাংশ বন্টন'}
+                            {tx.type === 'deposit' && <ArrowDownLeft className="w-3 h-3" />}
+                            {tx.type === 'withdraw' && <ArrowUpRight className="w-3 h-3" />}
+                            {tx.type === 'transfer' && <RefreshCw className="w-3 h-3" />}
+                            {tx.type === 'deposit' ? 'জমা' : tx.type === 'withdraw' ? 'উত্তোলন' : 'ট্রান্সফার'}
                           </span>
                         </td>
-                        <td className={`py-4 px-6 text-right font-black ${tx.type === 'investment' ? 'text-indigo-600' : 'text-rose-600'}`}>
-                          {tx.type === 'investment' ? '+' : '-'} {formatPrice(tx.amount)}
+                        <td className="py-4 px-6 text-gray-600">
+                          {tx.reference && <span className="font-mono text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 mr-2">{tx.reference}</span>}
+                          <span>{tx.notes || '-'}</span>
                         </td>
-                        <td className="py-4 px-6 text-gray-400 font-medium">{tx.notes || '-'}</td>
+                        <td className={`py-4 px-6 text-right font-black ${
+                          tx.type === 'deposit' ? 'text-emerald-600' : 'text-rose-600'
+                        }`}>
+                          {tx.type === 'deposit' ? '+' : '-'} {formatPrice(tx.amount)}
+                        </td>
                         <td className="py-4 px-6 text-center">
                           <button 
                             onClick={() => {
                               if(window.confirm('এই লেনদেনটি মুছতে চান?')){
-                                deletePartnerTransaction(tx.id);
+                                deleteBankTransaction(tx.id);
                               }
                             }}
-                            className="text-red-400 hover:text-red-600 p-1.5 hover:bg-rose-50 rounded-lg transition-colors"
+                            className="text-gray-300 hover:text-rose-600 p-1.5 rounded-lg transition-colors"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
-          
         </div>
-      )}
+      </div>
 
-      {/* --- BANK ACCOUNTS TAB CONTENT --- */}
-      {activeTab === 'bank' && (
-        <div className="space-y-6">
-          
-          {/* Bank Summary Statistics */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <div className="bg-white border border-gray-100 p-5 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex items-center justify-between col-span-1 md:col-span-2">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">মোট ব্যাংক এবং গেটওয়ে তহবিল</p>
-                <h3 className="text-3xl font-black text-gray-900 mt-1">{formatPrice(totalBankBalance)}</h3>
-                <p className="text-xs text-gray-400 mt-1">সবগুলো সক্রিয় ডিজিটাল ওয়ালেট ও ব্যাংক অ্যাকাউন্টের মোট জমা স্থিতি</p>
-              </div>
-              <div className="w-16 h-16 bg-indigo-50 rounded-[20px] flex items-center justify-center text-indigo-600">
-                <Wallet className="w-8 h-8" />
-              </div>
+      {/* RIGHT COLUMN: PATHAO PAYOUTS TRACKER (Spans 1 column) */}
+      <div className="lg:col-span-1 space-y-6">
+        
+        <div className="bg-white border border-gray-100 rounded-[20px] shadow-sm p-5 space-y-5">
+          <div>
+            <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
+              <RefreshCw className="w-4 h-4 text-orange-500 animate-spin-slow" />
+              পাঠাও পেআউট ট্র্যাকার (Pathao Payout)
+            </h3>
+            <p className="text-[10px] text-gray-400 mt-0.5">পাঠাও কুরিয়ার থেকে ব্যাংক অ্যাকাউন্টে আসা তহবিলের খতিয়ান</p>
+          </div>
+
+          {/* Metrics */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-amber-50/50 border border-amber-100 p-3.5 rounded-2xl">
+              <p className="text-[9px] font-black uppercase tracking-wider text-amber-600">পেন্ডিং পেআউট (Pending)</p>
+              <h4 className="text-base font-black text-amber-700 mt-1">
+                {formatPrice(pathaoPayouts.filter(p => p.status === 'Pending').reduce((sum, p) => sum + p.amount, 0))}
+              </h4>
             </div>
-
-            <div className="bg-indigo-600 text-white p-5 rounded-[20px] shadow-[0_4px_12px_rgba(79,70,229,0.15)] flex flex-col justify-between">
-              <div>
-                <h4 className="text-xs font-black uppercase tracking-widest text-indigo-200">তহবিল অপারেশন</h4>
-                <p className="text-xs text-indigo-100 mt-1">ব্যাংক ও গেটওয়ে ব্যালেন্স জমা, উত্তোলন কিংবা এক অ্যাকাউন্ট থেকে অন্য অ্যাকাউন্টে ট্রান্সফার করুন</p>
-              </div>
-              <div className="flex gap-2 mt-4">
-                <button 
-                  onClick={() => setShowAddAccountModal(true)}
-                  className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold text-xs py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  নতুন অ্যাকাউন্ট
-                </button>
-                <button 
-                  onClick={() => setShowBankTxModal(true)}
-                  className="flex-1 bg-white text-indigo-600 hover:bg-indigo-50 font-bold text-xs py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1 shadow-sm"
-                >
-                  <ArrowUpDown className="w-3.5 h-3.5" />
-                  নতুন লেনদেন
-                </button>
-              </div>
+            <div className="bg-emerald-50/50 border border-emerald-100 p-3.5 rounded-2xl">
+              <p className="text-[9px] font-black uppercase tracking-wider text-emerald-600">প্রাপ্ত পেআউট (Paid)</p>
+              <h4 className="text-base font-black text-emerald-700 mt-1">
+                {formatPrice(pathaoPayouts.filter(p => p.status === 'Paid').reduce((sum, p) => sum + p.amount, 0))}
+              </h4>
             </div>
           </div>
 
-          {/* Daily Cash-In/Deposit Entry Section */}
-          <div className="bg-[#FAF9F6] border border-indigo-50/70 rounded-[20px] p-6 shadow-[0_2px_12px_rgba(79,70,229,0.03)]">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-200/60">
-              <div>
-                <h3 className="text-sm font-black text-indigo-950 uppercase tracking-wider flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-indigo-600" />
-                  দৈনিক জমা/ক্যাশ-ইন এন্ট্রি (Daily Cash-In Entry)
-                </h3>
-                <p className="text-[10px] text-gray-500 mt-0.5">প্রতিদিন প্রতিটি ব্যাংক বা গেটওয়ে অ্যাকাউন্টে যে টাকা ঢুকছে তা এখানে সহজে লিখে রাখুন</p>
+          {/* Quick Add Form */}
+          <form onSubmit={handlePayoutSubmit} className="bg-gray-50/50 border border-gray-100 p-4 rounded-2xl space-y-3">
+            <h4 className="text-[11px] font-black uppercase tracking-wider text-gray-500">নতুন পেআউট এন্ট্রি</h4>
+            
+            <div className="space-y-1">
+              <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider">প্রাপক ব্যাংক অ্যাকাউন্ট *</label>
+              <select
+                required
+                value={payoutForm.accountId}
+                onChange={(e) => setPayoutForm({ ...payoutForm, accountId: e.target.value })}
+                className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-orange-300 focus:outline-none cursor-pointer"
+              >
+                <option value="">সিলেক্ট করুন...</option>
+                {bankAccounts.map(acc => (
+                  <option key={acc.id} value={acc.id}>{acc.bankName} - {acc.accountName}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider">টাকার পরিমাণ (৳) *</label>
+                <input
+                  required
+                  type="number"
+                  step="any"
+                  placeholder="0.00"
+                  value={payoutForm.amount}
+                  onChange={(e) => setPayoutForm({ ...payoutForm, amount: e.target.value })}
+                  className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-orange-300 focus:outline-none"
+                />
               </div>
 
-              {/* Date Selector */}
-              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-gray-150 shadow-xs">
-                <span className="text-[10px] font-black text-gray-500">লেনদেনের তারিখ:</span>
-                <input 
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider">তারিখ *</label>
+                <input
+                  required
                   type="date"
-                  value={dailyDate}
-                  onChange={(e) => setDailyDate(e.target.value)}
-                  className="text-xs font-bold text-gray-700 focus:outline-none cursor-pointer bg-transparent"
+                  value={payoutForm.date}
+                  onChange={(e) => setPayoutForm({ ...payoutForm, date: e.target.value })}
+                  className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-orange-300 focus:outline-none cursor-pointer"
                 />
               </div>
             </div>
 
-            {bankAccounts.length === 0 ? (
-              <div className="py-6 text-center text-xs text-gray-400">কোনো সক্রিয় ব্যাংক অ্যাকাউন্ট পাওয়া যায়নি। প্রথমে একটি অ্যাকাউন্ট তৈরি করুন।</div>
-            ) : (
-              <div className="mt-4 space-y-3.5">
-                <div className="hidden md:grid grid-cols-12 gap-4 text-[10px] font-black text-gray-400 uppercase tracking-wider px-2">
-                  <div className="col-span-4">ব্যাংক / ওয়ালেট অ্যাকাউন্ট</div>
-                  <div className="col-span-3">জমার পরিমাণ (৳)</div>
-                  <div className="col-span-5">রেফারেন্স / নোট (ঐচ্ছিক)</div>
-                </div>
-
-                {bankAccounts.map((acc) => (
-                  <div key={acc.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 items-center bg-white border border-gray-100 rounded-xl p-3 shadow-xs hover:shadow-sm transition-all">
-                    <div className="col-span-1 md:col-span-4 flex items-center gap-3">
-                      <div className="w-8 h-8 bg-indigo-50/75 text-indigo-600 rounded-lg flex items-center justify-center text-xs font-black">
-                        {acc.bankName.substring(0, 2).toUpperCase()}
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-black text-gray-800">{acc.bankName}</h4>
-                        <p className="text-[10px] text-gray-400 font-mono font-medium">{acc.accountName} - {acc.accountNumber}</p>
-                      </div>
-                    </div>
-
-                    <div className="col-span-1 md:col-span-3">
-                      <div className="relative">
-                        <span className="absolute left-3 top-2 text-xs font-bold text-gray-400">৳</span>
-                        <input
-                          type="number"
-                          placeholder="০.০০"
-                          value={dailyAmounts[acc.id] || ''}
-                          onChange={(e) => setDailyAmounts({ ...dailyAmounts, [acc.id]: e.target.value })}
-                          className="pl-7 pr-3 py-1.5 w-full border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 rounded-xl text-xs font-bold text-gray-800 transition-all outline-none bg-gray-50/30"
-                          min="0"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="col-span-1 md:col-span-5">
-                      <input
-                        type="text"
-                        placeholder="যেমন: দৈনিক ক্যাশ সেলস, কুরিয়ার পেমেন্ট রিসিভ..."
-                        value={dailyNotes[acc.id] || ''}
-                        onChange={(e) => setDailyNotes({ ...dailyNotes, [acc.id]: e.target.value })}
-                        className="px-3 py-1.5 w-full border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 rounded-xl text-xs font-bold text-gray-800 transition-all outline-none bg-gray-50/30"
-                      />
-                    </div>
-                  </div>
-                ))}
-
-                <div className="flex justify-end pt-2">
-                  <button
-                    onClick={handleSaveDailyEntries}
-                    disabled={isSubmittingDaily}
-                    className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-black text-xs py-2.5 px-6 rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
-                  >
-                    {isSubmittingDaily ? (
-                      <>
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        সংরক্ষণ করা হচ্ছে...
-                      </>
-                    ) : (
-                      <>
-                        <Check className="w-3.5 h-3.5" />
-                        সবগুলো জমা সংরক্ষণ করুন
-                      </>
-                    )}
-                  </button>
-                </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider">রেফারেন্স / ইনভয়েস</label>
+                <input
+                  type="text"
+                  placeholder="Ref ID"
+                  value={payoutForm.reference}
+                  onChange={(e) => setPayoutForm({ ...payoutForm, reference: e.target.value })}
+                  className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-orange-300 focus:outline-none"
+                />
               </div>
-            )}
-          </div>
 
-          {/* Accounts Grid Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {bankAccounts.map(acc => (
-              <div key={acc.id} className="bg-white border border-gray-100 rounded-[20px] shadow-sm p-5 hover:border-indigo-100 transition-all group relative overflow-hidden">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <span className="bg-indigo-50 text-indigo-600 text-[10px] font-black px-2.5 py-1 rounded-full uppercase">
-                      {acc.bankName}
-                    </span>
-                    <h3 className="text-base font-black text-gray-900 mt-2">{acc.accountName}</h3>
-                    <p className="text-xs text-gray-400 font-mono font-bold">{acc.accountNumber}</p>
-                    {acc.branch && <p className="text-[10px] text-gray-400">শাখা: {acc.branch}</p>}
-                  </div>
-                  <div className="text-gray-300 group-hover:text-indigo-100 transition-colors">
-                    <Building2 className="w-8 h-8" />
-                  </div>
-                </div>
-
-                <div className="border-t border-gray-50 mt-4 pt-3 flex items-baseline justify-between">
-                  <span className="text-[10px] text-gray-400 font-bold">চলতি স্থিতি (Balance):</span>
-                  <span className="text-xl font-black text-gray-900">{formatPrice(acc.balance || 0)}</span>
-                </div>
-
-                {/* Delete overlay hover button */}
-                <button 
-                  onClick={() => {
-                    if (window.confirm('এই ব্যাংক অ্যাকাউন্টটি ডিলিট করতে চান? সব ট্রানজেকশন ডেটা নষ্ট হতে পারে।')){
-                      deleteBankAccount(acc.id);
-                    }
-                  }}
-                  className="absolute top-3 right-3 text-red-200 hover:text-red-600 p-1.5 hover:bg-rose-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                  title="অ্যাকাউন্ট ডিলিট"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider">সংক্ষিপ্ত নোট</label>
+                <input
+                  type="text"
+                  placeholder="নোট লিখুন"
+                  value={payoutForm.notes}
+                  onChange={(e) => setPayoutForm({ ...payoutForm, notes: e.target.value })}
+                  className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-orange-300 focus:outline-none"
+                />
               </div>
-            ))}
-          </div>
-
-          {/* Bank Transactions History table */}
-          <div className="bg-white border border-gray-100 rounded-[20px] shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-50">
-              <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">তহবিল লেনদেনের বিস্তারিত ইতিহাস</h3>
-              <p className="text-[10px] text-gray-400 mt-0.5">সবগুলো গেটওয়ে এবং ব্যাংক অ্যাকাউন্টের ক্যাশ ইন এবং ক্যাশ আউট লগ</p>
             </div>
+
+            <button
+              type="submit"
+              disabled={isSubmittingPayout}
+              className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-gray-300 text-white font-black text-[10px] py-2.5 rounded-xl transition-all shadow-sm uppercase tracking-wider cursor-pointer"
+            >
+              {isSubmittingPayout ? 'যোগ হচ্ছে...' : 'পেআউট রেকর্ড যোগ করুন'}
+            </button>
+          </form>
+
+          {/* Payout list */}
+          <div className="space-y-3">
+            <h4 className="text-[11px] font-black uppercase tracking-wider text-gray-500">পেআউট তালিকা (Payout Registry)</h4>
             
-            <div className="overflow-x-auto">
-              {bankTransactions.length === 0 ? (
-                <div className="p-8 text-center text-xs text-gray-400">কোনো ব্যাংক লেনদেন লগ পাওয়া যায়নি।</div>
+            <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+              {pathaoPayouts.length === 0 ? (
+                <div className="p-6 text-center text-xs text-gray-400 border border-dashed border-gray-150 rounded-2xl">
+                  কোনো পেআউট তালিকা পাওয়া যায়নি।
+                </div>
               ) : (
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50/50 text-gray-400 border-b border-gray-100 uppercase tracking-wider font-black text-[9px]">
-                      <th className="py-4 px-6">তারিখ</th>
-                      <th className="py-4 px-6">অ্যাকাউন্ট</th>
-                      <th className="py-4 px-6">লেনদেনের ধরন</th>
-                      <th className="py-4 px-6">পরিমাণ (৳)</th>
-                      <th className="py-4 px-6">রেফারেন্স / ট্রানজেকশন আইডি</th>
-                      <th className="py-4 px-6">নোট / বিবরণ</th>
-                      <th className="py-4 px-6 text-center w-24">বাতিল</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50 font-bold text-gray-700">
-                    {bankTransactions.map(tx => {
-                      const acc = bankAccounts.find(a => a.id === tx.accountId);
-                      return (
-                        <tr key={tx.id} className="hover:bg-gray-50/20 transition-colors">
-                          <td className="py-4 px-6 text-gray-400 text-[10px] font-medium">
-                            {new Date(tx.date).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                          </td>
-                          <td className="py-4 px-6 text-gray-900">
-                            <div>{acc ? acc.bankName : 'Unknown'}</div>
-                            <div className="text-[10px] text-gray-400 font-normal">{acc ? acc.accountName : ''}</div>
-                          </td>
-                          <td className="py-4 px-6">
-                            <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase ${
-                              tx.type === 'deposit' 
-                                ? 'bg-emerald-50 text-emerald-600' 
-                                : tx.type === 'withdraw' 
-                                ? 'bg-rose-50 text-rose-600' 
-                                : 'bg-indigo-50 text-indigo-600'
-                            }`}>
-                              {tx.type === 'deposit' ? 'জমা (Deposit)' : tx.type === 'withdraw' ? 'উত্তোলন (Cashout)' : 'স্থানান্তর (Transfer)'}
+                pathaoPayouts.map(payout => {
+                  const acc = bankAccounts.find(a => a.id === payout.accountId);
+                  return (
+                    <div key={payout.id} className="bg-[#FCFDFE] border border-gray-150 rounded-2xl p-3.5 space-y-2 flex flex-col justify-between hover:border-gray-300 transition-all">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-0.5 text-left">
+                          <span className="text-[10px] text-gray-400 font-black">
+                            {new Date(payout.date).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </span>
+                          <h5 className="text-xs font-black text-gray-900">{acc?.bankName || 'Unknown Wallet'}</h5>
+                          <p className="text-[9px] text-gray-400 font-normal">{acc?.accountName}</p>
+                          {payout.reference && (
+                            <span className="inline-block font-mono text-[8px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded mt-1 mr-1">
+                              Ref: {payout.reference}
                             </span>
-                          </td>
-                          <td className={`py-4 px-6 text-right font-black ${tx.type === 'deposit' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            {tx.type === 'deposit' ? '+' : '-'} {formatPrice(tx.amount)}
-                          </td>
-                          <td className="py-4 px-6 text-gray-900 font-mono font-bold">{tx.reference || '-'}</td>
-                          <td className="py-4 px-6 text-gray-400 font-medium">{tx.notes || '-'}</td>
-                          <td className="py-4 px-6 text-center">
-                            <button 
+                          )}
+                          {payout.notes && (
+                            <p className="text-[9px] text-gray-500 mt-1 italic font-medium">“{payout.notes}”</p>
+                          )}
+                        </div>
+
+                        <div className="text-right flex flex-col items-end justify-between h-full min-h-[60px]">
+                          <span className="text-sm font-black text-slate-800 block">+{formatPrice(payout.amount)}</span>
+                          
+                          <div className="mt-2 flex items-center justify-end gap-1.5">
+                            {payout.status === 'Pending' ? (
+                              <button
+                                onClick={() => {
+                                  if(window.confirm('আপনি কি এই পেআউটটি Paid হিসেবে চিহ্নিত করতে চান? এটি স্বয়ংক্রিয়ভাবে ব্যাংক ব্যালেন্সে যোগ করবে!')){
+                                    updatePathaoPayoutStatus(payout.id, 'Paid');
+                                  }
+                                }}
+                                className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-100 rounded-lg text-[9px] font-black transition-all cursor-pointer flex items-center gap-1"
+                                title="Mark as Paid"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                পেন্ডিং (Mark Paid)
+                              </button>
+                            ) : (
+                              <span className="px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-[9px] font-black flex items-center gap-1 select-none">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                পেইড (Paid)
+                              </span>
+                            )}
+
+                            <button
                               onClick={() => {
-                                if(window.confirm('এই লেনদেনটি মুছতে চান?')){
-                                  deleteBankTransaction(tx.id);
+                                if(window.confirm('এই পেআউট এন্ট্রিটি মুছে ফেলতে চান?')){
+                                  deletePathaoPayout(payout.id);
                                 }
                               }}
-                              className="text-red-400 hover:text-red-600 p-1.5 hover:bg-rose-50 rounded-lg transition-colors"
+                              className="text-gray-300 hover:text-rose-600 p-1.5 rounded-lg transition-colors cursor-pointer"
+                              title="মুছে ফেলুন"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
         </div>
-      )}
+
+      </div>
+
+    </div>
 
       {/* --- MODAL DIALOGS --- */}
 
-      {/* 1. Partner Transaction Modal */}
-      {showPartnerTxModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-gray-900">অংশীদার টাকা জমা ও উত্তোলন</h3>
-              <button onClick={() => setShowPartnerTxModal(false)} className="text-gray-400 hover:text-black transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handlePartnerTxSubmit} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">অংশীদার সিলেক্ট করুন *</label>
-                <select 
-                  required
-                  value={partnerTxForm.partnerId} 
-                  onChange={(e) => setPartnerTxForm({ ...partnerTxForm, partnerId: e.target.value })}
-                  className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
-                >
-                  <option value="">সিলেক্ট করুন...</option>
-                  {partners.map(p => (
-                    <option key={p.id} value={p.id}>{p.name} ({p.sharePercent}%)</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">লেনদেনের ধরন *</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button 
-                    type="button"
-                    onClick={() => setPartnerTxForm({ ...partnerTxForm, type: 'investment' })}
-                    className={`py-3 rounded-xl border text-xs font-black transition-all ${partnerTxForm.type === 'investment' ? 'border-indigo-600 bg-indigo-50/50 text-indigo-600' : 'border-gray-200 text-gray-500 bg-[#FCFDFE]'}`}
-                  >
-                    মূলধন জমা (Investment)
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => setPartnerTxForm({ ...partnerTxForm, type: 'withdrawal' })}
-                    className={`py-3 rounded-xl border text-xs font-black transition-all ${partnerTxForm.type === 'withdrawal' ? 'border-rose-600 bg-rose-50/50 text-rose-600' : 'border-gray-200 text-gray-500 bg-[#FCFDFE]'}`}
-                  >
-                    টাকা উত্তোলন (Withdrawal)
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">টাকার পরিমাণ (৳) *</label>
-                <input 
-                  required
-                  type="number" 
-                  step="any"
-                  placeholder="0.00"
-                  value={partnerTxForm.amount} 
-                  onChange={(e) => setPartnerTxForm({ ...partnerTxForm, amount: e.target.value })}
-                  className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">বিবরণ / নোট</label>
-                <input 
-                  type="text" 
-                  placeholder="উদা: নতুন কাঁচামাল ক্রয়ের ইনভেস্টমেন্ট"
-                  value={partnerTxForm.notes} 
-                  onChange={(e) => setPartnerTxForm({ ...partnerTxForm, notes: e.target.value })}
-                  className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
-                />
-              </div>
-
-              <button 
-                type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs py-3 rounded-xl transition-all shadow-sm uppercase tracking-wider"
-              >
-                লেনদেন যোগ করুন
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 2. Profit Sharing Modal */}
-      {showProfitModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-gray-900 flex items-center gap-1.5">
-                <Percent className="w-5 h-5 text-emerald-600" />
-                অটো লাভ বন্টন ক্যালকুলেটর (Profit Split)
-              </h3>
-              <button onClick={() => setShowProfitModal(false)} className="text-gray-400 hover:text-black transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleProfitSubmit} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">বন্টনযোগ্য মোট মুনাফা (৳) *</label>
-                <input 
-                  required
-                  type="number" 
-                  step="any"
-                  placeholder="উদা: ১০০০০"
-                  value={profitForm.totalProfit} 
-                  onChange={(e) => setProfitForm({ ...profitForm, totalProfit: e.target.value })}
-                  className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">মুনাফা বিভাজনের মাধ্যম *</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button 
-                    type="button"
-                    onClick={() => setProfitForm({ ...profitForm, splitMethod: 'equal' })}
-                    className={`py-3 rounded-xl border text-xs font-black transition-all ${profitForm.splitMethod === 'equal' ? 'border-emerald-600 bg-emerald-50/50 text-emerald-600' : 'border-gray-200 text-gray-500 bg-[#FCFDFE]'}`}
-                  >
-                    সমানভাবে (Equal Split 1/3)
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => setProfitForm({ ...profitForm, splitMethod: 'percentage' })}
-                    className={`py-3 rounded-xl border text-xs font-black transition-all ${profitForm.splitMethod === 'percentage' ? 'border-emerald-600 bg-emerald-50/50 text-emerald-600' : 'border-gray-200 text-gray-500 bg-[#FCFDFE]'}`}
-                  >
-                    শেয়ার অনুপাতে (Share-Based)
-                  </button>
-                </div>
-              </div>
-
-              {/* Instant Share Live Preview */}
-              {parseFloat(profitForm.totalProfit) > 0 && (
-                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-2">
-                  <span className="text-[9px] font-black uppercase tracking-wider text-gray-400 block">বন্টনের লাইভ খসড়া:</span>
-                  {partners.map(p => {
-                    let share = 0;
-                    if (profitForm.splitMethod === 'equal') {
-                      share = parseFloat(profitForm.totalProfit) / (partners.length || 3);
-                    } else {
-                      share = parseFloat(profitForm.totalProfit) * (p.sharePercent / 100);
-                    }
-                    return (
-                      <div key={p.id} className="flex justify-between text-xs font-bold text-gray-700">
-                        <span>{p.name}:</span>
-                        <span>{formatPrice(Math.round(share * 100) / 100)}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              <button 
-                type="submit"
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs py-3 rounded-xl transition-all shadow-sm uppercase tracking-wider"
-              >
-                মুনাফা বন্টন নিশ্চিত করুন
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 3. Add Bank Account Modal */}
+      {/* 1. Add Bank Account Modal */}
       {showAddAccountModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-gray-900">নতুন ব্যাংক অ্যাকাউন্ট / ওয়ালেট যোগ</h3>
-              <button onClick={() => setShowAddAccountModal(false)} className="text-gray-400 hover:text-black transition-colors">
+              <button onClick={() => setShowAddAccountModal(false)} className="text-gray-400 hover:text-black transition-colors cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1047,7 +802,7 @@ export default function AdminFinance(): React.JSX.Element {
 
               <button 
                 type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs py-3 rounded-xl transition-all shadow-sm uppercase tracking-wider"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs py-3 rounded-xl transition-all shadow-sm uppercase tracking-wider cursor-pointer"
               >
                 অ্যাকাউন্ট যোগ করুন
               </button>
@@ -1056,13 +811,95 @@ export default function AdminFinance(): React.JSX.Element {
         </div>
       )}
 
-      {/* 4. Bank Transaction (Deposit/Withdrawal/Transfer) Modal */}
+      {/* Edit Bank Account Modal */}
+      {showEditAccountModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-black text-gray-900">ব্যাংক অ্যাকাউন্ট / ওয়ালেট সংশোধন</h3>
+              <button onClick={() => setShowEditAccountModal(false)} className="text-gray-400 hover:text-black transition-colors cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditAccountSubmit} className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">ব্যাংক বা ওয়ালেটের নাম *</label>
+                <input 
+                  required
+                  type="text" 
+                  placeholder="উদা: bKash Personal, City Bank"
+                  value={editAccountForm.bankName} 
+                  onChange={(e) => setEditAccountForm({ ...editAccountForm, bankName: e.target.value })}
+                  className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">অ্যাকাউন্টের নাম *</label>
+                <input 
+                  required
+                  type="text" 
+                  placeholder="উদা: Elegan BD Ltd"
+                  value={editAccountForm.accountName} 
+                  onChange={(e) => setEditAccountForm({ ...editAccountForm, accountName: e.target.value })}
+                  className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">অ্যাকাউন্ট নাম্বার / মোবাইল নাম্বার *</label>
+                <input 
+                  required
+                  type="text" 
+                  placeholder="উদা: 01XXXXXXXXX"
+                  value={editAccountForm.accountNumber} 
+                  onChange={(e) => setEditAccountForm({ ...editAccountForm, accountNumber: e.target.value })}
+                  className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">শাখা (Branch)</label>
+                <input 
+                  type="text" 
+                  placeholder="উদা: Mirpur-10 (ঐচ্ছিক)"
+                  value={editAccountForm.branch} 
+                  onChange={(e) => setEditAccountForm({ ...editAccountForm, branch: e.target.value })}
+                  className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">ব্যালেন্স (৳)</label>
+                <input 
+                  type="number" 
+                  step="any"
+                  placeholder="0.00"
+                  value={editAccountForm.balance || ''} 
+                  onChange={(e) => setEditAccountForm({ ...editAccountForm, balance: parseFloat(e.target.value) || 0 })}
+                  className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
+                />
+              </div>
+
+              <button 
+                type="submit"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs py-3 rounded-xl transition-all shadow-sm uppercase tracking-wider cursor-pointer"
+              >
+                আপডেট করুন
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Bank Transaction (Deposit/Withdrawal/Transfer) Modal */}
       {showBankTxModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-gray-900">তহবিল স্থানান্তর ও লেনদেন</h3>
-              <button onClick={() => setShowBankTxModal(false)} className="text-gray-400 hover:text-black transition-colors">
+              <button onClick={() => setShowBankTxModal(false)} className="text-gray-400 hover:text-black transition-colors cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1167,7 +1004,7 @@ export default function AdminFinance(): React.JSX.Element {
 
               <button 
                 type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs py-3 rounded-xl transition-all shadow-sm uppercase tracking-wider"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs py-3 rounded-xl transition-all shadow-sm uppercase tracking-wider cursor-pointer"
               >
                 লেনদেন যোগ করুন
               </button>

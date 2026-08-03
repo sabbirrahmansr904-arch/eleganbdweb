@@ -31,7 +31,7 @@ export default function Footer() {
           <div className="space-y-2 text-xs uppercase tracking-widest text-white font-bold leading-relaxed flex flex-col items-center">
             <p className="flex items-center justify-center gap-2">
               <span>📍</span>
-              Dhaka Mirpur-6, 1216
+              ১-এফ / ৩-১১ মিরপুর-১, ঢাকা ১২১৬
             </p>
             <p className="flex items-center justify-center gap-2">
               <span>📞</span>
@@ -72,6 +72,7 @@ export default function Footer() {
         <div className="flex flex-col items-center text-center">
           <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-white mb-2.5 italic">SHOPPING GUIDE</h4>
           <ul className="space-y-2 text-[10px] font-black uppercase tracking-widest text-white">
+            <li><Link to="/reviews" className="hover:text-gray-200 transition-colors">Customer Reviews</Link></li>
             <li><Link to="/track-order" className="hover:text-gray-200 transition-colors">Track Your Order</Link></li>
             <li><Link to="/category/new" className="hover:text-gray-200 transition-colors">New Arrivals</Link></li>
             <li><Link to="/shipping-policy" className="hover:text-gray-200 transition-colors">Shipping & Delivery</Link></li>

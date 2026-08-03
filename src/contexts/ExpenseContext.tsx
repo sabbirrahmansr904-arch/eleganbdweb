@@ -50,12 +50,16 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const deleteExpense = async (id: string) => {
+    if (!id) {
+      toast.error('রেকর্ড আইডি পাওয়া যায়নি!');
+      return;
+    }
     try {
       await deleteDoc(doc(db, 'expenses', id));
-      toast.success('খরচ মুছে ফেলা হয়েছে!');
+      toast.success('ডলার ক্রয়ের রেকর্ড সফলভাবে মুছে ফেলা হয়েছে!');
     } catch (err) {
       console.error('Error deleting expense:', err);
-      toast.error('খরচ মুছতে ব্যর্থ হয়েছে।');
+      toast.error('রেকর্ড মুছতে ব্যর্থ হয়েছে।');
     }
   };
 

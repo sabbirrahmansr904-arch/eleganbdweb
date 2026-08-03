@@ -29,7 +29,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       setLoading(true);
       try {
-        const q = query(collection(db, 'inventory_transactions'), orderBy('timestamp', 'desc'), limit(100));
+        const q = query(collection(db, 'inventory_transactions'), orderBy('timestamp', 'desc'));
         const snapshot = await getDocs(q);
         const transData: StockTransaction[] = [];
         snapshot.forEach(doc => {

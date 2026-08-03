@@ -1,9 +1,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ShoppingBag, ChevronRight, Zap, Star, ShieldCheck, ArrowRight, Truck, RotateCcw, Banknote, Sparkles } from 'lucide-react';
+import { ArrowRight, Truck, Award, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProducts } from '../contexts/ProductContext';
-import { useCategories } from '../contexts/CategoryContext';
 import { useBanners } from '../contexts/BannerContext';
 import { useBranding } from '../contexts/BrandingContext';
 import ProductCard from '../components/ProductCard';
@@ -11,10 +10,14 @@ import ReviewsCarousel from '../components/ReviewsCarousel';
 import { cn } from '../lib/utils';
 
 const Home = () => {
-  const { products, loading: productsLoading, offerProductIds = [] } = useProducts();
-  const { categories } = useCategories();
+  const { products, loading: productsLoading } = useProducts();
   const { banners } = useBanners();
-  const { heroBannerUrl, subHeroBannerUrl, collectionsBannerUrl, featureBannerUrl, poloBannerUrl, showHeroBanner, showCountdownBanner, categoryImages } = useBranding();
+  const { 
+    heroBannerUrl, 
+    showHeroBanner,
+    shirtBannerUrl,
+    pantBannerUrl
+  } = useBranding();
   
   const activeHeroBannersFromDb = banners.filter(b => b.active && b.type === 'hero' && b.image && !b.image.includes('unsplash.com'));
   
@@ -46,203 +49,222 @@ const Home = () => {
     }
   }, [activeHeroBanners.length]);
 
-  // Get products by category
-  const formalPants = products.filter(p => {
-    const cat = (p.category || '').toLowerCase().trim();
-    return cat === 'formal pant' || cat === 'formal-pant';
-  }).slice(0, 8);
+  // Sort products: Formal Pants FIRST, then Formal Shirts SECOND, then others
+  const sortedProducts = React.useMemo(() => {
+    if (!products || products.length === 0) return [];
+    
+    const isPant = (p: typeof products[0]) => {
+      const cat = (p.category || '').toLowerCase();
+      const name = (p.name || '').toLowerCase();
+      return cat.includes('pant') || cat.includes('trouser') || name.includes('pant') || name.includes('trouser');
+    };
 
-  const formalShirts = products.filter(p => {
-    const cat = (p.category || '').toLowerCase().trim();
-    return cat === 'formal shirt' || cat === 'formal-shirt' || cat === 'premium formal shirt' || cat === 'premium-formal-shirt';
-  }).slice(0, 8);
+    const isShirt = (p: typeof products[0]) => {
+      const cat = (p.category || '').toLowerCase();
+      const name = (p.name || '').toLowerCase();
+      return cat.includes('shirt') || name.includes('shirt') || cat.includes('polo') || name.includes('polo');
+    };
 
-  const poloTshirts = products.filter(p => {
-    const cat = (p.category || '').toLowerCase().trim();
-    return cat === 'polo t-shirt' || cat === 'polo-t-shirt' || cat === 'polo t shirt';
-  }).slice(0, 8);
-  const offerProducts = products.filter(p => offerProductIds.includes(p.id)).slice(0, 8);
-  const allCollection = products.slice(0, 12);
+    const pants = products.filter(p => isPant(p));
+    const shirts = products.filter(p => isShirt(p) && !isPant(p));
+    const others = products.filter(p => !isPant(p) && !isShirt(p));
+
+    return [...pants, ...shirts, ...others];
+  }, [products]);
+
+  const defaultShirtImage = "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=1000&q=80";
+  const defaultPantImage = "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=1000&q=80";
 
   return (
     <div className="flex flex-col min-h-screen bg-white">
-      {/* Hero Banner Carousel Section */}
-      {showHeroBanner && activeHeroBanners.length > 0 && (
-        <section className="relative w-full bg-gray-50 overflow-hidden">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentBanner}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.8 }}
-              className="w-full"
-            >
-              <img 
-                src={activeHeroBanners[currentBanner].image} 
-                alt={activeHeroBanners[currentBanner].title || "Hero Banner"} 
-                className="w-full h-auto block select-none pointer-events-none"
-                referrerPolicy="no-referrer"
-              />
-            </motion.div>
-          </AnimatePresence>
-          
-          {/* Slider Indicators */}
+      
+      {/* TOP SECTION: HERO BANNER (SLIGHTLY NARROWER & MOBILE-OPTIMIZED) */}
+      <section className="max-w-5xl mx-auto w-full px-4 sm:px-6 pt-4 sm:pt-6 pb-6 sm:pb-8">
+        <div className="bg-[#EAEAEA] rounded-2xl sm:rounded-3xl p-6 sm:p-10 md:p-12 relative overflow-hidden flex flex-col justify-between min-h-[220px] sm:min-h-[320px] md:min-h-[380px] shadow-xs">
+          {activeHeroBanners.length > 0 && showHeroBanner ? (
+            <div className="absolute inset-0 z-0">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentBanner}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.8 }}
+                  className="w-full h-full"
+                >
+                  <img 
+                    src={activeHeroBanners[currentBanner].image} 
+                    alt="Hero Banner" 
+                    className="w-full h-full object-cover object-center"
+                    referrerPolicy="no-referrer"
+                  />
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          ) : (
+            <>
+              {/* Fallback Hero Banner matching exact image template */}
+              <div className="relative z-10 max-w-xs sm:max-w-sm md:max-w-md my-auto">
+                <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-[#B8860B] mb-1 sm:mb-2 block">
+                  NEW COLLECTION 2024
+                </span>
+                <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-gray-950 tracking-tight leading-[1.15] mb-2 sm:mb-4">
+                  Elevate Your Formal Style
+                </h1>
+                <p className="text-[11px] sm:text-xs md:text-sm text-gray-600 font-medium mb-5 sm:mb-8 leading-relaxed max-w-xs">
+                  Premium Quality, Perfect Fit For Every Occasion.
+                </p>
+                <Link 
+                  to="/category/all" 
+                  className="inline-flex items-center gap-2 bg-black hover:bg-gray-800 text-white font-black text-[10px] sm:text-xs uppercase tracking-wider px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-md transition-all shadow-md active:scale-95"
+                >
+                  <span>SHOP NOW</span>
+                  <ArrowRight size={14} />
+                </Link>
+              </div>
+
+              {/* Hero Model Image on right */}
+              <div className="absolute right-0 bottom-0 top-0 w-1/2 hidden md:block z-0 pointer-events-none">
+                <img 
+                  src="https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?w=800&q=80" 
+                  alt="Formal Fashion Model" 
+                  className="w-full h-full object-cover object-top"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+            </>
+          )}
+
+          {/* Slider Dots if multiple hero banners */}
           {activeHeroBanners.length > 1 && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2.5 z-10">
+            <div className="absolute bottom-3 sm:bottom-4 left-4 sm:left-8 z-20 flex gap-2">
               {activeHeroBanners.map((_, idx) => (
                 <button
                   key={idx}
                   onClick={() => setCurrentBanner(idx)}
                   className={cn(
-                    "w-2.5 h-2.5 rounded-full transition-all cursor-pointer",
-                    currentBanner === idx ? "bg-brand-gold w-6" : "bg-white/40"
+                    "w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-all cursor-pointer",
+                    currentBanner === idx ? "bg-black w-5 sm:w-6" : "bg-black/30"
                   )}
                 />
               ))}
             </div>
           )}
-        </section>
-      )}
-
-
-
-      {/* Explore Our Top Collections Catalog */}
-      <section className="max-w-7xl mx-auto px-4 py-8 md:py-12">
-        <div className="text-center mb-10">
-          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-gold">Discover Style</span>
-          <h2 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter mt-1 text-[#5551FF]">
-            Explore Our Top Collections
-          </h2>
-          <div className="w-16 h-0.5 bg-black mx-auto mt-3 rounded-full" />
-        </div>
-
-        {/* Category Filter Buttons in Blue Boxes */}
-        <div className="flex flex-wrap justify-center gap-3 md:gap-5 my-6">
-          {[
-            { name: 'SHIRT', link: '/category/formal-shirt' },
-            { name: 'PANT', link: '/category/formal-pant' },
-            { name: 'CHECK SHIRT', link: '/category/premium-shirt' },
-            { name: 'ALL', link: '/category/all' }
-          ].map((item) => (
-            <Link 
-              key={item.name}
-              to={item.link}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs md:text-sm tracking-wider uppercase px-5 py-2 md:px-6 md:py-2.5 rounded-lg shadow-sm hover:shadow-md transition-all transform hover:-translate-y-0.5 active:translate-y-0"
-            >
-              {item.name}
-            </Link>
-          ))}
         </div>
       </section>
-      
-      {/* Category Sections */}
-      <div className="space-y-4 pt-4">
-        {/* Formal Pants */}
-        {formalPants.length > 0 && (
-          <section className="py-10 bg-white">
-            <div className="max-w-7xl mx-auto px-4">
-              <div className="mb-6 text-center">
-                <h3 className="text-xl md:text-3xl font-black italic tracking-tighter uppercase text-[#5551FF]">Formal Pants</h3>
-              </div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {formalPants.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
-              <div className="mt-8 flex justify-center">
-                <Link to="/category/formal-pant" className="text-[10px] font-black uppercase tracking-[0.3em] text-black hover:text-brand-gold transition-colors flex items-center gap-2">
-                  View All Formal Pants <ArrowRight size={14} />
-                </Link>
-              </div>
-            </div>
-          </section>
-        )}
 
-        {/* Promotion Combo Banner - Below Formal Pants, Above Formal Shirts */}
-        {(subHeroBannerUrl || featureBannerUrl) && (
-          <section className="max-w-7xl mx-auto px-4 py-4 md:py-6">
-            <div className="relative w-full overflow-hidden rounded-2xl shadow-sm border border-gray-100">
-              <img 
-                src={subHeroBannerUrl || featureBannerUrl} 
-                alt="Promotion Banner" 
-                className="w-full h-auto block select-none pointer-events-none"
-                referrerPolicy="no-referrer"
-              />
-            </div>
-          </section>
-        )}
+      {/* MIDDLE SECTION: 2 CATEGORY BANNERS (SHIRTS & PANTS) WITH NO TEXT OVERLAY */}
+      <section className="max-w-7xl mx-auto w-full px-4 pb-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          {/* CATEGORY 1: SHIRTS BANNER (NO OVERLAY TEXT) */}
+          <Link 
+            to="/category/formal-shirt"
+            className="group block relative rounded-3xl overflow-hidden min-h-[220px] md:min-h-[260px] bg-gray-100 shadow-sm border border-gray-100/80 transition-all hover:shadow-md"
+          >
+            <img 
+              src={shirtBannerUrl || defaultShirtImage} 
+              alt="Shirts Category Banner" 
+              className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
+              referrerPolicy="no-referrer"
+            />
+          </Link>
 
-        {/* Formal Shirts */}
-        {formalShirts.length > 0 && (
-          <section className="py-10 bg-white">
-            <div className="max-w-7xl mx-auto px-4">
-              <div className="mb-6 text-center">
-                <h3 className="text-xl md:text-3xl font-black italic tracking-tighter uppercase text-[#5551FF]">Formal Shirts</h3>
-              </div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {formalShirts.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
-              <div className="mt-8 flex justify-center">
-                <Link to="/category/formal-shirt" className="text-[10px] font-black uppercase tracking-[0.3em] text-black hover:text-brand-gold transition-colors flex items-center gap-2">
-                  View All Formal Shirts <ArrowRight size={14} />
-                </Link>
-              </div>
-            </div>
-          </section>
-        )}
+          {/* CATEGORY 2: PANTS BANNER (NO OVERLAY TEXT) */}
+          <Link 
+            to="/category/formal-pant"
+            className="group block relative rounded-3xl overflow-hidden min-h-[220px] md:min-h-[260px] bg-gray-100 shadow-sm border border-gray-100/80 transition-all hover:shadow-md"
+          >
+            <img 
+              src={pantBannerUrl || defaultPantImage} 
+              alt="Pants Category Banner" 
+              className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
+              referrerPolicy="no-referrer"
+            />
+          </Link>
 
-        {/* Polo T-shirts */}
-        {poloTshirts.length > 0 && (
-          <section className="py-10 bg-gray-50">
-            <div className="max-w-7xl mx-auto px-4">
-              <div className="mb-6 text-center">
-                <h3 className="text-xl md:text-3xl font-black italic tracking-tighter uppercase text-black">Polo T-shirts</h3>
-              </div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {poloTshirts.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
-              <div className="mt-8 flex justify-center">
-                <Link to="/category/polo-t-shirt" className="text-[10px] font-black uppercase tracking-[0.3em] text-black hover:text-brand-gold transition-colors flex items-center gap-2">
-                  View All Polo T-shirts <ArrowRight size={14} />
-                </Link>
-              </div>
-            </div>
-          </section>
-        )}
+        </div>
+      </section>
 
-        {/* Customer Reviews & Testimonials section */}
-        <ReviewsCarousel />
+      {/* ALL COLLECTIONS - MAIN PRODUCT SECTION SHOWING FORMAL PANTS FIRST, THEN FORMAL SHIRTS */}
+      <section className="max-w-7xl mx-auto w-full px-4 pb-16">
+        {/* Section Header: ALL COLLECTIONS ____ VIEW ALL -> */}
+        <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-8">
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl md:text-2xl font-black uppercase text-gray-950 tracking-tight">
+              ALL COLLECTIONS
+            </h2>
+            <div className="w-10 h-0.5 bg-gray-300 rounded-full hidden sm:block" />
+          </div>
+          <Link 
+            to="/category/all" 
+            className="flex items-center gap-1 text-xs font-black uppercase text-gray-900 hover:text-blue-600 transition-colors tracking-wider"
+          >
+            <span>VIEW ALL</span>
+            <ArrowRight size={14} />
+          </Link>
+        </div>
 
-        {/* Exclusive Offers */}
-        {offerProducts.length > 0 && (
-          <section className="py-12 bg-red-50/20 border-t border-red-100/50 mt-6">
-            <div className="max-w-7xl mx-auto px-4">
-              <div className="mb-8 text-center">
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-100 text-red-600 rounded-full text-[10px] font-black uppercase tracking-wider mb-2">
-                  <Zap size={10} className="fill-red-600 text-red-600" /> Hot Deals
-                </span>
-                <h3 className="text-2xl md:text-3xl font-black italic tracking-tighter uppercase text-red-600">Exclusive Offers</h3>
-                <div className="w-12 h-0.5 bg-red-600 mx-auto mt-2 rounded-full" />
-              </div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
-                {offerProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
-              <div className="mt-8 flex justify-center">
-                <Link to="/category/offers" className="text-[10px] font-black uppercase tracking-[0.3em] text-red-600 hover:text-red-700 transition-colors flex items-center gap-2">
-                  View All Offers <ArrowRight size={14} />
-                </Link>
-              </div>
-            </div>
-          </section>
+        {/* Product Grid displaying sorted products (Pants first, then Shirts) */}
+        {productsLoading ? (
+          <div className="py-20 text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
+            <p className="text-xs font-bold text-gray-400 mt-3 uppercase tracking-wider">Loading collections...</p>
+          </div>
+        ) : sortedProducts.length === 0 ? (
+          <div className="py-16 text-center bg-gray-50 rounded-2xl border border-gray-100">
+            <p className="text-sm font-bold text-gray-500">No products available at the moment.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
+            {sortedProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
         )}
-      </div>
+      </section>
+
+      {/* BRAND VALUE PROPOSITIONS - SEPARATE BLUE BOXES IN 1 LINE ABOVE FOOTER */}
+      <section className="max-w-7xl mx-auto w-full px-4 pb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+          {/* Box 1 */}
+          <div className="bg-blue-600 hover:bg-blue-700 rounded-2xl p-6 text-white flex items-center gap-4 shadow-md transition-all">
+            <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-xs flex items-center justify-center shrink-0 border border-white/20">
+              <Award className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-white">PREMIUM QUALITY</h4>
+              <p className="text-[11px] font-medium text-blue-100 mt-0.5">Finest materials</p>
+            </div>
+          </div>
+
+          {/* Box 2 */}
+          <div className="bg-blue-600 hover:bg-blue-700 rounded-2xl p-6 text-white flex items-center gap-4 shadow-md transition-all">
+            <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-xs flex items-center justify-center shrink-0 border border-white/20">
+              <Truck className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-white">FAST DELIVERY</h4>
+              <p className="text-[11px] font-medium text-blue-100 mt-0.5">Across Bangladesh</p>
+            </div>
+          </div>
+
+          {/* Box 3 */}
+          <div className="bg-blue-600 hover:bg-blue-700 rounded-2xl p-6 text-white flex items-center gap-4 shadow-md transition-all">
+            <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-xs flex items-center justify-center shrink-0 border border-white/20">
+              <Lock className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-white">SECURE PAYMENT</h4>
+              <p className="text-[11px] font-medium text-blue-100 mt-0.5">100% secure checkout</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* REVIEWS & TESTIMONIALS SECTION */}
+      <ReviewsCarousel />
+
     </div>
   );
 };

@@ -105,7 +105,7 @@ export default function InvoiceTemplate({ order, preview = false }: InvoiceProps
             Fashion in everyday life make you stylist
           </p>
           <div className="mt-1 text-[9.5px] font-medium text-gray-600 leading-tight">
-            <span>Mirpur-1, Dhaka, Bangladesh</span>
+            <span>১-এফ / ৩-১১ মিরপুর-১, ঢাকা ১২১৬</span>
             <span className="mx-1">|</span>
             <span className="font-mono-numbers">01327772213</span>
           </div>

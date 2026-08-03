@@ -39,6 +39,7 @@ import CustomerDashboard from './pages/CustomerDashboard';
 import ProductList from './pages/ProductList';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
+import Reviews from './pages/Reviews';
 import { MetaPixel } from './components/MetaPixel';
 
 // Admin Pages
@@ -99,6 +100,7 @@ function AppRoutes() {
         <Route path="/track-order" element={<TrackOrder />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />
+        <Route path="/reviews" element={<Reviews />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/support" element={<Support />} />

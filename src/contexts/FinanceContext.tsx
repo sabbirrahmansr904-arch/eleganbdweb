@@ -14,7 +14,7 @@ import {
   getDocs,
   runTransaction
 } from 'firebase/firestore';
-import { Partner, PartnerTransaction, BankAccount, BankTransaction } from '../types';
+import { Partner, PartnerTransaction, BankAccount, BankTransaction, PathaoPayout } from '../types';
 import toast from 'react-hot-toast';
 import { useAuth } from './AuthContext';
 
@@ -23,6 +23,7 @@ interface FinanceContextType {
   partnerTransactions: PartnerTransaction[];
   bankAccounts: BankAccount[];
   bankTransactions: BankTransaction[];
+  pathaoPayouts: PathaoPayout[];
   loading: boolean;
   
   // Partner Operations
@@ -37,6 +38,11 @@ interface FinanceContextType {
   deleteBankAccount: (accId: string) => Promise<void>;
   addBankTransaction: (tx: Omit<BankTransaction, 'id' | 'date'> & { date?: number }, targetAccountId?: string) => Promise<void>;
   deleteBankTransaction: (txId: string) => Promise<void>;
+
+  // Pathao Payout Operations
+  addPathaoPayout: (payout: Omit<PathaoPayout, 'id'>) => Promise<void>;
+  updatePathaoPayoutStatus: (payoutId: string, status: 'Pending' | 'Paid') => Promise<void>;
+  deletePathaoPayout: (payoutId: string) => Promise<void>;
 }
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
@@ -46,6 +52,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [partnerTransactions, setPartnerTransactions] = useState<PartnerTransaction[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([]);
+  const [pathaoPayouts, setPathaoPayouts] = useState<PathaoPayout[]>([]);
   const [loading, setLoading] = useState(true);
 
   const { isAdmin } = useAuth();
@@ -57,6 +64,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setPartnerTransactions([]);
       setBankAccounts([]);
       setBankTransactions([]);
+      setPathaoPayouts([]);
       setLoading(false);
       return;
     }
@@ -156,11 +164,23 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setLoading(false);
     });
 
+    const unsubPathaoPayouts = onSnapshot(collection(db, 'pathao_payouts'), (snapshot) => {
+      const list: PathaoPayout[] = [];
+      snapshot.forEach(docSnap => {
+        list.push({ ...docSnap.data() as PathaoPayout, id: docSnap.id });
+      });
+      list.sort((a, b) => b.date - a.date);
+      setPathaoPayouts(list);
+    }, (error) => {
+      console.error('Error fetching pathao payouts:', error);
+    });
+
     return () => {
       unsubPartners();
       unsubPartnerTxs();
       unsubBankAccounts();
       unsubBankTxs();
+      unsubPathaoPayouts();
     };
   }, [isAdmin]);
 
@@ -474,12 +494,110 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
+  // Add Pathao Payout
+  const addPathaoPayout = async (payout: Omit<PathaoPayout, 'id'>) => {
+    try {
+      const payoutRef = doc(collection(db, 'pathao_payouts'));
+      const newPayout: PathaoPayout = {
+        ...payout,
+        id: payoutRef.id
+      };
+      await setDoc(payoutRef, newPayout);
+      toast.success('নতুন পাঠাও পেআউট এন্ট্রি যোগ করা হয়েছে!');
+    } catch (err) {
+      console.error('Error adding pathao payout:', err);
+      toast.error('পেআউট যোগ করতে ব্যর্থ হয়েছে।');
+    }
+  };
+
+  // Update Pathao Payout Status (and update corresponding Bank Account Balance)
+  const updatePathaoPayoutStatus = async (payoutId: string, status: 'Pending' | 'Paid') => {
+    try {
+      const payoutRef = doc(db, 'pathao_payouts', payoutId);
+      
+      await runTransaction(db, async (transaction) => {
+        const payoutSnap = await transaction.get(payoutRef);
+        if (!payoutSnap.exists()) {
+          throw new Error('Payout record does not exist');
+        }
+
+        const payoutData = payoutSnap.data() as PathaoPayout;
+        if (payoutData.status === status) return; // No change
+
+        const accRef = doc(db, 'bank_accounts', payoutData.accountId);
+        const accSnap = await transaction.get(accRef);
+        
+        if (!accSnap.exists()) {
+          throw new Error('Target bank account does not exist');
+        }
+
+        const accData = accSnap.data() as BankAccount;
+        let newBalance = accData.balance || 0;
+
+        if (status === 'Paid') {
+          // Add to bank balance
+          newBalance += payoutData.amount;
+          transaction.update(accRef, { balance: newBalance });
+
+          // Log bank transaction
+          const txRef = doc(collection(db, 'bank_transactions'));
+          const tx: BankTransaction = {
+            id: txRef.id,
+            accountId: payoutData.accountId,
+            type: 'deposit',
+            amount: payoutData.amount,
+            date: Date.now(),
+            reference: payoutData.reference || 'Pathao Payout',
+            notes: payoutData.notes || 'পাঠাও কুরিয়ার পে-আউট জমা (Paid)'
+          };
+          transaction.set(txRef, tx);
+        } else if (status === 'Pending' && payoutData.status === 'Paid') {
+          // Revert: subtract from bank balance
+          newBalance = Math.max(0, newBalance - payoutData.amount);
+          transaction.update(accRef, { balance: newBalance });
+
+          // Log bank transaction showing reversal / adjustment
+          const txRef = doc(collection(db, 'bank_transactions'));
+          const tx: BankTransaction = {
+            id: txRef.id,
+            accountId: payoutData.accountId,
+            type: 'withdraw',
+            amount: payoutData.amount,
+            date: Date.now(),
+            reference: 'Payout Reversal',
+            notes: 'পাঠাও পেআউট রিভার্সাল / স্ট্যাটাস পরিবর্তন'
+          };
+          transaction.set(txRef, tx);
+        }
+
+        transaction.update(payoutRef, { status });
+      });
+
+      toast.success('পেআউট তথ্য ও ব্যাংক সমন্বয় সফল হয়েছে!');
+    } catch (err: any) {
+      console.error('Error updating pathao payout status:', err);
+      toast.error(err.message || 'স্ট্যাটাস আপডেট করতে ব্যর্থ হয়েছে।');
+    }
+  };
+
+  // Delete Pathao Payout
+  const deletePathaoPayout = async (payoutId: string) => {
+    try {
+      await deleteDoc(doc(db, 'pathao_payouts', payoutId));
+      toast.success('পাঠাও পেআউট এন্ট্রি মুছে ফেলা হয়েছে!');
+    } catch (err) {
+      console.error('Error deleting pathao payout:', err);
+      toast.error('মুছে ফেলতে ব্যর্থ হয়েছে।');
+    }
+  };
+
   return (
     <FinanceContext.Provider value={{
       partners,
       partnerTransactions,
       bankAccounts,
       bankTransactions,
+      pathaoPayouts,
       loading,
       updatePartner,
       addPartnerTransaction,
@@ -489,7 +607,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       updateBankAccount,
       deleteBankAccount,
       addBankTransaction,
-      deleteBankTransaction
+      deleteBankTransaction,
+      addPathaoPayout,
+      updatePathaoPayoutStatus,
+      deletePathaoPayout
     }}>
       {children}
     </FinanceContext.Provider>

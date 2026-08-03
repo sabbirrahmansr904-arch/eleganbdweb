@@ -147,9 +147,9 @@ const ProductCard = React.memo(({ product, onAddToCart, loading = "lazy" }: Prod
           </button>
         </div>
         
-        <div className="absolute top-2 left-2">
-          <span className="bg-red-500 text-white px-2 py-0.5 text-[7px] md:text-[8px] uppercase tracking-widest font-bold">
-            Sale
+        <div className="absolute top-2 left-2 z-10">
+          <span className="bg-black text-white px-2 py-0.5 text-[8px] font-black uppercase tracking-wider rounded-xs shadow-2xs">
+            NEW
           </span>
         </div>
       </Link>

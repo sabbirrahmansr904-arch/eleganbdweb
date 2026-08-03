@@ -159,9 +159,28 @@
         "timestamp": { "type": "number" }
       },
       "required": ["phone", "message", "status", "timestamp"]
+    },
+    "PathaoPayout": {
+      "title": "PathaoPayout",
+      "description": "Payout tracker from Pathao Courier to Bank Account",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "accountId": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "number" },
+        "status": { "type": "string", "enum": ["Pending", "Paid"] },
+        "reference": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["accountId", "amount", "date", "status"]
     }
   },
   "firestore": {
+    "/pathao_payouts/{payoutId}": {
+      "schema": { "$ref": "#/entities/PathaoPayout" },
+      "description": "Stored Pathao-to-Bank transfers (read/write admin)"
+    },
     "/products/{productId}": {
       "schema": { "$ref": "#/entities/Product" },
       "description": "Stored products (read all, write admin)"

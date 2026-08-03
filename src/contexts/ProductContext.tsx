@@ -90,73 +90,56 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      // Check for cache first
-      const cached = localStorage.getItem('eleganbd_products');
-      const lastFetched = localStorage.getItem('eleganbd_products_last_fetched');
-      const ONE_HOUR = 60 * 60 * 1000;
-      
-      if (cached && lastFetched && (Date.now() - parseInt(lastFetched) < ONE_HOUR)) {
-        setLoading(false);
-        return;
-      }
+    setLoading(true);
+    const productsCol = collection(db, 'products');
 
-      try {
-        setLoading(true);
-        const productsCol = collection(db, 'products');
-        const snapshot = await getDocs(productsCol);
-        
-        const prodData: Product[] = [];
-        snapshot.forEach(doc => {
-          const data = doc.data() as Product;
-          prodData.push({
-            ...data,
-            id: doc.id,
-            stock: data.stock || 0,
-            images: data.images || [],
-            sizes: data.sizes || [],
-            sizeStock: data.sizeStock || {}
-          });
+    const unsubscribe = onSnapshot(productsCol, (snapshot) => {
+      const prodData: Product[] = [];
+      snapshot.forEach(doc => {
+        const data = doc.data() as Product;
+        prodData.push({
+          ...data,
+          id: doc.id,
+          stock: data.stock || 0,
+          images: data.images || [],
+          sizes: data.sizes || [],
+          sizeStock: data.sizeStock || {}
         });
+      });
 
-        if (prodData.length > 0) {
-          const normalizedData = prodData.map(p => {
-             let category = p.category || '';
-             const lowerCategory = category.toLowerCase().trim();
-             if (lowerCategory === 'formal shirt' || lowerCategory === 'formal-shirt' || lowerCategory === 'premium formal shirt' || lowerCategory === 'premium-formal-shirt') {
-               category = 'Formal Shirt';
-             } else if (lowerCategory === 'drop shoulder t-shirt' || lowerCategory === 'drop-shoulder-t-shirt' || lowerCategory === 'panjabi') {
-               category = 'Polo T-shirt';
-             } else if (lowerCategory === 'polo t-shirt' || lowerCategory === 'polo-t-shirt' || lowerCategory === 'polo t shirt' || lowerCategory === 'polo t-shirt') {
-               category = 'Polo T-shirt';
-             } else if (lowerCategory === 'casual shirt' || lowerCategory === 'casual-shirt' || lowerCategory === 'woman palazzo' || lowerCategory === 'formal pant' || lowerCategory === 'formal-pant') {
-               if (lowerCategory === 'casual shirt' || lowerCategory === 'casual-shirt') {
-                 category = 'Formal Pant';
-               } else {
-                 category = 'Formal Pant';
-               }
-             } else if (lowerCategory === 'premium shirt' || lowerCategory === 'premium-shirt') {
-               category = 'Premium Shirt';
-             }
-             return { ...p, category };
-          });
-          setProducts(normalizedData);
-          localStorage.setItem('eleganbd_products', JSON.stringify(normalizedData));
-          localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
-        }
-      } catch (err: any) {
-        if (!err?.message?.includes('resource-exhausted') && !err?.message?.includes('Quota limit exceeded')) {
-          console.error("Product fetch error:", err);
-        }
-      } finally {
-        setLoading(false);
+      const normalizedData = prodData.map(p => {
+         let category = p.category || '';
+         const lowerCategory = category.toLowerCase().trim();
+         if (lowerCategory === 'formal shirt' || lowerCategory === 'formal-shirt' || lowerCategory === 'premium formal shirt' || lowerCategory === 'premium-formal-shirt') {
+           category = 'Formal Shirt';
+         } else if (lowerCategory === 'drop shoulder t-shirt' || lowerCategory === 'drop-shoulder-t-shirt' || lowerCategory === 'panjabi') {
+           category = 'Polo T-shirt';
+         } else if (lowerCategory === 'polo t-shirt' || lowerCategory === 'polo-t-shirt' || lowerCategory === 'polo t shirt' || lowerCategory === 'polo t-shirt') {
+           category = 'Polo T-shirt';
+         } else if (lowerCategory === 'casual shirt' || lowerCategory === 'casual-shirt' || lowerCategory === 'woman palazzo' || lowerCategory === 'formal pant' || lowerCategory === 'formal-pant') {
+           if (lowerCategory === 'casual shirt' || lowerCategory === 'casual-shirt') {
+             category = 'Formal Pant';
+           } else {
+             category = 'Formal Pant';
+           }
+         } else if (lowerCategory === 'premium shirt' || lowerCategory === 'premium-shirt') {
+           category = 'Premium Shirt';
+         }
+         return { ...p, category };
+      });
+
+      setProducts(normalizedData);
+      localStorage.setItem('eleganbd_products', JSON.stringify(normalizedData));
+      localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
+      setLoading(false);
+    }, (err: any) => {
+      if (!err?.message?.includes('resource-exhausted') && !err?.message?.includes('Quota limit exceeded')) {
+        console.error("Product fetch real-time error:", err);
       }
-    };
+      setLoading(false);
+    });
 
-    fetchProducts();
-
-    // Still optionally listen for changes if admin to keep UI synced, but only if not on a massive scale
-    // For now, let's remove onSnapshot to save quota
+    return () => unsubscribe();
   }, [isAdmin]);
 
   const addProduct = async (product: Product) => {

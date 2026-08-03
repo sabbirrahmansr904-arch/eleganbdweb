@@ -231,7 +231,7 @@ export default function TrackOrder() {
               <button 
                 type="submit"
                 disabled={loading}
-                className="h-14 px-8 bg-black hover:bg-gray-800 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all shrink-0 active:scale-95 disabled:bg-gray-300"
+                className="h-14 px-8 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all shrink-0 active:scale-95 disabled:bg-gray-300 shadow-md"
               >
                 <Search size={16} strokeWidth={2.5} />
                 <span>Track Now</span>

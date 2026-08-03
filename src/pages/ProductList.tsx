@@ -77,32 +77,7 @@ const ProductList = () => {
           </p>
         </div>
 
-        {/* Toolbar */}
-        <div className="sticky top-[120px] z-30 bg-white/95 backdrop-blur-md py-4 border-y border-gray-100 mb-8 flex items-center justify-between">
-          <button 
-            onClick={() => setShowFilters(true)}
-            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:text-brand-gold transition-colors text-black"
-          >
-            <Filter size={16} /> Filters
-          </button>
-
-          <div className="flex items-center gap-4">
-            <div className="relative group">
-              <select 
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="appearance-none bg-transparent text-[10px] font-black uppercase tracking-widest pr-8 pl-2 py-1 outline-none cursor-pointer"
-              >
-                <option value="newest">Newest First</option>
-                <option value="price-low">Price: Low to High</option>
-                <option value="price-high">Price: High to Low</option>
-              </select>
-              <ChevronDown size={14} className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 mt-6">
           {loading ? (
             Array(8).fill(0).map((_, i) => (
               <div key={i} className="aspect-[3/4] bg-gray-100 animate-pulse rounded-sm" />
@@ -122,94 +97,6 @@ const ProductList = () => {
         </div>
       </div>
 
-      {/* Filter Sidebar Mobile/Desktop Drawer */}
-      <AnimatePresence>
-        {showFilters && (
-          <>
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowFilters(false)}
-              className="fixed inset-0 bg-black/50 z-[100] backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              className="fixed right-0 top-0 h-screen w-full max-w-sm bg-white z-[101] shadow-2xl p-8 overflow-y-auto"
-            >
-              <div className="flex justify-between items-center mb-10">
-                <h2 className="text-xl font-black italic uppercase tracking-tighter text-black flex items-center gap-2">
-                  <SlidersHorizontal size={20} /> Filter By
-                </h2>
-                <button onClick={() => setShowFilters(false)} className="text-gray-400 hover:text-black">
-                  <X size={24} />
-                </button>
-              </div>
-
-              <div className="space-y-10">
-                {/* Size Filter */}
-                <div>
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-4">Select Size</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {['S', 'M', 'L', 'XL', 'XXL'].map(size => (
-                      <button
-                        key={size}
-                        onClick={() => toggleSize(size)}
-                        className={cn(
-                          "w-12 h-12 flex items-center justify-center text-xs font-bold border transition-all",
-                          selectedSizes.includes(size) ? "bg-black text-white border-black" : "bg-white text-black border-gray-100 hover:border-black"
-                        )}
-                      >
-                        {size}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Price Filter */}
-                <div>
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-4">Price Range</h4>
-                  <div className="space-y-4">
-                    <input 
-                      type="range" 
-                      min="0" 
-                      max="5000" 
-                      step="100"
-                      value={priceRange[1]}
-                      onChange={(e) => setPriceRange([0, parseInt(e.target.value)])}
-                      className="w-full h-1 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-brand-gold"
-                    />
-                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-black">
-                      <span>৳ 0</span>
-                      <span>৳ {priceRange[1]}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Reset Button */}
-                <button 
-                  onClick={() => {
-                    setSelectedSizes([]);
-                    setPriceRange([0, 5000]);
-                  }}
-                  className="w-full border border-gray-100 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 hover:text-black hover:border-black transition-all"
-                >
-                  Reset All Filters
-                </button>
-
-                <button 
-                  onClick={() => setShowFilters(false)}
-                  className="w-full bg-black text-white py-4 text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-brand-gold transition-all"
-                >
-                  Apply Filters
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
     </div>
   );
 };

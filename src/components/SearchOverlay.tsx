@@ -64,7 +64,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-[#0a0a0a] text-white z-[70] flex flex-col"
+          className="fixed inset-0 bg-black/75 backdrop-blur-lg text-white z-[70] flex flex-col"
         >
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-white/10">

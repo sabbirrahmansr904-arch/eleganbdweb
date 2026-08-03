@@ -249,7 +249,6 @@ export default function AdminLayout() {
     {
       items: [
         { name: 'Dashboard', path: '/admin', icon: Home, perm: 'dashboard' },
-        { name: 'Customers', path: '/admin/customers', icon: Users, perm: 'customers' },
         { name: 'Customer Profiler', path: '/admin/customer-profiler', icon: UserCheck, perm: 'customers' },
         { name: 'Orders', path: '/admin/orders', icon: FileText, perm: 'orders' },
         { name: 'Exchanges', path: '/admin/exchanges', icon: RefreshCw, perm: 'exchanges' },
@@ -273,8 +272,7 @@ export default function AdminLayout() {
     {
       items: [
         { name: 'Payments', path: '/admin/settings?tab=Payments', icon: CreditCard, perm: 'settings' },
-        { name: 'Partnership', path: '/admin/finance?tab=partnership', icon: Users, perm: 'finance' },
-        { name: 'Bank', path: '/admin/finance?tab=bank', icon: DollarSign, perm: 'finance' },
+        { name: 'Bank', path: '/admin/finance', icon: DollarSign, perm: 'finance' },
         { name: 'Expenses', path: '/admin/expenses', icon: CreditCard, perm: 'finance' },
       ]
     },

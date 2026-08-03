@@ -185,12 +185,25 @@ export interface BankTransaction {
   notes?: string;
 }
 
+export interface PathaoPayout {
+  id: string;
+  accountId: string;
+  amount: number;
+  date: number;
+  status: 'Pending' | 'Paid';
+  reference?: string;
+  notes?: string;
+}
+
 export interface Expense {
   id: string;
   description: string;
   category: string;
-  amount: number;
+  amount: number; // Total BDT spent
   date: number;
+  dollars?: number;
+  rate?: number;
+  source?: string;
   notes?: string;
   authorizedBy?: string;
 }

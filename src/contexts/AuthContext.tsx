@@ -12,6 +12,7 @@ interface AuthContextType {
   logoutCustomer: () => void;
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  isCEO: boolean;
   department: string;
   permissions: string[];
   loading: boolean;
@@ -36,6 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isCEO, setIsCEO] = useState(false);
   const [department, setDepartment] = useState<string>('Sales Executive Department');
   const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,7 +76,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isSuperAdminEmail = (email: string | null) => 
     !email ? false : [
-      'sabbirrahmansr904@gmail.com',
       'eleganbd.ltd@gmail.com',
       'shamiulislamatik@gmail.com',
       'elegantbd.ltd@gmail.com',
@@ -84,11 +85,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshAdminStatus = async () => {
     if (auth.currentUser) {
+      const email = auth.currentUser.email ? auth.currentUser.email.toLowerCase().trim() : '';
+      const ceoStatus = email === 'eleganbd.ltd@gmail.com';
+      setIsCEO(ceoStatus);
+
+      if (email === 'sabbirrahmansr904@gmail.com') {
+        setIsAdmin(true);
+        setIsSuperAdmin(false);
+        setPermissions(['dashboard', 'customers', 'orders', 'products', 'issues', 'masterTable', 'finance', 'settings']);
+        setDepartment('Sales Executive Department');
+        return;
+      }
+
       const superStatus = isSuperAdminEmail(auth.currentUser.email);
       setIsSuperAdmin(superStatus);
-      const email = auth.currentUser.email ? auth.currentUser.email.toLowerCase().trim() : '';
 
-      let fetchedDept = email === 'eleganbd.ltd@gmail.com' ? 'CEO & Founder' : (superStatus ? 'CEO & Founder' : 'Sales Executive Department');
+      let fetchedDept = ceoStatus ? 'CEO & Founder' : (superStatus ? 'CEO & Founder' : 'Sales Executive Department');
 
       if (superStatus) {
         setIsAdmin(true);
@@ -161,11 +173,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       setCurrentUser(user);
       if (user) {
+        const email = user.email ? user.email.toLowerCase().trim() : '';
+        const ceoStatus = email === 'eleganbd.ltd@gmail.com';
+        setIsCEO(ceoStatus);
+
+        if (email === 'sabbirrahmansr904@gmail.com') {
+          setIsAdmin(true);
+          setIsSuperAdmin(false);
+          setPermissions(['dashboard', 'customers', 'orders', 'products', 'issues', 'masterTable', 'finance', 'settings']);
+          setDepartment('Sales Executive Department');
+          setLoading(false);
+          return;
+        }
+
         const superStatus = isSuperAdminEmail(user.email);
         setIsSuperAdmin(superStatus);
-        const email = user.email ? user.email.toLowerCase().trim() : '';
 
-        let fetchedDept = email === 'eleganbd.ltd@gmail.com' ? 'CEO & Founder' : (superStatus ? 'CEO & Founder' : 'Sales Executive Department');
+        let fetchedDept = ceoStatus ? 'CEO & Founder' : (superStatus ? 'CEO & Founder' : 'Sales Executive Department');
         
         let adminStatus = superStatus;
         try {
@@ -257,6 +281,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setIsAdmin(false);
         setIsSuperAdmin(false);
+        setIsCEO(false);
         setPermissions([]);
         setDepartment('Sales Executive Department');
       }
@@ -329,6 +354,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logoutCustomer, 
       isAdmin,
       isSuperAdmin,
+      isCEO,
       department,
       permissions,
       loading, 

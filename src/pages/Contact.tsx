@@ -47,7 +47,7 @@ export default function Contact() {
               </div>
               <div>
                 <h4 className="text-[10px] uppercase tracking-widest text-brand-ink/40 font-bold mb-2">Visit Our Atelier</h4>
-                <p className="text-xl font-serif">Road 12, Banani, Dhaka, Bangladesh</p>
+                <p className="text-xl font-serif">১-এফ / ৩-১১ মিরপুর-১, ঢাকা ১২১৬</p>
               </div>
             </div>
           </div>

@@ -205,7 +205,7 @@ export default function AdminSettings() {
     { id: 'products', name: 'Products & Inventory', banglaName: 'প্রোডাক্ট ও স্টক', desc: 'প্রোডাক্ট অ্যাড, এডিট, ক্যাটালগ ও স্টক আপডেট' },
     { id: 'customers', name: 'Customers & Profiler', banglaName: 'কাস্টমার ডিরেক্টরি', desc: 'কাস্টমার প্রোফাইল ও পারচেজ হিস্ট্রি' },
     { id: 'masterTable', name: 'Master Table', banglaName: 'মাস্কেল টেবিল', desc: 'বাল্ক স্ক্যানিং, লেবেল প্রিন্ট ও দ্রুত প্রসেসিং' },
-    { id: 'finance', name: 'Finance & Accounts', banglaName: 'হিসাব-নিকাশ', desc: 'ব্যাংক ট্রানজেকশন, খরচ ও পার্টনারশিপ' },
+    { id: 'finance', name: 'Finance & Accounts', banglaName: 'হিসাব-নিকাশ', desc: 'ব্যাংক ট্রানজেকশন, অ্যাকাউন্ট ও খরচ' },
     { id: 'settings', name: 'Settings & Courier', banglaName: 'সেটিংস ও পাথাও', desc: 'স্টোর সেটিংস, পেমেন্ট ও পাথাও কুরিয়ার' },
   ];
   const [loadingAdmins, setLoadingAdmins] = useState(false);

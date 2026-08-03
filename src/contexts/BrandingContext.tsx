@@ -16,6 +16,8 @@ interface BrandingContextType {
   subHeroBannerUrl: string;
   featureBannerUrl: string;
   poloBannerUrl: string;
+  shirtBannerUrl: string;
+  pantBannerUrl: string;
   comboOfferBannerUrl: string;
   showShowcase: boolean;
   categoryImages: Record<string, string>;
@@ -42,6 +44,8 @@ interface BrandingContextType {
   setSubHeroBannerUrl: (url: string) => void;
   setFeatureBannerUrl: (url: string) => void;
   setPoloBannerUrl: (url: string) => void;
+  setShirtBannerUrl: (url: string) => void;
+  setPantBannerUrl: (url: string) => void;
   setComboOfferBannerUrl: (url: string) => void;
   setShowShowcase: (show: boolean) => void;
   setCategoryImageUrl: (category: string, url: string) => void;
@@ -549,11 +553,31 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     updateFirestore('branding', { aboutText: text });
   };
 
+  useEffect(() => {
+    const targetImage = logoUrl || heroBannerUrl;
+    if (targetImage && typeof document !== 'undefined') {
+      const ogImage = document.querySelector('meta[property="og:image"]');
+      if (ogImage) {
+        ogImage.setAttribute('content', targetImage);
+      }
+      const ogImageSecure = document.querySelector('meta[property="og:image:secure_url"]');
+      if (ogImageSecure) {
+        ogImageSecure.setAttribute('content', targetImage);
+      }
+      const twitterImage = document.querySelector('meta[name="twitter:image"]');
+      if (twitterImage) {
+        twitterImage.setAttribute('content', targetImage);
+      }
+    }
+  }, [logoUrl, heroBannerUrl]);
+
   return (
     <BrandingContext.Provider value={{ 
-      logoUrl, sizeChartUrl, collectionsBannerUrl, heroBannerUrl, subHeroBannerUrl, featureBannerUrl, poloBannerUrl, comboOfferBannerUrl, showShowcase, categoryImages, 
+      logoUrl, sizeChartUrl, collectionsBannerUrl, heroBannerUrl, subHeroBannerUrl, featureBannerUrl, poloBannerUrl,
+      shirtBannerUrl: featureBannerUrl, pantBannerUrl: poloBannerUrl, comboOfferBannerUrl, showShowcase, categoryImages, 
       showAnnouncementBar, announcementMessage, showCountdownBanner, showHeroBanner, facebookUrl, instagramUrl, youtubeUrl, tiktokUrl, shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter, primaryDeliveryDistrict, aboutText,
-      setLogoUrl, setSizeChartUrl, setCollectionsBannerUrl, setHeroBannerUrl, setSubHeroBannerUrl, setFeatureBannerUrl, setPoloBannerUrl, setComboOfferBannerUrl, setShowShowcase, setCategoryImageUrl,
+      setLogoUrl, setSizeChartUrl, setCollectionsBannerUrl, setHeroBannerUrl, setSubHeroBannerUrl, setFeatureBannerUrl, setPoloBannerUrl,
+      setShirtBannerUrl: setFeatureBannerUrl, setPantBannerUrl: setPoloBannerUrl, setComboOfferBannerUrl, setShowShowcase, setCategoryImageUrl,
       setShowAnnouncementBar, setAnnouncementMessage, setShowCountdownBanner, setShowHeroBanner, setFacebookUrl, setInstagramUrl, setYoutubeUrl, setTiktokUrl, setShippingInsideDhaka, setShippingOutsideDhaka, setShippingFreeAfter, setPrimaryDeliveryDistrict, setAboutText
     }}>
       {children}

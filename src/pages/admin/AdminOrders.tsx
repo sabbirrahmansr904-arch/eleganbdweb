@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import InvoiceTemplate from '../../components/admin/InvoiceTemplate';
+import { ParcelLiveStatusBadge } from '../../components/admin/ParcelLiveStatusBadge';
 import { useInvoiceByOptions } from '../../hooks/useInvoiceByOptions';
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
@@ -94,7 +95,7 @@ export default function AdminOrders(): React.JSX.Element {
   const { currency, rate } = useCurrency();
   const { orders, updateOrderStatus, updateOrder, addOrder, deleteOrder, getNextOrderId } = useOrders();
   const { products } = useProducts();
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, isCEO } = useAuth();
   const navigate = useNavigate();
 
   const changeStatus = async (status: Order['status']) => {
@@ -135,7 +136,7 @@ export default function AdminOrders(): React.JSX.Element {
   
   // Pathao Booking Modal States
   const [pathaoBookingOrder, setPathaoBookingOrder] = useState<Order | null>(null);
-  const [pathaoPickupStore, setPathaoPickupStore] = useState('Eleganbd—198/3 East Ahmed Nagar Paikpara Habuler Pukurpar Madrasha Galli, Dhaka 1216');
+  const [pathaoPickupStore, setPathaoPickupStore] = useState('Elegan BD — ১-এফ / ৩-১১ মিরপুর-১, ঢাকা ১২১৬');
   const [pathaoCity, setPathaoCity] = useState('Dhaka'); // Default to Dhaka
   const [pathaoZone, setPathaoZone] = useState('');
   const [pathaoArea, setPathaoArea] = useState('');
@@ -199,6 +200,7 @@ export default function AdminOrders(): React.JSX.Element {
   // Issue Conversation Modal States
   const [issueConversationOrder, setIssueConversationOrder] = useState<Order | null>(null);
   const [readyToShipClicked, setReadyToShipClicked] = useState(false);
+  const [cancelRequestedClicked, setCancelRequestedClicked] = useState(false);
 
   const [paymentsConfig, setPaymentsConfig] = useState({
     codEnabled: true,
@@ -249,6 +251,7 @@ export default function AdminOrders(): React.JSX.Element {
 
   useEffect(() => {
     setReadyToShipClicked(false);
+    setCancelRequestedClicked(false);
   }, [issueConversationOrder]);
   const [newIssueType, setNewIssueType] = useState('Normal');
   const [newUrgency, setNewUrgency] = useState('Normal');
@@ -1361,7 +1364,7 @@ export default function AdminOrders(): React.JSX.Element {
       const existingOrder = orders.find(o => o.id === editingOrderId);
       const updatedData: Partial<Order> = {
         customerName: newCustomerName,
-        email: newCustomerEmail || `${newCustomerPhone}@elegan.bd`,
+        email: newCustomerEmail || '',
         phone: newCustomerPhone,
         address: newCustomerAddress,
         city: newCustomerCity,
@@ -1392,7 +1395,7 @@ export default function AdminOrders(): React.JSX.Element {
       id: orderId,
       customerId: 'manual_admin',
       customerName: newCustomerName,
-      email: newCustomerEmail || `${newCustomerPhone}@elegan.bd`,
+      email: newCustomerEmail || '',
       phone: newCustomerPhone,
       address: newCustomerAddress,
       city: newCustomerCity,
@@ -1913,16 +1916,20 @@ export default function AdminOrders(): React.JSX.Element {
 
                       {/* Status Dropdown Pill */}
                       <td className="py-4 px-4 relative" onClick={(e) => e.stopPropagation()}>
-                        <button 
-                          onClick={() => setActiveStatusDropdownOrderId(activeStatusDropdownOrderId === order.id ? null : order.id)}
-                          className={cn(
-                            "inline-flex items-center justify-between gap-1.5 px-3 py-1.5 text-[10px] font-extrabold rounded-full border cursor-pointer select-none transition-all shadow-3xs",
-                            getStatusBadge(order.status).class
-                          )}
-                        >
-                          <span className="uppercase tracking-wider">{normalizeStatus(order.status)}</span>
-                          <ChevronDown size={11} className="stroke-[2.5]" />
-                        </button>
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1.5">
+                          <button 
+                            onClick={() => setActiveStatusDropdownOrderId(activeStatusDropdownOrderId === order.id ? null : order.id)}
+                            className={cn(
+                              "inline-flex items-center justify-between gap-1.5 px-3 py-1.5 text-[10px] font-extrabold rounded-full border cursor-pointer select-none transition-all shadow-3xs",
+                              getStatusBadge(order.status).class
+                            )}
+                          >
+                            <span className="uppercase tracking-wider">{normalizeStatus(order.status)}</span>
+                            <ChevronDown size={11} className="stroke-[2.5]" />
+                          </button>
+
+                          <ParcelLiveStatusBadge order={order} />
+                        </div>
                         
                         {activeStatusDropdownOrderId === order.id && (
                           <>
@@ -1941,7 +1948,12 @@ export default function AdminOrders(): React.JSX.Element {
                                 { key: 'HOLD', label: 'HOLD' },
                                 { key: 'RETURNED', label: 'RETURNED' },
                                 { key: 'CANCELLED', label: 'CANCELLED' },
-                              ].map(opt => {
+                              ].filter(opt => {
+                                if (isCEO) return true;
+                                const currentNorm = normalizeStatus(order.status);
+                                if (currentNorm === 'SHIPPED' || currentNorm === 'DELIVERED') return false;
+                                return ['ORDER PLACED', 'PENDING', 'PRINTED', 'PREPARING', 'PROCESSING'].includes(opt.key);
+                              }).map(opt => {
                                 const isSelected = normalizeStatus(order.status) === opt.key;
                                 return (
                                   <button
@@ -2582,6 +2594,13 @@ export default function AdminOrders(): React.JSX.Element {
                             <span>Found client: <span className="underline">{matchedCustomerFromOrders.name}</span> — Click to autofill address &amp; region</span>
                           </button>
                         )}
+
+                        {newCustomerPhone.trim().length >= 6 && !matchedCustomerFromOrders && (
+                          <div className="mt-1.5 w-full text-left bg-emerald-50/70 border border-emerald-200/50 rounded-xl px-3 py-2 text-[10px] font-black text-emerald-700 uppercase tracking-wider flex items-center gap-1.5 shadow-3xs">
+                            <Plus size={12} className="text-emerald-600 shrink-0" />
+                            <span>+ NEW PROFILE WILL BE CREATED</span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Grid for Name and City/Region */}
@@ -3097,7 +3116,7 @@ export default function AdminOrders(): React.JSX.Element {
                     PICKUP STORE
                   </label>
                   <div className="w-full bg-[#FAFBFD] border border-[#EFF2F6] rounded-xl px-4 py-3 text-sm font-bold text-gray-700 select-all leading-relaxed whitespace-nowrap overflow-x-auto text-left">
-                    Elegan BD. — 255-2d ahemd nagar mirpur 1 nea
+                    Elegan BD. — ১-এফ / ৩-১১ মিরপুর-১, ঢাকা ১২১৬
                   </div>
                 </div>
 
@@ -3468,6 +3487,13 @@ export default function AdminOrders(): React.JSX.Element {
                     <p className="text-[11px] font-bold text-indigo-600/70 font-mono mt-0.5">
                       Internal discussion thread for Invoice No: <span className="text-indigo-600 font-black">{issueConversationOrder.invoiceNo ? String(issueConversationOrder.invoiceNo) : issueConversationOrder.id.replace(/^ORD-?/i, '')}</span>
                     </p>
+                    {(readyToShipClicked || issueConversationOrder.status === 'Ready' || issueConversationOrder.status === 'QC') && (
+                      <div className="mt-1">
+                        <span className="inline-block px-2.5 py-0.5 bg-emerald-600 text-white text-[10px] font-black rounded-md uppercase tracking-wider shadow-xs border border-emerald-700">
+                          Ready
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -3503,15 +3529,20 @@ export default function AdminOrders(): React.JSX.Element {
                 
                 <div className="space-y-1">
                   <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Order Status</span>
-                  <span className="text-sm font-black text-slate-900 block uppercase">
-                    {issueConversationOrder.status === 'Shipped' ? (
-                      <span className="text-blue-600">Ready to Ship</span>
-                    ) : issueConversationOrder.status.toLowerCase() === 'delivered' ? (
-                      <span className="text-green-600">Delivered</span>
-                    ) : (
-                      issueConversationOrder.status === 'QC' ? 'QC PASSED' : (issueConversationOrder.status === 'Pending' ? 'ORDER PLACED' : issueConversationOrder.status.toUpperCase())
-                    )}
-                  </span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-black text-slate-900 block uppercase">
+                      {readyToShipClicked || issueConversationOrder.status === 'Ready' || issueConversationOrder.status === 'QC' ? (
+                        <span className="text-emerald-600 font-bold">Ready</span>
+                      ) : issueConversationOrder.status === 'Shipped' ? (
+                        <span className="text-blue-600">Shipped</span>
+                      ) : issueConversationOrder.status.toLowerCase() === 'delivered' ? (
+                        <span className="text-green-600">Delivered</span>
+                      ) : (
+                        issueConversationOrder.status === 'Pending' ? 'ORDER PLACED' : issueConversationOrder.status.toUpperCase()
+                      )}
+                    </span>
+                    <ParcelLiveStatusBadge order={issueConversationOrder} showDetails />
+                  </div>
                   <span className="text-[10px] font-bold text-slate-500 block uppercase truncate">VIA {issueConversationOrder.paymentMethod || '-'}</span>
                 </div>
 
@@ -3655,9 +3686,8 @@ export default function AdminOrders(): React.JSX.Element {
                   {/* Right side CTA stack matching exactly the screenshot buttons */}
                   <div className="flex flex-col gap-2 w-full sm:w-auto shrink-0">
                     
-                    {/* Solve button container for active issues */}
-                    {readyToShipClicked && issueConversationOrder.issueType && issueConversationOrder.issueStatus !== 'resolved' && (
-                      <div className="flex items-center justify-center p-3 bg-emerald-50 border border-emerald-200 rounded-2xl mb-1 shadow-sm">
+                    {(readyToShipClicked || issueConversationOrder.status === 'Ready' || issueConversationOrder.status === 'QC') ? (
+                      <div className="flex items-center justify-center p-2 bg-emerald-50 border border-emerald-200 rounded-2xl shadow-sm">
                         <button
                           onClick={async () => {
                             const systemReply = {
@@ -3678,82 +3708,93 @@ export default function AdminOrders(): React.JSX.Element {
                             });
                             toast.success("Issue marked as solved!");
                           }}
-                          className="flex items-center gap-2 px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-full uppercase tracking-wider transition-all shadow-md cursor-pointer hover:shadow-lg"
+                          className="flex items-center justify-center gap-2 px-8 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-full uppercase tracking-wider transition-all shadow-md cursor-pointer hover:shadow-lg w-full"
                         >
-                          <CheckCircle2 size={14} className="stroke-[2.5]" />
-                          SOLVE ISSUE
+                          <CheckCircle2 size={16} className="stroke-[2.5]" />
+                          SOLVE
                         </button>
                       </div>
+                    ) : (
+                      <>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => navigate(`/admin/exchanges?orderId=${issueConversationOrder.id}`)}
+                            className="flex items-center justify-center p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full transition-all"
+                            title="Create Exchange"
+                          >
+                            <ArrowLeftRight size={16} />
+                          </button>
+                          <button 
+                            onClick={async () => {
+                              await handleStatusChange(issueConversationOrder.id, 'Ready');
+                              setReadyToShipClicked(true);
+                              setIssueConversationOrder({
+                                ...issueConversationOrder,
+                                status: 'Ready'
+                              });
+                              toast.success("Order marked as Ready!");
+                            }}
+                            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 font-extrabold text-[10.5px] rounded-full uppercase tracking-wider transition-all shadow-md cursor-pointer hover:shadow-lg bg-[#5E50F9] hover:bg-[#4E40E9] text-white"
+                          >
+                            <Clock size={12} className="stroke-[2.5]" />
+                            READY TO SHIP
+                          </button>
+
+                          {!cancelRequestedClicked ? (
+                            <button 
+                              onClick={() => {
+                                setCancelRequestedClicked(true);
+                                toast.info("অর্ডার বাতিল চূড়ান্ত করতে 'APPROVED CANCEL' ক্লিক করুন");
+                              }}
+                              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 bg-[#FFAB00] hover:bg-[#e09600] text-white font-extrabold text-[10.5px] rounded-full uppercase tracking-wider transition-all shadow-md cursor-pointer hover:shadow-lg"
+                            >
+                              <AlertTriangle size={12} className="stroke-[2.5]" />
+                              CANCEL REQUEST
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={async () => {
+                                await handleStatusChange(issueConversationOrder.id, 'Cancelled');
+                                const systemReply = {
+                                  sender: 'system' as const,
+                                  message: `Sabbir approved cancellation`,
+                                  timestamp: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }) + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+                                };
+                                const existingReplies = issueConversationOrder.issueReplies || [];
+                                const updatedReplies = [...existingReplies, systemReply];
+                                await updateOrder(issueConversationOrder.id, {
+                                  issueReplies: updatedReplies,
+                                  status: 'Cancelled'
+                                });
+                                setIssueConversationOrder({
+                                  ...issueConversationOrder,
+                                  status: 'Cancelled',
+                                  issueReplies: updatedReplies
+                                });
+                                setCancelRequestedClicked(false);
+                                toast.success("Order Cancelled Successfully!");
+                              }}
+                              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-black text-[10.5px] rounded-full uppercase tracking-wider transition-all shadow-md cursor-pointer hover:shadow-lg animate-pulse"
+                            >
+                              <CheckCircle2 size={12} className="stroke-[2.5]" />
+                              APPROVED CANCEL
+                            </button>
+                          )}
+                        </div>
+
+                        <button 
+                          onClick={() => {
+                            setSelectedOrder(issueConversationOrder);
+                            setIsEditingDetails(true);
+                            setIssueConversationOrder(null);
+                          }}
+                          className="flex items-center justify-center gap-1.5 px-4 py-2 bg-[#0090FF] hover:bg-[#007edb] text-white font-extrabold text-[10.5px] rounded-full uppercase tracking-wider transition-all shadow-md cursor-pointer hover:shadow-lg w-full"
+                        >
+                          <Edit3 size={12} className="stroke-[2.5]" />
+                          EDIT ORDER
+                        </button>
+                      </>
                     )}
-                    
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => navigate(`/admin/exchanges?orderId=${issueConversationOrder.id}`)}
-                        className="flex items-center justify-center p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full transition-all"
-                        title="Create Exchange"
-                      >
-                        <ArrowLeftRight size={16} />
-                      </button>
-                      <button 
-                        onClick={async () => {
-                          if (issueConversationOrder.issueType && issueConversationOrder.issueStatus !== 'resolved') {
-                            setReadyToShipClicked(true);
-                          } else {
-                            // Only set to Shipped if not already Shipped, 
-                            // though this logic path assumes resolved issues
-                            await handleStatusChange(issueConversationOrder.id, 'Shipped');
-                            toast.success("Order marked as ready to ship!");
-                          }
-                        }}
-                        className={cn(
-                          "flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 font-extrabold text-[10.5px] rounded-full uppercase tracking-wider transition-all shadow-md cursor-pointer hover:shadow-lg",
-                          issueConversationOrder.issueType && issueConversationOrder.issueStatus !== 'resolved'
-                            ? "bg-rose-500 hover:bg-rose-600 text-white animate-pulse"
-                            : "bg-[#5E50F9] hover:bg-[#4E40E9] text-white"
-                        )}
-                      >
-                        <Clock size={12} className="stroke-[2.5]" />
-                        {issueConversationOrder.issueType && issueConversationOrder.issueStatus !== 'resolved' ? 'SOLVE' : 'READY TO SHIP'}
-                      </button>
-
-                      <button 
-                        onClick={async () => {
-                          await handleStatusChange(issueConversationOrder.id, 'Cancelled');
-                          const systemReply = {
-                            sender: 'system' as const,
-                            message: `Sabbir requested cancellation`,
-                            timestamp: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }) + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
-                          };
-                          const existingReplies = issueConversationOrder.issueReplies || [];
-                          const updatedReplies = [...existingReplies, systemReply];
-                          await updateOrder(issueConversationOrder.id, {
-                            issueReplies: updatedReplies,
-                            status: 'Cancelled'
-                          });
-                          setIssueConversationOrder({
-                            ...issueConversationOrder,
-                            status: 'Cancelled',
-                            issueReplies: updatedReplies
-                          });
-                        }}
-                        className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 bg-[#FFAB00] hover:bg-[#e09600] text-white font-extrabold text-[10.5px] rounded-full uppercase tracking-wider transition-all shadow-md cursor-pointer hover:shadow-lg"
-                      >
-                        <AlertTriangle size={12} className="stroke-[2.5]" />
-                        CANCEL REQUEST
-                      </button>
-                    </div>
-
-                    <button 
-                      onClick={() => {
-                        setSelectedOrder(issueConversationOrder);
-                        setIsEditingDetails(true);
-                        setIssueConversationOrder(null);
-                      }}
-                      className="flex items-center justify-center gap-1.5 px-4 py-2 bg-[#0090FF] hover:bg-[#007edb] text-white font-extrabold text-[10.5px] rounded-full uppercase tracking-wider transition-all shadow-md cursor-pointer hover:shadow-lg w-full"
-                    >
-                      <Edit3 size={12} className="stroke-[2.5]" />
-                      EDIT ORDER
-                    </button>
                   </div>
                 </div>
 
@@ -4276,16 +4317,19 @@ export default function AdminOrders(): React.JSX.Element {
                           </div>
                           <div className="col-span-2">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Status</span>
-                            <span className={cn(
-                              "inline-block px-4 py-1 text-[10px] font-black rounded-full uppercase tracking-wider",
-                              selectedOrder.status === 'Delivered' ? 'bg-[#E6F4EA] text-[#137333]' :
-                              selectedOrder.status === 'Cancelled' ? 'bg-[#FCE8E6] text-[#C5221F]' :
-                              selectedOrder.status === 'Hold' ? 'bg-[#FFF9E6] text-[#B06000]' :
-                              selectedOrder.status === 'QC' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                              'bg-[#ECEAFE] text-[#554BF0]' // Pending / Placing
-                            )}>
-                              {selectedOrder.status === 'QC' ? 'QC PASSED' : (selectedOrder.status === 'Pending' ? 'ORDER PLACED' : selectedOrder.status.toUpperCase())}
-                            </span>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={cn(
+                                "inline-block px-4 py-1 text-[10px] font-black rounded-full uppercase tracking-wider",
+                                selectedOrder.status === 'Delivered' ? 'bg-[#E6F4EA] text-[#137333]' :
+                                selectedOrder.status === 'Cancelled' ? 'bg-[#FCE8E6] text-[#C5221F]' :
+                                selectedOrder.status === 'Hold' ? 'bg-[#FFF9E6] text-[#B06000]' :
+                                selectedOrder.status === 'QC' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                                'bg-[#ECEAFE] text-[#554BF0]' // Pending / Placing
+                              )}>
+                                {selectedOrder.status === 'QC' ? 'QC PASSED' : (selectedOrder.status === 'Pending' ? 'ORDER PLACED' : selectedOrder.status.toUpperCase())}
+                              </span>
+                              <ParcelLiveStatusBadge order={selectedOrder} showDetails />
+                            </div>
                           </div>
                         </div>
                       </div>

@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import InvoiceTemplate from '../../components/admin/InvoiceTemplate';
+import { ParcelLiveStatusBadge } from '../../components/admin/ParcelLiveStatusBadge';
 import { useOrders } from '../../contexts/OrderContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -62,6 +63,11 @@ export default function AdminIssues() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showApprovedCancel, setShowApprovedCancel] = useState(false);
+
+  useEffect(() => {
+    setShowApprovedCancel(false);
+  }, [selectedOrderId]);
 
   // Custom Confirmation Modal State
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -438,9 +444,22 @@ export default function AdminIssues() {
               <div className="p-8 border-b border-gray-100">
                 <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
                   <div className="text-left">
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center gap-3 mb-1 flex-wrap">
                       <h2 className="text-3xl font-black tracking-tighter text-[#0C1421]">Order #{selectedIssue.id.slice(-10)}</h2>
                       <span className="px-3 py-1 bg-gray-50 text-[10px] font-black rounded-xl uppercase tracking-widest text-[#0C1421] border border-gray-100">ORDER PLACED</span>
+                      {selectedIssue.order && <ParcelLiveStatusBadge order={selectedIssue.order} showDetails />}
+                    </div>
+                    <div className="mb-2">
+                      <p className="text-xs font-bold text-indigo-600 font-mono">
+                        Invoice No: #{selectedIssue.order.invoiceNo || selectedIssue.id.slice(-6)}
+                      </p>
+                      {(selectedIssue.order.status === 'Ready' || selectedIssue.order.status === 'QC') && (
+                        <div className="mt-1">
+                          <span className="inline-block px-3 py-1 bg-emerald-600 text-white text-[10px] font-black rounded-lg uppercase tracking-wider shadow-sm border border-emerald-700">
+                            Ready
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-4">
                       <h3 className="text-lg font-bold text-gray-500">{selectedIssue.customerName}</h3>
@@ -491,43 +510,78 @@ export default function AdminIssues() {
                       <Printer size={14} />
                       PRINT INVOICE
                     </button>
-                    <button 
-                      onClick={async () => {
-                        try {
-                          toast.loading('Updating status...', { id: 'status-update' });
-                          await updateOrderStatus(selectedIssue.id, 'QC');
-                          toast.success('Order status updated to QC/READY TO SHIP!', { id: 'status-update' });
-                        } catch (e) {
-                          toast.error('Failed to update status', { id: 'status-update' });
-                        }
-                      }}
-                      className="flex items-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-indigo-100/50 cursor-pointer"
-                    >
-                      <Truck size={14} />
-                      READY TO SHIP
-                    </button>
-                    <button 
-                      onClick={async () => {
-                        try {
-                          toast.loading('Cancelling order...', { id: 'status-update' });
-                          await updateOrderStatus(selectedIssue.id, 'Cancelled');
-                          toast.success('Order marked as Cancelled successfully!', { id: 'status-update' });
-                        } catch (e) {
-                          toast.error('Failed to cancel order', { id: 'status-update' });
-                        }
-                      }}
-                      className="flex items-center gap-2 px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all cursor-pointer"
-                    >
-                      <AlertCircle size={14} />
-                      CANCEL REQUEST
-                    </button>
-                    <button 
-                      onClick={() => openOrderModal('edit')}
-                      className="flex items-center gap-2 px-5 py-3 bg-blue-500 hover:bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all cursor-pointer"
-                    >
-                      <Edit2 size={14} />
-                      EDIT ORDER
-                    </button>
+
+                    {(selectedIssue.order.status === 'Ready' || selectedIssue.order.status === 'QC') ? (
+                      <button 
+                        onClick={async () => {
+                          try {
+                            toast.loading('Resolving issue...', { id: 'status-update' });
+                            await updateOrderStatus(selectedIssue.id, 'Delivered');
+                            toast.success('Issue marked as solved!', { id: 'status-update' });
+                          } catch (e) {
+                            toast.error('Failed to resolve issue', { id: 'status-update' });
+                          }
+                        }}
+                        className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg cursor-pointer font-bold"
+                      >
+                        <CheckCircle2 size={14} />
+                        SOLVE
+                      </button>
+                    ) : (
+                      <>
+                        <button 
+                          onClick={async () => {
+                            try {
+                              toast.loading('Updating status...', { id: 'status-update' });
+                              await updateOrderStatus(selectedIssue.id, 'Ready');
+                              toast.success('Order status updated to Ready!', { id: 'status-update' });
+                            } catch (e) {
+                              toast.error('Failed to update status', { id: 'status-update' });
+                            }
+                          }}
+                          className="flex items-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-indigo-100/50 cursor-pointer"
+                        >
+                          <Truck size={14} />
+                          READY TO SHIP
+                        </button>
+                        {!showApprovedCancel ? (
+                          <button 
+                            onClick={() => {
+                              setShowApprovedCancel(true);
+                              toast.info("অর্ডার বাতিল চূড়ান্ত করতে 'APPROVED CANCEL' ক্লিক করুন", { id: 'status-update' });
+                            }}
+                            className="flex items-center gap-2 px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all cursor-pointer"
+                          >
+                            <AlertCircle size={14} />
+                            CANCEL REQUEST
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={async () => {
+                              try {
+                                toast.loading('Cancelling order...', { id: 'status-update' });
+                                await updateOrderStatus(selectedIssue.id, 'Cancelled');
+                                setShowApprovedCancel(false);
+                                toast.success('Order marked as Cancelled successfully!', { id: 'status-update' });
+                              } catch (e) {
+                                toast.error('Failed to cancel order', { id: 'status-update' });
+                              }
+                            }}
+                            className="flex items-center gap-2 px-5 py-3 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all cursor-pointer animate-pulse shadow-lg"
+                          >
+                            <CheckCircle2 size={14} />
+                            APPROVED CANCEL
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => openOrderModal('edit')}
+                          className="flex items-center gap-2 px-5 py-3 bg-blue-500 hover:bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all cursor-pointer"
+                        >
+                          <Edit2 size={14} />
+                          EDIT ORDER
+                        </button>
+                      </>
+                    )}
                     {isSuperAdmin && (
                       <button 
                         onClick={() => {
