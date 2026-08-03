@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="1200" height="1200">
+  <rect width="600" height="600" fill="#000000"/>
+  <g transform="skewX(-16)">
+    <!-- Top Bar -->
+    <rect x="250" y="160" width="180" height="64" fill="#FFFFFF" />
+    <!-- Middle Bar (protrudes to the left) -->
+    <rect x="180" y="268" width="180" height="64" fill="#FFFFFF" />
+    <!-- Bottom Bar -->
+    <rect x="222" y="376" width="180" height="64" fill="#FFFFFF" />
+  </g>
+</svg>

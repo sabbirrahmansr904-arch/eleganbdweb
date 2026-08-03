@@ -23,9 +23,10 @@ interface ProductCardProps {
   product: Product;
   onAddToCart?: (productId: string, size: string, quantity: number) => void;
   loading?: "lazy" | "eager";
+  badgeText?: string;
 }
 
-const ProductCard = React.memo(({ product, onAddToCart, loading = "lazy" }: ProductCardProps) => {
+const ProductCard = React.memo(({ product, onAddToCart, loading = "lazy", badgeText }: ProductCardProps) => {
   const { currency, rate } = useCurrency();
   const { currentUser } = useAuth();
   const [isQuickViewOpen, setIsQuickViewOpen] = React.useState(false);
@@ -147,10 +148,16 @@ const ProductCard = React.memo(({ product, onAddToCart, loading = "lazy" }: Prod
           </button>
         </div>
         
-        <div className="absolute top-2 left-2 z-10">
-          <span className="bg-black text-white px-2 py-0.5 text-[8px] font-black uppercase tracking-wider rounded-xs shadow-2xs">
-            NEW
-          </span>
+        <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
+          {badgeText ? (
+            <span className="bg-blue-600 text-white px-2 py-0.5 text-[8px] sm:text-[9px] font-black uppercase tracking-wider rounded-xs shadow-xs">
+              {badgeText}
+            </span>
+          ) : (
+            <span className="bg-black text-white px-2 py-0.5 text-[8px] font-black uppercase tracking-wider rounded-xs shadow-2xs">
+              NEW
+            </span>
+          )}
         </div>
       </Link>
 

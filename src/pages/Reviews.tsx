@@ -18,54 +18,74 @@ interface ReviewItem {
   isAdmin?: boolean;
 }
 
-// Initial seed reviews so the page looks vibrant and populated right away
-const seedReviews: ReviewItem[] = [
-  {
-    id: 'seed-1',
-    userName: 'Sabbir Rahman',
-    rating: 5,
-    comment: 'মানসম্মত পণ্য—যারা নিতে চান তারা নিশ্চিন্তে নিতে পারেন। আমি তাদের ডিসপ্লে সেন্টার থেকে শার্টগুলো নিয়েছি। খুবই সুন্দর এবং আরামদায়ক। ধন্যবাদ, Elegan BD!',
-    productName: 'Premium Cotton Formal Shirt',
-    createdAt: Date.now() - 3600000 * 5,
-    isVerified: true
-  },
-  {
-    id: 'seed-2',
-    userName: 'Tanvir Ahmed',
-    rating: 5,
-    comment: 'কাপড়ের কোয়ালিটি অসাধারণ, ফিটিং একদম পারফেক্ট হয়েছে। ডেলিভারিও খুব দ্রুত পেয়েছি। ধন্যবাদ সেলারকে!',
-    productName: 'Tailored Slim Fit Trouser',
-    createdAt: Date.now() - 3600000 * 24,
-    isVerified: true
-  },
-  {
-    id: 'seed-3',
-    userName: 'Nayeem Islam',
-    rating: 5,
-    comment: 'প্যান্টের ফেব্রিক এবং সেলাই সত্যিই প্রিমিয়াম। ৯৫০ টাকায় এত ভালো ফরমাল প্যান্ট আশা করিনি। আবার অর্ডার করবো।',
-    productName: 'Royal Executive Panjabi',
-    createdAt: Date.now() - 3600000 * 48,
-    isVerified: true
-  },
-  {
-    id: 'seed-4',
-    userName: 'Mehedi Hasan',
-    rating: 5,
-    comment: 'কালার একদম ছবির মতোই সেম টু সেম পেয়েছি। ওয়াশ করার পরেও কালার নষ্ট হয়নি। অত্যন্ত সন্তুষ্ট!',
-    productName: 'Casual Premium Linen Shirt',
-    createdAt: Date.now() - 3600000 * 72,
-    isVerified: true
-  },
-  {
-    id: 'seed-5',
-    userName: 'Fahim Rashed',
-    rating: 4,
-    comment: 'ডেলিভারি ভাইয়ের ব্যবহার খুব ভালো ছিল এবং প্রোডাক্ট সময়মতো পেয়েছি। Elegan BD এর কাস্টমার সার্ভিস সত্যিই প্রশংসনীয়।',
-    productName: 'Executive Blazer',
-    createdAt: Date.now() - 3600000 * 96,
-    isVerified: true
+const getInitials = (name: string) => {
+  if (!name) return 'CU';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
-];
+  return name.slice(0, 2).toUpperCase();
+};
+
+// Initial seed reviews generating 100+ realistic customer reviews
+const generateSeedReviews = (): ReviewItem[] => {
+  const reviews: ReviewItem[] = [];
+
+  const banglaNames = [
+    'Sabbir Rahman', 'Tanvir Ahmed', 'Nayeem Islam', 'Mehedi Hasan', 'Fahim Rashed',
+    'Pollob Das', 'Anisur Rahman', 'Imran Hossain', 'Arif Chowdhury', 'Jamil Ahmed',
+    'Sajid Khan', 'Riaz Uddin', 'Milon Miah', 'Zubayer Alom', 'Mamun Sarker',
+    'Sujon Sheikh', 'Kamal Hossain', 'Asif Bhuiyan', 'Rashed Siddique', 'Faisal Karim',
+    'Tariqul Islam', 'Shakil Ahmed', 'Rony Das', 'Shohel Rana', 'Mostafizur Rahman',
+    'Mahbub Alom', 'Rakib Hasan', 'Shariful Islam', 'Rubel Hossain', 'Arafat Rahman'
+  ];
+
+  const productNames = [
+    'Premium Cotton Formal Shirt', 'Tailored Slim Fit Trouser', 'Royal Executive Panjabi',
+    'Casual Premium Linen Shirt', 'Executive Blazer', 'Oxford Button-Down Shirt',
+    'Stretch Chino Pant', 'Luxury Silk Panjabi', 'Printed Polo Shirt', 'Classic Gabardine Trouser'
+  ];
+
+  const banglaComments = [
+    'মানসম্মত পণ্য—যারা নিতে চান তারা নিশ্চিন্তে নিতে পারেন। আমি তাদের ডিসপ্লে সেন্টার থেকে শার্টগুলো নিয়েছি। খুবই সুন্দর এবং আরামদায়ক। ধন্যবাদ, Elegan BD!',
+    'কাপড়ের কোয়ালিটি অসাধারণ, ফিটিং একদম পারফেক্ট হয়েছে। ডেলিভারিও খুব দ্রুত পেয়েছি। ধন্যবাদ সেলারকে!',
+    'প্যান্টের ফেব্রিক এবং সেলাই সত্যিই প্রিমিয়াম। এত ভালো ফরমাল প্যান্ট আশা করিনি। আবার অর্ডার করবো।',
+    'কালার একদম ছবির মতোই সেম টু সেম পেয়েছি। ওয়াশ করার পরেও কালার নষ্ট হয়নি। অত্যন্ত সন্তুষ্ট!',
+    'ডেলিভারি ভাইয়ের ব্যবহার খুব ভালো ছিল এবং প্রোডাক্ট সময়মতো পেয়েছি। Elegan BD এর কাস্টমার সার্ভিস সত্যিই প্রশংসনীয়।',
+    'শার্টের ফেব্রিক খুবই সফট এবং আরামদায়ক। বিশেষ করে গরমের দিনে পরার জন্য দারুণ। রিকমেন্ডেড!',
+    'প্রথমে একটু কনফিউজড ছিলাম সাইজ নিয়ে, কিন্তু কাস্টমার সাপোর্ট আমাকে সঠিক সাইজ সিলেক্ট করতে সাহায্য করেছে। ফিটিং একদম জোস হয়েছে।',
+    'অসাধারণ ফিনিশিং এবং বোতামের কোয়ালিটি। প্রিমিয়াম লুক দেয়। যেকোনো ফরমাল অকেশনে পরার মতো।',
+    'ক্যাশ অন ডেলিভারিতে প্রোডাক্ট চেক করে নেওয়ার সুবিধা থাকার কারণে অনেক নিশ্চিন্তে অর্ডার করেছি। প্রোডাক্ট কোয়ালিটি সেরা।',
+    'আমি নিয়মিত ফরমাল কাপড় কিনি, কিন্তু Elegan BD এর মেটেরিয়াল এবং প্রাইস অন্য সবার থেকে সেরা লেগেছে।',
+    'ফেব্রিকটা অনেক প্রিমিয়াম ফিল দেয়। গরম বা শীত উভয় ঋতুতেই পরার জন্য পারফেক্ট।',
+    'খুবই ক্লাসি ডিজাইন। বন্ধুদের অনেকেই জিজ্ঞেস করেছে কোথা থেকে কিনেছি। Elegan BD এর জন্য শুভকামনা!',
+    'যেমনটা আশা করেছিলাম ঠিক তেমনটাই পেয়েছি। ফেব্রিক অনেক টেকসই মনে হচ্ছে। ৫ স্টার রেটিং!',
+    'শার্ট এবং প্যান্ট দুটোই অর্ডার করেছিলাম। দুটোরই কোয়ালিটি চমৎকার। ফাস্ট শিপিংয়ের জন্য ধন্যবাদ।',
+    'এত কম বাজেটে প্রিমিয়াম কোয়ালিটির প্রোডাক্ট দেওয়ার জন্য ধন্যবাদ। সেলাইয়ের ফিনিশিং অসাধারণ।'
+  ];
+
+  for (let i = 1; i <= 105; i++) {
+    const name = banglaNames[(i - 1) % banglaNames.length];
+    const prod = productNames[(i - 1) % productNames.length];
+    const comm = banglaComments[(i - 1) % banglaComments.length];
+    const rating = (i % 18 === 0) ? 4 : 5; // Mostly 5 stars, occasional 4 stars
+    const createdAt = Date.now() - (i * 3600000 * 3);
+
+    reviews.push({
+      id: `seed-${i}`,
+      userName: name,
+      rating,
+      comment: comm,
+      productName: prod,
+      createdAt,
+      isVerified: true
+    });
+  }
+
+  return reviews;
+};
+
+const seedReviews: ReviewItem[] = generateSeedReviews();
 
 export default function Reviews() {
   const { currentUser, customerUser, isAdmin } = useAuth();
@@ -336,8 +356,8 @@ export default function Reviews() {
                 <div>
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-900 to-gray-700 text-white font-black flex items-center justify-center text-sm shadow-xs">
-                        {rev.userName ? rev.userName.slice(0, 2).toUpperCase() : 'CU'}
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-900 to-black text-amber-400 font-black flex items-center justify-center text-xs shadow-xs border border-amber-400/40 shrink-0">
+                        {getInitials(rev.userName)}
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5">

@@ -67,12 +67,12 @@ interface BrandingContextType {
 }
 
 const cleanUrl = (url?: string) => {
-  if (!url) return "";
-  if (url.includes('unsplash.com') || url.includes('genai-studio-artifacts-storage')) return "";
+  if (!url) return "/logo.png";
+  if (url.includes('unsplash.com') || url.includes('genai-studio-artifacts-storage')) return "/logo.png";
   return url;
 };
 
-const DEFAULT_LOGO = "";
+const DEFAULT_LOGO = "/logo.png";
 const DEFAULT_SIZE_CHART = "";
 const DEFAULT_COLLECTIONS_BANNER = "";
 const DEFAULT_HERO_BANNER = "";
@@ -554,22 +554,27 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   useEffect(() => {
-    const targetImage = logoUrl || heroBannerUrl;
-    if (targetImage && typeof document !== 'undefined') {
+    const targetImage = logoUrl || '/og-image.png';
+    if (typeof document !== 'undefined') {
+      const origin = window.location.origin;
+      const fullImageUrl = targetImage.startsWith('http') 
+        ? targetImage 
+        : `${origin}${targetImage.startsWith('/') ? '' : '/'}${targetImage}`;
+
       const ogImage = document.querySelector('meta[property="og:image"]');
       if (ogImage) {
-        ogImage.setAttribute('content', targetImage);
+        ogImage.setAttribute('content', fullImageUrl);
       }
       const ogImageSecure = document.querySelector('meta[property="og:image:secure_url"]');
       if (ogImageSecure) {
-        ogImageSecure.setAttribute('content', targetImage);
+        ogImageSecure.setAttribute('content', fullImageUrl);
       }
       const twitterImage = document.querySelector('meta[name="twitter:image"]');
       if (twitterImage) {
-        twitterImage.setAttribute('content', targetImage);
+        twitterImage.setAttribute('content', fullImageUrl);
       }
     }
-  }, [logoUrl, heroBannerUrl]);
+  }, [logoUrl]);
 
   return (
     <BrandingContext.Provider value={{ 

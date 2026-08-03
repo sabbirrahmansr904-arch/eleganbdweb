@@ -3,10 +3,18 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { cn } from '../lib/utils';
 
+const getInitials = (name: string) => {
+  if (!name) return 'CU';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+};
+
 interface Review {
   id: number;
   name: string;
-  photo: string;
   text: string;
   rating: number;
   date: string;
@@ -74,11 +82,10 @@ const portraitIds = [
 const generateReviews = (): Review[] => {
   const reviews: Review[] = [];
   
-  // Base review with the user's specific screenshot quote
+  // Base review with the user's specific quote
   reviews.push({
     id: 1,
     name: "POLLOB DAS",
-    photo: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop&crop=faces",
     text: "মানসম্মত পণ্য—যারা নিতে চান তারা নিশ্চিন্তে নিতে পারেন। আমি তাদের ডিসপ্লে সেন্টার থেকে শার্টগুলো নিয়েছি। খুবই সুন্দর এবং আরামদায়ক। ধন্যবাদ, Elegan BD 🥰",
     rating: 5,
     date: "10 hours ago"
@@ -91,13 +98,9 @@ const generateReviews = (): Review[] => {
     const name = `${fName} ${lName}`.toUpperCase();
     
     const textTemplate = reviewTexts[(i * 11) % reviewTexts.length];
-    // Vary the text slightly to make it highly authentic
     const emojis = ["🔥", "👍", "👌", "💯", "❤️", "🌟", "🤩", "🙌"];
     const emoji = emojis[i % emojis.length];
     const text = textTemplate.replace("Elegan BD", "Elegan BD " + emoji);
-
-    const portraitId = portraitIds[i % portraitIds.length];
-    const photo = `https://images.unsplash.com/photo-${portraitId}?w=150&h=150&fit=crop&crop=faces`;
     
     const rating = (i % 20 === 0) ? 4 : 5; // Mostly 5 stars, occasional 4 stars
     const date = `${(i % 15) + 1} days ago`;
@@ -105,7 +108,6 @@ const generateReviews = (): Review[] => {
     reviews.push({
       id: i,
       name,
-      photo,
       text,
       rating,
       date
@@ -169,14 +171,9 @@ export default function ReviewsCarousel() {
               transition={{ duration: 0.4 }}
               className="max-w-2xl px-12 md:px-16 flex flex-col items-center"
             >
-              {/* Profile Image with Ring border */}
-              <div className="w-24 h-24 rounded-full overflow-hidden border border-black p-0.5 bg-white mb-6 shadow-sm">
-                <img
-                  src={currentReview.photo}
-                  alt={currentReview.name}
-                  className="w-full h-full object-cover rounded-full"
-                  referrerPolicy="no-referrer"
-                />
+              {/* Profile Name Initials Badge (No customer photos) */}
+              <div className="w-20 h-20 rounded-full bg-black text-amber-400 border-2 border-amber-400/80 flex items-center justify-center font-black text-2xl shadow-md mb-6 tracking-wider">
+                {getInitials(currentReview.name)}
               </div>
 
               {/* Star Ratings */}
