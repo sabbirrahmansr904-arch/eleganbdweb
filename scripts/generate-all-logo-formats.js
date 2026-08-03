@@ -4,7 +4,7 @@ import sharp from 'sharp';
 // SVG representation of the official Elegan BD logo provided by the user
 const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="1200" height="1200">
   <rect width="600" height="600" fill="#000000"/>
-  <g transform="skewX(-16)">
+  <g transform="translate(60, 60) scale(0.8)">
     <!-- Top Bar -->
     <rect x="250" y="160" width="180" height="64" fill="#FFFFFF" />
     <!-- Middle Bar (protrudes to the left) -->
@@ -19,14 +19,12 @@ const ogSvgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 
   <rect width="1200" height="630" fill="#000000"/>
   <!-- Centered Logo Mark -->
   <g transform="translate(450, 110) scale(0.8)">
-    <g transform="skewX(-16)">
-      <!-- Top Bar -->
-      <rect x="250" y="120" width="180" height="64" fill="#FFFFFF" />
-      <!-- Middle Bar -->
-      <rect x="180" y="228" width="180" height="64" fill="#FFFFFF" />
-      <!-- Bottom Bar -->
-      <rect x="222" y="336" width="180" height="64" fill="#FFFFFF" />
-    </g>
+    <!-- Top Bar -->
+    <rect x="250" y="120" width="180" height="64" fill="#FFFFFF" />
+    <!-- Middle Bar -->
+    <rect x="180" y="228" width="180" height="64" fill="#FFFFFF" />
+    <!-- Bottom Bar -->
+    <rect x="222" y="336" width="180" height="64" fill="#FFFFFF" />
   </g>
   <text x="600" y="470" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="44" fill="#FFFFFF" text-anchor="middle" letter-spacing="6">ELEGAN BD</text>
   <text x="600" y="520" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="20" fill="#D97706" text-anchor="middle" letter-spacing="8">PREMIUM CLOTHING BRAND</text>
