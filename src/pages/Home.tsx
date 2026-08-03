@@ -72,9 +72,6 @@ const Home = () => {
     return [...pants, ...shirts, ...others];
   }, [products]);
 
-  const defaultShirtImage = "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=1000&q=80";
-  const defaultPantImage = "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=1000&q=80";
-
   return (
     <div className="flex flex-col min-h-screen bg-white">
       
@@ -153,38 +150,47 @@ const Home = () => {
         </div>
       </section>
 
-      {/* MIDDLE SECTION: 2 CATEGORY BANNERS (SHIRTS & PANTS) WITH NO TEXT OVERLAY */}
-      <section className="max-w-7xl mx-auto w-full px-4 pb-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          
-          {/* CATEGORY 1: SHIRTS BANNER (NO OVERLAY TEXT) */}
-          <Link 
-            to="/category/formal-shirt"
-            className="group block relative rounded-3xl overflow-hidden min-h-[220px] md:min-h-[260px] bg-gray-100 shadow-sm border border-gray-100/80 transition-all hover:shadow-md"
-          >
-            <img 
-              src={shirtBannerUrl || defaultShirtImage} 
-              alt="Shirts Category Banner" 
-              className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
-              referrerPolicy="no-referrer"
-            />
-          </Link>
+      {/* MIDDLE SECTION: CATEGORY BANNERS (SHIRTS & PANTS) - ONLY RENDERED WHEN UPLOADED IN ADMIN */}
+      {(shirtBannerUrl || pantBannerUrl) && (
+        <section className="max-w-7xl mx-auto w-full px-4 pb-10">
+          <div className={cn(
+            "grid gap-6",
+            shirtBannerUrl && pantBannerUrl ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"
+          )}>
+            
+            {/* CATEGORY 1: SHIRTS BANNER */}
+            {shirtBannerUrl && (
+              <Link 
+                to="/category/formal-shirt"
+                className="group block relative rounded-3xl overflow-hidden min-h-[200px] md:min-h-[260px] bg-gray-100 shadow-sm border border-gray-100/80 transition-all hover:shadow-md"
+              >
+                <img 
+                  src={shirtBannerUrl} 
+                  alt="Shirts Category Banner" 
+                  className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
+                  referrerPolicy="no-referrer"
+                />
+              </Link>
+            )}
 
-          {/* CATEGORY 2: PANTS BANNER (NO OVERLAY TEXT) */}
-          <Link 
-            to="/category/formal-pant"
-            className="group block relative rounded-3xl overflow-hidden min-h-[220px] md:min-h-[260px] bg-gray-100 shadow-sm border border-gray-100/80 transition-all hover:shadow-md"
-          >
-            <img 
-              src={pantBannerUrl || defaultPantImage} 
-              alt="Pants Category Banner" 
-              className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
-              referrerPolicy="no-referrer"
-            />
-          </Link>
+            {/* CATEGORY 2: PANTS BANNER */}
+            {pantBannerUrl && (
+              <Link 
+                to="/category/formal-pant"
+                className="group block relative rounded-3xl overflow-hidden min-h-[200px] md:min-h-[260px] bg-gray-100 shadow-sm border border-gray-100/80 transition-all hover:shadow-md"
+              >
+                <img 
+                  src={pantBannerUrl} 
+                  alt="Pants Category Banner" 
+                  className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
+                  referrerPolicy="no-referrer"
+                />
+              </Link>
+            )}
 
-        </div>
-      </section>
+          </div>
+        </section>
+      )}
 
       {/* ALL COLLECTIONS - MAIN PRODUCT SECTION SHOWING FORMAL PANTS FIRST, THEN FORMAL SHIRTS */}
       <section className="max-w-7xl mx-auto w-full px-4 pb-16">
