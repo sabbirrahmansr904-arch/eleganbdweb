@@ -689,7 +689,7 @@ async function startServer() {
       }
 
       let absoluteOgImage = `${baseUrl}/og-image.png`;
-      if (heroImgUrl) {
+      if (heroImgUrl && !heroImgUrl.startsWith('data:')) {
         absoluteOgImage = heroImgUrl.startsWith('http') 
           ? heroImgUrl 
           : `${baseUrl}${heroImgUrl.startsWith('/') ? '' : '/'}${heroImgUrl}`;
