@@ -656,18 +656,67 @@ async function startServer() {
     }
   });
 
+  // Helper to serve index.html with dynamically injected absolute Open Graph meta tags for Facebook/WhatsApp link sharing
+  const serveDynamicHtml = (req: express.Request, res: express.Response, htmlContent: string) => {
+    try {
+      const protocol = ((req.headers['x-forwarded-proto'] as string) || req.protocol || 'https').split(',')[0].trim();
+      const host = (req.headers['x-forwarded-host'] as string) || req.headers.host || 'localhost:3000';
+      const baseUrl = `${protocol}://${host}`;
+      const fullPageUrl = `${baseUrl}${req.originalUrl || '/'}`;
+      const absoluteOgImage = `${baseUrl}/og-image.png`;
+
+      let injectedHtml = htmlContent
+        .replace(/<meta property="og:image" content="[^"]*"\s*\/?>/gi, `<meta property="og:image" content="${absoluteOgImage}" />`)
+        .replace(/<meta property="og:image:secure_url" content="[^"]*"\s*\/?>/gi, `<meta property="og:image:secure_url" content="${absoluteOgImage}" />`)
+        .replace(/<meta name="twitter:image" content="[^"]*"\s*\/?>/gi, `<meta name="twitter:image" content="${absoluteOgImage}" />`)
+        .replace(/<meta property="og:url" content="[^"]*"\s*\/?>/gi, `<meta property="og:url" content="${fullPageUrl}" />`)
+        .replace(/<meta name="twitter:url" content="[^"]*"\s*\/?>/gi, `<meta name="twitter:url" content="${fullPageUrl}" />`);
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.send(injectedHtml);
+    } catch (e) {
+      return res.send(htmlContent);
+    }
+  };
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
+
+    // Intercept main HTML page requests in dev mode to inject absolute OG image URLs
+    app.use(async (req, res, next) => {
+      const isHtmlReq = req.headers.accept?.includes('text/html') && !req.path.includes('.') && req.method === 'GET';
+      if (isHtmlReq) {
+        try {
+          const fs = await import('fs');
+          const indexPath = path.join(process.cwd(), 'index.html');
+          let rawHtml = fs.readFileSync(indexPath, 'utf-8');
+          rawHtml = await vite.transformIndexHtml(req.originalUrl, rawHtml);
+          return serveDynamicHtml(req, res, rawHtml);
+        } catch (e) {
+          next(e);
+        }
+      } else {
+        next();
+      }
+    });
+
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*all', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      try {
+        const fs = require('fs');
+        const indexPath = path.join(distPath, 'index.html');
+        const rawHtml = fs.readFileSync(indexPath, 'utf-8');
+        return serveDynamicHtml(req, res, rawHtml);
+      } catch (e) {
+        res.sendFile(path.join(distPath, 'index.html'));
+      }
     });
   }
 
