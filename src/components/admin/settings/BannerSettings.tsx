@@ -44,6 +44,8 @@ export default function BannerSettings() {
     shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter, primaryDeliveryDistrict, aboutText,
     setShippingInsideDhaka, setShippingOutsideDhaka, setShippingFreeAfter, setPrimaryDeliveryDistrict, setAboutText,
     heroBannerUrl, setHeroBannerUrl,
+    heroBanner2Url, setHeroBanner2Url,
+    heroBanner3Url, setHeroBanner3Url,
     subHeroBannerUrl, setSubHeroBannerUrl,
     collectionsBannerUrl, setCollectionsBannerUrl,
     featureBannerUrl, setFeatureBannerUrl,
@@ -379,10 +381,24 @@ export default function BannerSettings() {
             {[
               {
                 id: 'heroBannerUrl',
-                title: 'Fallback Hero Banner',
-                description: 'Used on the main landing screen if the Carousel Slider is disabled or contains no active slides.',
+                title: 'Hero Banner 1 (Slider Slide 1)',
+                description: 'First slide in the home page hero slider carousel.',
                 url: heroBannerUrl,
                 setter: setHeroBannerUrl,
+              },
+              {
+                id: 'heroBanner2Url',
+                title: 'Hero Banner 2 (Slider Slide 2)',
+                description: 'Second slide in the home page hero slider carousel.',
+                url: heroBanner2Url,
+                setter: setHeroBanner2Url,
+              },
+              {
+                id: 'heroBanner3Url',
+                title: 'Hero Banner 3 (Slider Slide 3)',
+                description: 'Third slide in the home page hero slider carousel.',
+                url: heroBanner3Url,
+                setter: setHeroBanner3Url,
               },
               {
                 id: 'subHeroBannerUrl',

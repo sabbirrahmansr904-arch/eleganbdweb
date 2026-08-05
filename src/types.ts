@@ -21,6 +21,7 @@ export interface Product {
   sizeStock: Record<string, number>;
   newArrival?: boolean;
   featured?: boolean;
+  bestSelling?: boolean;
   discount?: number;
   regularPrice?: number;
   salePrice?: number;

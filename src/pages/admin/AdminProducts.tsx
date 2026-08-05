@@ -16,7 +16,11 @@ import {
   Package,
   Filter,
   ArrowLeft,
-  ArrowRight
+  ArrowRight,
+  Star,
+  Flame,
+  CheckCircle2,
+  Sparkles
 } from 'lucide-react';
 import { useProducts } from '../../contexts/ProductContext';
 import { useCategories } from '../../contexts/CategoryContext';
@@ -45,6 +49,34 @@ export default function AdminProducts(): React.JSX.Element {
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [quickStockProduct, setQuickStockProduct] = useState<Product | null>(null);
   const [quickStockQuantities, setQuickStockQuantities] = useState<Record<string, number>>({});
+  
+  // Featured Sections Manager Modal
+  const [isFeaturedModalOpen, setIsFeaturedModalOpen] = useState(false);
+  const [featuredModalTab, setFeaturedModalTab] = useState<'bestSelling' | 'newArrival'>('bestSelling');
+  const [modalSearchTerm, setModalSearchTerm] = useState('');
+
+  const toggleProductFeatured = async (product: Product, section: 'bestSelling' | 'newArrival') => {
+    try {
+      if (section === 'bestSelling') {
+        const isBest = !!(product.featured || product.bestSelling);
+        await updateProduct({
+          ...product,
+          featured: !isBest,
+          bestSelling: !isBest,
+        });
+        toast.success(!isBest ? `Added "${product.name}" to Best Selling!` : `Removed "${product.name}" from Best Selling`);
+      } else {
+        const isNew = !!product.newArrival;
+        await updateProduct({
+          ...product,
+          newArrival: !isNew,
+        });
+        toast.success(!isNew ? `Added "${product.name}" to New Arrival!` : `Removed "${product.name}" from New Arrival`);
+      }
+    } catch (err) {
+      toast.error("Failed to update section status");
+    }
+  };
 
   // Filter products by search and category
   const filteredProducts = useMemo(() => {
@@ -182,14 +214,24 @@ export default function AdminProducts(): React.JSX.Element {
           </button>
         </div>
 
-        <button 
-          id="add-product-btn"
-          onClick={() => navigate('/admin/add-product')}
-          className="flex items-center gap-2 bg-[#6366F1] hover:bg-[#4F46E5] text-white font-semibold text-sm px-4 py-2.5 rounded-xl transition-all shadow-sm shadow-[#6366F1]/10 active:scale-95 cursor-pointer"
-        >
-          <Plus size={16} strokeWidth={2.5} />
-          <span>Add Product</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setIsFeaturedModalOpen(true)}
+            className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs md:text-sm px-3.5 py-2.5 rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer"
+          >
+            <Star size={16} fill="currentColor" />
+            <span>Manage Best Selling & New Arrivals</span>
+          </button>
+
+          <button 
+            id="add-product-btn"
+            onClick={() => navigate('/admin/add-product')}
+            className="flex items-center gap-2 bg-[#6366F1] hover:bg-[#4F46E5] text-white font-semibold text-xs md:text-sm px-4 py-2.5 rounded-xl transition-all shadow-sm shadow-[#6366F1]/10 active:scale-95 cursor-pointer"
+          >
+            <Plus size={16} strokeWidth={2.5} />
+            <span>Add Product</span>
+          </button>
+        </div>
       </div>
 
       {/* Main card matching categories layout */}
@@ -312,9 +354,48 @@ export default function AdminProducts(): React.JSX.Element {
                               <span className="truncate">{product.name}</span>
                               <ExternalLink size={12} className="text-gray-400 group-hover:text-[#6366F1] transition-colors shrink-0" />
                             </button>
-                            <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mt-0.5">
-                              {product.category || 'Uncategorized'}
-                            </span>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">
+                                {product.category || 'Uncategorized'}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleProductFeatured(product, 'bestSelling');
+                                  }}
+                                  className={cn(
+                                    "px-1.5 py-0.5 rounded text-[9px] font-black transition-all border flex items-center gap-1 cursor-pointer select-none",
+                                    (product.featured || product.bestSelling)
+                                      ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 shadow-2xs"
+                                      : "bg-gray-50 border-gray-150 text-gray-300 hover:text-gray-600 hover:bg-gray-100"
+                                  )}
+                                  title="Toggle Best Seller status"
+                                >
+                                  <span>⭐</span>
+                                  <span>Best</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleProductFeatured(product, 'newArrival');
+                                  }}
+                                  className={cn(
+                                    "px-1.5 py-0.5 rounded text-[9px] font-black transition-all border flex items-center gap-1 cursor-pointer select-none",
+                                    product.newArrival
+                                      ? "bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100 shadow-2xs"
+                                      : "bg-gray-50 border-gray-150 text-gray-300 hover:text-gray-600 hover:bg-gray-100"
+                                  )}
+                                  title="Toggle New Arrival status"
+                                >
+                                  <span>🔥</span>
+                                  <span>New</span>
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -628,6 +709,155 @@ export default function AdminProducts(): React.JSX.Element {
                 Delete
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Featured Sections Manager Modal */}
+      {isFeaturedModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 transition-all animate-fade-in">
+          <div className="bg-white rounded-[28px] border border-gray-200 w-full max-w-2xl p-6 sm:p-8 shadow-2xl relative max-h-[90vh] flex flex-col">
+            
+            {/* Close Button */}
+            <button
+              onClick={() => setIsFeaturedModalOpen(false)}
+              className="absolute right-6 top-6 w-9 h-9 rounded-full bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-gray-900 flex items-center justify-center transition-all cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold shadow-sm">
+                <Star size={20} fill="currentColor" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-gray-900 tracking-tight">
+                  Homepage Featured Products
+                </h3>
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">
+                  Select items to display in Best Selling and New Arrival sections
+                </p>
+              </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex items-center gap-2 mt-4 p-1 bg-gray-100/80 rounded-2xl">
+              <button
+                onClick={() => setFeaturedModalTab('bestSelling')}
+                className={cn(
+                  "flex-1 py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer",
+                  featuredModalTab === 'bestSelling'
+                    ? "bg-white text-indigo-950 shadow-sm"
+                    : "text-gray-500 hover:text-gray-900"
+                )}
+              >
+                <span>⭐ Best Selling</span>
+                <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-[10px]">
+                  {products.filter(p => p.featured || p.bestSelling).length}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setFeaturedModalTab('newArrival')}
+                className={cn(
+                  "flex-1 py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer",
+                  featuredModalTab === 'newArrival'
+                    ? "bg-white text-rose-950 shadow-sm"
+                    : "text-gray-500 hover:text-gray-900"
+                )}
+              >
+                <span>🔥 New Arrival</span>
+                <span className="bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full text-[10px]">
+                  {products.filter(p => p.newArrival).length}
+                </span>
+              </button>
+            </div>
+
+            {/* Search filter in modal */}
+            <div className="relative mt-4 mb-2">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input 
+                type="text"
+                placeholder="Search products by name or SKU..."
+                value={modalSearchTerm}
+                onChange={(e) => setModalSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 text-xs font-semibold rounded-xl text-gray-900 focus:bg-white focus:border-indigo-500/40 outline-none transition-all"
+              />
+            </div>
+
+            {/* Products List */}
+            <div className="flex-1 overflow-y-auto my-2 pr-1 space-y-2 divide-y divide-gray-50 no-scrollbar">
+              {products
+                .filter(p => 
+                  p.name.toLowerCase().includes(modalSearchTerm.toLowerCase()) ||
+                  (p.sku && p.sku.toLowerCase().includes(modalSearchTerm.toLowerCase()))
+                )
+                .map((prod) => {
+                  const isChecked = featuredModalTab === 'bestSelling'
+                    ? !!(prod.featured || prod.bestSelling)
+                    : !!prod.newArrival;
+
+                  return (
+                    <div 
+                      key={prod.id}
+                      onClick={() => toggleProductFeatured(prod, featuredModalTab)}
+                      className={cn(
+                        "pt-2 first:pt-0 p-3 rounded-2xl flex items-center justify-between border transition-all cursor-pointer select-none",
+                        isChecked 
+                          ? (featuredModalTab === 'bestSelling' ? "bg-indigo-50/60 border-indigo-200" : "bg-rose-50/60 border-rose-200")
+                          : "bg-white border-gray-100 hover:border-gray-200"
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-gray-100 border border-gray-200 overflow-hidden shrink-0">
+                          {prod.images?.[0] ? (
+                            <img src={prod.images[0]} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <Package className="w-full h-full p-3 text-gray-300" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-gray-900 uppercase truncate max-w-[280px]">
+                            {prod.name}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] text-gray-400 font-semibold uppercase">
+                              {prod.category || 'Uncategorized'}
+                            </span>
+                            <span className="text-[10px] font-mono font-bold text-gray-600">
+                              ৳{prod.price}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className={cn(
+                        "w-6 h-6 rounded-lg border flex items-center justify-center transition-all",
+                        isChecked 
+                          ? (featuredModalTab === 'bestSelling' ? "bg-indigo-600 border-indigo-600 text-white" : "bg-rose-600 border-rose-600 text-white")
+                          : "border-gray-200 bg-white"
+                      )}>
+                        {isChecked && <Check size={14} className="stroke-[3]" />}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
+            {/* Footer */}
+            <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
+              <p className="text-xs font-semibold text-gray-400">
+                Click any product to toggle inclusion
+              </p>
+              <button
+                onClick={() => setIsFeaturedModalOpen(false)}
+                className="px-6 py-2.5 bg-gray-900 hover:bg-black text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
+              >
+                Done & Save
+              </button>
+            </div>
+
           </div>
         </div>
       )}

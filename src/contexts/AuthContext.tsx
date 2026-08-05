@@ -80,7 +80,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       'shamiulislamatik@gmail.com',
       'elegantbd.ltd@gmail.com',
       'eleganbd@gmail.com',
-      'elegantbd@gmail.com'
+      'elegantbd@gmail.com',
+      'sabbirrahmansr904@gmail.com'
     ].includes(email.toLowerCase());
 
   const refreshAdminStatus = async () => {
@@ -88,14 +89,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const email = auth.currentUser.email ? auth.currentUser.email.toLowerCase().trim() : '';
       const ceoStatus = email === 'eleganbd.ltd@gmail.com';
       setIsCEO(ceoStatus);
-
-      if (email === 'sabbirrahmansr904@gmail.com') {
-        setIsAdmin(true);
-        setIsSuperAdmin(false);
-        setPermissions(['dashboard', 'customers', 'orders', 'products', 'issues', 'masterTable', 'finance', 'settings']);
-        setDepartment('Sales Executive Department');
-        return;
-      }
 
       const superStatus = isSuperAdminEmail(auth.currentUser.email);
       setIsSuperAdmin(superStatus);
@@ -176,15 +169,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const email = user.email ? user.email.toLowerCase().trim() : '';
         const ceoStatus = email === 'eleganbd.ltd@gmail.com';
         setIsCEO(ceoStatus);
-
-        if (email === 'sabbirrahmansr904@gmail.com') {
-          setIsAdmin(true);
-          setIsSuperAdmin(false);
-          setPermissions(['dashboard', 'customers', 'orders', 'products', 'issues', 'masterTable', 'finance', 'settings']);
-          setDepartment('Sales Executive Department');
-          setLoading(false);
-          return;
-        }
 
         const superStatus = isSuperAdminEmail(user.email);
         setIsSuperAdmin(superStatus);

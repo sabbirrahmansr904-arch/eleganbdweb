@@ -10,7 +10,7 @@ import { useBranding } from '../contexts/BrandingContext';
 export default function Footer() {
   const { logoUrl, facebookUrl, instagramUrl, youtubeUrl, tiktokUrl } = useBranding();
   return (
-    <footer className="bg-[#52525B] text-white pt-8 pb-6 px-4 md:px-8 border-t border-white/10">
+    <footer className="bg-black text-white pt-8 pb-6 px-4 md:px-8 border-t border-white/10">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Column 1: Brand & Contact */}
         <div className="space-y-3 flex flex-col items-center text-center">

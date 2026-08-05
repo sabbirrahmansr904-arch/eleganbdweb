@@ -52,6 +52,8 @@ export default function AdminAddProduct() {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [isBestSelling, setIsBestSelling] = useState(false);
+  const [isNewArrival, setIsNewArrival] = useState(true);
 
   const handleDeleteCategory = async () => {
     if (selectedCategory === 'UNCATEGORIZED') return;
@@ -113,6 +115,8 @@ export default function AdminAddProduct() {
         setSelectedSizes(productToEdit.sizes || []);
         setQuantities(productToEdit.sizeStock || {});
         setSelectedCategory(productToEdit.category || '');
+        setIsBestSelling(!!(productToEdit.featured || productToEdit.bestSelling));
+        setIsNewArrival(productToEdit.newArrival !== undefined ? productToEdit.newArrival : true);
       }
     } else if (categories.length > 0) {
       setSelectedCategory(categories[0].name);
@@ -233,8 +237,9 @@ export default function AdminAddProduct() {
       description: (formData.get('description') as string) || '',
       images,
       sizes: selectedSizes,
-      newArrival: isEditMode ? initialData.newArrival : true,
-      featured: isEditMode ? initialData.featured : false,
+      newArrival: isNewArrival,
+      featured: isBestSelling,
+      bestSelling: isBestSelling,
     };
 
     if (regularPrice !== null && !isNaN(regularPrice)) {
@@ -457,6 +462,75 @@ Wash Care:
               <div className="space-y-2">
                 <label className="text-[9px] font-black uppercase tracking-[0.1em] text-orange-400 block ml-1">Regular (৳)</label>
                 <input name="regularPrice" type="number" step="any" defaultValue={initialData.regularPrice} placeholder="None" className="w-full bg-[#fcfdfe] border border-gray-100 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 outline-none focus:border-blue-200" />
+              </div>
+            </div>
+
+            {/* Homepage Showcase Section Toggles */}
+            <div className="pt-2 border-t border-gray-100 space-y-3">
+              <label className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-400 block ml-1">
+                Homepage Showcase Sections
+              </label>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Best Selling Toggle */}
+                <div 
+                  onClick={() => setIsBestSelling(!isBestSelling)}
+                  className={cn(
+                    "p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between select-none",
+                    isBestSelling 
+                      ? "bg-indigo-50/70 border-indigo-200 text-indigo-950 shadow-2xs" 
+                      : "bg-[#fcfdfe] border-gray-100 text-gray-500 hover:border-gray-200"
+                  )}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className={cn(
+                      "w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold transition-all",
+                      isBestSelling ? "bg-indigo-600 text-white shadow-sm" : "bg-gray-100 text-gray-400"
+                    )}>
+                      ⭐
+                    </div>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-tight">Best Selling</p>
+                      <p className="text-[10px] text-gray-400 font-medium">Show in Best Selling section</p>
+                    </div>
+                  </div>
+                  <div className={cn(
+                    "w-5 h-5 rounded-md border flex items-center justify-center transition-all",
+                    isBestSelling ? "bg-indigo-600 border-indigo-600 text-white" : "border-gray-200 bg-white"
+                  )}>
+                    {isBestSelling && <CheckCircle2 size={12} />}
+                  </div>
+                </div>
+
+                {/* New Arrival Toggle */}
+                <div 
+                  onClick={() => setIsNewArrival(!isNewArrival)}
+                  className={cn(
+                    "p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between select-none",
+                    isNewArrival 
+                      ? "bg-rose-50/70 border-rose-200 text-rose-950 shadow-2xs" 
+                      : "bg-[#fcfdfe] border-gray-100 text-gray-500 hover:border-gray-200"
+                  )}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className={cn(
+                      "w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold transition-all",
+                      isNewArrival ? "bg-rose-600 text-white shadow-sm" : "bg-gray-100 text-gray-400"
+                    )}>
+                      🔥
+                    </div>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-tight">New Arrival</p>
+                      <p className="text-[10px] text-gray-400 font-medium">Show in New Arrival section</p>
+                    </div>
+                  </div>
+                  <div className={cn(
+                    "w-5 h-5 rounded-md border flex items-center justify-center transition-all",
+                    isNewArrival ? "bg-rose-600 border-rose-600 text-white" : "border-gray-200 bg-white"
+                  )}>
+                    {isNewArrival && <CheckCircle2 size={12} />}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

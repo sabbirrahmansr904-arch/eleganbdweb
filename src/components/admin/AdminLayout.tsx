@@ -407,13 +407,23 @@ export default function AdminLayout() {
                     </span>
                   </div>
                 </div>
-                <button 
-                  onClick={handleLogout}
-                  className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-colors font-bold text-xs"
-                >
-                  <LogOut size={15} />
-                  <span>Sign Out Account</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <Link 
+                    to="/" 
+                    onClick={() => setIsMobileOpen(false)}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-full bg-[#EBF1F6] hover:bg-slate-200 text-slate-800 font-bold text-xs transition-all border border-slate-200/60"
+                  >
+                    <Store size={15} className="text-slate-700" />
+                    <span>Store</span>
+                  </Link>
+                  <button 
+                    onClick={handleLogout}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-full bg-[#FFF0F0] hover:bg-red-100 text-red-600 font-bold text-xs transition-all border border-red-200/60"
+                  >
+                    <LogOut size={15} />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
               </div>
             </motion.aside>
           </>
@@ -516,13 +526,22 @@ export default function AdminLayout() {
                   </span>
                 </div>
               </div>
-              <button 
-                onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-colors font-bold text-xs"
-              >
-                <LogOut size={15} />
-                <span>Sign Out</span>
-              </button>
+              <div className="flex items-center gap-2 mt-2">
+                <Link 
+                  to="/" 
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-full bg-[#EBF1F6] hover:bg-slate-200 text-slate-800 font-bold text-xs transition-all border border-slate-200/60"
+                >
+                  <Store size={15} className="text-slate-700" />
+                  <span>Store</span>
+                </Link>
+                <button 
+                  onClick={handleLogout}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-full bg-[#FFF0F0] hover:bg-red-100 text-red-600 font-bold text-xs transition-all border border-red-200/60 cursor-pointer"
+                >
+                  <LogOut size={15} />
+                  <span>Sign Out</span>
+                </button>
+              </div>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3">
@@ -568,7 +587,26 @@ export default function AdminLayout() {
             </div>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
+            {/* Store & Sign Out Action Buttons */}
+            <Link 
+              to="/" 
+              title="Visit Store Front"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#EBF1F6] hover:bg-slate-200 text-slate-800 font-bold text-xs transition-all border border-slate-200/60 shadow-2xs"
+            >
+              <Store size={15} className="text-slate-700" />
+              <span>Store</span>
+            </Link>
+
+            <button
+              onClick={handleLogout}
+              title="Sign Out Account"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#FFF0F0] hover:bg-red-100 text-red-600 font-bold text-xs transition-all border border-red-200/60 shadow-2xs cursor-pointer"
+            >
+              <LogOut size={15} className="text-red-600" />
+              <span>Sign Out</span>
+            </button>
+
             <button 
               onClick={() => setIsDarkMode(!isDarkMode)}
               title={isDarkMode ? "Light Mode" : "Dark Mode"}

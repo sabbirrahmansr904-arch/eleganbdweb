@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowRight, Truck, Award, Lock, Tag, Users, ShoppingBag, Star, Headphones } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, Truck, Award, Lock, Tag, Users, ShoppingBag, Star, Headphones } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProducts } from '../contexts/ProductContext';
 import { useBanners } from '../contexts/BannerContext';
@@ -16,28 +16,45 @@ const Home = () => {
   const { banners } = useBanners();
   const { 
     heroBannerUrl, 
+    heroBanner2Url,
+    heroBanner3Url,
     showHeroBanner,
     shirtBannerUrl,
     pantBannerUrl
   } = useBranding();
+
+  const bestSellingScrollRef = React.useRef<HTMLDivElement>(null);
+  const newArrivalScrollRef = React.useRef<HTMLDivElement>(null);
+
+  const scrollLeft = (ref: React.RefObject<HTMLDivElement | null>) => {
+    if (ref.current) {
+      ref.current.scrollBy({ left: -320, behavior: 'smooth' });
+    }
+  };
+
+  const scrollRight = (ref: React.RefObject<HTMLDivElement | null>) => {
+    if (ref.current) {
+      ref.current.scrollBy({ left: 320, behavior: 'smooth' });
+    }
+  };
   
   const activeHeroBannersFromDb = banners.filter(b => b.active && b.type === 'hero' && b.image && !b.image.includes('unsplash.com'));
   
   let activeHeroBanners: Array<{ id: string; active?: boolean; type?: string; image: string; title?: string; link?: string }> = [];
 
+  const promoHeroBanners = [heroBannerUrl, heroBanner2Url, heroBanner3Url].filter(url => url && !url.includes('unsplash.com'));
+
   if (activeHeroBannersFromDb.length > 0) {
     activeHeroBanners = activeHeroBannersFromDb;
-  } else if (heroBannerUrl && !heroBannerUrl.includes('unsplash.com')) {
-    activeHeroBanners = [
-      {
-        id: 'uploaded-hero-1',
-        active: true,
-        type: 'hero',
-        image: heroBannerUrl,
-        title: '',
-        link: '/category/all'
-      }
-    ];
+  } else if (promoHeroBanners.length > 0) {
+    activeHeroBanners = promoHeroBanners.map((imgUrl, idx) => ({
+      id: `promo-hero-${idx + 1}`,
+      active: true,
+      type: 'hero',
+      image: imgUrl,
+      title: '',
+      link: '/category/all'
+    }));
   }
 
   const [currentBanner, setCurrentBanner] = React.useState(0);
@@ -92,10 +109,16 @@ const Home = () => {
     return list;
   }, [categories, products]);
 
-  // Best Selling Products section (6 items total, ensuring both shirts & pants are included)
+  // Best Selling Products section
   const bestSellingProducts = React.useMemo(() => {
     if (!products || products.length === 0) return [];
     
+    // Check if any products have featured or bestSelling marked explicitly
+    const explicitBestSellers = products.filter(p => p.featured === true || p.bestSelling === true);
+    if (explicitBestSellers.length > 0) {
+      return explicitBestSellers;
+    }
+
     const isPant = (p: typeof products[0]) => {
       const cat = (p.category || '').toLowerCase();
       const name = (p.name || '').toLowerCase();
@@ -125,20 +148,19 @@ const Home = () => {
     let sIdx = 0;
 
     // Alternate picking pants and shirts so both are prominently displayed
-    while (result.length < 6) {
+    while (result.length < 8) {
       let added = false;
       if (pIdx < pants.length && !result.some(item => item.id === pants[pIdx].id)) {
         result.push(pants[pIdx]);
         pIdx++;
         added = true;
       }
-      if (result.length < 6 && sIdx < shirts.length && !result.some(item => item.id === shirts[sIdx].id)) {
+      if (result.length < 8 && sIdx < shirts.length && !result.some(item => item.id === shirts[sIdx].id)) {
         result.push(shirts[sIdx]);
         sIdx++;
         added = true;
       }
       if (!added) {
-        // Fill remaining slots with any unused products
         const unused = products.filter(p => !result.some(item => item.id === p.id));
         if (unused.length > 0) {
           result.push(unused[0]);
@@ -151,13 +173,30 @@ const Home = () => {
     return result;
   }, [products]);
 
+  // New Arrival Products section
+  const newArrivalProducts = React.useMemo(() => {
+    if (!products || products.length === 0) return [];
+
+    // Check if any products have newArrival marked explicitly true
+    const explicitNewArrivals = products.filter(p => p.newArrival === true);
+    if (explicitNewArrivals.length > 0) {
+      return explicitNewArrivals;
+    }
+
+    return [...products].sort((a, b) => {
+      const da = (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0;
+      const db = (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0;
+      return db - da;
+    }).slice(0, 8);
+  }, [products]);
+
   return (
     <div className="flex flex-col min-h-screen bg-white">
       
       {/* TOP SECTION: HERO BANNER */}
       <section className="max-w-7xl mx-auto w-full px-4 sm:px-6 pt-3 sm:pt-4 pb-4 sm:pb-6">
         {activeHeroBanners.length > 0 && showHeroBanner ? (
-          <div className="relative rounded-xl sm:rounded-2xl md:rounded-3xl overflow-hidden shadow-xs bg-gray-950 w-full aspect-[21/8] sm:aspect-[24/8] md:aspect-[28/8] max-h-[220px] sm:max-h-[300px] md:max-h-[360px] flex items-center justify-center">
+          <div className="relative rounded-xl sm:rounded-2xl md:rounded-3xl overflow-hidden shadow-sm bg-black w-full min-h-[160px] sm:min-h-[220px] md:min-h-[280px] max-h-[280px] sm:max-h-[400px] md:max-h-[520px] flex items-center justify-center">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentBanner}
@@ -165,14 +204,23 @@ const Home = () => {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.5 }}
-                className="w-full h-full"
+                className="w-full h-full relative flex items-center justify-center overflow-hidden"
               >
+                {/* Ambient Blurred Background to fill container edges gracefully */}
+                <img 
+                  src={activeHeroBanners[currentBanner].image} 
+                  alt="" 
+                  aria-hidden="true"
+                  className="absolute inset-0 w-full h-full object-cover blur-xl opacity-30 scale-110 pointer-events-none"
+                />
+
+                {/* Main Hero Banner Image - Object Contain to NEVER crop any picture edge */}
                 {activeHeroBanners[currentBanner].link ? (
-                  <Link to={activeHeroBanners[currentBanner].link} className="block w-full h-full">
+                  <Link to={activeHeroBanners[currentBanner].link} className="relative z-10 block w-full h-full flex items-center justify-center">
                     <img 
                       src={activeHeroBanners[currentBanner].image} 
                       alt="Hero Banner" 
-                      className="w-full h-full object-cover object-center block rounded-xl sm:rounded-2xl md:rounded-3xl"
+                      className="w-full h-full max-h-[280px] sm:max-h-[400px] md:max-h-[520px] object-contain object-center block rounded-xl sm:rounded-2xl md:rounded-3xl"
                       referrerPolicy="no-referrer"
                     />
                   </Link>
@@ -180,7 +228,7 @@ const Home = () => {
                   <img 
                     src={activeHeroBanners[currentBanner].image} 
                     alt="Hero Banner" 
-                    className="w-full h-full object-cover object-center block rounded-xl sm:rounded-2xl md:rounded-3xl"
+                    className="relative z-10 w-full h-full max-h-[280px] sm:max-h-[400px] md:max-h-[520px] object-contain object-center block rounded-xl sm:rounded-2xl md:rounded-3xl"
                     referrerPolicy="no-referrer"
                   />
                 )}
@@ -319,6 +367,112 @@ const Home = () => {
         </section>
       )}
 
+      {/* 1. BEST SELLING PRODUCTS SECTION */}
+      {bestSellingProducts.length > 0 && (
+        <section className="max-w-7xl mx-auto w-full px-4 pb-12">
+          {/* Section Header: BEST SELLING PRODUCTS */}
+          <div className="relative flex items-center justify-between border-b border-gray-100 pb-4 mb-6">
+            <div className="w-16" />
+            <h2 className="text-xl md:text-2xl font-black uppercase text-gray-950 tracking-tight text-center flex-1">
+              BEST SELLING PRODUCTS
+            </h2>
+            <Link 
+              to="/category/all" 
+              className="text-xs font-black uppercase text-gray-500 hover:text-blue-600 transition-colors tracking-wider flex items-center gap-1"
+            >
+              <span>View All</span>
+              <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          <div className="relative group/carousel">
+            {/* Scroll Left Button */}
+            <button
+              onClick={() => scrollLeft(bestSellingScrollRef)}
+              className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-all cursor-pointer opacity-90 hover:opacity-100"
+              aria-label="Scroll left"
+            >
+              <ChevronLeft size={20} />
+            </button>
+
+            {/* Scroll Right Button */}
+            <button
+              onClick={() => scrollRight(bestSellingScrollRef)}
+              className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-all cursor-pointer opacity-90 hover:opacity-100"
+              aria-label="Scroll right"
+            >
+              <ChevronRight size={20} />
+            </button>
+
+            {/* Scrollable Container */}
+            <div 
+              ref={bestSellingScrollRef}
+              className="flex gap-4 md:gap-5 overflow-x-auto pb-4 scroll-smooth snap-x snap-mandatory scrollbar-none"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {bestSellingProducts.map((product) => (
+                <div key={`bestseller-${product.id}`} className="w-[180px] sm:w-[210px] md:w-[230px] flex-shrink-0 snap-start">
+                  <ProductCard product={product} badgeText="Best Selling" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* 2. NEW ARRIVAL PRODUCTS SECTION */}
+      {newArrivalProducts.length > 0 && (
+        <section className="max-w-7xl mx-auto w-full px-4 pb-12">
+          {/* Section Header: NEW ARRIVAL PRODUCTS */}
+          <div className="relative flex items-center justify-between border-b border-gray-100 pb-4 mb-6">
+            <div className="w-16" />
+            <h2 className="text-xl md:text-2xl font-black uppercase text-gray-950 tracking-tight text-center flex-1">
+              NEW ARRIVAL PRODUCTS
+            </h2>
+            <Link 
+              to="/category/all" 
+              className="text-xs font-black uppercase text-gray-500 hover:text-blue-600 transition-colors tracking-wider flex items-center gap-1"
+            >
+              <span>See All</span>
+              <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          <div className="relative group/carousel">
+            {/* Scroll Left Button */}
+            <button
+              onClick={() => scrollLeft(newArrivalScrollRef)}
+              className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-all cursor-pointer opacity-90 hover:opacity-100"
+              aria-label="Scroll left"
+            >
+              <ChevronLeft size={20} />
+            </button>
+
+            {/* Scroll Right Button */}
+            <button
+              onClick={() => scrollRight(newArrivalScrollRef)}
+              className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-all cursor-pointer opacity-90 hover:opacity-100"
+              aria-label="Scroll right"
+            >
+              <ChevronRight size={20} />
+            </button>
+
+            {/* Scrollable Container */}
+            <div 
+              ref={newArrivalScrollRef}
+              className="flex gap-4 md:gap-5 overflow-x-auto pb-4 scroll-smooth snap-x snap-mandatory scrollbar-none"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {newArrivalProducts.map((product) => (
+                <div key={`newarrival-${product.id}`} className="w-[180px] sm:w-[210px] md:w-[230px] flex-shrink-0 snap-start">
+                  <ProductCard product={product} badgeText="NEW" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ALL COLLECTIONS - MAIN PRODUCT SECTION SHOWING FORMAL PANTS FIRST, THEN FORMAL SHIRTS */}
       <section className="max-w-7xl mx-auto w-full px-4 pb-16">
         {/* Section Header: ALL COLLECTIONS (CENTERED & BLUE) */}
@@ -422,31 +576,6 @@ const Home = () => {
           </div>
         </div>
       </section>
-
-      {/* BEST SELLING PRODUCTS SECTION */}
-      {bestSellingProducts.length > 0 && (
-        <section className="max-w-7xl mx-auto w-full px-4 pb-16">
-          {/* Section Header: BEST SELLING PRODUCTS (CENTERED & BLUE) */}
-          <div className="relative flex items-center justify-center border-b border-gray-100 pb-4 mb-8">
-            <h2 className="text-xl md:text-2xl font-black uppercase text-blue-600 tracking-tight text-center">
-              Best Selling Products
-            </h2>
-            <Link 
-              to="/category/all" 
-              className="absolute right-0 flex items-center gap-1 text-xs font-black uppercase text-gray-900 hover:text-blue-600 transition-colors tracking-wider"
-            >
-              <span className="hidden sm:inline">VIEW ALL</span>
-              <ArrowRight size={14} />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 md:gap-5">
-            {bestSellingProducts.map((product) => (
-              <ProductCard key={`bestseller-${product.id}`} product={product} badgeText="Best Selling" />
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* NUMBERS / STATS SECTION */}
       <section className="max-w-7xl mx-auto w-full px-4 pb-16">

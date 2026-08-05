@@ -108,12 +108,19 @@ export default function AdminDashboard(): React.JSX.Element {
     prevProductsRef.current = newStockMap;
   }, [products]);
 
-  // Dynamic Sales Report area chart calculation
+  // Dynamic legend labels based on selected period
+  const legendLabels = useMemo(() => {
+    if (reportPeriod === '30 DAYS') return { curr: 'This 30 Days (৳)', prev: 'Prev 30 Days (৳)' };
+    if (reportPeriod === '7 DAYS') return { curr: 'This Week (৳)', prev: 'Last Week (৳)' };
+    return { curr: 'This Year (৳)', prev: 'Last Year (৳)' };
+  }, [reportPeriod]);
+
+  // Dynamic Sales Report area chart calculation strictly based on real-time orders in Firestore
   const salesReportData = useMemo(() => {
     const monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const now = new Date();
 
-    if (orders && orders.length > 0) {
+    if (orders) {
       if (reportPeriod === '12 MONTHS' || reportPeriod === '6 MONTHS') {
         const count = reportPeriod === '12 MONTHS' ? 12 : 6;
         const result = [];
@@ -121,23 +128,28 @@ export default function AdminDashboard(): React.JSX.Element {
           const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
           const mIdx = d.getMonth();
           const yr = d.getFullYear();
+          const prevYr = yr - 1;
 
           const mOrders = orders.filter(o => {
-            if (o.status === 'Cancelled' || !o.createdAt) return false;
+            if (!o.createdAt || o.status === 'Cancelled' || o.status === 'PICK UP CANCEL') return false;
             const od = new Date(o.createdAt);
             return od.getMonth() === mIdx && od.getFullYear() === yr;
           });
 
+          const prevMOrders = orders.filter(o => {
+            if (!o.createdAt || o.status === 'Cancelled' || o.status === 'PICK UP CANCEL') return false;
+            const od = new Date(o.createdAt);
+            return od.getMonth() === mIdx && od.getFullYear() === prevYr;
+          });
+
           const salesSum = mOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-          const profitSum = salesSum * 0.45; // estimated 45% profit margin
+          const prevSalesSum = prevMOrders.reduce((sum, o) => sum + (o.total || 0), 0);
 
           result.push({
             name: monthsShort[mIdx],
-            sales: Math.round(salesSum) || (Math.round((5000 + Math.sin(i) * 2000) / (count - i))),
-            profit: Math.round(profitSum) || (Math.round((2200 + Math.sin(i) * 900) / (count - i))),
-            dateLabel: `${monthsShort[mIdx].toUpperCase()} 17, 26`,
-            salesPct: "+24.8%",
-            profitPct: "+3.4%"
+            sales: Math.round(salesSum),
+            profit: Math.round(prevSalesSum), // Mapped to previous period line
+            dateLabel: `${monthsShort[mIdx]} ${yr}`,
           });
         }
         return result;
@@ -147,111 +159,75 @@ export default function AdminDashboard(): React.JSX.Element {
           const segmentEnd = new Date(now.getTime() - i * 5 * 24 * 60 * 60 * 1000);
           const segmentStart = new Date(segmentEnd.getTime() - 5 * 24 * 60 * 60 * 1000);
 
+          const prevSegmentEnd = new Date(segmentEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
+          const prevSegmentStart = new Date(segmentStart.getTime() - 30 * 24 * 60 * 60 * 1000);
+
           const sOrders = orders.filter(o => {
-            if (o.status === 'Cancelled' || !o.createdAt) return false;
+            if (!o.createdAt || o.status === 'Cancelled' || o.status === 'PICK UP CANCEL') return false;
             const od = new Date(o.createdAt);
             return od >= segmentStart && od <= segmentEnd;
           });
 
-          const salesSum = sOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-          const profitSum = salesSum * 0.45;
+          const prevSOrders = orders.filter(o => {
+            if (!o.createdAt || o.status === 'Cancelled' || o.status === 'PICK UP CANCEL') return false;
+            const od = new Date(o.createdAt);
+            return od >= prevSegmentStart && od <= prevSegmentEnd;
+          });
 
-          const label = `Day ${30 - i * 5}`;
+          const salesSum = sOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+          const prevSalesSum = prevSOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+
+          const endDayNum = 30 - i * 5;
+          const startDayNum = endDayNum - 4;
+
           result.push({
-            name: label,
-            sales: Math.round(salesSum) || (7000 + i * 350),
-            profit: Math.round(profitSum) || (3200 + i * 180),
-            dateLabel: `JUL ${5 + (5 - i) * 5}, 26`,
-            salesPct: "+15.2%",
-            profitPct: "+6.8%"
+            name: `Day ${startDayNum}-${endDayNum}`,
+            sales: Math.round(salesSum),
+            profit: Math.round(prevSalesSum),
+            dateLabel: `Last 30 Days`,
           });
         }
         return result;
       } else {
+        // 7 DAYS
         const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const result = [];
         for (let i = 6; i >= 0; i--) {
           const targetDate = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-          
+          const prevDate = new Date(now.getTime() - (i + 7) * 24 * 60 * 60 * 1000);
+
           const dOrders = orders.filter(o => {
-            if (o.status === 'Cancelled' || !o.createdAt) return false;
+            if (!o.createdAt || o.status === 'Cancelled' || o.status === 'PICK UP CANCEL') return false;
             const od = new Date(o.createdAt);
             return od.getDate() === targetDate.getDate() && 
                    od.getMonth() === targetDate.getMonth() && 
                    od.getFullYear() === targetDate.getFullYear();
           });
 
+          const prevDOrders = orders.filter(o => {
+            if (!o.createdAt || o.status === 'Cancelled' || o.status === 'PICK UP CANCEL') return false;
+            const od = new Date(o.createdAt);
+            return od.getDate() === prevDate.getDate() && 
+                   od.getMonth() === prevDate.getMonth() && 
+                   od.getFullYear() === prevDate.getFullYear();
+          });
+
           const salesSum = dOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-          const profitSum = salesSum * 0.45;
+          const prevSalesSum = prevDOrders.reduce((sum, o) => sum + (o.total || 0), 0);
 
           result.push({
             name: days[targetDate.getDay()],
-            sales: Math.round(salesSum) || (6000 + Math.floor(Math.random() * 2000)),
-            profit: Math.round(profitSum) || (2700 + Math.floor(Math.random() * 900)),
-            dateLabel: `JUL ${20 + (6 - i)}, 26`,
-            salesPct: "+10.1%",
-            profitPct: "+4.2%"
+            sales: Math.round(salesSum),
+            profit: Math.round(prevSalesSum),
+            dateLabel: targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
           });
         }
         return result;
       }
     }
 
-    // High fidelity fallbacks matching the screenshot visual exactly if database is empty
-    if (reportPeriod === '12 MONTHS') {
-      const salesMock = [3800, 4200, 3900, 5400, 5200, 4800, 5800, 7200, 8100, 7900, 8400, 9292];
-      const profitMock = [1900, 2100, 1850, 2600, 2500, 2200, 2700, 3400, 3900, 3600, 4100, 4254];
-      const months = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan'];
-      
-      return months.map((m, i) => ({
-        name: m,
-        sales: salesMock[i],
-        profit: profitMock[i],
-        dateLabel: `${m.toUpperCase()} 17, 26`,
-        salesPct: "+24.8%",
-        profitPct: "+3.4%"
-      }));
-    } else if (reportPeriod === '6 MONTHS') {
-      const salesMock = [4800, 5800, 7200, 8100, 8400, 9292];
-      const profitMock = [2200, 2700, 3400, 3900, 4100, 4254];
-      const months = ['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan'];
-      
-      return months.map((m, i) => ({
-        name: m,
-        sales: salesMock[i],
-        profit: profitMock[i],
-        dateLabel: `${m.toUpperCase()} 15, 26`,
-        salesPct: "+19.5%",
-        profitPct: "+2.8%"
-      }));
-    } else if (reportPeriod === '30 DAYS') {
-      const salesMock = [6200, 6800, 7100, 7900, 8600, 9292];
-      const profitMock = [2800, 3100, 3300, 3600, 3900, 4254];
-      const intervals = ['Day 5', 'Day 10', 'Day 15', 'Day 20', 'Day 25', 'Day 30'];
-      
-      return intervals.map((v, i) => ({
-        name: v,
-        sales: salesMock[i],
-        profit: profitMock[i],
-        dateLabel: `JUL ${5 + i * 5}, 26`,
-        salesPct: "+14.3%",
-        profitPct: "+1.9%"
-      }));
-    } else {
-      const salesMock = [7100, 7600, 8100, 7800, 8500, 8900, 9292];
-      const profitMock = [3300, 3500, 3700, 3600, 3900, 4100, 4254];
-      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      
-      return days.map((d, i) => ({
-        name: d,
-        sales: salesMock[i],
-        profit: profitMock[i],
-        dateLabel: `JUL ${20 + i}, 26`,
-        salesPct: "+11.2%",
-        profitPct: "+2.1%"
-      }));
-    }
-  }, [orders, reportPeriod, currency, rate]);
+    return [];
+  }, [orders, reportPeriod]);
 
   // Low Stock Alert calculation - strictly based on real-time products
   const stockAlertProducts = useMemo(() => {
@@ -797,7 +773,7 @@ export default function AdminDashboard(): React.JSX.Element {
   // Dynamic Total calculations purely based on real-time orders live data
   const dynamicTotalSalesAmount = useMemo(() => {
     if (orders && orders.length > 0) {
-      const activeOrders = orders.filter(o => o.status !== 'Cancelled');
+      const activeOrders = orders.filter(o => o.status !== 'Cancelled' && o.status !== 'PICK UP CANCEL');
       if (activeOrders.length > 0) {
         return activeOrders.reduce((sum, o) => sum + (o.total || 0), 0);
       }
@@ -810,16 +786,74 @@ export default function AdminDashboard(): React.JSX.Element {
   }, [orders]);
 
   const dynamicTotalRevenueAmount = useMemo(() => {
-    // 91.64% of sales as an example profit/revenue margin, you can change this to 1:1 if you want raw sales
-    return Math.round(dynamicTotalSalesAmount * 0.9164);
+    // 100% accurate total revenue from active orders
+    return dynamicTotalSalesAmount;
   }, [dynamicTotalSalesAmount]);
 
   const dynamicTotalCustomersCount = useMemo(() => {
     if (orders && orders.length > 0) {
-      const uniqueCusts = new Set(orders.map(o => o.customerId || o.customerEmail || o.shippingAddress?.fullName || 'unknown').filter(val => val !== 'unknown'));
+      const uniqueCusts = new Set(orders.map(o => o.customerId || o.customerEmail || o.phone || o.shippingAddress?.fullName || 'unknown').filter(val => val !== 'unknown'));
       return uniqueCusts.size;
     }
     return 0;
+  }, [orders]);
+
+  // Real-time Month-over-Month growth trends
+  const monthlyStats = useMemo(() => {
+    if (!orders || orders.length === 0) {
+      return { salesGrowth: 0, ordersGrowth: 0, revenueGrowth: 0, customersGrowth: 0 };
+    }
+
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const lastMonthDate = new Date(currentYear, currentMonth - 1, 1);
+    const lastMonth = lastMonthDate.getMonth();
+    const lastMonthYear = lastMonthDate.getFullYear();
+
+    let thisMonthSales = 0;
+    let lastMonthSales = 0;
+    let thisMonthOrders = 0;
+    let lastMonthOrders = 0;
+
+    const thisMonthCusts = new Set<string>();
+    const lastMonthCusts = new Set<string>();
+
+    orders.forEach(o => {
+      if (!o.createdAt) return;
+      const d = new Date(o.createdAt);
+      const isThisMonth = d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+      const isLastMonth = d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
+
+      const custKey = o.phone || o.customerId || o.customerEmail || 'unknown';
+
+      if (isThisMonth) {
+        thisMonthOrders++;
+        if (custKey !== 'unknown') thisMonthCusts.add(custKey);
+        if (o.status !== 'Cancelled' && o.status !== 'PICK UP CANCEL') {
+          thisMonthSales += o.total || 0;
+        }
+      } else if (isLastMonth) {
+        lastMonthOrders++;
+        if (custKey !== 'unknown') lastMonthCusts.add(custKey);
+        if (o.status !== 'Cancelled' && o.status !== 'PICK UP CANCEL') {
+          lastMonthSales += o.total || 0;
+        }
+      }
+    });
+
+    const calcGrowth = (curr: number, prev: number) => {
+      if (prev === 0) return curr > 0 ? 100 : 0;
+      return Math.round(((curr - prev) / prev) * 100);
+    };
+
+    return {
+      salesGrowth: calcGrowth(thisMonthSales, lastMonthSales),
+      ordersGrowth: calcGrowth(thisMonthOrders, lastMonthOrders),
+      revenueGrowth: calcGrowth(thisMonthSales, lastMonthSales),
+      customersGrowth: calcGrowth(thisMonthCusts.size, lastMonthCusts.size)
+    };
   }, [orders]);
 
   const productSalesData = useMemo(() => {
@@ -922,18 +956,21 @@ export default function AdminDashboard(): React.JSX.Element {
   // Custom tooltips matching visual specs perfectly
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
+      const dataObj = payload[0]?.payload;
       return (
         <div className="bg-white/95 backdrop-blur-md border border-gray-100 p-4 rounded-2xl shadow-xl w-64 text-xs select-none">
           <div className="flex items-center justify-between pb-3 border-b border-gray-50 mb-3">
-            <span className="font-black text-gray-500 uppercase tracking-wider">{label} 2024</span>
+            <span className="font-black text-gray-500 uppercase tracking-wider">
+              {label} {dataObj?.dateLabel ? `(${dataObj.dateLabel})` : ''}
+            </span>
           </div>
           
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-[#6366F1]" />
               <div className="flex-1 flex justify-between items-center">
-                <span className="text-gray-500 font-medium">This Year</span>
-                <span className="font-black text-gray-900">{formatPrice(payload[0].value, currency, rate)}</span>
+                <span className="text-gray-500 font-medium">{legendLabels.curr}</span>
+                <span className="font-black text-gray-900">{formatPrice(payload[0].value || 0, currency, rate)}</span>
               </div>
             </div>
             
@@ -941,8 +978,8 @@ export default function AdminDashboard(): React.JSX.Element {
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#94A3B8]" />
                 <div className="flex-1 flex justify-between items-center">
-                  <span className="text-gray-500 font-medium">Last Year</span>
-                  <span className="font-black text-gray-900">{formatPrice(payload[1].value, currency, rate)}</span>
+                  <span className="text-gray-500 font-medium">{legendLabels.prev}</span>
+                  <span className="font-black text-gray-900">{formatPrice(payload[1].value || 0, currency, rate)}</span>
                 </div>
               </div>
             )}
@@ -995,8 +1032,8 @@ export default function AdminDashboard(): React.JSX.Element {
 
           {/* Trend & Sparkline */}
           <div className="flex items-end justify-between mt-2 pt-2 border-t border-gray-50/50">
-            <span className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
-              ↑ 36% <span className="text-gray-400 font-bold text-[10px]">vs last month</span>
+            <span className={`inline-flex items-center gap-1 text-[11px] font-black ${monthlyStats.salesGrowth >= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'} px-2 py-0.5 rounded-md`}>
+              {monthlyStats.salesGrowth >= 0 ? `↑ ${monthlyStats.salesGrowth}%` : `↓ ${Math.abs(monthlyStats.salesGrowth)}%`} <span className="text-gray-400 font-bold text-[10px]">vs last month</span>
             </span>
             <div className="w-20 h-8">
               <svg width="80" height="32" viewBox="0 0 80 32" className="text-[#6366F1]">
@@ -1049,8 +1086,8 @@ export default function AdminDashboard(): React.JSX.Element {
 
           {/* Trend & Sparkline */}
           <div className="flex items-end justify-between mt-2 pt-2 border-t border-gray-50/50">
-            <span className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
-              ↑ 28% <span className="text-gray-400 font-bold text-[10px]">vs last month</span>
+            <span className={`inline-flex items-center gap-1 text-[11px] font-black ${monthlyStats.ordersGrowth >= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'} px-2 py-0.5 rounded-md`}>
+              {monthlyStats.ordersGrowth >= 0 ? `↑ ${monthlyStats.ordersGrowth}%` : `↓ ${Math.abs(monthlyStats.ordersGrowth)}%`} <span className="text-gray-400 font-bold text-[10px]">vs last month</span>
             </span>
             <div className="w-20 h-8">
               <svg width="80" height="32" viewBox="0 0 80 32" className="text-[#10B981]">
@@ -1103,8 +1140,8 @@ export default function AdminDashboard(): React.JSX.Element {
 
           {/* Trend & Sparkline */}
           <div className="flex items-end justify-between mt-2 pt-2 border-t border-gray-50/50">
-            <span className="inline-flex items-center gap-1 text-[11px] font-black text-[#EF4444] bg-[#FEF2F2] px-2 py-0.5 rounded-md">
-              ↓ 14% <span className="text-gray-400 font-bold text-[10px]">vs last month</span>
+            <span className={`inline-flex items-center gap-1 text-[11px] font-black ${monthlyStats.revenueGrowth >= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'} px-2 py-0.5 rounded-md`}>
+              {monthlyStats.revenueGrowth >= 0 ? `↑ ${monthlyStats.revenueGrowth}%` : `↓ ${Math.abs(monthlyStats.revenueGrowth)}%`} <span className="text-gray-400 font-bold text-[10px]">vs last month</span>
             </span>
             <div className="w-20 h-8">
               <svg width="80" height="32" viewBox="0 0 80 32" className="text-[#F97316]">
@@ -1157,8 +1194,8 @@ export default function AdminDashboard(): React.JSX.Element {
 
           {/* Trend & Sparkline */}
           <div className="flex items-end justify-between mt-2 pt-2 border-t border-gray-50/50">
-            <span className="inline-flex items-center gap-1 text-[11px] font-black text-[#10B981] bg-[#ECFDF5] px-2 py-0.5 rounded-md">
-              ↑ 21% <span className="text-gray-400 font-bold text-[10px]">vs last month</span>
+            <span className={`inline-flex items-center gap-1 text-[11px] font-black ${monthlyStats.customersGrowth >= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'} px-2 py-0.5 rounded-md`}>
+              {monthlyStats.customersGrowth >= 0 ? `↑ ${monthlyStats.customersGrowth}%` : `↓ ${Math.abs(monthlyStats.customersGrowth)}%`} <span className="text-gray-400 font-bold text-[10px]">vs last month</span>
             </span>
             <div className="w-20 h-8">
               <svg width="80" height="32" viewBox="0 0 80 32" className="text-[#3B82F6]">
@@ -1197,11 +1234,11 @@ export default function AdminDashboard(): React.JSX.Element {
             <div className="flex items-center gap-4 mt-2">
               <div className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-500">
                 <span className="w-2 h-2 rounded-full bg-[#6366F1]" />
-                <span>This Year (৳)</span>
+                <span>{legendLabels.curr}</span>
               </div>
               <div className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-500">
                 <span className="w-2 h-2 rounded-full bg-[#D1D5DB]" />
-                <span>Last Year (৳)</span>
+                <span>{legendLabels.prev}</span>
               </div>
             </div>
           </div>
@@ -1265,7 +1302,11 @@ export default function AdminDashboard(): React.JSX.Element {
                 axisLine={false}
                 tickLine={false}
                 tick={{ fill: '#9CA3AF', fontSize: 10, fontWeight: 700 }}
-                tickFormatter={(val) => `৳${Math.round(val / 1000)}k`}
+                tickFormatter={(val) => {
+                  if (val === 0) return '৳0';
+                  if (val >= 1000) return `৳${(val / 1000).toFixed(val % 1000 === 0 ? 0 : 1)}k`;
+                  return `৳${val}`;
+                }}
               />
               <Tooltip content={<CustomTooltip />} />
               <Area
