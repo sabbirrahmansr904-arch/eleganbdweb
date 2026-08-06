@@ -329,7 +329,7 @@ export default function AdminFinance(): React.JSX.Element {
         
         {/* Bank Summary Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="bg-white border border-gray-100 p-5 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex items-center justify-between col-span-1 md:col-span-2">
+          <div className="bg-[#F8F9FD] border border-gray-100 p-5 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex items-center justify-between col-span-1 md:col-span-2">
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">মোট ব্যাংক এবং গেটওয়ে তহবিল</p>
               <h3 className="text-3xl font-black text-gray-900 mt-1">{formatPrice(totalBankBalance)}</h3>
@@ -340,7 +340,7 @@ export default function AdminFinance(): React.JSX.Element {
             </div>
           </div>
 
-          <div className="bg-white border border-gray-100 p-5 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex items-center justify-between">
+          <div className="bg-[#F8F9FD] border border-gray-100 p-5 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex items-center justify-between">
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">মোট ব্যাংক অ্যাকাউন্ট</p>
               <h3 className="text-3xl font-black text-gray-900 mt-1">{bankAccounts.length} টি</h3>
@@ -355,7 +355,7 @@ export default function AdminFinance(): React.JSX.Element {
         {/* Bank Accounts Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {bankAccounts.map(acc => (
-            <div key={acc.id} className="bg-white border border-gray-100 p-5 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-4 hover:border-gray-200 transition-all group relative">
+            <div key={acc.id} className="bg-[#F8F9FD] border border-gray-100 p-5 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-4 hover:border-gray-200 transition-all group relative">
               <div className="flex items-start justify-between">
                 <div>
                   <h4 className="text-sm font-black text-gray-900">{acc.bankName}</h4>
@@ -394,7 +394,7 @@ export default function AdminFinance(): React.JSX.Element {
         </div>
 
         {/* --- DAILY MULTI-ACCOUNT DEPOSIT ENTRY MODULE --- */}
-        <div className="bg-white border border-gray-100 rounded-[20px] shadow-sm p-6 space-y-5">
+        <div className="bg-[#F8F9FD] border border-gray-100 rounded-[20px] shadow-sm p-6 space-y-5">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-gray-50 pb-4">
             <div>
               <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
@@ -433,14 +433,14 @@ export default function AdminFinance(): React.JSX.Element {
                     placeholder="আজকের জমার পরিমাণ (৳)"
                     value={dailyAmounts[acc.id] || ''}
                     onChange={(e) => setDailyAmounts({ ...dailyAmounts, [acc.id]: e.target.value })}
-                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-900 placeholder:text-gray-300 outline-none focus:border-emerald-500"
+                    className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-900 placeholder:text-gray-300 outline-none focus:border-emerald-500"
                   />
                   <input 
                     type="text"
                     placeholder="সংক্ষিপ্ত নোট (ঐচ্ছিক)"
                     value={dailyNotes[acc.id] || ''}
                     onChange={(e) => setDailyNotes({ ...dailyNotes, [acc.id]: e.target.value })}
-                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-1.5 text-[11px] font-medium text-gray-700 placeholder:text-gray-300 outline-none focus:border-indigo-400"
+                    className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-1.5 text-[11px] font-medium text-gray-700 placeholder:text-gray-300 outline-none focus:border-indigo-400"
                   />
                 </div>
               </div>
@@ -460,7 +460,7 @@ export default function AdminFinance(): React.JSX.Element {
         </div>
 
         {/* Bank Transactions History */}
-        <div className="bg-white border border-gray-100 rounded-[20px] shadow-sm overflow-hidden">
+        <div className="bg-[#F8F9FD] border border-gray-100 rounded-[20px] shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
             <div>
               <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">ব্যাংক ও ওয়ালেট লেনদেনের ইতিহাস</h3>
@@ -543,7 +543,7 @@ export default function AdminFinance(): React.JSX.Element {
       {/* RIGHT COLUMN: PATHAO PAYOUTS TRACKER (Spans 1 column) */}
       <div className="lg:col-span-1 space-y-6">
         
-        <div className="bg-white border border-gray-100 rounded-[20px] shadow-sm p-5 space-y-5">
+        <div className="bg-[#F8F9FD] border border-gray-100 rounded-[20px] shadow-sm p-5 space-y-5">
           <div>
             <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
               <RefreshCw className="w-4 h-4 text-orange-500 animate-spin-slow" />
@@ -578,7 +578,7 @@ export default function AdminFinance(): React.JSX.Element {
                 required
                 value={payoutForm.accountId}
                 onChange={(e) => setPayoutForm({ ...payoutForm, accountId: e.target.value })}
-                className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-orange-300 focus:outline-none cursor-pointer"
+                className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-orange-300 focus:outline-none cursor-pointer"
               >
                 <option value="">সিলেক্ট করুন...</option>
                 {bankAccounts.map(acc => (
@@ -597,7 +597,7 @@ export default function AdminFinance(): React.JSX.Element {
                   placeholder="0.00"
                   value={payoutForm.amount}
                   onChange={(e) => setPayoutForm({ ...payoutForm, amount: e.target.value })}
-                  className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-orange-300 focus:outline-none"
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-orange-300 focus:outline-none"
                 />
               </div>
 
@@ -608,7 +608,7 @@ export default function AdminFinance(): React.JSX.Element {
                   type="date"
                   value={payoutForm.date}
                   onChange={(e) => setPayoutForm({ ...payoutForm, date: e.target.value })}
-                  className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-orange-300 focus:outline-none cursor-pointer"
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-orange-300 focus:outline-none cursor-pointer"
                 />
               </div>
             </div>
@@ -621,7 +621,7 @@ export default function AdminFinance(): React.JSX.Element {
                   placeholder="Ref ID"
                   value={payoutForm.reference}
                   onChange={(e) => setPayoutForm({ ...payoutForm, reference: e.target.value })}
-                  className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-orange-300 focus:outline-none"
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-orange-300 focus:outline-none"
                 />
               </div>
 
@@ -632,7 +632,7 @@ export default function AdminFinance(): React.JSX.Element {
                   placeholder="নোট লিখুন"
                   value={payoutForm.notes}
                   onChange={(e) => setPayoutForm({ ...payoutForm, notes: e.target.value })}
-                  className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-orange-300 focus:outline-none"
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-orange-300 focus:outline-none"
                 />
               </div>
             </div>
@@ -732,7 +732,7 @@ export default function AdminFinance(): React.JSX.Element {
       {/* 1. Add Bank Account Modal */}
       {showAddAccountModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl">
+          <div className="bg-[#F8F9FD] rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-gray-900">নতুন ব্যাংক অ্যাকাউন্ট / ওয়ালেট যোগ</h3>
               <button onClick={() => setShowAddAccountModal(false)} className="text-gray-400 hover:text-black transition-colors cursor-pointer">
@@ -814,7 +814,7 @@ export default function AdminFinance(): React.JSX.Element {
       {/* Edit Bank Account Modal */}
       {showEditAccountModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl">
+          <div className="bg-[#F8F9FD] rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-gray-900">ব্যাংক অ্যাকাউন্ট / ওয়ালেট সংশোধন</h3>
               <button onClick={() => setShowEditAccountModal(false)} className="text-gray-400 hover:text-black transition-colors cursor-pointer">
@@ -896,7 +896,7 @@ export default function AdminFinance(): React.JSX.Element {
       {/* 2. Bank Transaction (Deposit/Withdrawal/Transfer) Modal */}
       {showBankTxModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl">
+          <div className="bg-[#F8F9FD] rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-gray-900">তহবিল স্থানান্তর ও লেনদেন</h3>
               <button onClick={() => setShowBankTxModal(false)} className="text-gray-400 hover:text-black transition-colors cursor-pointer">

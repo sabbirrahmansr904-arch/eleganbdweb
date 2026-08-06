@@ -107,7 +107,7 @@ export default function AdminLogin() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
-        className="w-full max-w-md bg-white/5 backdrop-blur-md border border-white/10 p-8 md:p-12 shadow-2xl relative z-10"
+        className="w-full max-w-md bg-[#F8F9FD]/5 backdrop-blur-md border border-white/10 p-8 md:p-12 shadow-2xl relative z-10"
       >
         <div className="text-center mb-10">
           <div className="flex items-center justify-center mb-4">
@@ -121,9 +121,9 @@ export default function AdminLogin() {
             ) : (
               <div className="flex items-center justify-center">
                 <div className="flex flex-col gap-[3px] mr-3">
-                  <div className="h-[4px] w-6 bg-white" />
-                  <div className="h-[4px] w-[14px] bg-white translate-x-[-2px]" />
-                  <div className="h-[4px] w-6 bg-white" />
+                  <div className="h-[4px] w-6 bg-[#F8F9FD]" />
+                  <div className="h-[4px] w-[14px] bg-[#F8F9FD] translate-x-[-2px]" />
+                  <div className="h-[4px] w-6 bg-[#F8F9FD]" />
                 </div>
                 <span className="font-black text-2xl italic tracking-tighter uppercase text-white">
                   Elegan BD
@@ -136,7 +136,7 @@ export default function AdminLogin() {
 
         {currentUser && !isAdmin ? (
           <div className="space-y-6 text-white text-sans">
-            <div className="p-5 bg-white/5 border border-white/10 rounded-2xl space-y-1 text-center">
+            <div className="p-5 bg-[#F8F9FD]/5 border border-white/10 rounded-2xl space-y-1 text-center">
               <p className="text-[9px] uppercase tracking-[0.2em] text-gray-400 font-black">Logged In Profile</p>
               <p className="text-xs font-black truncate text-brand-gold font-mono">{currentUser.email}</p>
             </div>
@@ -160,7 +160,7 @@ export default function AdminLogin() {
               <button 
                 onClick={handleActivate}
                 disabled={isActivating || !code.trim()}
-                className="w-full bg-white text-brand-black py-5 text-[10px] uppercase tracking-widest font-black hover:bg-brand-gold hover:text-white transition-all shadow-xl active:scale-[0.98] disabled:opacity-50"
+                className="w-full bg-[#F8F9FD] text-brand-black py-5 text-[10px] uppercase tracking-widest font-black hover:bg-brand-gold hover:text-white transition-all shadow-xl active:scale-[0.98] disabled:opacity-50"
               >
                 {isActivating ? (
                   <span className="flex items-center justify-center gap-2">
@@ -185,7 +185,7 @@ export default function AdminLogin() {
           <div className="space-y-4">
              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="w-full bg-black/45 border border-white/20 rounded-2xl px-5 py-4 text-white text-sm" />
              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" className="w-full bg-black/45 border border-white/20 rounded-2xl px-5 py-4 text-white text-sm" />
-             <button onClick={handleEmailAuth} className="w-full bg-white text-brand-black py-5 text-[10px] uppercase tracking-widest font-black hover:bg-brand-gold hover:text-white transition-all shadow-xl">
+             <button onClick={handleEmailAuth} className="w-full bg-[#F8F9FD] text-brand-black py-5 text-[10px] uppercase tracking-widest font-black hover:bg-brand-gold hover:text-white transition-all shadow-xl">
                  {isLoading ? 'Processing...' : mode === 'login' ? 'Sign In' : 'Sign Up'}
              </button>
              <button onClick={() => setMode(mode === 'login' ? 'signup' : 'login')} className="w-full text-gray-400 text-[10px] underline">
@@ -195,7 +195,7 @@ export default function AdminLogin() {
              <button 
                 onClick={handleLogin}
                 type="button"
-                className="w-full bg-white text-brand-black py-5 text-[11px] uppercase tracking-widest font-bold hover:bg-brand-gold hover:text-white transition-all shadow-xl active:scale-[0.98]"
+                className="w-full bg-[#F8F9FD] text-brand-black py-5 text-[11px] uppercase tracking-widest font-bold hover:bg-brand-gold hover:text-white transition-all shadow-xl active:scale-[0.98]"
               >
                 Sign in with Google
               </button>
@@ -203,7 +203,7 @@ export default function AdminLogin() {
         ) : (
           <button 
             onClick={handleSignOut}
-            className="w-full bg-white/10 text-white py-5 text-[10px] uppercase font-bold tracking-widest"
+            className="w-full bg-[#F8F9FD]/10 text-white py-5 text-[10px] uppercase font-bold tracking-widest"
           >
              Sign Out {currentUser.email}
           </button>

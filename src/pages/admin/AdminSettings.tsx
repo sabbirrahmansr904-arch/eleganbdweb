@@ -1444,7 +1444,7 @@ export default function AdminSettings() {
     <div className="space-y-8 font-sans">
       <div className="text-black">
         {/* Content Area */}
-        <div className="w-full bg-white border border-gray-100 shadow-sm rounded-3xl p-8 md:p-14 relative overflow-hidden min-h-[70vh]">
+        <div className="w-full bg-[#F8F9FD] border border-gray-100 shadow-sm rounded-3xl p-8 md:p-14 relative overflow-hidden min-h-[70vh]">
           <div className="absolute top-0 right-0 w-64 h-64 bg-gray-50 blur-[100px] -mr-32 -mt-32 rounded-full" />
           
           {activeTab === 'General' && (
@@ -1463,7 +1463,7 @@ export default function AdminSettings() {
                     href="/" 
                     target="_blank" 
                     rel="noopener noreferrer" 
-                    className="px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-all shadow-3xs flex items-center gap-1.5"
+                    className="px-4 py-2 bg-[#F8F9FD] hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-all shadow-3xs flex items-center gap-1.5"
                   >
                     <Globe size={14} />
                     <span>View website</span>
@@ -1472,7 +1472,7 @@ export default function AdminSettings() {
               </div>
 
               {/* Card 1: Visibility & branding */}
-              <div className="bg-white border border-gray-200/80 rounded-2xl shadow-3xs overflow-hidden">
+              <div className="bg-[#F8F9FD] border border-gray-200/80 rounded-2xl shadow-3xs overflow-hidden">
                 <div className="p-6 border-b border-gray-100">
                   <h4 className="text-sm font-bold text-gray-900">Visibility & branding</h4>
                 </div>
@@ -1489,7 +1489,7 @@ export default function AdminSettings() {
                         onChange={(e) => setStoreIsLive(e.target.checked)}
                         className="sr-only peer" 
                       />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#F8F9FD] after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                     </label>
                   </div>
 
@@ -1502,7 +1502,7 @@ export default function AdminSettings() {
                       setShowZobityCredit(originalGeneral.showZobityCredit);
                       toast.success("Discarded changes for Visibility & branding.");
                     }}
-                    className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-50 transition-all cursor-pointer shadow-3xs"
+                    className="px-4 py-2 bg-[#F8F9FD] border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-50 transition-all cursor-pointer shadow-3xs"
                   >
                     Discard
                   </button>
@@ -1517,7 +1517,7 @@ export default function AdminSettings() {
               </div>
 
               {/* Card 2: Store basics */}
-              <div className="bg-white border border-gray-200/80 rounded-2xl shadow-3xs overflow-hidden">
+              <div className="bg-[#F8F9FD] border border-gray-200/80 rounded-2xl shadow-3xs overflow-hidden">
                 <div className="p-6 border-b border-gray-100">
                   <h4 className="text-sm font-bold text-gray-900">Store basics</h4>
                 </div>
@@ -1532,7 +1532,7 @@ export default function AdminSettings() {
                       value={storeName} 
                       onChange={(e) => setStoreName(e.target.value)}
                       maxLength={50}
-                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 text-sm text-gray-900 transition-all"
+                      className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 text-sm text-gray-900 transition-all"
                     />
                   </div>
 
@@ -1546,7 +1546,7 @@ export default function AdminSettings() {
                       onChange={(e) => setShortDescription(e.target.value)}
                       maxLength={500}
                       rows={3} 
-                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 text-sm text-gray-900 transition-all resize-none"
+                      className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 text-sm text-gray-900 transition-all resize-none"
                     />
                   </div>
                 </div>
@@ -1557,7 +1557,7 @@ export default function AdminSettings() {
                       setShortDescription(originalGeneral.shortDescription);
                       toast.success("Discarded changes for Store basics.");
                     }}
-                    className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-50 transition-all cursor-pointer shadow-3xs"
+                    className="px-4 py-2 bg-[#F8F9FD] border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-50 transition-all cursor-pointer shadow-3xs"
                   >
                     Discard
                   </button>
@@ -1572,7 +1572,7 @@ export default function AdminSettings() {
               </div>
 
               {/* Card 3: Phone & WhatsApp */}
-              <div className="bg-white border border-gray-200/80 rounded-2xl shadow-3xs overflow-hidden">
+              <div className="bg-[#F8F9FD] border border-gray-200/80 rounded-2xl shadow-3xs overflow-hidden">
                 <div className="p-6 border-b border-gray-100">
                   <h4 className="text-sm font-bold text-gray-900">Phone & WhatsApp</h4>
                 </div>
@@ -1588,7 +1588,7 @@ export default function AdminSettings() {
                         value={phone} 
                         onChange={(e) => setPhone(e.target.value)}
                         placeholder="1619835133" 
-                        className="w-full bg-white px-4 py-2.5 outline-none text-sm text-gray-900"
+                        className="w-full bg-[#F8F9FD] px-4 py-2.5 outline-none text-sm text-gray-900"
                       />
                     </div>
                   </div>
@@ -1604,7 +1604,7 @@ export default function AdminSettings() {
                         value={whatsappNumber} 
                         onChange={(e) => setWhatsappNumber(e.target.value)}
                         placeholder="1619835133" 
-                        className="w-full bg-white px-4 py-2.5 outline-none text-sm text-gray-900"
+                        className="w-full bg-[#F8F9FD] px-4 py-2.5 outline-none text-sm text-gray-900"
                       />
                     </div>
                   </div>
@@ -1616,7 +1616,7 @@ export default function AdminSettings() {
                       setWhatsappNumber(originalGeneral.whatsappNumber);
                       toast.success("Discarded changes for Phone & WhatsApp.");
                     }}
-                    className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-50 transition-all cursor-pointer shadow-3xs"
+                    className="px-4 py-2 bg-[#F8F9FD] border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-50 transition-all cursor-pointer shadow-3xs"
                   >
                     Discard
                   </button>
@@ -1631,7 +1631,7 @@ export default function AdminSettings() {
               </div>
 
               {/* Card 4: Email & address */}
-              <div className="bg-white border border-gray-200/80 rounded-2xl shadow-3xs overflow-hidden">
+              <div className="bg-[#F8F9FD] border border-gray-200/80 rounded-2xl shadow-3xs overflow-hidden">
                 <div className="p-6 border-b border-gray-100">
                   <h4 className="text-sm font-bold text-gray-900">Email & address</h4>
                 </div>
@@ -1647,7 +1647,7 @@ export default function AdminSettings() {
                         value={email} 
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="care@eleganbd.com" 
-                        className="w-full bg-white px-4 py-2.5 outline-none text-sm text-gray-900"
+                        className="w-full bg-[#F8F9FD] px-4 py-2.5 outline-none text-sm text-gray-900"
                       />
                     </div>
                   </div>
@@ -1663,7 +1663,7 @@ export default function AdminSettings() {
                         onChange={(e) => setAddress(e.target.value)}
                         rows={2}
                         placeholder="Store physical address..." 
-                        className="w-full bg-white px-4 py-2.5 outline-none text-sm text-gray-900 resize-none"
+                        className="w-full bg-[#F8F9FD] px-4 py-2.5 outline-none text-sm text-gray-900 resize-none"
                       />
                     </div>
                   </div>
@@ -1675,7 +1675,7 @@ export default function AdminSettings() {
                       setAddress(originalGeneral.address);
                       toast.success("Discarded changes for Email & address.");
                     }}
-                    className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-50 transition-all cursor-pointer shadow-3xs"
+                    className="px-4 py-2 bg-[#F8F9FD] border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-50 transition-all cursor-pointer shadow-3xs"
                   >
                     Discard
                   </button>
@@ -1690,7 +1690,7 @@ export default function AdminSettings() {
               </div>
 
               {/* Card 5: Devices */}
-              <div className="bg-white border border-gray-200/80 rounded-2xl shadow-3xs overflow-hidden">
+              <div className="bg-[#F8F9FD] border border-gray-200/80 rounded-2xl shadow-3xs overflow-hidden">
                 <div className="p-6 border-b border-gray-100">
                   <h4 className="text-sm font-bold text-gray-900">Devices</h4>
                   <p className="text-xs text-gray-500 mt-0.5">Browsers and phones signed into your account. Remove any device you don't recognize.</p>
@@ -1698,7 +1698,7 @@ export default function AdminSettings() {
                 <div className="p-6">
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-gray-700 shadow-2xs">
+                      <div className="w-10 h-10 bg-[#F8F9FD] border border-gray-200 rounded-xl flex items-center justify-center text-gray-700 shadow-2xs">
                         <Lock size={16} />
                       </div>
                       <div>
@@ -1712,14 +1712,14 @@ export default function AdminSettings() {
                     <div className="flex items-center gap-2">
                       <button 
                         onClick={() => toast.success("Current session active & verified.")}
-                        className="p-2 bg-white border border-gray-200 hover:bg-gray-100 rounded-lg text-gray-600 transition-all cursor-pointer shadow-3xs"
+                        className="p-2 bg-[#F8F9FD] border border-gray-200 hover:bg-gray-100 rounded-lg text-gray-600 transition-all cursor-pointer shadow-3xs"
                         title="Edit Session"
                       >
                         <RefreshCw size={14} />
                       </button>
                       <button 
                         onClick={() => toast.success("Cannot remove current active admin session.")}
-                        className="p-2 bg-white border border-gray-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 rounded-lg text-gray-400 transition-all cursor-pointer shadow-3xs"
+                        className="p-2 bg-[#F8F9FD] border border-gray-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 rounded-lg text-gray-400 transition-all cursor-pointer shadow-3xs"
                         title="Sign Out Device"
                       >
                         <Trash2 size={14} />
@@ -1742,7 +1742,7 @@ export default function AdminSettings() {
                   <ImageIcon size={22} className="text-brand-gold" />
                 </div>
 
-                <div className="p-8 border-2 border-dashed border-gray-200 rounded-3xl bg-white shadow-xs flex flex-col items-center justify-center text-center space-y-6">
+                <div className="p-8 border-2 border-dashed border-gray-200 rounded-3xl bg-[#F8F9FD] shadow-xs flex flex-col items-center justify-center text-center space-y-6">
                   <div className="w-56 h-36 bg-gray-50 flex items-center justify-center border border-gray-200 rounded-2xl overflow-hidden relative group/inner shadow-inner p-4">
                     <img 
                       src={tempLogo || '/logo.png'} 
@@ -1834,7 +1834,7 @@ export default function AdminSettings() {
                   </div>
 
                   {/* Light Context */}
-                  <div className="p-6 bg-white border border-gray-200 rounded-2xl flex flex-col space-y-4 shadow-sm">
+                  <div className="p-6 bg-[#F8F9FD] border border-gray-200 rounded-2xl flex flex-col space-y-4 shadow-sm">
                     <span className="text-[10px] uppercase tracking-widest text-gray-500 font-black">Light Context Matrix</span>
                     <div className="flex items-center justify-between py-2 px-4 bg-gray-50 border border-gray-200 rounded-xl">
                       <div className="flex items-center gap-2">
@@ -1864,7 +1864,7 @@ export default function AdminSettings() {
                   <ImageIcon size={22} className="text-brand-gold" />
                 </div>
 
-                <div className="p-8 border-2 border-dashed border-gray-200 rounded-3xl bg-white shadow-xs flex flex-col items-center justify-center text-center space-y-6">
+                <div className="p-8 border-2 border-dashed border-gray-200 rounded-3xl bg-[#F8F9FD] shadow-xs flex flex-col items-center justify-center text-center space-y-6">
                   <div className="w-full max-w-lg bg-gray-50 flex items-center justify-center border border-gray-200 rounded-2xl overflow-hidden relative group/inner shadow-inner p-4">
                     <img 
                       src={tempHeroBanner || heroBannerUrl || logoUrl || '/logo.png'} 
@@ -1884,7 +1884,7 @@ export default function AdminSettings() {
                   </div>
 
                   {/* Google Search Snippet Simulation */}
-                  <div className="w-full max-w-lg text-left bg-white border border-gray-200 rounded-2xl p-4 shadow-xs space-y-2">
+                  <div className="w-full max-w-lg text-left bg-[#F8F9FD] border border-gray-200 rounded-2xl p-4 shadow-xs space-y-2">
                     <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Live Google Search Snippet Preview</span>
                     <div className="flex gap-3 items-start pt-1">
                       <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200">
@@ -1905,7 +1905,7 @@ export default function AdminSettings() {
                           alt="Share preview" 
                           className="w-full h-32 object-cover"
                         />
-                        <div className="p-2.5 bg-white text-left">
+                        <div className="p-2.5 bg-[#F8F9FD] text-left">
                           <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">eleganbd.vercel.app</p>
                           <p className="text-xs font-bold text-black truncate">Elegan BD - Premium Clothing Brand</p>
                         </div>
@@ -1966,7 +1966,7 @@ export default function AdminSettings() {
                   <h3 className="serif text-2xl text-black italic tracking-tighter uppercase">Measurement Taxonomy</h3>
                 </div>
                 <div className="p-12 border-2 border-dashed border-gray-100 rounded-3xl bg-gray-50 flex flex-col items-center justify-center text-center space-y-8 group hover:border-black/30 transition-all">
-                  <div className="w-full max-w-lg bg-white flex items-center justify-center border border-gray-100 rounded-2xl overflow-hidden relative group/inner aspect-video shadow-sm">
+                  <div className="w-full max-w-lg bg-[#F8F9FD] flex items-center justify-center border border-gray-100 rounded-2xl overflow-hidden relative group/inner aspect-video shadow-sm">
                     <img 
                       src={tempSizeChart} 
                       alt="Size Chart Preview" 
@@ -2007,7 +2007,7 @@ export default function AdminSettings() {
                       layout
                       className={cn(
                         "w-5 h-5 rounded-full transition-all shadow-sm",
-                        showShowcase ? "bg-white" : "bg-gray-400"
+                        showShowcase ? "bg-[#F8F9FD]" : "bg-gray-400"
                       )} 
                     />
                   </button>
@@ -2063,7 +2063,7 @@ export default function AdminSettings() {
                     <motion.div 
                       initial={{ scale: 0.95, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-2xl shadow-2xl space-y-6 my-8 border border-gray-100"
+                      className="bg-[#F8F9FD] rounded-3xl p-6 sm:p-8 w-full max-w-2xl shadow-2xl space-y-6 my-8 border border-gray-100"
                     >
                       <div className="flex justify-between items-start border-b border-gray-100 pb-4">
                         <div>
@@ -2118,7 +2118,7 @@ export default function AdminSettings() {
                                 >
                                   <div className="flex items-center justify-between w-full">
                                     <span className="text-xs font-black">{dept.name}</span>
-                                    {isSelected && <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold">Selected</span>}
+                                    {isSelected && <span className="text-[10px] bg-[#F8F9FD]/20 px-2 py-0.5 rounded-full font-bold">Selected</span>}
                                   </div>
                                   <p className={`text-[10px] mt-1 line-clamp-1 ${isSelected ? 'text-gray-300' : 'text-gray-500'}`}>
                                     {dept.desc}
@@ -2242,7 +2242,7 @@ export default function AdminSettings() {
                       <p className="text-xs text-gray-400 font-bold italic">No direct admins currently added. Click "+ নতুন এডমিন পারমিশন দিন" to add staff.</p>
                     </div>
                   ) : (
-                    <div className="border border-gray-200 rounded-3xl overflow-hidden divide-y divide-gray-100 bg-white shadow-xs">
+                    <div className="border border-gray-200 rounded-3xl overflow-hidden divide-y divide-gray-100 bg-[#F8F9FD] shadow-xs">
                       {adminList.map((admin) => {
                         const emailKey = (admin.email || admin.id).toLowerCase().trim();
                         const isCeo = emailKey === 'eleganbd.ltd@gmail.com';
@@ -2354,7 +2354,7 @@ export default function AdminSettings() {
                 <button 
                   onClick={handleCheckPixels}
                   disabled={isCheckingPixels}
-                  className="flex items-center gap-2 px-5 py-2 border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-3xs text-gray-700"
+                  className="flex items-center gap-2 px-5 py-2 border border-gray-200 bg-[#F8F9FD] hover:bg-gray-50 text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-3xs text-gray-700"
                 >
                   <RefreshCw size={14} className={cn("text-gray-500", isCheckingPixels && "animate-spin")} />
                   <span>Check</span>
@@ -2362,7 +2362,7 @@ export default function AdminSettings() {
               </div>
 
               {/* Pro Upgrade Promotion Box */}
-              <div className="p-4 bg-white border border-gray-200 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-3xs hover:border-indigo-100 transition-all">
+              <div className="p-4 bg-[#F8F9FD] border border-gray-200 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-3xs hover:border-indigo-100 transition-all">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-[#FFFBEB] border border-amber-200 flex items-center justify-center text-amber-500 shrink-0">
                     <Sparkles className="w-5 h-5 text-amber-500" />
@@ -2384,7 +2384,7 @@ export default function AdminSettings() {
               </div>
 
               {/* Facebook Pixel Card */}
-              <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-3xs flex flex-col justify-between hover:border-gray-300 transition-all">
+              <div className="bg-[#F8F9FD] border border-gray-200 rounded-2xl overflow-hidden shadow-3xs flex flex-col justify-between hover:border-gray-300 transition-all">
                 {/* Card Header */}
                 <div className="flex justify-between items-center bg-gray-50/50 border-b border-gray-100 px-6 py-4">
                   <h4 className="text-sm font-bold text-slate-900 tracking-tight">Facebook Pixel</h4>
@@ -2419,7 +2419,7 @@ export default function AdminSettings() {
                           value={pixelConfig.facebookPixelId}
                           onChange={(e) => setPixelConfig({ ...pixelConfig, facebookPixelId: e.target.value })}
                           placeholder="1234567890123456" 
-                          className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 outline-none focus:border-indigo-500 transition-all text-sm text-black"
+                          className="w-full bg-[#F8F9FD] border border-gray-200 rounded-lg px-4 py-2.5 outline-none focus:border-indigo-500 transition-all text-sm text-black"
                         />
                       </div>
 
@@ -2430,7 +2430,7 @@ export default function AdminSettings() {
                           value={pixelConfig.facebookTestCode || ''}
                           onChange={(e) => setPixelConfig({ ...pixelConfig, facebookTestCode: e.target.value })}
                           placeholder="TEST1234" 
-                          className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 outline-none focus:border-indigo-500 transition-all text-sm text-black"
+                          className="w-full bg-[#F8F9FD] border border-gray-200 rounded-lg px-4 py-2.5 outline-none focus:border-indigo-500 transition-all text-sm text-black"
                         />
                         <p className="text-xs text-gray-500 font-medium leading-relaxed mt-2 text-left">
                           Meta Events Manager → Test Events tab থেকে code copy করে এখানে paste করুন। Server events তখন Test Events tab-এ live দেখাবে। Testing শেষে field-টা খালি করে Save দিন।
@@ -2447,7 +2447,7 @@ export default function AdminSettings() {
                           value={pixelConfig.facebookAccessToken}
                           onChange={(e) => setPixelConfig({ ...pixelConfig, facebookAccessToken: e.target.value })}
                           placeholder="EAAB..." 
-                          className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 outline-none focus:border-indigo-500 transition-all text-sm text-black"
+                          className="w-full bg-[#F8F9FD] border border-gray-200 rounded-lg px-4 py-2.5 outline-none focus:border-indigo-500 transition-all text-sm text-black"
                         />
                       </div>
                     </div>
@@ -2502,13 +2502,13 @@ export default function AdminSettings() {
                     onChange={(e) => handleToggleCouponEnabled(e.target.checked)}
                     className="sr-only peer" 
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1b49c4]"></div>
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#F8F9FD] after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1b49c4]"></div>
                 </label>
               </div>
 
               {/* Conditional Empty State or Coupons Manager */}
               {!couponEnabled ? (
-                <div className="bg-white border border-gray-100 rounded-2xl p-12 md:p-20 flex flex-col items-center justify-center text-center">
+                <div className="bg-[#F8F9FD] border border-gray-100 rounded-2xl p-12 md:p-20 flex flex-col items-center justify-center text-center">
                   <h4 className="text-sm font-bold text-gray-900 mb-1">Coupon field is off</h4>
                   <p className="text-xs text-gray-500">
                     Turn it on above to create discount codes.
@@ -2546,7 +2546,7 @@ export default function AdminSettings() {
                       </div>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto border border-gray-100 rounded-2xl shadow-sm bg-white">
+                    <div className="overflow-x-auto border border-gray-100 rounded-2xl shadow-sm bg-[#F8F9FD]">
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="bg-gray-50/80 border-b border-gray-100 text-[10px] uppercase font-black tracking-widest text-gray-400">
@@ -2590,7 +2590,7 @@ export default function AdminSettings() {
                                       onChange={() => handleToggleCouponActive(coupon.id, coupon.active)}
                                       className="sr-only peer" 
                                     />
-                                    <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#1b49c4]"></div>
+                                    <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#F8F9FD] after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#1b49c4]"></div>
                                   </label>
                                 </div>
                               </td>
@@ -2614,7 +2614,7 @@ export default function AdminSettings() {
               {/* Add Coupon Modal */}
               {showAddCouponModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
-                  <div className="bg-white w-full max-w-md rounded-3xl p-8 border border-gray-100 shadow-2xl relative text-left">
+                  <div className="bg-[#F8F9FD] w-full max-w-md rounded-3xl p-8 border border-gray-100 shadow-2xl relative text-left">
                     <button 
                       onClick={() => setShowAddCouponModal(false)}
                       className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 p-2 rounded-xl hover:bg-gray-50 transition-colors"
@@ -2650,7 +2650,7 @@ export default function AdminSettings() {
                           <select
                             value={newCouponDiscountType}
                             onChange={(e) => setNewCouponDiscountType(e.target.value as 'percentage' | 'fixed')}
-                            className="w-full border border-gray-200 rounded-2xl px-4 py-3 outline-none focus:border-[#1b49c4] text-gray-900 font-bold bg-white"
+                            className="w-full border border-gray-200 rounded-2xl px-4 py-3 outline-none focus:border-[#1b49c4] text-gray-900 font-bold bg-[#F8F9FD]"
                           >
                             <option value="percentage">Percentage (%)</option>
                             <option value="fixed">Fixed Amount (৳)</option>
@@ -2737,7 +2737,7 @@ export default function AdminSettings() {
               </div>
 
               {/* SMS features card */}
-              <div className="bg-white border border-gray-200/80 rounded-2xl p-6 space-y-6">
+              <div className="bg-[#F8F9FD] border border-gray-200/80 rounded-2xl p-6 space-y-6">
                 <h4 className="text-sm font-bold text-gray-900 border-b border-gray-100 pb-3">
                   SMS features
                 </h4>
@@ -2758,7 +2758,7 @@ export default function AdminSettings() {
                         onChange={(e) => handleToggleSmsFeature('otp', e.target.checked)}
                         className="sr-only peer" 
                       />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5850ec]"></div>
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#F8F9FD] after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5850ec]"></div>
                     </label>
                   </div>
 
@@ -2777,7 +2777,7 @@ export default function AdminSettings() {
                         onChange={(e) => handleToggleSmsFeature('confirmation', e.target.checked)}
                         className="sr-only peer" 
                       />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5850ec]"></div>
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#F8F9FD] after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5850ec]"></div>
                     </label>
                   </div>
 
@@ -2796,21 +2796,21 @@ export default function AdminSettings() {
                         onChange={(e) => handleToggleSmsFeature('login', e.target.checked)}
                         className="sr-only peer" 
                       />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5850ec]"></div>
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#F8F9FD] after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5850ec]"></div>
                     </label>
                   </div>
                 </div>
               </div>
 
               {/* Choose a package card */}
-              <div className="bg-white border border-gray-200/80 rounded-2xl p-6 space-y-6">
+              <div className="bg-[#F8F9FD] border border-gray-200/80 rounded-2xl p-6 space-y-6">
                 <h4 className="text-sm font-bold text-gray-900 border-b border-gray-100 pb-3">
                   Choose a package
                 </h4>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {/* Starter */}
-                  <div className="border border-gray-200 rounded-xl p-5 flex flex-col justify-between hover:border-gray-300 transition-all bg-white shadow-3xs">
+                  <div className="border border-gray-200 rounded-xl p-5 flex flex-col justify-between hover:border-gray-300 transition-all bg-[#F8F9FD] shadow-3xs">
                     <div className="space-y-2 text-left">
                       <p className="text-xs font-bold text-gray-800">Starter</p>
                       <div className="flex items-baseline gap-1">
@@ -2828,7 +2828,7 @@ export default function AdminSettings() {
                   </div>
 
                   {/* Standard */}
-                  <div className="border border-gray-200 rounded-xl p-5 flex flex-col justify-between hover:border-gray-300 transition-all bg-white shadow-3xs">
+                  <div className="border border-gray-200 rounded-xl p-5 flex flex-col justify-between hover:border-gray-300 transition-all bg-[#F8F9FD] shadow-3xs">
                     <div className="space-y-2 text-left">
                       <p className="text-xs font-bold text-gray-800">Standard</p>
                       <div className="flex items-baseline gap-1">
@@ -2846,7 +2846,7 @@ export default function AdminSettings() {
                   </div>
 
                   {/* Business */}
-                  <div className="border border-gray-200 rounded-xl p-5 flex flex-col justify-between hover:border-gray-300 transition-all bg-white shadow-3xs">
+                  <div className="border border-gray-200 rounded-xl p-5 flex flex-col justify-between hover:border-gray-300 transition-all bg-[#F8F9FD] shadow-3xs">
                     <div className="space-y-2 text-left">
                       <p className="text-xs font-bold text-gray-800">Business</p>
                       <div className="flex items-baseline gap-1">
@@ -2864,7 +2864,7 @@ export default function AdminSettings() {
                   </div>
 
                   {/* Pro */}
-                  <div className="border border-gray-200 rounded-xl p-5 flex flex-col justify-between hover:border-gray-300 transition-all bg-white shadow-3xs">
+                  <div className="border border-gray-200 rounded-xl p-5 flex flex-col justify-between hover:border-gray-300 transition-all bg-[#F8F9FD] shadow-3xs">
                     <div className="space-y-2 text-left">
                       <p className="text-xs font-bold text-gray-800">Pro</p>
                       <div className="flex items-baseline gap-1">
@@ -2884,7 +2884,7 @@ export default function AdminSettings() {
               </div>
 
               {/* Recent SMS sent card */}
-              <div className="bg-white border border-gray-200/80 rounded-2xl p-6 space-y-6">
+              <div className="bg-[#F8F9FD] border border-gray-200/80 rounded-2xl p-6 space-y-6">
                 <h4 className="text-sm font-bold text-gray-900 border-b border-gray-100 pb-3">
                   Recent SMS sent
                 </h4>
@@ -2929,7 +2929,7 @@ export default function AdminSettings() {
               {/* Buy Package Modal */}
               {showBuyPackageModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
-                  <div className="bg-white w-full max-w-md rounded-3xl p-8 border border-gray-100 shadow-2xl relative text-left">
+                  <div className="bg-[#F8F9FD] w-full max-w-md rounded-3xl p-8 border border-gray-100 shadow-2xl relative text-left">
                     <button 
                       onClick={() => setShowBuyPackageModal(false)}
                       className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 p-2 rounded-xl hover:bg-gray-50 transition-colors"
@@ -3020,7 +3020,7 @@ export default function AdminSettings() {
 
               {/* Stats Cards Row */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white border border-gray-200/80 rounded-2xl p-6 shadow-3xs flex flex-col justify-between">
+                <div className="bg-[#F8F9FD] border border-gray-200/80 rounded-2xl p-6 shadow-3xs flex flex-col justify-between">
                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">METHODS ON</span>
                   <span className="text-4xl font-black text-gray-900 mt-2">
                     {(codEnabled ? 1 : 0) + (bkashEnabled ? 1 : 0) + (nagadEnabled ? 1 : 0) + (rocketEnabled ? 1 : 0)}
@@ -3028,7 +3028,7 @@ export default function AdminSettings() {
                   <span className="text-xs text-gray-500 font-medium mt-1">Across all gateways</span>
                 </div>
 
-                <div className="bg-white border border-gray-200/80 rounded-2xl p-6 shadow-3xs flex flex-col justify-between">
+                <div className="bg-[#F8F9FD] border border-gray-200/80 rounded-2xl p-6 shadow-3xs flex flex-col justify-between">
                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">MANUAL</span>
                   <span className="text-4xl font-black text-gray-900 mt-2">
                     {(codEnabled ? 1 : 0) + (bkashEnabled ? 1 : 0) + (nagadEnabled ? 1 : 0) + (rocketEnabled ? 1 : 0)}
@@ -3036,7 +3036,7 @@ export default function AdminSettings() {
                   <span className="text-xs text-gray-500 font-medium mt-1">Customer pays you</span>
                 </div>
 
-                <div className="bg-white border border-gray-200/80 rounded-2xl p-6 shadow-3xs flex flex-col justify-between">
+                <div className="bg-[#F8F9FD] border border-gray-200/80 rounded-2xl p-6 shadow-3xs flex flex-col justify-between">
                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">ONLINE</span>
                   <span className="text-4xl font-black text-gray-900 mt-2">0</span>
                   <span className="text-xs text-gray-500 font-medium mt-1">No online gateway</span>
@@ -3044,7 +3044,7 @@ export default function AdminSettings() {
               </div>
 
               {/* Manual Methods Section */}
-              <div className="bg-white border border-gray-200/80 rounded-3xl p-8 space-y-8 shadow-3xs text-left">
+              <div className="bg-[#F8F9FD] border border-gray-200/80 rounded-3xl p-8 space-y-8 shadow-3xs text-left">
                 <div>
                   <h4 className="text-base font-extrabold text-gray-900">Manual methods</h4>
                   <p className="text-xs text-gray-500 mt-1">Customer pays you directly; you confirm the order.</p>
@@ -3058,7 +3058,7 @@ export default function AdminSettings() {
                         onClick={() => document.getElementById('cod-logo-input')?.click()}
                         className={cn(
                           "w-12 h-12 rounded-xl flex items-center justify-center shadow-3xs cursor-pointer relative overflow-hidden group border",
-                          codLogo ? "bg-white border-gray-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                          codLogo ? "bg-[#F8F9FD] border-gray-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"
                         )}
                         title="Click to upload/change picture"
                       >
@@ -3090,7 +3090,7 @@ export default function AdminSettings() {
                         onChange={(e) => setCodEnabled(e.target.checked)}
                         className="sr-only peer" 
                       />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5850ec]"></div>
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#F8F9FD] after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5850ec]"></div>
                     </label>
                   </div>
 
@@ -3102,7 +3102,7 @@ export default function AdminSettings() {
                           onClick={() => document.getElementById('bkash-logo-input')?.click()}
                           className={cn(
                             "w-12 h-12 rounded-xl flex items-center justify-center font-bold font-sans text-sm tracking-tighter shadow-3xs cursor-pointer relative overflow-hidden group border",
-                            bkashLogo ? "bg-white border-gray-100" : "bg-[#e2136e] text-white border-transparent"
+                            bkashLogo ? "bg-[#F8F9FD] border-gray-100" : "bg-[#e2136e] text-white border-transparent"
                           )}
                           title="Click to upload/change picture"
                         >
@@ -3134,7 +3134,7 @@ export default function AdminSettings() {
                           onChange={(e) => setBkashEnabled(e.target.checked)}
                           className="sr-only peer" 
                         />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5850ec]"></div>
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#F8F9FD] after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5850ec]"></div>
                       </label>
                     </div>
 
@@ -3147,7 +3147,7 @@ export default function AdminSettings() {
                             value={bkashNumber}
                             onChange={(e) => setBkashNumber(e.target.value)}
                             placeholder="e.g. 017XXXXXXXX"
-                            className="w-full bg-white border border-gray-200 py-3 px-4.5 rounded-xl outline-none focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-[#5850ec] transition-all font-mono text-sm font-bold text-gray-900"
+                            className="w-full bg-[#F8F9FD] border border-gray-200 py-3 px-4.5 rounded-xl outline-none focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-[#5850ec] transition-all font-mono text-sm font-bold text-gray-900"
                           />
                         </div>
 
@@ -3162,7 +3162,7 @@ export default function AdminSettings() {
                                   "flex-1 py-3 px-4.5 text-xs font-bold rounded-xl border transition-all cursor-pointer text-center",
                                   bkashType === type
                                     ? "bg-indigo-50 border-indigo-200 text-indigo-700 font-extrabold"
-                                    : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
+                                    : "bg-[#F8F9FD] border-gray-200 text-gray-600 hover:border-gray-300"
                                 )}
                               >
                                 {type}
@@ -3182,7 +3182,7 @@ export default function AdminSettings() {
                           onClick={() => document.getElementById('nagad-logo-input')?.click()}
                           className={cn(
                             "w-12 h-12 rounded-xl flex items-center justify-center font-bold font-sans text-sm tracking-tighter shadow-3xs cursor-pointer relative overflow-hidden group border",
-                            nagadLogo ? "bg-white border-gray-100" : "bg-[#f47321] text-white border-transparent"
+                            nagadLogo ? "bg-[#F8F9FD] border-gray-100" : "bg-[#f47321] text-white border-transparent"
                           )}
                           title="Click to upload/change picture"
                         >
@@ -3214,7 +3214,7 @@ export default function AdminSettings() {
                           onChange={(e) => setNagadEnabled(e.target.checked)}
                           className="sr-only peer" 
                         />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5850ec]"></div>
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#F8F9FD] after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5850ec]"></div>
                       </label>
                     </div>
 
@@ -3227,7 +3227,7 @@ export default function AdminSettings() {
                             value={nagadNumber}
                             onChange={(e) => setNagadNumber(e.target.value)}
                             placeholder="e.g. 017XXXXXXXX"
-                            className="w-full bg-white border border-gray-200 py-3 px-4.5 rounded-xl outline-none focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-[#5850ec] transition-all font-mono text-sm font-bold text-gray-900"
+                            className="w-full bg-[#F8F9FD] border border-gray-200 py-3 px-4.5 rounded-xl outline-none focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-[#5850ec] transition-all font-mono text-sm font-bold text-gray-900"
                           />
                         </div>
 
@@ -3242,7 +3242,7 @@ export default function AdminSettings() {
                                   "flex-1 py-3 px-4.5 text-xs font-bold rounded-xl border transition-all cursor-pointer text-center",
                                   nagadType === type
                                     ? "bg-indigo-50 border-indigo-200 text-indigo-700 font-extrabold"
-                                    : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
+                                    : "bg-[#F8F9FD] border-gray-200 text-gray-600 hover:border-gray-300"
                                 )}
                               >
                                 {type}
@@ -3262,7 +3262,7 @@ export default function AdminSettings() {
                           onClick={() => document.getElementById('rocket-logo-input')?.click()}
                           className={cn(
                             "w-12 h-12 rounded-xl flex items-center justify-center font-bold font-sans text-sm tracking-tighter shadow-3xs cursor-pointer relative overflow-hidden group border",
-                            rocketLogo ? "bg-white border-gray-100" : "bg-[#8c0c5c] text-white border-transparent"
+                            rocketLogo ? "bg-[#F8F9FD] border-gray-100" : "bg-[#8c0c5c] text-white border-transparent"
                           )}
                           title="Click to upload/change picture"
                         >
@@ -3294,7 +3294,7 @@ export default function AdminSettings() {
                           onChange={(e) => setRocketEnabled(e.target.checked)}
                           className="sr-only peer" 
                         />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5850ec]"></div>
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#F8F9FD] after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5850ec]"></div>
                       </label>
                     </div>
 
@@ -3307,7 +3307,7 @@ export default function AdminSettings() {
                             value={rocketNumber}
                             onChange={(e) => setRocketNumber(e.target.value)}
                             placeholder="e.g. 017XXXXXXXX-X"
-                            className="w-full bg-white border border-gray-200 py-3 px-4.5 rounded-xl outline-none focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-[#5850ec] transition-all font-mono text-sm font-bold text-gray-900"
+                            className="w-full bg-[#F8F9FD] border border-gray-200 py-3 px-4.5 rounded-xl outline-none focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-[#5850ec] transition-all font-mono text-sm font-bold text-gray-900"
                           />
                         </div>
 
@@ -3322,7 +3322,7 @@ export default function AdminSettings() {
                                   "flex-1 py-3 px-4.5 text-xs font-bold rounded-xl border transition-all cursor-pointer text-center",
                                   rocketType === type
                                     ? "bg-indigo-50 border-indigo-200 text-indigo-700 font-extrabold"
-                                    : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
+                                    : "bg-[#F8F9FD] border-gray-200 text-gray-600 hover:border-gray-300"
                                 )}
                               >
                                 {type}
@@ -3337,7 +3337,7 @@ export default function AdminSettings() {
               </div>
 
               {/* Customer bKash / Nagad / Rocket Payment Transactions Section */}
-              <div className="bg-white border border-gray-200/80 rounded-3xl p-8 space-y-6 shadow-3xs text-left">
+              <div className="bg-[#F8F9FD] border border-gray-200/80 rounded-3xl p-8 space-y-6 shadow-3xs text-left">
                 <div className="flex items-center justify-between border-b border-gray-100 pb-4">
                   <div>
                     <h4 className="text-base font-extrabold text-gray-900">bKash, Nagad & Rocket Payment Transactions</h4>
@@ -3404,10 +3404,10 @@ export default function AdminSettings() {
 
               {/* Floating bottom save changes bar when changed */}
               {paymentsChanged && (
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-white border border-gray-200/90 py-3 px-4.5 rounded-2xl shadow-xl flex items-center gap-3 w-[92%] max-w-lg transition-all animate-fade-in">
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#F8F9FD] border border-gray-200/90 py-3 px-4.5 rounded-2xl shadow-xl flex items-center gap-3 w-[92%] max-w-lg transition-all animate-fade-in">
                   <button
                     onClick={handleDiscardPayments}
-                    className="px-5 py-2.5 border border-gray-200 text-gray-600 text-xs font-bold rounded-xl hover:bg-gray-50 transition-all cursor-pointer bg-white"
+                    className="px-5 py-2.5 border border-gray-200 text-gray-600 text-xs font-bold rounded-xl hover:bg-gray-50 transition-all cursor-pointer bg-[#F8F9FD]"
                   >
                     Discard
                   </button>
@@ -3444,7 +3444,7 @@ export default function AdminSettings() {
                   onClick={() => setCourierSubTab('pathao')}
                   className={cn(
                     "px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer",
-                    courierSubTab === 'pathao' ? "bg-white text-black shadow-md" : "text-gray-400 hover:text-black"
+                    courierSubTab === 'pathao' ? "bg-[#F8F9FD] text-black shadow-md" : "text-gray-400 hover:text-black"
                   )}
                 >
                   Pathao Courier
@@ -3454,7 +3454,7 @@ export default function AdminSettings() {
                   onClick={() => setCourierSubTab('steadfast')}
                   className={cn(
                     "px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer",
-                    courierSubTab === 'steadfast' ? "bg-white text-black shadow-md" : "text-gray-400 hover:text-black"
+                    courierSubTab === 'steadfast' ? "bg-[#F8F9FD] text-black shadow-md" : "text-gray-400 hover:text-black"
                   )}
                 >
                   Steadfast Courier
@@ -3479,7 +3479,7 @@ export default function AdminSettings() {
                         type="button"
                         onClick={handleTestPathaoConnection}
                         disabled={isTestingPathao}
-                        className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0"
+                        className="px-4 py-2 bg-[#F8F9FD]/10 hover:bg-[#F8F9FD]/20 text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0"
                       >
                         <RefreshCw size={12} className={isTestingPathao ? "animate-spin text-red-400" : "text-emerald-400"} />
                         <span>Test OAuth Connection</span>
@@ -3500,7 +3500,7 @@ export default function AdminSettings() {
                           onChange={(e) => setPathaoClientId(e.target.value)}
                           placeholder="e.g. nXe0A73axr"
                           required
-                          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                          className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
                         />
                       </div>
 
@@ -3514,7 +3514,7 @@ export default function AdminSettings() {
                           onChange={(e) => setPathaoClientSecret(e.target.value)}
                           placeholder="e.g. 0LyQiusPk4Hgu..."
                           required
-                          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                          className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
                         />
                       </div>
 
@@ -3528,7 +3528,7 @@ export default function AdminSettings() {
                           onChange={(e) => setPathaoUsername(e.target.value)}
                           placeholder="e.g. eleganbd.ltd@gmail.com"
                           required
-                          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                          className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
                         />
                       </div>
 
@@ -3542,7 +3542,7 @@ export default function AdminSettings() {
                           onChange={(e) => setPathaoPassword(e.target.value)}
                           placeholder="Pathao password..."
                           required
-                          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                          className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
                         />
                       </div>
 
@@ -3556,7 +3556,7 @@ export default function AdminSettings() {
                           onChange={(e) => setPathaoStoreId(e.target.value)}
                           placeholder="e.g. 376372"
                           required
-                          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                          className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
                         />
                       </div>
 
@@ -3569,7 +3569,7 @@ export default function AdminSettings() {
                           value={pathaoBaseUrl}
                           onChange={(e) => setPathaoBaseUrl(e.target.value)}
                           placeholder="https://api-hermes.pathao.com"
-                          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                          className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
                         />
                       </div>
                     </div>
@@ -3622,7 +3622,7 @@ export default function AdminSettings() {
                         type="button"
                         onClick={handleTestSteadfastConnection}
                         disabled={isTestingSteadfast}
-                        className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0"
+                        className="px-4 py-2 bg-[#F8F9FD]/10 hover:bg-[#F8F9FD]/20 text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0"
                       >
                         <RefreshCw size={12} className={isTestingSteadfast ? "animate-spin text-indigo-400" : "text-emerald-400"} />
                         <span>Test API Key Connection</span>
@@ -3643,7 +3643,7 @@ export default function AdminSettings() {
                           onChange={(e) => setSteadfastApiKey(e.target.value)}
                           placeholder="e.g. steadfast_api_key_xxxxxxxxxxxxx"
                           required
-                          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                          className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                         />
                       </div>
 
@@ -3657,7 +3657,7 @@ export default function AdminSettings() {
                           onChange={(e) => setSteadfastSecretKey(e.target.value)}
                           placeholder="e.g. steadfast_secret_key_xxxxxxxxxxxxx"
                           required
-                          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                          className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                         />
                       </div>
                     </div>
@@ -3705,7 +3705,7 @@ export default function AdminSettings() {
               </div>
 
               {/* Currently in Offers */}
-              <div className="bg-white border border-gray-200/80 rounded-2xl shadow-3xs overflow-hidden">
+              <div className="bg-[#F8F9FD] border border-gray-200/80 rounded-2xl shadow-3xs overflow-hidden">
                 <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div>
                     <h4 className="text-sm font-bold text-gray-900">Current Offer Products</h4>
@@ -3727,7 +3727,7 @@ export default function AdminSettings() {
                       {products
                         .filter(p => offerProductIds.includes(p.id))
                         .map(p => (
-                          <div key={p.id} className="group border border-gray-100 rounded-xl overflow-hidden bg-white hover:shadow-xs transition-all relative flex flex-col">
+                          <div key={p.id} className="group border border-gray-100 rounded-xl overflow-hidden bg-[#F8F9FD] hover:shadow-xs transition-all relative flex flex-col">
                             <div className="aspect-square bg-gray-50 relative overflow-hidden">
                               <img 
                                 src={p.images?.[0] || 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b'} 
@@ -3780,7 +3780,7 @@ export default function AdminSettings() {
               </div>
 
               {/* Add more products */}
-              <div className="bg-white border border-gray-200/80 rounded-2xl shadow-3xs overflow-hidden">
+              <div className="bg-[#F8F9FD] border border-gray-200/80 rounded-2xl shadow-3xs overflow-hidden">
                 <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div>
                     <h4 className="text-sm font-bold text-gray-900">Add Products to Offers</h4>
@@ -3792,7 +3792,7 @@ export default function AdminSettings() {
                       placeholder="Search products..."
                       value={offerSearchQuery}
                       onChange={(e) => setOfferSearchQuery(e.target.value)}
-                      className="w-full pl-8 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-colors"
+                      className="w-full pl-8 pr-4 py-2 bg-[#F8F9FD] border border-gray-200 rounded-xl text-xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-colors"
                     />
                     <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
                   </div>
@@ -3803,7 +3803,7 @@ export default function AdminSettings() {
                       .filter(p => !offerProductIds.includes(p.id))
                       .filter(p => !offerSearchQuery || p.name.toLowerCase().includes(offerSearchQuery.toLowerCase()) || p.category.toLowerCase().includes(offerSearchQuery.toLowerCase()))
                       .map(p => (
-                        <div key={p.id} className="border border-gray-100 rounded-xl overflow-hidden bg-white hover:shadow-xs transition-all relative flex flex-col">
+                        <div key={p.id} className="border border-gray-100 rounded-xl overflow-hidden bg-[#F8F9FD] hover:shadow-xs transition-all relative flex flex-col">
                           <div className="aspect-square bg-gray-50 relative overflow-hidden">
                             <img 
                               src={p.images?.[0] || 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b'} 
@@ -3865,7 +3865,7 @@ export default function AdminSettings() {
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              className="bg-white border border-gray-100 rounded-2xl max-w-2xl w-full relative shadow-2xl z-20 overflow-hidden flex flex-col max-h-[90vh] text-left font-sans"
+              className="bg-[#F8F9FD] border border-gray-100 rounded-2xl max-w-2xl w-full relative shadow-2xl z-20 overflow-hidden flex flex-col max-h-[90vh] text-left font-sans"
             >
               {/* Header */}
               <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
@@ -3891,7 +3891,7 @@ export default function AdminSettings() {
                     value={editOfferName}
                     onChange={(e) => setEditOfferName(e.target.value)}
                     placeholder="Enter product title"
-                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-colors"
+                    className="w-full px-4 py-2.5 bg-[#F8F9FD] border border-gray-200 rounded-xl text-xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-colors"
                   />
                 </div>
 
@@ -3904,7 +3904,7 @@ export default function AdminSettings() {
                       value={editOfferPrice}
                       onChange={(e) => setEditOfferPrice(Number(e.target.value))}
                       placeholder="e.g. 1200"
-                      className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-colors"
+                      className="w-full px-4 py-2.5 bg-[#F8F9FD] border border-gray-200 rounded-xl text-xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-colors"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -3914,7 +3914,7 @@ export default function AdminSettings() {
                       value={editOfferRegularPrice}
                       onChange={(e) => setEditOfferRegularPrice(e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="e.g. 1600"
-                      className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-colors"
+                      className="w-full px-4 py-2.5 bg-[#F8F9FD] border border-gray-200 rounded-xl text-xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-colors"
                     />
                   </div>
                 </div>
@@ -3927,7 +3927,7 @@ export default function AdminSettings() {
                     onChange={(e) => setEditOfferDescription(e.target.value)}
                     placeholder="Add materials, fitting, details..."
                     rows={4}
-                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-colors resize-none animate-none"
+                    className="w-full px-4 py-2.5 bg-[#F8F9FD] border border-gray-200 rounded-xl text-xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-colors resize-none animate-none"
                   />
                 </div>
 
@@ -3975,7 +3975,7 @@ export default function AdminSettings() {
               <div className="px-6 py-4 border-t border-gray-100 flex gap-3 justify-end bg-gray-50/30">
                 <button 
                   onClick={() => setEditingOfferProduct(null)}
-                  className="px-4 py-2 text-[10px] uppercase tracking-wider font-bold bg-white text-gray-400 hover:text-black transition-all rounded-lg border border-gray-200 cursor-pointer"
+                  className="px-4 py-2 text-[10px] uppercase tracking-wider font-bold bg-[#F8F9FD] text-gray-400 hover:text-black transition-all rounded-lg border border-gray-200 cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -4009,7 +4009,7 @@ export default function AdminSettings() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white border border-gray-100 p-8 rounded-xl max-w-sm w-full text-center relative shadow-xl z-20"
+              className="bg-[#F8F9FD] border border-gray-100 p-8 rounded-xl max-w-sm w-full text-center relative shadow-xl z-20"
             >
               <div className="w-16 h-16 bg-red-50 text-red-500 rounded-xl flex items-center justify-center mx-auto mb-6 shadow-xs border border-red-100">
                 <Trash2 size={28} />

@@ -44,6 +44,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatPrice, cn } from '../../lib/utils';
+import { isDeliveredOrSuccess } from '../../utils/orderUtils';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { useOrders } from '../../contexts/OrderContext';
 import { useProducts } from '../../contexts/ProductContext';
@@ -346,6 +347,10 @@ export default function AdminOrders(): React.JSX.Element {
   };
 
   const openOrderInCreateModal = (order: Order) => {
+    if (isDeliveredOrSuccess(order.status)) {
+      toast.error('ডেলিভার্ড বা সাকসেস অর্ডার এডিট করা যাবে না। (Delivered or Success orders cannot be edited)');
+      return;
+    }
     setEditingOrderId(order.id);
     setNewCustomerName(order.customerName || '');
     setNewCustomerPhone(order.phone || '');
@@ -422,7 +427,7 @@ export default function AdminOrders(): React.JSX.Element {
 
     return (
       <div className="flex items-center gap-2.5">
-        <div className="grid grid-cols-5 gap-[1.5px] p-1.5 bg-white border border-gray-200/80 rounded-lg w-8 h-8 shrink-0 shadow-3xs hover:border-emerald-500/50 hover:bg-emerald-50/15 transition-all" title={`Click to copy scan code: ${scanCode}`}>
+        <div className="grid grid-cols-5 gap-[1.5px] p-1.5 bg-[#F8F9FD] border border-gray-200/80 rounded-lg w-8 h-8 shrink-0 shadow-3xs hover:border-emerald-500/50 hover:bg-emerald-50/15 transition-all" title={`Click to copy scan code: ${scanCode}`}>
           {pixels.map((active, i) => (
             <div 
               key={i} 
@@ -584,16 +589,25 @@ export default function AdminOrders(): React.JSX.Element {
   };
 
   const handleStatusChange = async (id: string, newStatus: Order['status']) => {
+    const order = orders.find(o => o.id === id);
+    if (order && isDeliveredOrSuccess(order.status)) {
+      toast.error('সাকসেস বা ডেলিভার্ড অর্ডারের স্ট্যাটাস কোনোভাবেই পরিবর্তন করা যাবে না।');
+      return;
+    }
     try {
       await updateOrderStatus(id, newStatus);
       toast.success(`Order #${id} status updated to: ${newStatus}`);
-    } catch (err) {
-      toast.error('Failed to update status');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update status');
     }
   };
 
   const handleCreateIssue = async () => {
     if (!issueConversationOrder || !newIssueDesc.trim()) return;
+    if (isDeliveredOrSuccess(issueConversationOrder.status)) {
+      toast.error('ডেলিভার্ড বা সাকসেস অর্ডারে কোনো ইস্যু ক্রিয়েট করা যাবে না। (Delivered/Success orders cannot have issues created)');
+      return;
+    }
     try {
       const initialReply = {
         sender: 'admin' as const,
@@ -623,6 +637,10 @@ export default function AdminOrders(): React.JSX.Element {
   const handleSendIssueReply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!issueConversationOrder || !issueReplyText.trim()) return;
+    if (isDeliveredOrSuccess(issueConversationOrder.status) && (!issueConversationOrder.issueType || issueConversationOrder.issueStatus === 'resolved')) {
+      toast.error('ডেলিভার্ড বা সাকসেস অর্ডারে কোনো ইস্যু ক্রিয়েট করা যাবে না। (Delivered/Success orders cannot have issues created)');
+      return;
+    }
     try {
       const timestampStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
       const newReply = {
@@ -1214,7 +1232,7 @@ export default function AdminOrders(): React.JSX.Element {
               }
             </style>
           </head>
-          <body class="bg-white">
+          <body class="bg-[#F8F9FD]">
             ${pagesHtml}
             <script>
               window.onload = function() {
@@ -1554,7 +1572,7 @@ export default function AdminOrders(): React.JSX.Element {
 
           <button 
             onClick={handleSyncPathao}
-            className="px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-2"
+            className="px-4 py-2.5 bg-[#F8F9FD] hover:bg-slate-50 border border-slate-200 text-slate-800 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-2"
           >
             <RefreshCw size={13} className="text-emerald-500 stroke-[2.5]" />
             <span>Sync Pathao</span>
@@ -1574,7 +1592,7 @@ export default function AdminOrders(): React.JSX.Element {
       </div>
 
       {/* White outer container for Search, Pills, and Table */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-4 md:p-5 shadow-[0_4px_30px_rgba(0,0,0,0.015)] space-y-4">
+      <div className="bg-[#F8F9FD] rounded-2xl border border-gray-200 p-4 md:p-5 shadow-[0_4px_30px_rgba(0,0,0,0.015)] space-y-4">
         
         {/* Interactive Filters Grid / Bar matching screenshot */}
         <div className="flex flex-row items-center gap-1.5 bg-[#F8FAFC]/60 p-2 rounded-2xl border border-slate-100 overflow-x-auto no-scrollbar whitespace-nowrap">
@@ -1586,12 +1604,12 @@ export default function AdminOrders(): React.JSX.Element {
               placeholder="Search Order #, Phone, Name, SKU..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 bg-white border border-slate-200 text-xs sm:text-sm font-semibold rounded-xl placeholder-gray-400 text-slate-800 focus:ring-2 focus:ring-[#2563EB]/15 focus:border-[#2563EB]/40 outline-none transition-all shadow-2xs"
+              className="w-full pl-10 pr-3 py-2 bg-[#F8F9FD] border border-slate-200 text-xs sm:text-sm font-semibold rounded-xl placeholder-gray-400 text-slate-800 focus:ring-2 focus:ring-[#2563EB]/15 focus:border-[#2563EB]/40 outline-none transition-all shadow-2xs"
             />
           </div>
 
           {/* Date Picker matching mm/dd/yyyy - mm/dd/yyyy in screenshot */}
-          <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-2 py-1.5 shadow-3xs shrink-0">
+          <div className="flex items-center gap-1 bg-[#F8F9FD] border border-slate-200 rounded-xl px-2 py-1.5 shadow-3xs shrink-0">
             <div className="relative flex items-center gap-1 text-[11px] text-slate-700 font-semibold">
               <Calendar size={11} className="text-slate-400" />
               <input 
@@ -1620,7 +1638,7 @@ export default function AdminOrders(): React.JSX.Element {
             <select
               value={filterIssue}
               onChange={(e) => setFilterIssue(e.target.value)}
-              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-2.5 pr-6 py-1.5 text-[10px] font-extrabold tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+              className="appearance-none bg-[#F8F9FD] hover:bg-slate-50 border border-slate-200 pl-2.5 pr-6 py-1.5 text-[10px] font-extrabold tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
             >
               <option value="All">⚠️ ISSUES: ALL</option>
               <option value="Issues">⚠️ ISSUES ONLY</option>
@@ -1634,7 +1652,7 @@ export default function AdminOrders(): React.JSX.Element {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-2.5 pr-6 py-1.5 text-[10px] font-extrabold tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+              className="appearance-none bg-[#F8F9FD] hover:bg-slate-50 border border-slate-200 pl-2.5 pr-6 py-1.5 text-[10px] font-extrabold tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
             >
               <option value="All">📦 STATUS: ALL</option>
               <option value="ORDER PLACED">ORDER PLACED</option>
@@ -1656,7 +1674,7 @@ export default function AdminOrders(): React.JSX.Element {
             <select
               value={filterPartner}
               onChange={(e) => setFilterPartner(e.target.value)}
-              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-2.5 pr-6 py-1.5 text-[10px] font-extrabold tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+              className="appearance-none bg-[#F8F9FD] hover:bg-slate-50 border border-slate-200 pl-2.5 pr-6 py-1.5 text-[10px] font-extrabold tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
             >
               <option value="All">🤝 PARTNER: ALL</option>
               {uniquePartners.map(p => (
@@ -1671,7 +1689,7 @@ export default function AdminOrders(): React.JSX.Element {
             <select
               value={filterCourier}
               onChange={(e) => setFilterCourier(e.target.value)}
-              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-2.5 pr-6 py-1.5 text-[10px] font-extrabold tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+              className="appearance-none bg-[#F8F9FD] hover:bg-slate-50 border border-slate-200 pl-2.5 pr-6 py-1.5 text-[10px] font-extrabold tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
             >
               <option value="All">🚚 COURIER: ALL</option>
               <option value="Pathao">PATHAO</option>
@@ -1688,7 +1706,7 @@ export default function AdminOrders(): React.JSX.Element {
             <select
               value={filterCreator}
               onChange={(e) => setFilterCreator(e.target.value)}
-              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-2.5 pr-6 py-1.5 text-[10px] font-extrabold tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+              className="appearance-none bg-[#F8F9FD] hover:bg-slate-50 border border-slate-200 pl-2.5 pr-6 py-1.5 text-[10px] font-extrabold tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
             >
               <option value="All">👤 CREATOR: ALL</option>
               {uniqueCreators.map(cr => (
@@ -1703,7 +1721,7 @@ export default function AdminOrders(): React.JSX.Element {
             <select
               value={filterDelivery}
               onChange={(e) => setFilterDelivery(e.target.value)}
-              className="appearance-none bg-white hover:bg-slate-50 border border-slate-200 pl-2.5 pr-6 py-1.5 text-[10px] font-extrabold tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+              className="appearance-none bg-[#F8F9FD] hover:bg-slate-50 border border-slate-200 pl-2.5 pr-6 py-1.5 text-[10px] font-extrabold tracking-wider uppercase rounded-xl text-slate-700 cursor-pointer focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
             >
               <option value="All">📍 DELIVERY: ALL</option>
               <option value="Inside Dhaka">INSIDE DHAKA</option>
@@ -1727,21 +1745,21 @@ export default function AdminOrders(): React.JSX.Element {
             <div className="flex gap-2.5">
               <button 
                 onClick={handleExportSelectedCSV}
-                className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2"
+                className="px-5 py-2.5 bg-[#F8F9FD]/10 hover:bg-[#F8F9FD]/20 text-white font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2"
               >
                 <Download size={13} />
                 <span>Export Download</span>
               </button>
               <button 
                 onClick={handlePrintSelectedInvoices}
-                className="px-5 py-2.5 bg-white hover:bg-gray-100 text-black font-black text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2 shadow-md"
+                className="px-5 py-2.5 bg-[#F8F9FD] hover:bg-gray-100 text-black font-black text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2 shadow-md"
               >
                 <Printer size={13} />
                 <span>Print ({selectedOrderIds.length} Pcs - {formatPrice(orders.filter(o => selectedOrderIds.includes(o.id)).reduce((sum, o) => sum + (o.total || 0), 0), currency, rate)})</span>
               </button>
               <button 
                 onClick={() => setSelectedOrderIds([])}
-                className="px-3.5 py-2.5 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white font-bold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+                className="px-3.5 py-2.5 bg-[#F8F9FD]/5 hover:bg-[#F8F9FD]/10 text-gray-400 hover:text-white font-bold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer"
               >
                 Clear
               </button>
@@ -1754,7 +1772,7 @@ export default function AdminOrders(): React.JSX.Element {
           {/* Mobile Card View */}
           <div className="md:hidden space-y-4 px-4">
             {filteredOrders.slice(0, visibleCount).map((order) => (
-              <div key={order.id} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100" onClick={() => setSelectedOrder(order)}>
+              <div key={order.id} className="bg-[#F8F9FD] rounded-2xl p-4 shadow-sm border border-slate-100" onClick={() => setSelectedOrder(order)}>
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-2">
                     <input 
@@ -1793,7 +1811,24 @@ export default function AdminOrders(): React.JSX.Element {
                     <button onClick={(e) => { e.stopPropagation(); setSelectedOrder(order); }} title="View Details" className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 rounded-lg"><Eye size={18} /></button>
                     <button onClick={(e) => { e.stopPropagation(); setIssueConversationOrder(order); }} title="Order Issues" className="p-2 text-slate-400 hover:text-rose-600 bg-slate-50 rounded-lg"><MessageSquare size={18} /></button>
                     <button onClick={(e) => { e.stopPropagation(); setInvoiceOrder(order); setShowInvoiceModal(true); if (normalizeStatus(order.status) !== 'PRINTED') { updateOrderStatus(order.id, 'PRINTED'); } }} title="Print Invoice" className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 rounded-lg"><Printer size={18} /></button>
-                    <button onClick={(e) => { e.stopPropagation(); setSelectedOrder(order); /* ... (setting state for editing) */ setIsEditingDetails(true); }} title="Edit Order" className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 rounded-lg"><Tag size={18} /></button>
+                    <button 
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        if (isDeliveredOrSuccess(order.status)) {
+                          toast.error('ডেলিভার্ড বা সাকসেস অর্ডার এডিট করা যাবে না। (Delivered/Success order cannot be edited)');
+                          return;
+                        }
+                        setSelectedOrder(order); 
+                        setIsEditingDetails(true); 
+                      }} 
+                      title={isDeliveredOrSuccess(order.status) ? "Delivered / Success order cannot be edited" : "Edit Order"} 
+                      className={cn(
+                        "p-2 bg-slate-50 rounded-lg transition-all",
+                        isDeliveredOrSuccess(order.status) ? "text-slate-300 cursor-not-allowed opacity-50" : "text-slate-400 hover:text-indigo-600 cursor-pointer"
+                      )}
+                    >
+                      <Tag size={18} />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1803,7 +1838,7 @@ export default function AdminOrders(): React.JSX.Element {
           {/* Desktop Table View */}
           <table className="hidden md:table w-full text-left border-collapse min-w-[1500px]">
             <thead>
-              <tr className="border-b border-slate-100 text-[11px] font-black tracking-wider text-slate-400 h-14 bg-white select-none uppercase">
+              <tr className="border-b border-slate-100 text-[11px] font-black tracking-wider text-slate-400 h-14 bg-[#F8F9FD] select-none uppercase">
                 <th className="py-3 px-4 font-semibold text-left w-12">
                   <input 
                     type="checkbox" 
@@ -1836,10 +1871,10 @@ export default function AdminOrders(): React.JSX.Element {
                 <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Collectable</th>
                 <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Note</th>
                 <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Tracking ID</th>
-                <th className="py-3 px-6 font-bold text-center text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap sticky right-0 bg-white z-10 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">Action</th>
+                <th className="py-3 px-6 font-bold text-center text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap sticky right-0 bg-[#F8F9FD] z-10 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
+            <tbody className="divide-y divide-slate-100 bg-[#F8F9FD]">
               {filteredOrders.length === 0 ? (
                 <tr>
                   <td colSpan={20} className="py-24 text-center">
@@ -1923,9 +1958,16 @@ export default function AdminOrders(): React.JSX.Element {
                       <td className="py-4 px-4 relative" onClick={(e) => e.stopPropagation()}>
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1.5">
                           <button 
-                            onClick={() => setActiveStatusDropdownOrderId(activeStatusDropdownOrderId === order.id ? null : order.id)}
+                            onClick={() => {
+                              if (isDeliveredOrSuccess(order.status)) {
+                                toast.error('সাকসেস বা ডেলিভার্ড অর্ডারের স্ট্যাটাস কোনোভাবেই পরিবর্তন করা যাবে না।');
+                                return;
+                              }
+                              setActiveStatusDropdownOrderId(activeStatusDropdownOrderId === order.id ? null : order.id);
+                            }}
                             className={cn(
                               "inline-flex items-center justify-between gap-1.5 px-3 py-1.5 text-[10px] font-extrabold rounded-full border cursor-pointer select-none transition-all shadow-3xs",
+                              isDeliveredOrSuccess(order.status) ? "opacity-90 cursor-not-allowed" : "",
                               getStatusBadge(order.status).class
                             )}
                           >
@@ -1942,7 +1984,7 @@ export default function AdminOrders(): React.JSX.Element {
                               className="fixed inset-0 z-30" 
                               onClick={() => setActiveStatusDropdownOrderId(null)}
                             />
-                            <div className="absolute left-4 mt-1 w-52 bg-white border border-[#E2E8F0] shadow-xl py-0.5 z-40 rounded-xl overflow-hidden">
+                            <div className="absolute left-4 mt-1 w-52 bg-[#F8F9FD] border border-[#E2E8F0] shadow-xl py-0.5 z-40 rounded-xl overflow-hidden">
                               {[
                                 { key: 'ORDER PLACED', label: 'ORDER PLACED' },
                                 { key: 'PRINTED', label: 'PRINTED' },
@@ -2096,19 +2138,26 @@ export default function AdminOrders(): React.JSX.Element {
                               }
                             }}
                             autoFocus
-                            className="w-24 px-2 py-1 text-xs font-semibold bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20"
+                            className="w-24 px-2 py-1 text-xs font-semibold bg-[#F8F9FD] border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20"
                           />
                         ) : (
                           <button
                             onClick={() => {
+                              if (isDeliveredOrSuccess(order.status)) {
+                                toast.error('ডেলিভার্ড বা সাকসেস অর্ডার এডিট করা যাবে না। (Delivered/Success order cannot be edited)');
+                                return;
+                              }
                               setEditingTrackingOrderId(order.id);
                               setTempTrackingId(order.trackingId || '');
                             }}
+                            title={isDeliveredOrSuccess(order.status) ? "Delivered / Success order cannot be edited" : undefined}
                             className={cn(
-                              "px-3 py-1.5 text-[11px] font-bold rounded-lg border transition-all cursor-pointer",
-                              order.trackingId
-                                ? "bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100"
-                                : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100"
+                              "px-3 py-1.5 text-[11px] font-bold rounded-lg border transition-all",
+                              isDeliveredOrSuccess(order.status)
+                                ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60"
+                                : order.trackingId
+                                ? "bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100 cursor-pointer"
+                                : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 cursor-pointer"
                             )}
                           >
                             {order.trackingId || 'Add ID'}
@@ -2117,7 +2166,7 @@ export default function AdminOrders(): React.JSX.Element {
                       </td>
 
                       {/* Actions */}
-                      <td className="py-2.5 px-4 sticky right-0 bg-white z-10 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">
+                      <td className="py-2.5 px-4 sticky right-0 bg-[#F8F9FD] z-10 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">
                         <div className="flex items-center justify-center">
                           <div className="flex items-center gap-0.5 bg-[#F8FAFC] p-0.5 rounded-lg border border-[#EDF2F7] shadow-sm">
                             <button 
@@ -2126,7 +2175,7 @@ export default function AdminOrders(): React.JSX.Element {
                                 setSelectedOrder(order);
                               }} 
                               title="View Details"
-                              className="p-1 hover:bg-white hover:shadow-sm rounded-md transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
+                              className="p-1 hover:bg-[#F8F9FD] hover:shadow-sm rounded-md transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
                             >
                               <Eye size={13} className="stroke-[2.5]" />
                             </button>
@@ -2143,7 +2192,7 @@ export default function AdminOrders(): React.JSX.Element {
                                 "p-1 rounded-md transition-all cursor-pointer relative",
                                 order.issueType && order.issueStatus !== 'resolved'
                                   ? "text-rose-600 bg-rose-50 hover:bg-rose-100"
-                                  : "text-[#64748B] hover:text-[#0F172A] hover:bg-white hover:shadow-sm"
+                                  : "text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8F9FD] hover:shadow-sm"
                               )}
                             >
                               <MessageSquare size={13} className={cn("stroke-[2.5]", order.issueType && order.issueStatus !== 'resolved' && "animate-pulse")} />
@@ -2164,7 +2213,7 @@ export default function AdminOrders(): React.JSX.Element {
                                 }
                               }} 
                               title="Print Invoice"
-                              className="p-1 hover:bg-white hover:shadow-sm rounded-md transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
+                              className="p-1 hover:bg-[#F8F9FD] hover:shadow-sm rounded-md transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
                             >
                               <Printer size={13} className="stroke-[2.5]" />
                             </button>
@@ -2174,6 +2223,10 @@ export default function AdminOrders(): React.JSX.Element {
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
+                                if (isDeliveredOrSuccess(order.status)) {
+                                  toast.error('ডেলিভার্ড বা সাকসেস অর্ডার এডিট করা যাবে না। (Delivered/Success order cannot be edited)');
+                                  return;
+                                }
                                 setSelectedOrder(order);
                                 setNewCustomerName(order.customerName || '');
                                 setNewCustomerPhone(order.phone || '');
@@ -2192,8 +2245,13 @@ export default function AdminOrders(): React.JSX.Element {
                                 setEditInvoiceBy(order.invoiceBy || '');
                                 setIsEditingDetails(true);
                               }} 
-                              title="Edit Order"
-                              className="p-1 hover:bg-white hover:shadow-sm rounded-md transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
+                              title={isDeliveredOrSuccess(order.status) ? "Delivered / Success order cannot be edited" : "Edit Order"}
+                              className={cn(
+                                "p-1 rounded-md transition-all",
+                                isDeliveredOrSuccess(order.status)
+                                  ? "text-slate-300 cursor-not-allowed opacity-50"
+                                  : "text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8F9FD] hover:shadow-sm cursor-pointer"
+                              )}
                             >
                               <Tag size={13} className="stroke-[2.5]" />
                             </button>
@@ -2206,7 +2264,7 @@ export default function AdminOrders(): React.JSX.Element {
                                 handleStatusChange(order.id, 'Processing');
                               }} 
                               title="Mark as Paid/Processing"
-                              className="p-1 hover:bg-white hover:shadow-sm rounded-md transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
+                              className="p-1 hover:bg-[#F8F9FD] hover:shadow-sm rounded-md transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
                             >
                               <DollarSign size={13} className="stroke-[2.5]" />
                             </button>
@@ -2352,7 +2410,7 @@ export default function AdminOrders(): React.JSX.Element {
                 e.stopPropagation();
                 setVisibleCount(prev => prev + 50);
               }}
-              className="px-8 py-3.5 bg-white border border-gray-200 hover:border-blue-400 text-blue-600 hover:text-blue-700 font-bold text-sm rounded-[14px] transition-all shadow-xs hover:shadow-md cursor-pointer flex items-center justify-center gap-2 active:scale-98"
+              className="px-8 py-3.5 bg-[#F8F9FD] border border-gray-200 hover:border-blue-400 text-blue-600 hover:text-blue-700 font-bold text-sm rounded-[14px] transition-all shadow-xs hover:shadow-md cursor-pointer flex items-center justify-center gap-2 active:scale-98"
             >
               <span>Show more</span>
             </button>
@@ -2375,10 +2433,10 @@ export default function AdminOrders(): React.JSX.Element {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-[24px] w-full max-w-[1080px] h-[90vh] overflow-hidden shadow-2xl relative z-10 border border-[#EFF2F6] flex flex-col font-sans"
+              className="bg-[#F8F9FD] rounded-[24px] w-full max-w-[1080px] h-[90vh] overflow-hidden shadow-2xl relative z-10 border border-[#EFF2F6] flex flex-col font-sans"
             >
               {/* Modal Title / Header bar */}
-              <div className="p-6 border-b border-[#EFF2F6] flex items-center justify-between bg-white shrink-0">
+              <div className="p-6 border-b border-[#EFF2F6] flex items-center justify-between bg-[#F8F9FD] shrink-0">
                 <div className="text-left">
                   <h2 className="text-xl font-black text-[#0C1421] tracking-tight">
                     {editingOrderId ? `Order Details & Edit #${editingOrderId.slice(-6)}` : 'Create Order'}
@@ -2399,7 +2457,7 @@ export default function AdminOrders(): React.JSX.Element {
               <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden bg-[#FAFBFD]">
                 
                 {/* LEFT COLUMN: IBL Search panel */}
-                <div className="lg:col-span-5 border-r border-[#EFF2F6] p-6 flex flex-col bg-white overflow-y-auto no-scrollbar">
+                <div className="lg:col-span-5 border-r border-[#EFF2F6] p-6 flex flex-col bg-[#F8F9FD] overflow-y-auto no-scrollbar">
                   
                   <div className="flex items-center justify-between mb-3 shrink-0">
                     <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#2563EB] flex items-center gap-1.5">
@@ -2444,7 +2502,7 @@ export default function AdminOrders(): React.JSX.Element {
                             <img 
                               src={(prod.images && prod.images[0]) || 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=100'} 
                               alt={prod.name} 
-                              className="w-12 h-12 rounded-xl object-cover border border-gray-200 bg-white"
+                              className="w-12 h-12 rounded-xl object-cover border border-gray-200 bg-[#F8F9FD]"
                               referrerPolicy="no-referrer"
                             />
                             <div className="flex-1 min-w-0">
@@ -2464,7 +2522,7 @@ export default function AdminOrders(): React.JSX.Element {
                                   key={sz}
                                   type="button"
                                   onClick={() => handleAddProductToNewOrder(prod, sz)}
-                                  className="px-2.5 py-1 bg-white hover:bg-blue-600 hover:text-white border border-gray-200 text-[10px] font-black uppercase rounded-lg transition-all active:scale-95 shadow-3xs flex items-center gap-1.5 cursor-pointer"
+                                  className="px-2.5 py-1 bg-[#F8F9FD] hover:bg-blue-600 hover:text-white border border-gray-200 text-[10px] font-black uppercase rounded-lg transition-all active:scale-95 shadow-3xs flex items-center gap-1.5 cursor-pointer"
                                 >
                                   <span>{sz}</span>
                                   <span className={`text-[9px] font-extrabold ${stockQty <= 5 ? 'text-red-500 font-bold' : 'text-emerald-500 font-bold'}`}>
@@ -2508,7 +2566,7 @@ export default function AdminOrders(): React.JSX.Element {
                       ) : (
                         <div className="space-y-2">
                           {newOrderItems.map(item => (
-                            <div key={item.id} className="p-3 bg-white border border-slate-150 rounded-2xl flex items-center justify-between gap-4 shadow-3xs transition-all hover:border-slate-250">
+                            <div key={item.id} className="p-3 bg-[#F8F9FD] border border-slate-150 rounded-2xl flex items-center justify-between gap-4 shadow-3xs transition-all hover:border-slate-250">
                               <div className="flex items-center gap-3 min-w-0 flex-1">
                                 <div className="flex-1 min-w-0 text-left">
                                   <p className="text-xs font-black text-[#0F172A] truncate">
@@ -2878,10 +2936,10 @@ export default function AdminOrders(): React.JSX.Element {
                               "flex-1 min-w-[100px] py-2 px-2.5 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-2 cursor-pointer active:scale-95",
                               newAdvancePaymentMethod === 'Cash'
                                 ? "bg-[#E6F4EA] border-[#137333] text-[#137333] font-black"
-                                : "bg-white border-slate-200 text-slate-600 hover:text-black hover:border-slate-300"
+                                : "bg-[#F8F9FD] border-slate-200 text-slate-600 hover:text-black hover:border-slate-300"
                             )}
                           >
-                            <div className="w-7 h-7 rounded-lg bg-white shrink-0 border border-gray-100 flex items-center justify-center overflow-hidden relative shadow-3xs">
+                            <div className="w-7 h-7 rounded-lg bg-[#F8F9FD] shrink-0 border border-gray-100 flex items-center justify-center overflow-hidden relative shadow-3xs">
                               {paymentsConfig.codLogo ? (
                                 <img src={paymentsConfig.codLogo} alt="Cash" className="w-full h-full object-contain p-0.5" />
                               ) : (
@@ -2899,10 +2957,10 @@ export default function AdminOrders(): React.JSX.Element {
                               "flex-1 min-w-[100px] py-2 px-2.5 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-2 cursor-pointer active:scale-95",
                               newAdvancePaymentMethod === 'bKash'
                                 ? "bg-[#FDF2F8] border-[#DB2777] text-[#DB2777] font-black"
-                                : "bg-white border-slate-200 text-slate-600 hover:text-black hover:border-slate-300"
+                                : "bg-[#F8F9FD] border-slate-200 text-slate-600 hover:text-black hover:border-slate-300"
                             )}
                           >
-                            <div className="w-7 h-7 rounded-lg bg-white shrink-0 border border-gray-100 flex items-center justify-center overflow-hidden relative shadow-3xs">
+                            <div className="w-7 h-7 rounded-lg bg-[#F8F9FD] shrink-0 border border-gray-100 flex items-center justify-center overflow-hidden relative shadow-3xs">
                               <img 
                                 src={paymentsConfig.bkashLogo || "https://upload.wikimedia.org/wikipedia/commons/7/7a/BKash_Logo.svg"} 
                                 alt="bKash" 
@@ -2926,10 +2984,10 @@ export default function AdminOrders(): React.JSX.Element {
                               "flex-1 min-w-[100px] py-2 px-2.5 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-2 cursor-pointer active:scale-95",
                               newAdvancePaymentMethod === 'Rocket'
                                 ? "bg-[#FAF5FF] border-[#7C3AED] text-[#7C3AED] font-black"
-                                : "bg-white border-slate-200 text-slate-600 hover:text-black hover:border-slate-300"
+                                : "bg-[#F8F9FD] border-slate-200 text-slate-600 hover:text-black hover:border-slate-300"
                             )}
                           >
-                            <div className="w-7 h-7 rounded-lg bg-white shrink-0 border border-gray-100 flex items-center justify-center overflow-hidden relative shadow-3xs">
+                            <div className="w-7 h-7 rounded-lg bg-[#F8F9FD] shrink-0 border border-gray-100 flex items-center justify-center overflow-hidden relative shadow-3xs">
                               <img 
                                 src={paymentsConfig.rocketLogo || "https://upload.wikimedia.org/wikipedia/commons/8/82/Rocket_logo.svg"} 
                                 alt="Rocket" 
@@ -2953,10 +3011,10 @@ export default function AdminOrders(): React.JSX.Element {
                               "flex-1 min-w-[100px] py-2 px-2.5 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-2 cursor-pointer active:scale-95",
                               newAdvancePaymentMethod === 'Nagad'
                                 ? "bg-[#FFF7ED] border-[#EA580C] text-[#EA580C] font-black"
-                                : "bg-white border-slate-200 text-slate-600 hover:text-black hover:border-slate-300"
+                                : "bg-[#F8F9FD] border-slate-200 text-slate-600 hover:text-black hover:border-slate-300"
                             )}
                           >
-                            <div className="w-7 h-7 rounded-lg bg-white shrink-0 border border-gray-100 flex items-center justify-center overflow-hidden relative shadow-3xs">
+                            <div className="w-7 h-7 rounded-lg bg-[#F8F9FD] shrink-0 border border-gray-100 flex items-center justify-center overflow-hidden relative shadow-3xs">
                               <img 
                                 src={paymentsConfig.nagadLogo || "https://upload.wikimedia.org/wikipedia/commons/1/1b/Nagad_logo.png"} 
                                 alt="Nagad" 
@@ -2976,7 +3034,7 @@ export default function AdminOrders(): React.JSX.Element {
                             type="button"
                             onClick={() => setNewAdvancePaymentMethod('')}
                             title="Clear selection"
-                            className="p-3 border border-slate-200 hover:border-slate-300 rounded-xl bg-white hover:bg-slate-50 transition-all text-slate-400 hover:text-black shrink-0 shadow-3xs active:scale-95 cursor-pointer"
+                            className="p-3 border border-slate-200 hover:border-slate-300 rounded-xl bg-[#F8F9FD] hover:bg-slate-50 transition-all text-slate-400 hover:text-black shrink-0 shadow-3xs active:scale-95 cursor-pointer"
                           >
                             <X size={14} className="stroke-[2.5]" />
                           </button>
@@ -2999,7 +3057,7 @@ export default function AdminOrders(): React.JSX.Element {
                   </div>
 
                   {/* STICKY BOTTOM SUMMARY SECTION */}
-                  <div className="p-5 bg-white border-t border-slate-100 shrink-0 text-left">
+                  <div className="p-5 bg-[#F8F9FD] border-t border-slate-100 shrink-0 text-left">
                     <div className="space-y-4">
                       
                       {/* Financial values mapping */}
@@ -3079,7 +3137,7 @@ export default function AdminOrders(): React.JSX.Element {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-[28px] w-full max-w-lg overflow-hidden shadow-2xl relative z-10 border border-[#EFF2F6] flex flex-col text-black font-sans max-h-[92vh]"
+              className="bg-[#F8F9FD] rounded-[28px] w-full max-w-lg overflow-hidden shadow-2xl relative z-10 border border-[#EFF2F6] flex flex-col text-black font-sans max-h-[92vh]"
             >
               
               {/* Header section with scanning icon and styling matching screenshot */}
@@ -3473,7 +3531,7 @@ export default function AdminOrders(): React.JSX.Element {
                 "rounded-[32px] w-full max-w-2xl overflow-hidden shadow-2xl relative z-10 flex flex-col text-slate-800 font-sans max-h-[92vh] border border-white/20",
                 issueConversationOrder.issueType && issueConversationOrder.issueStatus !== 'resolved'
                   ? "bg-rose-50"
-                  : "bg-[#E5E9F0]"
+                  : "bg-[#F8F9FD]"
               )}
             >
               
@@ -3504,14 +3562,14 @@ export default function AdminOrders(): React.JSX.Element {
                       setSelectedOrder(issueConversationOrder);
                       setIssueConversationOrder(null);
                     }}
-                    className="px-4 py-1.5 bg-white/60 text-indigo-600 text-[10px] font-extrabold uppercase tracking-widest rounded-full hover:bg-white transition-all flex items-center gap-1.5 shadow-sm cursor-pointer border border-slate-300/20"
+                    className="px-4 py-1.5 bg-[#F8F9FD]/60 text-indigo-600 text-[10px] font-extrabold uppercase tracking-widest rounded-full hover:bg-[#F8F9FD] transition-all flex items-center gap-1.5 shadow-sm cursor-pointer border border-slate-300/20"
                   >
                     <Eye size={12} className="stroke-[2.5]" />
                     View Order
                   </button>
                   <button 
                     onClick={() => setIssueConversationOrder(null)}
-                    className="w-8 h-8 rounded-full bg-white/60 hover:bg-white flex items-center justify-center text-gray-400 hover:text-black transition-all cursor-pointer border border-slate-300/40 shadow-sm"
+                    className="w-8 h-8 rounded-full bg-[#F8F9FD]/60 hover:bg-[#F8F9FD] flex items-center justify-center text-gray-400 hover:text-black transition-all cursor-pointer border border-slate-300/40 shadow-sm"
                   >
                     <X size={15} className="stroke-[2.5]" />
                   </button>
@@ -3573,10 +3631,10 @@ export default function AdminOrders(): React.JSX.Element {
               </div>
 
               {/* Modal Body / Chat container */}
-              <div className="flex-1 overflow-y-auto p-6 flex flex-col min-h-0 bg-[#E5E9F0]">
+              <div className="flex-1 overflow-y-auto p-6 flex flex-col min-h-0 bg-slate-50">
                 
                 {/* Active Issue Info / Overview Card matching screenshot exactly */}
-                <div className="bg-white rounded-3xl border border-slate-200/60 p-5 mb-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-left">
+                <div className="bg-[#F8F9FD] rounded-3xl border border-slate-200/60 p-5 mb-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-left">
                   <div className="space-y-2.5 flex-1 min-w-0">
                     <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">ISSUE OVERVIEW</span>
                     
@@ -3585,7 +3643,7 @@ export default function AdminOrders(): React.JSX.Element {
                         <select
                           value={issueMetaType}
                           onChange={(e) => setIssueMetaType(e.target.value)}
-                          className="bg-white border border-slate-300 text-[10px] font-black rounded-lg px-2.5 py-1.5 outline-none text-slate-800 focus:ring-2 focus:ring-indigo-500/20"
+                          className="bg-[#F8F9FD] border border-slate-300 text-[10px] font-black rounded-lg px-2.5 py-1.5 outline-none text-slate-800 focus:ring-2 focus:ring-indigo-500/20"
                         >
                           <option value="QC">QC</option>
                           <option value="Sizing Mismatch">Sizing Mismatch</option>
@@ -3597,7 +3655,7 @@ export default function AdminOrders(): React.JSX.Element {
                         <select
                           value={issueMetaUrgency}
                           onChange={(e) => setIssueMetaUrgency(e.target.value)}
-                          className="bg-white border border-slate-300 text-[10px] font-black rounded-lg px-2.5 py-1.5 outline-none text-slate-800 focus:ring-2 focus:ring-indigo-500/20"
+                          className="bg-[#F8F9FD] border border-slate-300 text-[10px] font-black rounded-lg px-2.5 py-1.5 outline-none text-slate-800 focus:ring-2 focus:ring-indigo-500/20"
                         >
                           <option value="Normal">Normal</option>
                           <option value="High">High</option>
@@ -3857,7 +3915,7 @@ export default function AdminOrders(): React.JSX.Element {
                                   "flex flex-col max-w-[75%] rounded-[20px] p-3 text-xs leading-relaxed shadow-3xs",
                                   isAdminMsg 
                                     ? "bg-[#5E50F9] text-white rounded-tr-none text-left" 
-                                    : "bg-white text-slate-800 border border-slate-200/60 rounded-tl-none text-left"
+                                    : "bg-[#F8F9FD] text-slate-800 border border-slate-200/60 rounded-tl-none text-left"
                                 )}
                               >
                                 <div className="flex items-center gap-3 mb-1">
@@ -3891,22 +3949,29 @@ export default function AdminOrders(): React.JSX.Element {
                   </div>
 
                   {/* Chat reply typing input and controls */}
-                  <form onSubmit={handleSendIssueReply} className="border-t border-slate-300/30 pt-4 flex gap-3 shrink-0">
-                    <input 
-                      type="text" 
-                      value={issueReplyText}
-                      onChange={(e) => setIssueReplyText(e.target.value)}
-                      placeholder="Type your message here..."
-                      className="flex-1 bg-white border border-slate-300/50 text-xs font-semibold rounded-2xl px-5 py-3.5 outline-none focus:ring-2 focus:ring-[#5E50F9]/20 focus:border-[#5E50F9] text-slate-800 placeholder:text-slate-400"
-                    />
-                    <button 
-                      type="submit"
-                      disabled={!issueReplyText.trim()}
-                      className="px-8 py-3.5 bg-[#8C82FC] hover:bg-[#7267FC] text-white text-xs font-black uppercase tracking-wider rounded-2xl transition-all shadow-md disabled:opacity-50 disabled:pointer-events-none cursor-pointer flex items-center justify-center gap-1.5 shrink-0"
-                    >
-                      SEND
-                    </button>
-                  </form>
+                  {isDeliveredOrSuccess(issueConversationOrder.status) && (!issueConversationOrder.issueType || issueConversationOrder.issueStatus === 'resolved') ? (
+                    <div className="border-t border-slate-300/30 pt-4 flex items-center justify-center gap-2 p-3 bg-amber-50 border border-amber-200/80 text-amber-900 rounded-2xl text-xs font-bold shrink-0">
+                      <AlertTriangle size={15} className="text-amber-600 shrink-0" />
+                      <span>ডেলিভার্ড বা সাকসেস অর্ডারে নতুন কোনো ইস্যু ক্রিয়েট করা যাবে না।</span>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSendIssueReply} className="border-t border-slate-300/30 pt-4 flex gap-3 shrink-0">
+                      <input 
+                        type="text" 
+                        value={issueReplyText}
+                        onChange={(e) => setIssueReplyText(e.target.value)}
+                        placeholder="Type your message here..."
+                        className="flex-1 bg-[#F8F9FD] border border-slate-300/50 text-xs font-semibold rounded-2xl px-5 py-3.5 outline-none focus:ring-2 focus:ring-[#5E50F9]/20 focus:border-[#5E50F9] text-slate-800 placeholder:text-slate-400"
+                      />
+                      <button 
+                        type="submit"
+                        disabled={!issueReplyText.trim()}
+                        className="px-8 py-3.5 bg-[#8C82FC] hover:bg-[#7267FC] text-white text-xs font-black uppercase tracking-wider rounded-2xl transition-all shadow-md disabled:opacity-50 disabled:pointer-events-none cursor-pointer flex items-center justify-center gap-1.5 shrink-0"
+                      >
+                        SEND
+                      </button>
+                    </form>
+                  )}
 
                 </div>
               </div>
@@ -3932,13 +3997,13 @@ export default function AdminOrders(): React.JSX.Element {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-[#E5E9F0] rounded-[32px] w-full max-w-4xl overflow-hidden shadow-2xl relative z-10 border border-white/40 flex flex-col text-slate-800 font-sans max-h-[92vh]"
+              className="bg-[#F8F9FD] rounded-[32px] w-full max-w-4xl overflow-hidden shadow-2xl relative z-10 border border-slate-200/60 flex flex-col text-slate-800 font-sans max-h-[92vh]"
             >
               
               {isEditingDetails ? (
                 <>
                   {/* Header block for edit details */}
-                  <div className="p-6 border-b border-slate-300/40 flex items-center justify-between shrink-0 bg-[#E5E9F0]">
+                  <div className="p-6 border-b border-slate-200 flex items-center justify-between shrink-0 bg-[#F8F9FD]">
                     <div className="flex items-center gap-3">
                       <div className="w-11 h-11 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
                         <Edit3 className="w-5 h-5 stroke-[2.2]" />
@@ -3950,15 +4015,15 @@ export default function AdminOrders(): React.JSX.Element {
                     </div>
                     <button 
                       onClick={() => setIsEditingDetails(false)}
-                      className="w-8 h-8 rounded-full bg-white/60 hover:bg-white flex items-center justify-center text-gray-400 hover:text-black transition-all cursor-pointer border border-slate-300/40 shadow-sm"
+                      className="w-8 h-8 rounded-full bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-black transition-all cursor-pointer border border-slate-200 shadow-sm"
                     >
                       <X size={15} className="stroke-[2.5]" />
                     </button>
                   </div>
 
                   {/* Scrollable container for Form */}
-                  <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#E5E9F0] no-scrollbar">
-                    <div className="space-y-4 text-left bg-white rounded-2xl border border-slate-200/60 p-6 shadow-sm">
+                  <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50 no-scrollbar">
+                    <div className="space-y-4 text-left bg-[#F8F9FD] rounded-2xl border border-slate-200/60 p-6 shadow-sm">
                       <div className="border-b border-gray-150 pb-2 flex justify-between items-center">
                         <div>
                           <h3 className="text-xs font-black uppercase text-indigo-600 tracking-wider">Modify Order Record</h3>
@@ -4006,7 +4071,7 @@ export default function AdminOrders(): React.JSX.Element {
                             type="text" 
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
-                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
+                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD]"
                           />
                         </div>
                         <div className="space-y-1">
@@ -4015,7 +4080,7 @@ export default function AdminOrders(): React.JSX.Element {
                             type="text" 
                             value={editPhone}
                             onChange={(e) => setEditPhone(e.target.value)}
-                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
+                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD]"
                           />
                         </div>
                       </div>
@@ -4027,7 +4092,7 @@ export default function AdminOrders(): React.JSX.Element {
                             type="text" 
                             value={editAddress}
                             onChange={(e) => setEditAddress(e.target.value)}
-                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
+                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD]"
                           />
                         </div>
                         <div className="space-y-1">
@@ -4036,7 +4101,7 @@ export default function AdminOrders(): React.JSX.Element {
                             type="text" 
                             value={editThana}
                             onChange={(e) => setEditThana(e.target.value)}
-                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
+                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD]"
                           />
                         </div>
                         <div className="space-y-1">
@@ -4045,7 +4110,7 @@ export default function AdminOrders(): React.JSX.Element {
                             type="text" 
                             value={editCity}
                             onChange={(e) => setEditCity(e.target.value)}
-                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
+                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD]"
                           />
                         </div>
                       </div>
@@ -4056,7 +4121,7 @@ export default function AdminOrders(): React.JSX.Element {
                           <select 
                             value={normalizeStatus(editStatus)}
                             onChange={(e) => setEditStatus(e.target.value as any)}
-                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white cursor-pointer uppercase"
+                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD] cursor-pointer uppercase"
                           >
                             <option value="ORDER PLACED">ORDER PLACED</option>
                             <option value="PRINTED">PRINTED</option>
@@ -4076,7 +4141,7 @@ export default function AdminOrders(): React.JSX.Element {
                             type="number" 
                             value={editDeliveryCharge}
                             onChange={(e) => setEditDeliveryCharge(Number(e.target.value))}
-                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
+                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD]"
                           />
                         </div>
                         <div className="space-y-1">
@@ -4085,7 +4150,7 @@ export default function AdminOrders(): React.JSX.Element {
                             type="number" 
                             value={editDiscount}
                             onChange={(e) => setEditDiscount(Number(e.target.value))}
-                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
+                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD]"
                           />
                         </div>
                       </div>
@@ -4097,7 +4162,7 @@ export default function AdminOrders(): React.JSX.Element {
                             type="number" 
                             value={editAdvancePayment}
                             onChange={(e) => setEditAdvancePayment(Number(e.target.value))}
-                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
+                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD]"
                           />
                         </div>
                         <div className="space-y-1">
@@ -4107,7 +4172,7 @@ export default function AdminOrders(): React.JSX.Element {
                             value={editNotes}
                             onChange={(e) => setEditNotes(e.target.value)}
                             placeholder="Order note (optional)..."
-                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
+                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD]"
                           />
                         </div>
                       </div>
@@ -4131,7 +4196,7 @@ export default function AdminOrders(): React.JSX.Element {
                         <select 
                           value={editInvoiceBy}
                           onChange={(e) => setEditInvoiceBy(e.target.value)}
-                          className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white appearance-none cursor-pointer"
+                          className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD] appearance-none cursor-pointer"
                         >
                           <option value="Website order">Website order</option>
                           {invoiceByOptions.map((opt) => (
@@ -4220,7 +4285,7 @@ export default function AdminOrders(): React.JSX.Element {
                               return `${yy}${mm}${dd}${orderSlug}`;
                             })()}
                           </span>
-                          <div className="flex items-center gap-[1.2px] bg-white px-2 py-1 rounded-md border border-slate-300/40 shrink-0 h-6 select-none" title="Barcode">
+                          <div className="flex items-center gap-[1.2px] bg-[#F8F9FD] px-2 py-1 rounded-md border border-slate-300/40 shrink-0 h-6 select-none" title="Barcode">
                             {[1, 2, 1, 3, 1, 2, 1, 1, 2, 3, 1, 2, 1, 2, 1, 3, 2, 1, 1, 2, 1, 2, 1, 3, 1, 2].map((w, idx) => (
                               <div key={idx} className="bg-slate-900 h-full" style={{ width: `${w}px` }} />
                             ))}
@@ -4231,7 +4296,7 @@ export default function AdminOrders(): React.JSX.Element {
 
                     <button 
                       onClick={() => setSelectedOrder(null)}
-                      className="w-10 h-10 rounded-full bg-white/60 hover:bg-white flex items-center justify-center text-slate-400 hover:text-slate-800 transition-all cursor-pointer border border-slate-300/40 shadow-sm animate-fade-in"
+                      className="w-10 h-10 rounded-full bg-[#F8F9FD]/60 hover:bg-[#F8F9FD] flex items-center justify-center text-slate-400 hover:text-slate-800 transition-all cursor-pointer border border-slate-300/40 shadow-sm animate-fade-in"
                     >
                       <X size={18} className="stroke-[2.5]" />
                     </button>
@@ -4248,7 +4313,7 @@ export default function AdminOrders(): React.JSX.Element {
                           <User size={14} className="stroke-[2.5]" />
                           <span>Customer Identity</span>
                         </div>
-                        <div className="bg-white rounded-[24px] p-6 shadow-sm border border-white/60 text-left space-y-4 flex-1">
+                        <div className="bg-[#F8F9FD] rounded-[24px] p-6 shadow-sm border border-white/60 text-left space-y-4 flex-1">
                           <div>
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Name</span>
                             <span className="text-sm font-black text-slate-900 block leading-tight">{selectedOrder.customerName}</span>
@@ -4298,7 +4363,7 @@ export default function AdminOrders(): React.JSX.Element {
                           <Package size={14} className="stroke-[2.5]" />
                           <span>Logistic Meta</span>
                         </div>
-                        <div className="bg-white rounded-[24px] p-6 shadow-sm border border-white/60 text-left grid grid-cols-2 gap-y-4 gap-x-3 flex-1">
+                        <div className="bg-[#F8F9FD] rounded-[24px] p-6 shadow-sm border border-white/60 text-left grid grid-cols-2 gap-y-4 gap-x-3 flex-1">
                           <div>
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Partner</span>
                             <span className="text-sm font-black text-slate-900 block truncate leading-tight">
@@ -4344,7 +4409,7 @@ export default function AdminOrders(): React.JSX.Element {
                         <ShoppingCart size={14} className="stroke-[2.5]" />
                         <span>Order Composition</span>
                       </div>
-                      <div className="bg-white rounded-[24px] p-6 shadow-sm border border-white/60 text-left">
+                      <div className="bg-[#F8F9FD] rounded-[24px] p-6 shadow-sm border border-white/60 text-left">
                         <div className="grid grid-cols-12 gap-2 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-3 mb-3">
                           <div className="col-span-6">Item</div>
                           <div className="col-span-2 text-center">Qty</div>
@@ -4480,7 +4545,7 @@ export default function AdminOrders(): React.JSX.Element {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-[20px] w-full max-w-[170mm] overflow-hidden shadow-2xl relative z-10 border border-gray-200 flex flex-col max-h-[92vh]"
+              className="bg-[#F8F9FD] rounded-[20px] w-full max-w-[170mm] overflow-hidden shadow-2xl relative z-10 border border-gray-200 flex flex-col max-h-[92vh]"
             >
               {/* Header with actions */}
               <div className="p-4 px-6 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
@@ -4565,7 +4630,7 @@ export default function AdminOrders(): React.JSX.Element {
                               }
                             </style>
                           </head>
-                          <body class="bg-white">
+                          <body class="bg-[#F8F9FD]">
                             <div id="invoice-to-print">
                               ${invoiceElement.innerHTML}
                             </div>
@@ -4604,7 +4669,7 @@ export default function AdminOrders(): React.JSX.Element {
 
               {/* Scrollable body containing the preview sheet */}
               <div className="p-6 overflow-y-auto flex justify-center bg-gray-100/50 max-h-[calc(92vh-70px)]">
-                <div className="bg-white rounded-lg shadow-lg border border-gray-100">
+                <div className="bg-[#F8F9FD] rounded-lg shadow-lg border border-gray-100">
                   <InvoiceTemplate order={invoiceOrder} preview={true} />
                 </div>
               </div>
@@ -4629,7 +4694,7 @@ export default function AdminOrders(): React.JSX.Element {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-[20px] w-full max-w-[180mm] overflow-hidden shadow-2xl relative z-10 border border-gray-200 flex flex-col max-h-[92vh]"
+              className="bg-[#F8F9FD] rounded-[20px] w-full max-w-[180mm] overflow-hidden shadow-2xl relative z-10 border border-gray-200 flex flex-col max-h-[92vh]"
             >
               {/* Header with actions */}
               <div className="p-4 px-6 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
@@ -4663,7 +4728,7 @@ export default function AdminOrders(): React.JSX.Element {
                   .filter(o => selectedOrderIds.includes(o.id))
                   .map((order, idx) => (
                     <div key={order.id} className="relative group">
-                      <div className="flex items-center justify-between bg-white px-4 py-2 rounded-t-xl border border-b-0 border-gray-200 text-xs font-bold text-gray-700">
+                      <div className="flex items-center justify-between bg-[#F8F9FD] px-4 py-2 rounded-t-xl border border-b-0 border-gray-200 text-xs font-bold text-gray-700">
                         <span>Invoice #{idx + 1} of {selectedOrderIds.length} — Order #{order.invoiceNo || order.id} ({order.customerName})</span>
                         <button 
                           onClick={() => {
@@ -4676,7 +4741,7 @@ export default function AdminOrders(): React.JSX.Element {
                           Remove from Batch
                         </button>
                       </div>
-                      <div className="bg-white rounded-b-xl shadow-lg border border-gray-200 overflow-hidden flex justify-center p-2">
+                      <div className="bg-[#F8F9FD] rounded-b-xl shadow-lg border border-gray-200 overflow-hidden flex justify-center p-2">
                         <InvoiceTemplate order={order} preview={true} />
                       </div>
                     </div>
@@ -4703,7 +4768,7 @@ export default function AdminOrders(): React.JSX.Element {
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative bg-white rounded-3xl p-6 shadow-2xl max-w-md w-full border border-gray-100 overflow-hidden text-center"
+              className="relative bg-[#F8F9FD] rounded-3xl p-6 shadow-2xl max-w-md w-full border border-gray-100 overflow-hidden text-center"
             >
               <div className="mx-auto w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-500 mb-4">
                 <Trash2 size={24} className="stroke-[2.5]" stroke="currentColor" />
@@ -4748,7 +4813,7 @@ export default function AdminOrders(): React.JSX.Element {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-[28px] w-full max-w-[540px] overflow-hidden shadow-2xl border border-gray-100 flex flex-col font-sans max-h-[92vh]"
+              className="bg-[#F8F9FD] rounded-[28px] w-full max-w-[540px] overflow-hidden shadow-2xl border border-gray-100 flex flex-col font-sans max-h-[92vh]"
             >
               {/* Modal Header */}
               <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-emerald-50/20">
@@ -4777,7 +4842,7 @@ export default function AdminOrders(): React.JSX.Element {
                 {!pathaoSuccessResult ? (
                   <>
                     {/* Recipient Box */}
-                    <div className="bg-white/90 border border-white rounded-[20px] p-5 space-y-3 shadow-[0_4px_20px_rgba(0,0,0,0.015)]">
+                    <div className="bg-[#F8F9FD]/90 border border-white rounded-[20px] p-5 space-y-3 shadow-[0_4px_20px_rgba(0,0,0,0.015)]">
                       <p className="text-[9px] font-extrabold text-slate-400 tracking-widest uppercase">Recipient</p>
                       <div className="space-y-2.5">
                         <div className="flex items-center gap-2.5 text-slate-800">
@@ -4810,7 +4875,7 @@ export default function AdminOrders(): React.JSX.Element {
                         type="text" 
                         value={pathaoPickupStore}
                         onChange={(e) => setPathaoPickupStore(e.target.value)}
-                        className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-4 py-3.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                        className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-4 py-3.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 focus:bg-[#F8F9FD] transition-all"
                       />
                     </div>
 
@@ -4826,7 +4891,7 @@ export default function AdminOrders(): React.JSX.Element {
                             const thanas = DISTRICT_THANAS[newCity] || [];
                             setPathaoZone(thanas[0] || '');
                           }}
-                          className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-3 py-3.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 focus:bg-white transition-all cursor-pointer"
+                          className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-3 py-3.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 focus:bg-[#F8F9FD] transition-all cursor-pointer"
                         >
                           {Object.keys(DISTRICT_THANAS).map(district => (
                             <option key={district} value={district}>{district}</option>
@@ -4839,7 +4904,7 @@ export default function AdminOrders(): React.JSX.Element {
                         <select
                           value={pathaoZone}
                           onChange={(e) => setPathaoZone(e.target.value)}
-                          className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-3 py-3.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 focus:bg-white transition-all cursor-pointer"
+                          className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-3 py-3.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 focus:bg-[#F8F9FD] transition-all cursor-pointer"
                         >
                           <option value="">Select Zone / Thana</option>
                           {(DISTRICT_THANAS[pathaoCity] || []).map(thana => (
@@ -4858,7 +4923,7 @@ export default function AdminOrders(): React.JSX.Element {
                           value={pathaoArea}
                           onChange={(e) => setPathaoArea(e.target.value)}
                           placeholder="Area (optional)"
-                          className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-3 py-3.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                          className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-3 py-3.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 focus:bg-[#F8F9FD] transition-all"
                         />
                       </div>
                     </div>
@@ -4871,7 +4936,7 @@ export default function AdminOrders(): React.JSX.Element {
                           type="text" 
                           value={pathaoWeight}
                           onChange={(e) => setPathaoWeight(e.target.value)}
-                          className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-4 py-3.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                          className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-4 py-3.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 focus:bg-[#F8F9FD] transition-all"
                         />
                       </div>
 
@@ -4880,7 +4945,7 @@ export default function AdminOrders(): React.JSX.Element {
                         <select
                           value={pathaoDeliveryType}
                           onChange={(e) => setPathaoDeliveryType(e.target.value)}
-                          className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-4 py-3.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 focus:bg-white transition-all cursor-pointer"
+                          className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-4 py-3.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 focus:bg-[#F8F9FD] transition-all cursor-pointer"
                         >
                           <option value="48">Normal Delivery (48h)</option>
                           <option value="24">Express Delivery (24h)</option>
@@ -4895,7 +4960,7 @@ export default function AdminOrders(): React.JSX.Element {
                         value={pathaoSpecialInstruction}
                         onChange={(e) => setPathaoSpecialInstruction(e.target.value)}
                         placeholder="Handle with care, call before delivery..."
-                        className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-4 py-3 text-xs text-slate-800 font-bold h-20 focus:outline-none focus:border-emerald-500 focus:bg-white transition-all resize-none leading-normal"
+                        className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-4 py-3 text-xs text-slate-800 font-bold h-20 focus:outline-none focus:border-emerald-500 focus:bg-[#F8F9FD] transition-all resize-none leading-normal"
                       />
                     </div>
 
@@ -4933,7 +4998,7 @@ export default function AdminOrders(): React.JSX.Element {
                     </div>
 
                     {/* Details Box */}
-                    <div className="w-full bg-white border border-emerald-100 rounded-[20px] p-5 space-y-4 shadow-sm text-left">
+                    <div className="w-full bg-[#F8F9FD] border border-emerald-100 rounded-[20px] p-5 space-y-4 shadow-sm text-left">
                       <div>
                         <span className="text-[9px] font-black tracking-widest uppercase text-slate-400">Consignment ID</span>
                         <div className="mt-1 flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
@@ -4982,7 +5047,7 @@ export default function AdminOrders(): React.JSX.Element {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-[28px] w-full max-w-[540px] overflow-hidden shadow-2xl border border-gray-100 flex flex-col font-sans max-h-[92vh]"
+              className="bg-[#F8F9FD] rounded-[28px] w-full max-w-[540px] overflow-hidden shadow-2xl border border-gray-100 flex flex-col font-sans max-h-[92vh]"
             >
               {/* Modal Header */}
               <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-indigo-50/20">
@@ -5011,7 +5076,7 @@ export default function AdminOrders(): React.JSX.Element {
                 {!steadfastSuccessResult ? (
                   <>
                     {/* Recipient Box */}
-                    <div className="bg-white/90 border border-white rounded-[20px] p-5 space-y-3 shadow-[0_4px_20px_rgba(0,0,0,0.015)]">
+                    <div className="bg-[#F8F9FD]/90 border border-white rounded-[20px] p-5 space-y-3 shadow-[0_4px_20px_rgba(0,0,0,0.015)]">
                       <p className="text-[9px] font-extrabold text-slate-400 tracking-widest uppercase">Recipient</p>
                       <div className="space-y-2.5">
                         <div className="flex items-center gap-2.5 text-slate-800">
@@ -5044,7 +5109,7 @@ export default function AdminOrders(): React.JSX.Element {
                         value={steadfastNote}
                         onChange={(e) => setSteadfastNote(e.target.value)}
                         placeholder="Deliver safely, call before delivery..."
-                        className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-4 py-3 text-xs text-slate-800 font-bold h-24 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all resize-none leading-normal"
+                        className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-4 py-3 text-xs text-slate-800 font-bold h-24 focus:outline-none focus:border-indigo-500 focus:bg-[#F8F9FD] transition-all resize-none leading-normal"
                       />
                     </div>
 
@@ -5082,7 +5147,7 @@ export default function AdminOrders(): React.JSX.Element {
                     </div>
 
                     {/* Details Box */}
-                    <div className="w-full bg-white border border-indigo-100 rounded-[20px] p-5 space-y-4 shadow-sm text-left">
+                    <div className="w-full bg-[#F8F9FD] border border-indigo-100 rounded-[20px] p-5 space-y-4 shadow-sm text-left">
                       <div>
                         <span className="text-[9px] font-black tracking-widest uppercase text-slate-400">Consignment ID / Tracking Code</span>
                         <div className="mt-1 flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3">
@@ -5126,7 +5191,7 @@ export default function AdminOrders(): React.JSX.Element {
       {/* Modal to add custom Invoice By name */}
       {showAddInvoiceByModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl relative">
+          <div className="bg-[#F8F9FD] dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl relative">
             <button
               type="button"
               onClick={() => {

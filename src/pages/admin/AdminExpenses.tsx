@@ -217,7 +217,7 @@ export default function AdminExpenses(): React.JSX.Element {
   }
 
   return (
-    <div className="space-y-6 pb-12 font-sans bg-[#FBFBFD] min-h-screen text-black antialiased p-4 md:p-6">
+    <div className="space-y-6 pb-12 font-sans bg-[#F8F9FD] min-h-screen text-black antialiased p-4 md:p-6">
       
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-5">
@@ -254,7 +254,7 @@ export default function AdminExpenses(): React.JSX.Element {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Total Dollars */}
-        <div className="bg-white border border-gray-100 p-5 rounded-[20px] shadow-xs flex items-center justify-between">
+        <div className="bg-[#F8F9FD] border border-gray-100 p-5 rounded-[20px] shadow-xs flex items-center justify-between">
           <div>
             <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600">মোট ক্রয়কৃত ডলার</p>
             <h3 className="text-2xl font-black text-gray-900 mt-1">${totalDollars.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
@@ -266,7 +266,7 @@ export default function AdminExpenses(): React.JSX.Element {
         </div>
 
         {/* Total BDT Spent */}
-        <div className="bg-white border border-gray-100 p-5 rounded-[20px] shadow-xs flex items-center justify-between">
+        <div className="bg-[#F8F9FD] border border-gray-100 p-5 rounded-[20px] shadow-xs flex items-center justify-between">
           <div>
             <p className="text-[10px] font-black uppercase tracking-wider text-indigo-600">মোট খরচের টাকা (BDT)</p>
             <h3 className="text-2xl font-black text-gray-900 mt-1">{formatPrice(totalBdtSpent)}</h3>
@@ -278,7 +278,7 @@ export default function AdminExpenses(): React.JSX.Element {
         </div>
 
         {/* Average Exchange Rate */}
-        <div className="bg-white border border-gray-100 p-5 rounded-[20px] shadow-xs flex items-center justify-between">
+        <div className="bg-[#F8F9FD] border border-gray-100 p-5 rounded-[20px] shadow-xs flex items-center justify-between">
           <div>
             <p className="text-[10px] font-black uppercase tracking-wider text-amber-600">গড় ডলার রেট</p>
             <h3 className="text-2xl font-black text-gray-900 mt-1">৳{avgExchangeRate.toFixed(2)}</h3>
@@ -290,7 +290,7 @@ export default function AdminExpenses(): React.JSX.Element {
         </div>
 
         {/* Transaction Count */}
-        <div className="bg-white border border-gray-100 p-5 rounded-[20px] shadow-xs flex items-center justify-between">
+        <div className="bg-[#F8F9FD] border border-gray-100 p-5 rounded-[20px] shadow-xs flex items-center justify-between">
           <div>
             <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">মোট লেনদেন</p>
             <h3 className="text-2xl font-black text-gray-900 mt-1">{filteredExpenses.length} টি</h3>
@@ -304,7 +304,7 @@ export default function AdminExpenses(): React.JSX.Element {
       </div>
 
       {/* Main Table Container */}
-      <div className="bg-white border border-gray-100 rounded-[20px] shadow-xs p-5 space-y-4">
+      <div className="bg-[#F8F9FD] border border-gray-100 rounded-[20px] shadow-xs p-5 space-y-4">
         
         {/* Filters and Search */}
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-gray-50/70 p-3.5 rounded-2xl border border-gray-100">
@@ -315,12 +315,12 @@ export default function AdminExpenses(): React.JSX.Element {
               placeholder="উৎস, ব্যাংক কার্ড বা নোট দিয়ে খুঁজুন..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-800 placeholder:text-gray-400 outline-none focus:border-indigo-400 transition-all" 
+              className="w-full pl-10 pr-4 py-2 bg-[#F8F9FD] border border-gray-200 rounded-xl text-xs font-bold text-gray-800 placeholder:text-gray-400 outline-none focus:border-indigo-400 transition-all" 
             />
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 bg-white border border-gray-200 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700">
+            <div className="flex items-center gap-1.5 bg-[#F8F9FD] border border-gray-200 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700">
               <Calendar className="w-3.5 h-3.5 text-gray-400" />
               <span>শুরু:</span>
               <input 
@@ -331,7 +331,7 @@ export default function AdminExpenses(): React.JSX.Element {
               />
             </div>
 
-            <div className="flex items-center gap-1.5 bg-white border border-gray-200 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700">
+            <div className="flex items-center gap-1.5 bg-[#F8F9FD] border border-gray-200 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700">
               <span>শেষ:</span>
               <input 
                 type="date" 
@@ -436,7 +436,7 @@ export default function AdminExpenses(): React.JSX.Element {
       {/* --- ADD DOLLAR PURCHASE MODAL --- */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-2xl relative">
+          <div className="bg-[#F8F9FD] rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-2xl relative">
             <button
               type="button"
               onClick={() => setShowModal(false)}
@@ -471,7 +471,7 @@ export default function AdminExpenses(): React.JSX.Element {
                   required
                   value={form.date} 
                   onChange={e => setForm({...form, date: e.target.value})} 
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 text-xs font-bold text-gray-900 rounded-xl outline-none focus:border-indigo-500 focus:bg-white transition-all" 
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 text-xs font-bold text-gray-900 rounded-xl outline-none focus:border-indigo-500 focus:bg-[#F8F9FD] transition-all" 
                 />
               </div>
 
@@ -490,7 +490,7 @@ export default function AdminExpenses(): React.JSX.Element {
                       placeholder="100" 
                       value={form.dollars} 
                       onChange={e => handleDollarsChange(e.target.value)} 
-                      className="w-full pl-7 pr-3 py-2.5 bg-gray-50 border border-gray-200 text-xs font-bold text-gray-900 rounded-xl outline-none focus:border-indigo-500 focus:bg-white transition-all" 
+                      className="w-full pl-7 pr-3 py-2.5 bg-gray-50 border border-gray-200 text-xs font-bold text-gray-900 rounded-xl outline-none focus:border-indigo-500 focus:bg-[#F8F9FD] transition-all" 
                     />
                   </div>
                 </div>
@@ -507,7 +507,7 @@ export default function AdminExpenses(): React.JSX.Element {
                       placeholder="125" 
                       value={form.rate} 
                       onChange={e => handleRateChange(e.target.value)} 
-                      className="w-full pl-7 pr-3 py-2.5 bg-gray-50 border border-gray-200 text-xs font-bold text-gray-900 rounded-xl outline-none focus:border-indigo-500 focus:bg-white transition-all" 
+                      className="w-full pl-7 pr-3 py-2.5 bg-gray-50 border border-gray-200 text-xs font-bold text-gray-900 rounded-xl outline-none focus:border-indigo-500 focus:bg-[#F8F9FD] transition-all" 
                     />
                   </div>
                 </div>
@@ -540,7 +540,7 @@ export default function AdminExpenses(): React.JSX.Element {
                 <select 
                   value={form.source} 
                   onChange={e => setForm({...form, source: e.target.value})} 
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 text-xs font-bold text-gray-900 rounded-xl outline-none focus:border-indigo-500 focus:bg-white transition-all cursor-pointer"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 text-xs font-bold text-gray-900 rounded-xl outline-none focus:border-indigo-500 focus:bg-[#F8F9FD] transition-all cursor-pointer"
                 >
                   <option value="Dual Currency Card">Dual Currency Card (ব্যাংক কার্ড)</option>
                   <option value="EBL Visa / Mastercard">EBL Visa / Mastercard</option>
@@ -561,7 +561,7 @@ export default function AdminExpenses(): React.JSX.Element {
                   placeholder="যেমন: Meta Ads, Server Hosting, Software subscription ইত্যাদি..." 
                   value={form.notes} 
                   onChange={e => setForm({...form, notes: e.target.value})} 
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 text-xs font-bold text-gray-900 rounded-xl outline-none focus:border-indigo-500 focus:bg-white transition-all h-20 resize-none" 
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 text-xs font-bold text-gray-900 rounded-xl outline-none focus:border-indigo-500 focus:bg-[#F8F9FD] transition-all h-20 resize-none" 
                 />
               </div>
 

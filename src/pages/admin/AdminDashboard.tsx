@@ -64,7 +64,7 @@ export default function AdminDashboard(): React.JSX.Element {
             <div
               className={`${
                 t.visible ? 'animate-enter' : 'animate-leave'
-              } max-w-md w-full bg-white shadow-2xl rounded-2xl pointer-events-auto flex ring-1 ring-black/5 overflow-hidden border border-rose-100 p-4 transition-all duration-300`}
+              } max-w-md w-full bg-[#F8F9FD] shadow-2xl rounded-2xl pointer-events-auto flex ring-1 ring-black/5 overflow-hidden border border-rose-100 p-4 transition-all duration-300`}
             >
               <div className="flex-1 w-0">
                 <div className="flex items-start">
@@ -958,7 +958,7 @@ export default function AdminDashboard(): React.JSX.Element {
     if (active && payload && payload.length) {
       const dataObj = payload[0]?.payload;
       return (
-        <div className="bg-white/95 backdrop-blur-md border border-gray-100 p-4 rounded-2xl shadow-xl w-64 text-xs select-none">
+        <div className="bg-[#F8F9FD]/95 backdrop-blur-md border border-gray-100 p-4 rounded-2xl shadow-xl w-64 text-xs select-none">
           <div className="flex items-center justify-between pb-3 border-b border-gray-50 mb-3">
             <span className="font-black text-gray-500 uppercase tracking-wider">
               {label} {dataObj?.dateLabel ? `(${dataObj.dateLabel})` : ''}
@@ -1007,7 +1007,7 @@ export default function AdminDashboard(): React.JSX.Element {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         
         {/* CARD 1: Total Sales */}
-        <div className="bg-white border border-gray-100 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:shadow-xs transition-all">
+        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:shadow-xs transition-all">
           <div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1061,7 +1061,7 @@ export default function AdminDashboard(): React.JSX.Element {
         </div>
 
         {/* CARD 2: Total Orders */}
-        <div className="bg-white border border-gray-100 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:shadow-xs transition-all">
+        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:shadow-xs transition-all">
           <div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1115,7 +1115,7 @@ export default function AdminDashboard(): React.JSX.Element {
         </div>
 
         {/* CARD 3: Total Revenue */}
-        <div className="bg-white border border-gray-100 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:shadow-xs transition-all">
+        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:shadow-xs transition-all">
           <div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1169,7 +1169,7 @@ export default function AdminDashboard(): React.JSX.Element {
         </div>
 
         {/* CARD 4: Total Customers */}
-        <div className="bg-white border border-gray-100 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:shadow-xs transition-all">
+        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:shadow-xs transition-all">
           <div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1225,7 +1225,7 @@ export default function AdminDashboard(): React.JSX.Element {
       </div>
 
       {/* ROW 2: SALES REPORT (FULL WIDTH) */}
-      <div className="w-full bg-white border border-gray-100 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between">
+      <div className="w-full bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between">
         
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4">
           <div>
@@ -1252,7 +1252,7 @@ export default function AdminDashboard(): React.JSX.Element {
                   onClick={() => setReportPeriod(period)}
                   className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
                     reportPeriod === period
-                      ? 'bg-white text-gray-950 shadow-xs'
+                      ? 'bg-[#F8F9FD] text-gray-950 shadow-xs'
                       : 'text-gray-400 hover:text-gray-900'
                   }`}
                 >
@@ -1269,7 +1269,7 @@ export default function AdminDashboard(): React.JSX.Element {
                   toast.success('Sales report PDF exported successfully!');
                 }, 800);
               }}
-              className="flex items-center gap-1.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-3.5 py-1.5 rounded-lg text-[10px] font-black transition-all shadow-2xs cursor-pointer"
+              className="flex items-center gap-1.5 bg-[#F8F9FD] border border-gray-200 hover:bg-gray-50 text-gray-700 px-3.5 py-1.5 rounded-lg text-[10px] font-black transition-all shadow-2xs cursor-pointer"
             >
               <FileText className="w-3.5 h-3.5 text-gray-500" />
               <span>Export PDF</span>
@@ -1337,7 +1337,7 @@ export default function AdminDashboard(): React.JSX.Element {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* PRODUCT SALES Donut Chart */}
-        <div className="bg-white border border-gray-100 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between">
+        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between">
           <div>
             <h3 className="text-base font-black text-gray-900 tracking-tight pb-3">Product Sales</h3>
             
@@ -1408,7 +1408,7 @@ export default function AdminDashboard(): React.JSX.Element {
         </div>
 
         {/* RECENT ORDERS TABLE */}
-        <div className="lg:col-span-2 bg-white border border-gray-100 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between">
+        <div className="lg:col-span-2 bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-5">
               <h3 className="text-base font-black text-gray-900 tracking-tight">Recent Orders</h3>
@@ -1492,7 +1492,7 @@ export default function AdminDashboard(): React.JSX.Element {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
         
         {/* STOCK ALERT CARD */}
-        <div className="bg-white border border-gray-100 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between">
+        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-5 border-b border-gray-50">
               <div className="flex items-center gap-2">
@@ -1517,7 +1517,7 @@ export default function AdminDashboard(): React.JSX.Element {
                   return (
                     <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100/60 rounded-2xl border border-gray-100/50 transition-all">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center flex-shrink-0 relative overflow-hidden">
+                        <div className="w-10 h-10 rounded-xl bg-[#F8F9FD] border border-gray-100 flex items-center justify-center flex-shrink-0 relative overflow-hidden">
                           {p.image ? (
                             <img src={p.image} alt={p.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                           ) : (
@@ -1555,7 +1555,7 @@ export default function AdminDashboard(): React.JSX.Element {
         </div>
 
         {/* ACTIVE ADMINS CARD */}
-        <div className="bg-white border border-gray-100 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between">
+        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-5 border-b border-gray-50">
               <div className="flex items-center gap-2">

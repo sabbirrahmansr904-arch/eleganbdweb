@@ -31,7 +31,7 @@ export default function CustomerProfiler() {
         <p className="text-slate-500 mt-2">Search customers to view order success stats, ratings, and profile notes.</p>
       </div>
 
-      <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm mb-8 flex items-center gap-4">
+      <div className="bg-[#F8F9FD] p-6 rounded-3xl border border-slate-100 shadow-sm mb-8 flex items-center gap-4">
         <Search className="text-slate-400" size={24} />
         <input 
           type="text"
@@ -44,7 +44,7 @@ export default function CustomerProfiler() {
 
       <div className="space-y-6">
         {filtered.map(customer => (
-          <div key={customer.id} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-start gap-6">
+          <div key={customer.id} className="bg-[#F8F9FD] p-6 rounded-3xl border border-slate-100 shadow-sm flex items-start gap-6">
             <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-2xl font-black text-slate-400">
               {customer.name?.charAt(0)}
             </div>

@@ -102,7 +102,7 @@ export default function AdminInventoryOverview(): React.JSX.Element {
       </div>
 
       {/* Filter Options Box styled perfectly like the screenshot */}
-      <div className="bg-white rounded-[24px] p-6 border border-[#EFF2F6] shadow-[0_4px_24px_rgba(0,0,0,0.015)]">
+      <div className="bg-[#F8F9FD] rounded-[24px] p-6 border border-[#EFF2F6] shadow-[0_4px_24px_rgba(0,0,0,0.015)]">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
           
           {/* Search SKU/Product Name */}
@@ -113,7 +113,7 @@ export default function AdminInventoryOverview(): React.JSX.Element {
               placeholder="Search by SKU or Product Name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-3.5 bg-[#F8FAFC] border-none text-[13px] font-semibold rounded-2xl placeholder-gray-400 text-[#0C1421] focus:ring-2 focus:ring-[#E04622]/25 focus:bg-white outline-none transition-all"
+              className="w-full pl-11 pr-4 py-3.5 bg-[#F8FAFC] border-none text-[13px] font-semibold rounded-2xl placeholder-gray-400 text-[#0C1421] focus:ring-2 focus:ring-[#E04622]/25 focus:bg-[#F8F9FD] outline-none transition-all"
             />
           </div>
 
@@ -123,7 +123,7 @@ export default function AdminInventoryOverview(): React.JSX.Element {
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full pl-11 pr-10 py-3.5 bg-[#F8FAFC] border-none text-[11px] font-extrabold uppercase tracking-wider rounded-2xl text-[#62758A] focus:ring-2 focus:ring-[#E04622]/25 focus:bg-white focus:text-[#0C1421] outline-none transition-all appearance-none cursor-pointer"
+              className="w-full pl-11 pr-10 py-3.5 bg-[#F8FAFC] border-none text-[11px] font-extrabold uppercase tracking-wider rounded-2xl text-[#62758A] focus:ring-2 focus:ring-[#E04622]/25 focus:bg-[#F8F9FD] focus:text-[#0C1421] outline-none transition-all appearance-none cursor-pointer"
             >
               <option value="">ANY CATEGORY</option>
               {categoriesList.map(cat => (
@@ -139,7 +139,7 @@ export default function AdminInventoryOverview(): React.JSX.Element {
             <select
               value={selectedSize}
               onChange={(e) => setSelectedSize(e.target.value)}
-              className="w-full pl-11 pr-10 py-3.5 bg-[#F8FAFC] border-none text-[11px] font-extrabold uppercase tracking-wider rounded-2xl text-[#62758A] focus:ring-2 focus:ring-[#E04622]/25 focus:bg-white focus:text-[#0C1421] outline-none transition-all appearance-none cursor-pointer"
+              className="w-full pl-11 pr-10 py-3.5 bg-[#F8FAFC] border-none text-[11px] font-extrabold uppercase tracking-wider rounded-2xl text-[#62758A] focus:ring-2 focus:ring-[#E04622]/25 focus:bg-[#F8F9FD] focus:text-[#0C1421] outline-none transition-all appearance-none cursor-pointer"
             >
               <option value="">ANY SIZE</option>
               {sizesList.map(size => (
@@ -176,7 +176,7 @@ export default function AdminInventoryOverview(): React.JSX.Element {
       </div>
 
       {/* Main content or list checking view */}
-      <div className="bg-white rounded-[24px] p-8 border border-[#EFF2F6] min-h-[360px] flex flex-col items-center justify-center shadow-[0_4px_24px_rgba(0,0,0,0.015)]">
+      <div className="bg-[#F8F9FD] rounded-[24px] p-8 border border-[#EFF2F6] min-h-[360px] flex flex-col items-center justify-center shadow-[0_4px_24px_rgba(0,0,0,0.015)]">
         
         {!isActiveFilter ? (
           // Exact Placeholder State match screenshot!
@@ -213,10 +213,10 @@ export default function AdminInventoryOverview(): React.JSX.Element {
                   return (
                     <div 
                       key={product.id} 
-                      className="group bg-white rounded-2xl p-5 border border-[#EFF2F6] hover:border-gray-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.03)] transition-all flex items-start gap-4"
+                      className="group bg-[#F8F9FD] rounded-2xl p-5 border border-[#EFF2F6] hover:border-gray-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.03)] transition-all flex items-start gap-4"
                     >
                       {/* Product image with sleek custom placeholder if none exists */}
-                      <div className="w-16 h-16 rounded-xl border border-gray-150 overflow-hidden bg-white p-1 shrink-0 flex items-center justify-center">
+                      <div className="w-16 h-16 rounded-xl border border-gray-150 overflow-hidden bg-[#F8F9FD] p-1 shrink-0 flex items-center justify-center">
                         {product.images?.[0] ? (
                           <img 
                             src={product.images[0]} 

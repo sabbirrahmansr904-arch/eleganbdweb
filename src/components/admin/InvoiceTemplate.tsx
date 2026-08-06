@@ -38,7 +38,7 @@ export default function InvoiceTemplate({ order, preview = false }: InvoiceProps
   return (
     <div 
       id="invoice-to-print" 
-      className={`bg-white text-black mx-auto select-none text-[11px] leading-relaxed box-border ${
+      className={`bg-[#F8F9FD] text-black mx-auto select-none text-[11px] leading-relaxed box-border ${
         preview 
           ? "w-[148mm] min-h-[210mm] p-6 shadow-2xl border border-gray-200 rounded-2xl relative block scale-[0.95] md:scale-100 origin-top overflow-hidden" 
           : "hidden print:block w-[148mm] min-h-[210mm] overflow-hidden p-6"

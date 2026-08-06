@@ -267,7 +267,7 @@ export default function AdminAddProduct() {
       <div className="flex items-center gap-4 mb-4">
         <button 
           onClick={() => navigate('/admin/products')}
-          className="p-2.5 bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100 text-gray-400 hover:text-black"
+          className="p-2.5 bg-[#F8F9FD] rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100 text-gray-400 hover:text-black"
         >
           <ArrowLeft size={20} />
         </button>
@@ -289,7 +289,7 @@ export default function AdminAddProduct() {
             <button 
               type="button"
               onClick={() => window.open(`/product/${editId}`, '_blank')}
-              className="px-6 py-2.5 bg-white border border-gray-100 text-gray-500 rounded-xl text-[11px] font-black uppercase tracking-widest hover:text-black hover:shadow-md transition-all flex items-center gap-2"
+              className="px-6 py-2.5 bg-[#F8F9FD] border border-gray-100 text-gray-500 rounded-xl text-[11px] font-black uppercase tracking-widest hover:text-black hover:shadow-md transition-all flex items-center gap-2"
             >
               <ExternalLink size={16} />
               Preview on Website
@@ -307,7 +307,7 @@ export default function AdminAddProduct() {
       </div>
 
       <form id="product-form" onSubmit={handleSave} className="space-y-8">
-        <div className="bg-white border border-gray-100 rounded-[2rem] p-10 shadow-sm grid grid-cols-1 lg:grid-cols-12 gap-12">
+        <div className="bg-[#F8F9FD] border border-gray-100 rounded-[2rem] p-10 shadow-sm grid grid-cols-1 lg:grid-cols-12 gap-12">
           {/* Left Column: Details */}
           <div className="lg:col-span-6 space-y-8">
             <div className="space-y-2">
@@ -428,7 +428,7 @@ Wash Care:
               </div>
               <div className="border border-gray-100 rounded-2xl overflow-hidden bg-[#fcfdfe]">
                 {/* Mock Rich Text Toolbar */}
-                <div className="flex items-center gap-2 p-3 border-b border-gray-100 bg-white">
+                <div className="flex items-center gap-2 p-3 border-b border-gray-100 bg-[#F8F9FD]">
                   <select className="text-[10px] font-bold bg-transparent outline-none text-gray-600 mr-2">
                     <option>Normal</option>
                   </select>
@@ -496,7 +496,7 @@ Wash Care:
                   </div>
                   <div className={cn(
                     "w-5 h-5 rounded-md border flex items-center justify-center transition-all",
-                    isBestSelling ? "bg-indigo-600 border-indigo-600 text-white" : "border-gray-200 bg-white"
+                    isBestSelling ? "bg-indigo-600 border-indigo-600 text-white" : "border-gray-200 bg-[#F8F9FD]"
                   )}>
                     {isBestSelling && <CheckCircle2 size={12} />}
                   </div>
@@ -526,7 +526,7 @@ Wash Care:
                   </div>
                   <div className={cn(
                     "w-5 h-5 rounded-md border flex items-center justify-center transition-all",
-                    isNewArrival ? "bg-rose-600 border-rose-600 text-white" : "border-gray-200 bg-white"
+                    isNewArrival ? "bg-rose-600 border-rose-600 text-white" : "border-gray-200 bg-[#F8F9FD]"
                   )}>
                     {isNewArrival && <CheckCircle2 size={12} />}
                   </div>
@@ -560,7 +560,7 @@ Wash Care:
                   <>
                     <img 
                       src={uploadedImages[coverImageIndex]} 
-                      className="w-full h-full object-contain bg-white p-1" 
+                      className="w-full h-full object-contain bg-[#F8F9FD] p-1" 
                       referrerPolicy="no-referrer" 
                     />
                     <button 
@@ -571,7 +571,7 @@ Wash Care:
                         setUploadedImages(newImgs);
                         setCoverImageIndex(0);
                       }}
-                      className="absolute top-4 right-4 bg-white/80 backdrop-blur-md text-gray-500 p-2 rounded-lg hover:bg-white transition-all shadow-sm"
+                      className="absolute top-4 right-4 bg-[#F8F9FD]/80 backdrop-blur-md text-gray-500 p-2 rounded-lg hover:bg-[#F8F9FD] transition-all shadow-sm"
                     >
                       <X size={16} />
                     </button>
@@ -579,8 +579,8 @@ Wash Care:
                 ) : (
                   <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-all text-center p-8">
                     <div className="relative mb-6">
-                       <div className="absolute inset-0 bg-white opacity-40 blur-2xl rounded-full" />
-                       <div className="relative w-24 h-24 bg-white rounded-2xl shadow-xl flex items-center justify-center text-blue-200">
+                       <div className="absolute inset-0 bg-[#F8F9FD] opacity-40 blur-2xl rounded-full" />
+                       <div className="relative w-24 h-24 bg-[#F8F9FD] rounded-2xl shadow-xl flex items-center justify-center text-blue-200">
                          <Upload size={32} className="stroke-[1.5]" />
                        </div>
                     </div>
@@ -606,7 +606,7 @@ Wash Care:
                 {uploadedImages.map((img, i) => (
                   i !== coverImageIndex && (
                     <div key={i} className="relative aspect-square bg-gray-50 rounded-xl overflow-hidden border border-gray-100 group">
-                      <img src={img} className="w-full h-full object-contain bg-white p-1" />
+                      <img src={img} className="w-full h-full object-contain bg-[#F8F9FD] p-1" />
                       <button 
                         type="button"
                         onClick={() => {
@@ -616,7 +616,7 @@ Wash Care:
                           if (coverImageIndex === i) setCoverImageIndex(0);
                           else if (coverImageIndex > i) setCoverImageIndex(coverImageIndex - 1);
                         }}
-                        className="absolute top-2 right-2 bg-white/80 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                        className="absolute top-2 right-2 bg-[#F8F9FD]/80 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
                       >
                         <X size={12} />
                       </button>
@@ -624,7 +624,7 @@ Wash Care:
                   )
                 ))}
                 {uploadedImages.length <= 1 && (
-                  <div className="col-span-full h-28 bg-white border-2 border-dashed border-gray-100 rounded-2xl flex items-center justify-center">
+                  <div className="col-span-full h-28 bg-[#F8F9FD] border-2 border-dashed border-gray-100 rounded-2xl flex items-center justify-center">
                     <span className="text-[9px] font-black text-gray-300 uppercase tracking-[0.2em]">No Additional Gallery Images</span>
                   </div>
                 )}
@@ -632,7 +632,7 @@ Wash Care:
             </div>
 
             <div className="bg-red-50/50 border border-red-50 p-4 rounded-xl flex items-center gap-3">
-              <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center text-red-400 shadow-sm flex-shrink-0">
+              <div className="w-6 h-6 bg-[#F8F9FD] rounded-full flex items-center justify-center text-red-400 shadow-sm flex-shrink-0">
                 <Plus size={12} className="rotate-45" />
               </div>
               <p className="text-[9px] text-red-500/70 font-bold tracking-wide">
@@ -643,7 +643,7 @@ Wash Care:
         </div>
 
         {/* Variants Section */}
-        <div className="bg-white border border-gray-100 rounded-[2rem] p-10 shadow-sm space-y-8">
+        <div className="bg-[#F8F9FD] border border-gray-100 rounded-[2rem] p-10 shadow-sm space-y-8">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-xs font-black text-[#1a1c21] uppercase tracking-[0.1em]">Product Attributes (Variants)</h3>
@@ -660,7 +660,7 @@ Wash Care:
           </div>
 
           <div className="bg-gray-50/50 rounded-2xl p-6 border border-gray-50">
-            <div className="p-1 bg-white rounded-xl w-fit mb-8 border border-gray-100 shadow-sm">
+            <div className="p-1 bg-[#F8F9FD] rounded-xl w-fit mb-8 border border-gray-100 shadow-sm">
                <div className="px-5 py-2 bg-blue-50 text-blue-500 rounded-lg text-[9px] font-black uppercase tracking-widest">
                  {selectedCategory.toLowerCase().includes('bag') ? 'QN' : 'Size'}
                </div>
@@ -676,7 +676,7 @@ Wash Care:
                       "w-full aspect-[2/1] rounded-xl text-[10px] font-black uppercase border transition-all flex items-center justify-center",
                       selectedSizes.includes(size)
                         ? "bg-[#6366f1] text-white border-[#6366f1] shadow-md shadow-indigo-100"
-                        : "bg-white text-gray-400 border-gray-100 hover:border-indigo-200 hover:text-gray-600 shadow-sm"
+                        : "bg-[#F8F9FD] text-gray-400 border-gray-100 hover:border-indigo-200 hover:text-gray-600 shadow-sm"
                     )}
                   >
                     {size}
@@ -689,7 +689,7 @@ Wash Care:
                         value={quantities[size] || ''}
                         onChange={(e) => handleQuantityChange(size, e.target.value)}
                         placeholder="Qty"
-                        className="w-full bg-white border border-gray-100 rounded-lg px-2 py-1.5 text-[10px] font-bold text-gray-700 outline-none focus:border-indigo-200"
+                        className="w-full bg-[#F8F9FD] border border-gray-100 rounded-lg px-2 py-1.5 text-[10px] font-bold text-gray-700 outline-none focus:border-indigo-200"
                       />
                       <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[7px] font-black text-gray-300 uppercase">PCS</span>
                     </div>
@@ -713,7 +713,7 @@ Wash Care:
             type="submit"
             className="px-10 py-4 bg-[#8fb3fc] text-white rounded-xl text-[11px] font-black uppercase tracking-[0.15em] hover:bg-[#7cacf8] shadow-lg shadow-blue-100 transition-all active:scale-[0.98] flex items-center gap-3"
           >
-            <Plus size={16} className="bg-white/20 rounded p-0.5" />
+            <Plus size={16} className="bg-[#F8F9FD]/20 rounded p-0.5" />
             {isEditMode ? 'Update Product' : 'Initialize Product'}
           </button>
         </div>

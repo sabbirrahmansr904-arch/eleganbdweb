@@ -309,7 +309,7 @@ export default function AdminStockOut() {
   }, [transactions]);
 
   return (
-    <div className="max-w-[1600px] mx-auto space-y-8 pb-20 font-sans bg-white">
+    <div className="max-w-[1600px] mx-auto space-y-8 pb-20 font-sans bg-[#F8F9FD]">
       
       {/* Visual Header matching the red screenshot styling */}
       <div className="space-y-1">
@@ -327,7 +327,7 @@ export default function AdminStockOut() {
         <div className="xl:col-span-3 space-y-4">
           
           {/* Filter Attributes Card */}
-          <div className="bg-white rounded-3xl p-6 border border-[#EFF2F6] shadow-[0_4px_24px_rgba(0,0,0,0.01)] space-y-5">
+          <div className="bg-[#F8F9FD] rounded-3xl p-6 border border-[#EFF2F6] shadow-[0_4px_24px_rgba(0,0,0,0.01)] space-y-5">
             <div className="flex items-center justify-between border-b border-gray-100 pb-3">
               <span className="text-[10px] font-black tracking-widest text-gray-400 uppercase">
                 Filter Attributes
@@ -358,13 +358,13 @@ export default function AdminStockOut() {
                         "flex items-center px-3 py-2 rounded-xl text-xs font-bold border cursor-pointer transition-all w-full",
                         isChecked 
                           ? "bg-[#EF4444] border-[#EF4444] text-white shadow-sm" 
-                          : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
+                          : "bg-[#F8F9FD] border-gray-200 text-gray-600 hover:border-gray-300"
                       )}
                     >
                       {/* Checked visual square */}
                       <div className={cn(
                         "flex items-center justify-center border rounded-md w-4 h-4 mr-2 shrink-0 transition-all",
-                        isChecked ? "bg-white border-white text-[#EF4444]" : "bg-white border-gray-300 text-transparent"
+                        isChecked ? "bg-[#F8F9FD] border-white text-[#EF4444]" : "bg-[#F8F9FD] border-gray-300 text-transparent"
                       )}>
                         <Check size={10} strokeWidth={3} className={isChecked ? "block" : "hidden"} />
                       </div>
@@ -379,7 +379,7 @@ export default function AdminStockOut() {
 
         {/* Right Column: Spreadsheet Entry Panel */}
         <div className="xl:col-span-9">
-          <div className="bg-white rounded-3xl border border-[#EFF2F6] shadow-[0_4px_24px_rgba(0,0,0,0.01)] overflow-hidden flex flex-col">
+          <div className="bg-[#F8F9FD] rounded-3xl border border-[#EFF2F6] shadow-[0_4px_24px_rgba(0,0,0,0.01)] overflow-hidden flex flex-col">
             
             {/* Spreadsheet Header */}
             <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -419,7 +419,7 @@ export default function AdminStockOut() {
                     </th>
                     <th rowSpan={2} className="px-4 py-3 text-center w-12 border-b border-gray-100"></th>
                   </tr>
-                  <tr className="bg-white">
+                  <tr className="bg-[#F8F9FD]">
                     {selectedSizes.map(size => (
                       <th key={size} className="px-2 py-2 text-center text-[10px] font-extrabold text-gray-500 border-b border-r border-gray-100 min-w-[50px] uppercase">
                         {size}
@@ -524,7 +524,7 @@ export default function AdminStockOut() {
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="bg-white rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[90vh]"
+              className="bg-[#F8F9FD] rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[90vh]"
             >
               {/* Modal Header */}
               <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
@@ -570,7 +570,7 @@ export default function AdminStockOut() {
                 <div className="space-y-4">
                   <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Extraction Summary</h4>
                   
-                  <div className="divide-y divide-gray-100 border border-gray-100 rounded-2xl overflow-hidden bg-white">
+                  <div className="divide-y divide-gray-100 border border-gray-100 rounded-2xl overflow-hidden bg-[#F8F9FD]">
                     {preparedItems.map((item, index) => (
                       <div key={item.rowId} className={cn("p-4 flex flex-col md:flex-row md:items-center justify-between gap-4", !item.isValid && "bg-red-50/20")}>
                         <div className="space-y-1">
@@ -616,7 +616,7 @@ export default function AdminStockOut() {
                     placeholder="e.g., Dispatching stock for online fulfillment..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs text-gray-800 placeholder:text-gray-400 outline-none focus:border-red-500 focus:bg-white transition-all shadow-sm"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs text-gray-800 placeholder:text-gray-400 outline-none focus:border-red-500 focus:bg-[#F8F9FD] transition-all shadow-sm"
                   />
                 </div>
               </div>
@@ -643,7 +643,7 @@ export default function AdminStockOut() {
       </AnimatePresence>
 
       {/* Historical Stock Out logs Section */}
-      <div className="bg-white rounded-3xl border border-[#EFF2F6] shadow-[0_4px_24px_rgba(0,0,0,0.01)] overflow-hidden">
+      <div className="bg-[#F8F9FD] rounded-3xl border border-[#EFF2F6] shadow-[0_4px_24px_rgba(0,0,0,0.01)] overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex items-center gap-3">
           <div className="p-2 bg-red-50 text-red-600 rounded-xl">
             <Layers size={18} />

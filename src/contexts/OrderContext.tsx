@@ -11,6 +11,7 @@ import { useAuth } from './AuthContext';
 import { useProducts } from './ProductContext';
 import { useInventory } from './InventoryContext';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
+import { isDeliveredOrSuccess } from '../utils/orderUtils';
 
 interface OrderContextType {
   orders: Order[];
@@ -269,6 +270,9 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const updateOrderStatus = async (id: string, status: Order['status']) => {
     try {
       const order = orders.find(o => o.id === id);
+      if (order && isDeliveredOrSuccess(order.status)) {
+        throw new Error('সাকসেস বা ডেলিভার্ড অর্ডারের স্ট্যাটাস কোনোভাবেই পরিবর্তন করা যাবে না।');
+      }
       if (order) {
         await handleStatusChangeStock(order, status);
       }
@@ -336,6 +340,22 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
   const updateOrder = async (id: string, data: Partial<Order> & Record<string, any>) => {
     try {
+      const existingOrder = orders.find(o => o.id === id);
+      if (existingOrder && isDeliveredOrSuccess(existingOrder.status)) {
+        if (data.issueType && !existingOrder.issueType) {
+          throw new Error('ডেলিভার্ড বা সাকসেস অর্ডারে কোনো ইস্যু ক্রিয়েট করা যাবে না।');
+        }
+        const keysToEdit = Object.keys(data).filter(k => k !== 'updatedAt');
+        const isEditingOrderDetails = keysToEdit.some(k => [
+          'customerName', 'phone', 'address', 'city', 'thana', 'items', 
+          'deliveryCharge', 'discount', 'advancePayment', 'notes', 'total', 
+          'invoiceBy', 'trackingId', 'courier', 'partner'
+        ].includes(k));
+        if (isEditingOrderDetails) {
+          throw new Error('ডেলিভার্ড বা সাকসেস অর্ডার এডিট করা যাবে না।');
+        }
+      }
+
       const currentUserEmail = auth.currentUser?.email ? auth.currentUser.email.toLowerCase().trim() : '';
       const isCEOUser = currentUserEmail === 'eleganbd.ltd@gmail.com';
       

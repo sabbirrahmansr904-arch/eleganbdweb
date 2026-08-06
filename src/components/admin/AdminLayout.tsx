@@ -326,7 +326,7 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden font-sans text-black">
+    <div className="flex h-screen bg-[#F8F9FD] overflow-hidden font-sans text-black">
       {/* Mobile Sidebar Overlay */}
       <AnimatePresence>
         {isMobileOpen && (
@@ -343,9 +343,9 @@ export default function AdminLayout() {
                animate={{ x: 0 }}
                exit={{ x: '-100%' }}
                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-               className="fixed inset-y-0 left-0 w-72 bg-white z-[70] lg:hidden flex flex-col shadow-2xl border-r border-[#F0F2F5]"
+               className="fixed inset-y-0 left-0 w-72 bg-[#F8F9FD] z-[70] lg:hidden flex flex-col shadow-2xl border-r border-[#F0F2F5]"
             >
-              <div className="h-20 flex items-center justify-between px-6 border-b border-[#F0F2F5] bg-white text-black">
+              <div className="h-20 flex items-center justify-between px-6 border-b border-[#F0F2F5] bg-[#F8F9FD] text-black">
                 <Link to="/" onClick={() => setIsMobileOpen(false)} className="shrink-0 flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded-xl bg-[#E01E22] flex items-center justify-center text-white font-sans text-xl font-bold shrink-0 shadow-sm">
                     E
@@ -360,7 +360,7 @@ export default function AdminLayout() {
                   <X size={20} />
                 </button>
               </div>
-              <nav className="flex-1 py-4 px-4 space-y-4 overflow-y-auto no-scrollbar bg-white">
+              <nav className="flex-1 py-4 px-4 space-y-4 overflow-y-auto no-scrollbar bg-[#F8F9FD]">
                 {menuGroups.map((group, gIdx) => (
                   <React.Fragment key={gIdx}>
                     {gIdx > 0 && <hr className="border-gray-100 my-2" />}
@@ -395,7 +395,7 @@ export default function AdminLayout() {
                 ))}
               </nav>
               <div className="p-3.5 border-t border-gray-100 bg-gray-50/50">
-                <div className="flex items-center gap-3 mb-3 p-2 bg-white rounded-2xl border border-gray-200/80 shadow-2xs">
+                <div className="flex items-center gap-3 mb-3 p-2 bg-[#F8F9FD] rounded-2xl border border-gray-200/80 shadow-2xs">
                   {currentUser?.photoURL ? (
                     <img src={currentUser.photoURL} alt="User Profile" className="w-9 h-9 rounded-full object-cover border border-gray-200 shrink-0" />
                   ) : (
@@ -436,11 +436,11 @@ export default function AdminLayout() {
       {/* Desktop Sidebar */}
       <aside 
         className={cn(
-          "hidden lg:flex flex-col bg-white border-r border-[#EFF2F6] transition-all duration-300 shrink-0 z-50 shadow-[4px_0_24px_rgba(0,0,0,0.008)]",
+          "hidden lg:flex flex-col bg-[#F8F9FD] border-r border-[#EFF2F6] transition-all duration-300 shrink-0 z-50 shadow-[4px_0_24px_rgba(0,0,0,0.008)]",
           isSidebarOpen ? "w-64" : "w-20"
         )}
       >
-        <div className="h-20 flex items-center justify-between px-6 border-b border-[#EFF2F6] overflow-hidden bg-white shrink-0">
+        <div className="h-20 flex items-center justify-between px-6 border-b border-[#EFF2F6] overflow-hidden bg-[#F8F9FD] shrink-0">
           <Link to="/" className="shrink-0 flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-[#E01E22] flex items-center justify-center text-white font-sans text-xl font-bold shrink-0 shadow-sm">
               E
@@ -468,7 +468,7 @@ export default function AdminLayout() {
           )}
         </div>
 
-        <nav className="flex-1 py-4 px-3.5 space-y-4 overflow-y-auto no-scrollbar bg-white">
+        <nav className="flex-1 py-4 px-3.5 space-y-4 overflow-y-auto no-scrollbar bg-[#F8F9FD]">
           {menuGroups.map((group, gIdx) => (
             <React.Fragment key={gIdx}>
               {gIdx > 0 && isSidebarOpen && <hr className="border-gray-100 my-2" />}
@@ -498,7 +498,7 @@ export default function AdminLayout() {
                         </span>
                       )}
                       {!isSidebarOpen && (
-                        <div className="absolute left-full ml-4 px-3 py-1.5 bg-white text-black text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg border border-gray-100">
+                        <div className="absolute left-full ml-4 px-3 py-1.5 bg-[#F8F9FD] text-black text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg border border-gray-100">
                           {item.name}
                         </div>
                       )}
@@ -511,7 +511,7 @@ export default function AdminLayout() {
         </nav>
 
         {/* Desktop Sidebar Profile Footer */}
-        <div className="p-3 border-t border-gray-100 bg-white shrink-0">
+        <div className="p-3 border-t border-gray-100 bg-[#F8F9FD] shrink-0">
           {isSidebarOpen ? (
             <div className="space-y-2">
               <div className="flex items-center gap-2.5 p-2 bg-gray-50/80 rounded-2xl border border-gray-200/60 shadow-2xs">
@@ -569,9 +569,9 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-white">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#F8F9FD]">
         {/* Header */}
-        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-6 shrink-0 sticky top-0 z-40">
+        <header className="h-20 bg-[#F8F9FD]/80 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-6 shrink-0 sticky top-0 z-40">
           <div className="flex items-center space-x-4">
             <button 
               onClick={toggleSidebar}
@@ -638,7 +638,7 @@ export default function AdminLayout() {
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 15 }}
-                    className="absolute right-0 mt-3 w-80 sm:w-96 bg-white dark:bg-[#121824] rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden z-[100]"
+                    className="absolute right-0 mt-3 w-80 sm:w-96 bg-[#F8F9FD] dark:bg-[#121824] rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden z-[100]"
                   >
                     <div className="p-4 bg-gray-50 dark:bg-[#182235] border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -753,7 +753,7 @@ export default function AdminLayout() {
                     initial={{ opacity: 0, y: 12, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 12, scale: 0.98 }}
-                    className="absolute right-0 mt-3 w-80 sm:w-88 bg-white dark:bg-[#121824] rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-800 p-5 z-[100] text-left"
+                    className="absolute right-0 mt-3 w-80 sm:w-88 bg-[#F8F9FD] dark:bg-[#121824] rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-800 p-5 z-[100] text-left"
                   >
                     <div className="flex items-center gap-3.5 pb-4 border-b border-gray-100 dark:border-gray-800">
                       {currentUser?.photoURL ? (
@@ -827,11 +827,11 @@ export default function AdminLayout() {
         </header>
 
         {/* Content Area */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 no-scrollbar scroll-smooth">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 no-scrollbar scroll-smooth bg-[#F8F9FD]">
           {isCurrentRouteAllowed ? (
             <Outlet />
           ) : (
-            <div className="flex-1 p-8 flex flex-col items-center justify-center text-center min-h-[60vh] bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm my-auto">
+            <div className="flex-1 p-8 flex flex-col items-center justify-center text-center min-h-[60vh] bg-[#F8F9FD] dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm my-auto">
               <div className="w-16 h-16 rounded-2xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 flex items-center justify-center mb-4 shadow-md">
                 <Lock size={32} />
               </div>
@@ -843,7 +843,7 @@ export default function AdminLayout() {
               </p>
               <Link
                 to="/admin"
-                className="bg-black hover:bg-brand-gold hover:text-black text-white dark:bg-white dark:text-black transition-all px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest shadow-md flex items-center gap-2"
+                className="bg-black hover:bg-brand-gold hover:text-black text-white dark:bg-[#F8F9FD] dark:text-black transition-all px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest shadow-md flex items-center gap-2"
               >
                 <Home size={16} /> Return to Admin Dashboard
               </Link>

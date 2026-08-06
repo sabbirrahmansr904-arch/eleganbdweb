@@ -68,7 +68,7 @@ export default function AdminCustomers() {
 
       {/* Stats row for Customers */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-8 border border-gray-100 rounded-2xl flex items-center space-x-6 shadow-sm group hover:border-blue-600 transition-all">
+        <div className="bg-[#F8F9FD] p-8 border border-gray-100 rounded-2xl flex items-center space-x-6 shadow-sm group hover:border-blue-600 transition-all">
           <div className="w-14 h-14 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg">
             <Users size={28} />
           </div>
@@ -77,7 +77,7 @@ export default function AdminCustomers() {
             <p className="text-2xl font-black text-black italic tracking-tighter">{customers.length}</p>
           </div>
         </div>
-        <div className="bg-white p-8 border border-gray-100 rounded-2xl flex items-center space-x-6 shadow-sm group hover:border-blue-600 transition-all">
+        <div className="bg-[#F8F9FD] p-8 border border-gray-100 rounded-2xl flex items-center space-x-6 shadow-sm group hover:border-blue-600 transition-all">
           <div className="w-14 h-14 bg-gray-50 text-black rounded-xl flex items-center justify-center border border-gray-100">
             <TrendingUp size={28} />
           </div>
@@ -86,7 +86,7 @@ export default function AdminCustomers() {
             <p className="text-2xl font-black text-black italic tracking-tighter">{customers.length > 0 ? '100%' : '0%'}</p>
           </div>
         </div>
-        <div className="bg-white p-8 border border-gray-100 rounded-2xl flex items-center space-x-6 shadow-sm group hover:border-brand-gold/50 transition-all">
+        <div className="bg-[#F8F9FD] p-8 border border-gray-100 rounded-2xl flex items-center space-x-6 shadow-sm group hover:border-brand-gold/50 transition-all">
           <div className="w-14 h-14 bg-brand-gold text-white rounded-xl flex items-center justify-center shadow-xl shadow-brand-gold/20">
             <ShoppingBag size={28} />
           </div>
@@ -98,7 +98,7 @@ export default function AdminCustomers() {
       </div>
 
       {/* Customer List */}
-      <div className="bg-white border border-gray-100 shadow-sm rounded-3xl overflow-hidden">
+      <div className="bg-[#F8F9FD] border border-gray-100 shadow-sm rounded-3xl overflow-hidden">
         <div className="p-8 border-b border-gray-100 flex flex-col md:flex-row gap-6 justify-between items-center">
           <div className="relative w-full md:w-[450px] group">
             <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-blue-600 transition-colors" size={18} />
@@ -169,7 +169,7 @@ export default function AdminCustomers() {
                   <td className="px-10 py-8 text-right">
                     <button 
                       onClick={() => handleAction(customer.name)}
-                      className="p-3 text-gray-400 hover:text-black hover:bg-white rounded-2xl transition-all border border-transparent hover:border-gray-100"
+                      className="p-3 text-gray-400 hover:text-black hover:bg-[#F8F9FD] rounded-2xl transition-all border border-transparent hover:border-gray-100"
                     >
                       <MoreVertical size={20} />
                     </button>

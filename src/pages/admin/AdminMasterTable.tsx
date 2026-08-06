@@ -284,7 +284,7 @@ export default function AdminMasterTable(): React.JSX.Element {
   };
 
   return (
-    <div className="w-full h-full p-4 pb-8 font-sans text-[#0C1421] bg-white">
+    <div className="w-full h-full p-4 pb-8 font-sans text-[#0C1421] bg-[#F8F9FD]">
       
       {/* Top Title & Quick Stock Card - Compacted */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-gray-100 pb-4 mb-4">
@@ -327,7 +327,7 @@ export default function AdminMasterTable(): React.JSX.Element {
         {/* Left Side: Modes Switchers & Export */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Mode Switchers */}
-          <div className="bg-white p-0.5 rounded-lg border border-gray-150 flex items-center shadow-xs">
+          <div className="bg-[#F8F9FD] p-0.5 rounded-lg border border-gray-150 flex items-center shadow-xs">
             {(['STOCK', 'PRICE', 'SALE'] as const).map(mode => (
               <button
                 key={mode}
@@ -369,7 +369,7 @@ export default function AdminMasterTable(): React.JSX.Element {
               placeholder="Search..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 bg-white border border-gray-200 text-[10px] font-semibold rounded-lg placeholder-gray-400 text-black focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all"
+              className="w-full pl-8 pr-3 py-1.5 bg-[#F8F9FD] border border-gray-200 text-[10px] font-semibold rounded-lg placeholder-gray-400 text-black focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all"
             />
           </div>
 
@@ -378,7 +378,7 @@ export default function AdminMasterTable(): React.JSX.Element {
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full pl-3 pr-8 py-1.5 bg-white border border-gray-200 text-[9px] font-black uppercase tracking-wider rounded-lg text-gray-500 focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all appearance-none cursor-pointer"
+              className="w-full pl-3 pr-8 py-1.5 bg-[#F8F9FD] border border-gray-200 text-[9px] font-black uppercase tracking-wider rounded-lg text-gray-500 focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all appearance-none cursor-pointer"
             >
               <option value="All">CAT: ALL</option>
               {categoriesList.map(cat => (
@@ -393,7 +393,7 @@ export default function AdminMasterTable(): React.JSX.Element {
             <select
               value={stockFilter}
               onChange={(e) => setStockFilter(e.target.value)}
-              className="w-full pl-3 pr-8 py-1.5 bg-white border border-gray-200 text-[9px] font-black uppercase tracking-wider rounded-lg text-gray-500 focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all appearance-none cursor-pointer"
+              className="w-full pl-3 pr-8 py-1.5 bg-[#F8F9FD] border border-gray-200 text-[9px] font-black uppercase tracking-wider rounded-lg text-gray-500 focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all appearance-none cursor-pointer"
             >
               <option value="All">STOCK: ALL</option>
               <option value="Low">LOW STOCK (1-5)</option>
@@ -407,18 +407,18 @@ export default function AdminMasterTable(): React.JSX.Element {
       {/* Main Grid Matrix Table Wrapper - Compacted */}
       <div className="space-y-6">
         {loading ? (
-          <div className="bg-white rounded-xl border border-gray-150 p-16 text-center text-[11px] text-gray-500 font-bold uppercase tracking-wider shadow-sm">
+          <div className="bg-[#F8F9FD] rounded-xl border border-gray-150 p-16 text-center text-[11px] text-gray-500 font-bold uppercase tracking-wider shadow-sm">
             Syncing Matrix Data...
           </div>
         ) : filteredProducts.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-150 p-16 text-center text-[11px] text-gray-500 font-bold uppercase tracking-wider shadow-sm">
+          <div className="bg-[#F8F9FD] rounded-xl border border-gray-150 p-16 text-center text-[11px] text-gray-500 font-bold uppercase tracking-wider shadow-sm">
             No matching products found.
           </div>
         ) : (
           <>
             {/* 1. Shirts & Tops Matrix */}
             {shirtProducts.length > 0 && (
-              <div className="bg-white rounded-xl border border-gray-150 overflow-hidden shadow-sm">
+              <div className="bg-[#F8F9FD] rounded-xl border border-gray-150 overflow-hidden shadow-sm">
                 <div className="bg-gray-50 px-4 py-3 border-b border-gray-150 flex justify-between items-center">
                   <span className="text-xs font-black text-black uppercase tracking-wider flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
@@ -496,7 +496,7 @@ export default function AdminMasterTable(): React.JSX.Element {
                                                 onBlur={() => {
                                                   if (editingCell) handleSaveCell();
                                                 }}
-                                                className="w-16 text-center py-1 text-xs bg-white border border-blue-500 rounded outline-none font-bold text-black" 
+                                                className="w-16 text-center py-1 text-xs bg-[#F8F9FD] border border-blue-500 rounded outline-none font-bold text-black" 
                                               />
                                             </div>
                                           ) : (
@@ -525,7 +525,7 @@ export default function AdminMasterTable(): React.JSX.Element {
                                               if (e.key === 'Enter') handleSaveCell();
                                               if (e.key === 'Escape') setEditingCell(null);
                                             }}
-                                            className="w-20 text-center py-1 text-xs border border-blue-400 rounded bg-white text-black outline-none font-bold"
+                                            className="w-20 text-center py-1 text-xs border border-blue-400 rounded bg-[#F8F9FD] text-black outline-none font-bold"
                                           />
                                           <button onClick={handleSaveCell} className="bg-green-600 text-white p-1 rounded hover:bg-green-750"><Check size={10} /></button>
                                           <button onClick={() => setEditingCell(null)} className="bg-red-500 text-white p-1 rounded hover:bg-red-600"><X size={10} /></button>
@@ -553,7 +553,7 @@ export default function AdminMasterTable(): React.JSX.Element {
                                               if (e.key === 'Enter') handleSaveCell();
                                               if (e.key === 'Escape') setEditingCell(null);
                                             }}
-                                            className="w-20 text-center py-1 text-xs border border-blue-400 rounded bg-white text-black outline-none font-bold"
+                                            className="w-20 text-center py-1 text-xs border border-blue-400 rounded bg-[#F8F9FD] text-black outline-none font-bold"
                                           />
                                           <button onClick={handleSaveCell} className="bg-green-600 text-white p-1 rounded hover:bg-green-750"><Check size={10} /></button>
                                           <button onClick={() => setEditingCell(null)} className="bg-red-500 text-white p-1 rounded hover:bg-red-600"><X size={10} /></button>
@@ -583,7 +583,7 @@ export default function AdminMasterTable(): React.JSX.Element {
 
             {/* 2. Pants & Bottoms Matrix */}
             {pantProducts.length > 0 && (
-              <div className="bg-white rounded-xl border border-gray-150 overflow-hidden shadow-sm">
+              <div className="bg-[#F8F9FD] rounded-xl border border-gray-150 overflow-hidden shadow-sm">
                 <div className="bg-gray-50 px-4 py-3 border-b border-gray-150 flex justify-between items-center">
                   <span className="text-xs font-black text-black uppercase tracking-wider flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
@@ -661,7 +661,7 @@ export default function AdminMasterTable(): React.JSX.Element {
                                                 onBlur={() => {
                                                   if (editingCell) handleSaveCell();
                                                 }}
-                                                className="w-16 text-center py-1 text-xs bg-white border border-blue-500 rounded outline-none font-bold text-black" 
+                                                className="w-16 text-center py-1 text-xs bg-[#F8F9FD] border border-blue-500 rounded outline-none font-bold text-black" 
                                               />
                                             </div>
                                           ) : (
@@ -690,7 +690,7 @@ export default function AdminMasterTable(): React.JSX.Element {
                                               if (e.key === 'Enter') handleSaveCell();
                                               if (e.key === 'Escape') setEditingCell(null);
                                             }}
-                                            className="w-20 text-center py-1 text-xs border border-blue-400 rounded bg-white text-black outline-none font-bold"
+                                            className="w-20 text-center py-1 text-xs border border-blue-400 rounded bg-[#F8F9FD] text-black outline-none font-bold"
                                           />
                                           <button onClick={handleSaveCell} className="bg-green-600 text-white p-1 rounded hover:bg-green-750"><Check size={10} /></button>
                                           <button onClick={() => setEditingCell(null)} className="bg-red-500 text-white p-1 rounded hover:bg-red-600"><X size={10} /></button>
@@ -718,7 +718,7 @@ export default function AdminMasterTable(): React.JSX.Element {
                                               if (e.key === 'Enter') handleSaveCell();
                                               if (e.key === 'Escape') setEditingCell(null);
                                             }}
-                                            className="w-20 text-center py-1 text-xs border border-blue-400 rounded bg-white text-black outline-none font-bold"
+                                            className="w-20 text-center py-1 text-xs border border-blue-400 rounded bg-[#F8F9FD] text-black outline-none font-bold"
                                           />
                                           <button onClick={handleSaveCell} className="bg-green-600 text-white p-1 rounded hover:bg-green-750"><Check size={10} /></button>
                                           <button onClick={() => setEditingCell(null)} className="bg-red-500 text-white p-1 rounded hover:bg-red-600"><X size={10} /></button>

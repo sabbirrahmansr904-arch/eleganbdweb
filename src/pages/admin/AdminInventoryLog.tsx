@@ -74,7 +74,7 @@ export default function AdminInventoryLog() {
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm space-y-8">
+      <div className="bg-[#F8F9FD] p-8 rounded-3xl border border-gray-100 shadow-sm space-y-8">
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="relative flex-1 group">
             <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-600 transition-colors" size={18} />
@@ -114,7 +114,7 @@ export default function AdminInventoryLog() {
       </div>
 
       {/* Main Table */}
-      <div className="bg-white rounded-[3rem] border border-gray-100 shadow-sm overflow-hidden relative">
+      <div className="bg-[#F8F9FD] rounded-[3rem] border border-gray-100 shadow-sm overflow-hidden relative">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>

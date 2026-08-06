@@ -7,6 +7,7 @@ import { useOrders } from '../../contexts/OrderContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatPrice, cn } from '../../lib/utils';
+import { isDeliveredOrSuccess } from '../../utils/orderUtils';
 import { Order } from '../../types';
 
 const normalizeStatus = (status: string): string => {
@@ -123,6 +124,10 @@ export default function AdminIssues() {
   const openOrderModal = (mode: 'view' | 'edit') => {
     if (!selectedIssue?.order) return;
     const order = selectedIssue.order;
+    if (mode === 'edit' && isDeliveredOrSuccess(order.status)) {
+      toast.error('ডেলিভার্ড বা সাকসেস অর্ডার এডিট করা যাবে না। (Delivered/Success order cannot be edited)');
+      return;
+    }
     setEditName(order.customerName || '');
     setEditPhone(order.phone || '');
     setEditAddress(order.address || '');
@@ -286,7 +291,7 @@ export default function AdminIssues() {
   };
 
   return (
-    <div className="min-h-screen bg-white font-sans p-4 lg:p-8 animate-in fade-in duration-500">
+    <div className="min-h-screen bg-[#F8F9FD] font-sans p-4 lg:p-8 animate-in fade-in duration-500">
       {invoiceOrder && createPortal(
         <InvoiceTemplate order={invoiceOrder} preview={false} />,
         document.body
@@ -310,7 +315,7 @@ export default function AdminIssues() {
               onClick={() => setViewMode('MY')}
               className={cn(
                 "px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all",
-                viewMode === 'MY' ? "bg-white text-indigo-600 shadow-sm border border-gray-100" : "text-gray-400 hover:text-gray-600"
+                viewMode === 'MY' ? "bg-[#F8F9FD] text-indigo-600 shadow-sm border border-gray-100" : "text-gray-400 hover:text-gray-600"
               )}
             >
               MY ISSUES
@@ -319,7 +324,7 @@ export default function AdminIssues() {
               onClick={() => setViewMode('ALL')}
               className={cn(
                 "px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all",
-                viewMode === 'ALL' ? "bg-white text-indigo-600 shadow-sm border border-gray-100" : "text-gray-400 hover:text-gray-600"
+                viewMode === 'ALL' ? "bg-[#F8F9FD] text-indigo-600 shadow-sm border border-gray-100" : "text-gray-400 hover:text-gray-600"
               )}
             >
               ALL ISSUES
@@ -338,7 +343,7 @@ export default function AdminIssues() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Sidebar */}
         <div className="lg:col-span-4 space-y-6">
-          <div className="bg-white rounded-[32px] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] overflow-hidden">
+          <div className="bg-[#F8F9FD] rounded-[32px] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] overflow-hidden">
             <div className="p-6 space-y-6">
               {/* Search */}
               <div className="relative">
@@ -348,7 +353,7 @@ export default function AdminIssues() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search order, customer..."
-                  className="w-full pl-12 pr-4 py-4 bg-gray-50/50 border border-gray-100 rounded-2xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-50 outline-none transition-all"
+                  className="w-full pl-12 pr-4 py-4 bg-gray-50/50 border border-gray-100 rounded-2xl text-sm focus:bg-[#F8F9FD] focus:ring-2 focus:ring-indigo-50 outline-none transition-all"
                 />
               </div>
 
@@ -362,7 +367,7 @@ export default function AdminIssues() {
                       "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all",
                       activeTab === tab 
                         ? "bg-blue-600 text-white border-blue-600 shadow-md" 
-                        : "bg-white text-gray-400 border-gray-100 hover:border-gray-200"
+                        : "bg-[#F8F9FD] text-gray-400 border-gray-100 hover:border-gray-200"
                     )}
                   >
                     {tab} {tab === 'ALL' && `(${counts.total})`}
@@ -376,7 +381,7 @@ export default function AdminIssues() {
                 className="w-full flex items-center justify-between p-4 bg-gray-50/50 rounded-2xl border border-gray-100 group hover:bg-gray-50 transition-all"
               >
                 <div className="flex items-center gap-2">
-                  <div className="p-2 bg-white rounded-lg border border-gray-100">
+                  <div className="p-2 bg-[#F8F9FD] rounded-lg border border-gray-100">
                     <AlertCircle size={14} className="text-indigo-600" />
                   </div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#0C1421]">Filter Options</span>
@@ -435,7 +440,7 @@ export default function AdminIssues() {
         </div>
 
         {/* Main Area */}
-        <div className="lg:col-span-8 bg-white rounded-[32px] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] flex flex-col h-[800px] overflow-hidden">
+        <div className="lg:col-span-8 bg-[#F8F9FD] rounded-[32px] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] flex flex-col h-[800px] overflow-hidden">
           {selectedIssue ? (
             <div className="h-full flex flex-col">
               {/* Main Header */}
@@ -472,7 +477,7 @@ export default function AdminIssues() {
                         <AlertCircle size={12} />
                         {selectedIssue.status}
                       </div>
-                      <div className="bg-white border border-gray-100 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-[#0C1421] flex items-center gap-2">
+                      <div className="bg-[#F8F9FD] border border-gray-100 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-[#0C1421] flex items-center gap-2">
                         <span>TYPE:</span>
                         <span className="text-indigo-600">{selectedIssue.type}</span>
                       </div>
@@ -646,7 +651,7 @@ export default function AdminIssues() {
               <div className="flex-1 overflow-y-auto p-8 space-y-6 no-scrollbar bg-slate-50/20">
                 {selectedIssue.replies.map((msg, i) => (
                   <div key={i} className={cn("flex items-start gap-4 max-w-[80%]", msg.sender === 'admin' ? "ml-auto flex-row-reverse" : "")}>
-                    <div className="w-10 h-10 rounded-2xl bg-white border border-gray-100 flex items-center justify-center font-black text-[10px] text-gray-400 shrink-0 shadow-sm uppercase">
+                    <div className="w-10 h-10 rounded-2xl bg-[#F8F9FD] border border-gray-100 flex items-center justify-center font-black text-[10px] text-gray-400 shrink-0 shadow-sm uppercase">
                       {msg.sender === 'admin' ? 'SA' : msg.sender.slice(0, 2)}
                     </div>
                     <div>
@@ -658,7 +663,7 @@ export default function AdminIssues() {
                       </div>
                       <div className={cn(
                         "p-5 rounded-[24px] text-lg font-bold leading-relaxed shadow-sm border",
-                        msg.sender === 'admin' ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-[#0C1421] border-gray-100"
+                        msg.sender === 'admin' ? "bg-indigo-600 text-white border-indigo-600" : "bg-[#F8F9FD] text-[#0C1421] border-gray-100"
                       )}>
                         {msg.message}
                       </div>
@@ -668,14 +673,14 @@ export default function AdminIssues() {
               </div>
 
               {/* Input Area */}
-              <form onSubmit={handleSendReply} className="p-8 bg-white border-t border-gray-100 flex items-center gap-4">
+              <form onSubmit={handleSendReply} className="p-8 bg-[#F8F9FD] border-t border-gray-100 flex items-center gap-4">
                 <div className="flex-1 relative">
                   <input 
                     type="text"
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
                     placeholder="Type your message..."
-                    className="w-full bg-gray-50 border border-gray-100 rounded-[24px] px-8 py-5 text-lg font-bold outline-none focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all"
+                    className="w-full bg-gray-50 border border-gray-100 rounded-[24px] px-8 py-5 text-lg font-bold outline-none focus:bg-[#F8F9FD] focus:ring-4 focus:ring-indigo-50 transition-all"
                   />
                   <button 
                     type="submit"
@@ -718,7 +723,7 @@ export default function AdminIssues() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white dark:bg-[#121824] rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl relative z-10 border border-gray-200 dark:border-gray-800 flex flex-col max-h-[92vh] text-left"
+              className="bg-[#F8F9FD] dark:bg-[#121824] rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl relative z-10 border border-gray-200 dark:border-gray-800 flex flex-col max-h-[92vh] text-left"
             >
               {/* Modal Header */}
               <div className="p-6 bg-gray-50 dark:bg-[#182235] border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
@@ -868,7 +873,7 @@ export default function AdminIssues() {
                           type="text"
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
-                          className="w-full bg-gray-50 dark:bg-[#182235] border border-gray-200 dark:border-gray-850 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
+                          className="w-full bg-gray-50 dark:bg-[#182235] border border-gray-200 dark:border-gray-850 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD]"
                         />
                       </div>
 
@@ -879,7 +884,7 @@ export default function AdminIssues() {
                           type="text"
                           value={editPhone}
                           onChange={(e) => setEditPhone(e.target.value)}
-                          className="w-full bg-gray-50 dark:bg-[#182235] border border-gray-200 dark:border-gray-850 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white font-mono"
+                          className="w-full bg-gray-50 dark:bg-[#182235] border border-gray-200 dark:border-gray-850 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD] font-mono"
                         />
                       </div>
 
@@ -890,7 +895,7 @@ export default function AdminIssues() {
                           type="text"
                           value={editAddress}
                           onChange={(e) => setEditAddress(e.target.value)}
-                          className="w-full bg-gray-50 dark:bg-[#182235] border border-gray-200 dark:border-gray-850 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
+                          className="w-full bg-gray-50 dark:bg-[#182235] border border-gray-200 dark:border-gray-850 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD]"
                         />
                       </div>
 
@@ -900,7 +905,7 @@ export default function AdminIssues() {
                         <select
                           value={editCity}
                           onChange={(e) => setEditCity(e.target.value)}
-                          className="w-full bg-gray-50 dark:bg-[#182235] border border-gray-200 dark:border-gray-850 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white appearance-none cursor-pointer"
+                          className="w-full bg-gray-50 dark:bg-[#182235] border border-gray-200 dark:border-gray-850 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD] appearance-none cursor-pointer"
                         >
                           <option value="Dhaka">Dhaka (Inside)</option>
                           <option value="Chittagong">Chittagong</option>
@@ -920,7 +925,7 @@ export default function AdminIssues() {
                         <select
                           value={normalizeStatus(editStatus)}
                           onChange={(e) => setEditStatus(e.target.value as any)}
-                          className="w-full bg-gray-50 dark:bg-[#182235] border border-gray-200 dark:border-gray-850 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white appearance-none cursor-pointer uppercase"
+                          className="w-full bg-gray-50 dark:bg-[#182235] border border-gray-200 dark:border-gray-850 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD] appearance-none cursor-pointer uppercase"
                         >
                           <option value="ORDER PLACED">ORDER PLACED</option>
                           <option value="PRINTED">PRINTED</option>
@@ -942,7 +947,7 @@ export default function AdminIssues() {
                           type="number"
                           value={editDeliveryCharge}
                           onChange={(e) => setEditDeliveryCharge(Number(e.target.value))}
-                          className="w-full bg-gray-50 dark:bg-[#182235] border border-gray-200 dark:border-gray-850 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white font-mono"
+                          className="w-full bg-gray-50 dark:bg-[#182235] border border-gray-200 dark:border-gray-850 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD] font-mono"
                         />
                       </div>
 
@@ -953,7 +958,7 @@ export default function AdminIssues() {
                           type="number"
                           value={editDiscount}
                           onChange={(e) => setEditDiscount(Number(e.target.value))}
-                          className="w-full bg-gray-50 dark:bg-[#182235] border border-gray-200 dark:border-gray-850 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white font-mono"
+                          className="w-full bg-gray-50 dark:bg-[#182235] border border-gray-200 dark:border-gray-850 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD] font-mono"
                         />
                       </div>
 
@@ -964,7 +969,7 @@ export default function AdminIssues() {
                           type="number"
                           value={editAdvancePayment}
                           onChange={(e) => setEditAdvancePayment(Number(e.target.value))}
-                          className="w-full bg-gray-50 dark:bg-[#182235] border border-gray-200 dark:border-gray-850 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white font-mono"
+                          className="w-full bg-gray-50 dark:bg-[#182235] border border-gray-200 dark:border-gray-850 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD] font-mono"
                         />
                       </div>
 
@@ -984,7 +989,7 @@ export default function AdminIssues() {
                         <select
                           value={editInvoiceBy}
                           onChange={(e) => setEditInvoiceBy(e.target.value)}
-                          className="w-full bg-gray-50 dark:bg-[#182235] border border-gray-200 dark:border-gray-850 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white appearance-none cursor-pointer"
+                          className="w-full bg-gray-50 dark:bg-[#182235] border border-gray-200 dark:border-gray-850 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD] appearance-none cursor-pointer"
                         >
                           <option value="Website order">Website order</option>
                           {invoiceByOptions.map((opt) => (
@@ -1000,7 +1005,7 @@ export default function AdminIssues() {
                           rows={2}
                           value={editNotes}
                           onChange={(e) => setEditNotes(e.target.value)}
-                          className="w-full bg-gray-50 dark:bg-[#182235] border border-gray-200 dark:border-gray-850 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white"
+                          className="w-full bg-gray-50 dark:bg-[#182235] border border-gray-200 dark:border-gray-850 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD]"
                         />
                       </div>
                     </div>
@@ -1051,6 +1056,10 @@ export default function AdminIssues() {
                     <button
                       type="button"
                       onClick={async () => {
+                        if (isDeliveredOrSuccess(selectedIssue?.order?.status)) {
+                          toast.error('ডেলিভার্ড বা সাকসেস অর্ডার এডিট করা যাবে না। (Delivered/Success order cannot be edited)');
+                          return;
+                        }
                         const computedSubtotal = selectedIssue.order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
                         try {
                           toast.loading('Saving order changes...', { id: 'save-order-changes' });
@@ -1106,7 +1115,7 @@ export default function AdminIssues() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-[20px] w-full max-w-[170mm] overflow-hidden shadow-2xl relative z-10 border border-gray-200 flex flex-col max-h-[92vh]"
+              className="bg-[#F8F9FD] rounded-[20px] w-full max-w-[170mm] overflow-hidden shadow-2xl relative z-10 border border-gray-200 flex flex-col max-h-[92vh]"
             >
               {/* Header with actions */}
               <div className="p-4 px-6 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
@@ -1187,7 +1196,7 @@ export default function AdminIssues() {
                               }
                             </style>
                           </head>
-                          <body class="bg-white">
+                          <body class="bg-[#F8F9FD]">
                             <div id="invoice-to-print">
                               ${invoiceElement.innerHTML}
                             </div>
@@ -1226,7 +1235,7 @@ export default function AdminIssues() {
 
               {/* Scrollable body containing the preview sheet */}
               <div className="p-6 overflow-y-auto flex justify-center bg-gray-100/50 max-h-[calc(92vh-70px)]">
-                <div className="bg-white rounded-lg shadow-lg border border-gray-100">
+                <div className="bg-[#F8F9FD] rounded-lg shadow-lg border border-gray-100">
                   <InvoiceTemplate order={invoiceOrder} preview={true} />
                 </div>
               </div>
@@ -1251,7 +1260,7 @@ export default function AdminIssues() {
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative bg-white rounded-3xl p-6 shadow-2xl max-w-md w-full border border-gray-100 overflow-hidden text-center"
+              className="relative bg-[#F8F9FD] rounded-3xl p-6 shadow-2xl max-w-md w-full border border-gray-100 overflow-hidden text-center"
             >
               <div className="mx-auto w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-500 mb-4">
                 <Trash2 size={24} className="stroke-[2.5]" stroke="currentColor" />
@@ -1291,7 +1300,7 @@ export default function AdminIssues() {
       {/* Modal to add custom Invoice By name */}
       {showAddInvoiceByModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl relative">
+          <div className="bg-[#F8F9FD] dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl relative">
             <button
               type="button"
               onClick={() => {

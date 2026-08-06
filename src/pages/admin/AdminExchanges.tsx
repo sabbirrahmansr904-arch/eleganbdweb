@@ -635,7 +635,7 @@ export default function AdminExchanges() {
       </div>
 
       {/* White outer container for Search, Pills, and Table */}
-      <div className="bg-white rounded-[24px] border border-gray-200 p-6 shadow-[0_4px_30px_rgba(0,0,0,0.015)] space-y-6">
+      <div className="bg-[#F8F9FD] rounded-[24px] border border-gray-200 p-6 shadow-[0_4px_30px_rgba(0,0,0,0.015)] space-y-6">
         
         {/* Full-width Search Input & Date/CSV actions row */}
         <div className="flex flex-col md:flex-row gap-4 items-center">
@@ -646,7 +646,7 @@ export default function AdminExchanges() {
               placeholder="Search by Order #, Exchange ID, Phone, or Customer..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 text-sm font-medium rounded-xl placeholder-gray-400 text-gray-900 focus:ring-2 focus:ring-[#4F46E5]/15 focus:border-[#4F46E5]/40 outline-none transition-all shadow-xs"
+              className="w-full pl-12 pr-4 py-3 bg-[#F8F9FD] border border-gray-200 text-sm font-medium rounded-xl placeholder-gray-400 text-gray-900 focus:ring-2 focus:ring-[#4F46E5]/15 focus:border-[#4F46E5]/40 outline-none transition-all shadow-xs"
             />
           </div>
 
@@ -702,7 +702,7 @@ export default function AdminExchanges() {
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
                     isActive 
                       ? "bg-indigo-50 border-indigo-200 text-indigo-700 font-bold shadow-xs" 
-                      : "bg-white border-gray-200 text-gray-600 hover:text-gray-900 hover:border-gray-300"
+                      : "bg-[#F8F9FD] border-gray-200 text-gray-600 hover:text-gray-900 hover:border-gray-300"
                   }`}
                 >
                   <span>{status.label}</span>
@@ -721,7 +721,7 @@ export default function AdminExchanges() {
             <select 
               value={issueFilter}
               onChange={(e) => setIssueFilter(e.target.value)}
-              className="bg-white border border-gray-200 text-gray-600 text-xs font-semibold px-3 py-2 rounded-xl outline-none focus:border-indigo-400 shadow-sm cursor-pointer"
+              className="bg-[#F8F9FD] border border-gray-200 text-gray-600 text-xs font-semibold px-3 py-2 rounded-xl outline-none focus:border-indigo-400 shadow-sm cursor-pointer"
             >
               <option value="ALL ISSUES">All Issues</option>
               <option value="ISSUE ACTIVE">Issue Active</option>
@@ -796,7 +796,7 @@ export default function AdminExchanges() {
               </button>
               <button 
                 onClick={() => setSelectedIds([])}
-                className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-[10px] tracking-wider uppercase rounded-lg transition-all cursor-pointer"
+                className="px-3 py-2 bg-[#F8F9FD]/10 hover:bg-[#F8F9FD]/20 text-white font-bold text-[10px] tracking-wider uppercase rounded-lg transition-all cursor-pointer"
               >
                 Clear
               </button>
@@ -841,7 +841,7 @@ export default function AdminExchanges() {
                   <th className="py-4 px-6 font-semibold text-center whitespace-nowrap sticky right-0 bg-gray-50/50 z-10 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50 bg-white">
+              <tbody className="divide-y divide-gray-50 bg-[#F8F9FD]">
                 {filteredExchanges.map((ex) => {
                   const isSelected = selectedIds.includes(ex.id);
                   const returnedSum = calculateItemsSum(ex.returnedItems);
@@ -966,7 +966,7 @@ export default function AdminExchanges() {
                       </td>
 
                       {/* Grouped Actions Container */}
-                      <td className="py-4 px-6 text-center sticky right-0 bg-white z-10 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">
+                      <td className="py-4 px-6 text-center sticky right-0 bg-[#F8F9FD] z-10 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">
                         <div className="flex items-center justify-center">
                           <div className="flex items-center gap-0.5 bg-[#F8FAFC] p-1 rounded-xl border border-[#EDF2F7] shadow-sm">
                             {/* View details */}
@@ -976,7 +976,7 @@ export default function AdminExchanges() {
                                 setIsViewModalOpen(true);
                               }}
                               title="View Details"
-                              className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-white rounded-lg transition-all"
+                              className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-[#F8F9FD] rounded-lg transition-all"
                             >
                               <Eye size={13} className="stroke-[2.2]" />
                             </button>
@@ -987,7 +987,7 @@ export default function AdminExchanges() {
                             <button 
                               onClick={() => handleOpenEditModal(ex)}
                               title="Edit Exchange"
-                              className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-white rounded-lg transition-all"
+                              className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-[#F8F9FD] rounded-lg transition-all"
                             >
                               <Edit size={13} className="stroke-[2.2]" />
                             </button>
@@ -1001,7 +1001,7 @@ export default function AdminExchanges() {
                               className={`p-1.5 rounded-lg transition-all ${
                                 ex.issueActive 
                                   ? 'text-rose-600 hover:bg-rose-50' 
-                                  : 'text-gray-500 hover:text-rose-500 hover:bg-white'
+                                  : 'text-gray-500 hover:text-rose-500 hover:bg-[#F8F9FD]'
                               }`}
                             >
                               <MessageSquare size={13} className="stroke-[2.2]" />
@@ -1013,7 +1013,7 @@ export default function AdminExchanges() {
                             <button 
                               onClick={() => handlePrint(ex)}
                               title="Print Invoice"
-                              className="p-1.5 text-gray-500 hover:text-emerald-600 hover:bg-white rounded-lg transition-all"
+                              className="p-1.5 text-gray-500 hover:text-emerald-600 hover:bg-[#F8F9FD] rounded-lg transition-all"
                             >
                               <Printer size={13} className="stroke-[2.2]" />
                             </button>
@@ -1025,7 +1025,7 @@ export default function AdminExchanges() {
                                 <button 
                                   onClick={() => handleResetExchange(ex.id)}
                                   title="Re-open Exchange"
-                                  className="p-1.5 text-orange-500 hover:text-orange-700 hover:bg-white rounded-lg transition-all"
+                                  className="p-1.5 text-orange-500 hover:text-orange-700 hover:bg-[#F8F9FD] rounded-lg transition-all"
                                 >
                                   <RefreshCw size={13} className="stroke-[2.2]" />
                                 </button>
@@ -1041,7 +1041,7 @@ export default function AdminExchanges() {
                                     setIsDeleteConfirmOpen(true);
                                   }}
                                   title="Delete Transaction"
-                                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-white rounded-lg transition-all pointer-events-auto"
+                                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-[#F8F9FD] rounded-lg transition-all pointer-events-auto"
                                 >
                                   <Trash2 size={13} className="stroke-[2.2]" />
                                 </button>
@@ -1067,7 +1067,7 @@ export default function AdminExchanges() {
       {/* ==================== CREATE MODAL ==================== */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[32px] max-w-2xl w-full p-8 max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in duration-300">
+          <div className="bg-[#F8F9FD] rounded-[32px] max-w-2xl w-full p-8 max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in duration-300">
             <div className="flex justify-between items-center border-b border-gray-100 pb-4 mb-6">
               <h2 className="text-xl font-black uppercase italic tracking-tight text-[#0F172A]">Create Exchange Log</h2>
               <button onClick={() => setIsCreateModalOpen(false)} className="p-2 hover:bg-gray-50 rounded-full">
@@ -1083,7 +1083,7 @@ export default function AdminExchanges() {
                     type="text" 
                     value={formExchangeId}
                     onChange={(e) => setFormExchangeId(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:border-blue-500 focus:bg-white transition-all"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:border-blue-500 focus:bg-[#F8F9FD] transition-all"
                   />
                 </div>
                 <div>
@@ -1093,7 +1093,7 @@ export default function AdminExchanges() {
                     placeholder="e.g., 2607130005"
                     value={formOrderId}
                     onChange={(e) => setFormOrderId(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:border-blue-500 focus:bg-white transition-all"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:border-blue-500 focus:bg-[#F8F9FD] transition-all"
                   />
                 </div>
               </div>
@@ -1106,7 +1106,7 @@ export default function AdminExchanges() {
                     placeholder="e.g., Rifat"
                     value={formCustomerName}
                     onChange={(e) => setFormCustomerName(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:border-blue-500 focus:bg-white transition-all"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:border-blue-500 focus:bg-[#F8F9FD] transition-all"
                   />
                 </div>
                 <div>
@@ -1116,7 +1116,7 @@ export default function AdminExchanges() {
                     placeholder="e.g., 017XXXXXXXX"
                     value={formPhone}
                     onChange={(e) => setFormPhone(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:border-blue-500 focus:bg-white transition-all"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:border-blue-500 focus:bg-[#F8F9FD] transition-all"
                   />
                 </div>
               </div>
@@ -1292,7 +1292,7 @@ export default function AdminExchanges() {
                   rows={3}
                   value={formNotes}
                   onChange={(e) => setFormNotes(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-semibold outline-none focus:border-blue-500 focus:bg-white transition-all"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-semibold outline-none focus:border-blue-500 focus:bg-[#F8F9FD] transition-all"
                   placeholder="Describe exchange terms..."
                 />
               </div>
@@ -1320,7 +1320,7 @@ export default function AdminExchanges() {
       {/* ==================== EDIT MODAL ==================== */}
       {isEditModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[32px] max-w-2xl w-full p-8 max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in duration-300">
+          <div className="bg-[#F8F9FD] rounded-[32px] max-w-2xl w-full p-8 max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in duration-300">
             <div className="flex justify-between items-center border-b border-gray-100 pb-4 mb-6">
               <h2 className="text-xl font-black uppercase italic tracking-tight text-[#0F172A]">Edit Exchange Transaction</h2>
               <button onClick={() => setIsEditModalOpen(false)} className="p-2 hover:bg-gray-50 rounded-full">
@@ -1345,7 +1345,7 @@ export default function AdminExchanges() {
                     type="text" 
                     value={formOrderId}
                     onChange={(e) => setFormOrderId(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:border-blue-500 focus:bg-white transition-all"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:border-blue-500 focus:bg-[#F8F9FD] transition-all"
                   />
                 </div>
               </div>
@@ -1357,7 +1357,7 @@ export default function AdminExchanges() {
                     type="text" 
                     value={formCustomerName}
                     onChange={(e) => setFormCustomerName(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:border-blue-500 focus:bg-white transition-all"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:border-blue-500 focus:bg-[#F8F9FD] transition-all"
                   />
                 </div>
                 <div>
@@ -1366,7 +1366,7 @@ export default function AdminExchanges() {
                     type="text" 
                     value={formPhone}
                     onChange={(e) => setFormPhone(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:border-blue-500 focus:bg-white transition-all"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:border-blue-500 focus:bg-[#F8F9FD] transition-all"
                   />
                 </div>
               </div>
@@ -1542,7 +1542,7 @@ export default function AdminExchanges() {
                   rows={3}
                   value={formNotes}
                   onChange={(e) => setFormNotes(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-semibold outline-none focus:border-blue-500 focus:bg-white transition-all"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-semibold outline-none focus:border-blue-500 focus:bg-[#F8F9FD] transition-all"
                 />
               </div>
 
@@ -1569,7 +1569,7 @@ export default function AdminExchanges() {
       {/* ==================== NOTE / ISSUE MODAL ==================== */}
       {isNoteModalOpen && activeExchange && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[32px] max-w-md w-full p-8 shadow-2xl animate-in zoom-in duration-300">
+          <div className="bg-[#F8F9FD] rounded-[32px] max-w-md w-full p-8 shadow-2xl animate-in zoom-in duration-300">
             <div className="flex justify-between items-center border-b border-gray-100 pb-4 mb-6">
               <h2 className="text-lg font-black uppercase tracking-tight text-[#0F172A] flex items-center gap-2">
                 <MessageSquare className="text-rose-500" /> Notes & Issues
@@ -1632,7 +1632,7 @@ export default function AdminExchanges() {
       {/* ==================== VIEW DETAILS MODAL ==================== */}
       {isViewModalOpen && activeExchange && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[32px] max-w-lg w-full p-8 shadow-2xl animate-in zoom-in duration-300">
+          <div className="bg-[#F8F9FD] rounded-[32px] max-w-lg w-full p-8 shadow-2xl animate-in zoom-in duration-300">
             <div className="flex justify-between items-center border-b border-gray-100 pb-4 mb-6">
               <h2 className="text-xl font-black uppercase italic tracking-tight text-[#0F172A]">Exchange Transaction Details</h2>
               <button onClick={() => setIsViewModalOpen(false)} className="p-2 hover:bg-gray-50 rounded-full">
@@ -1749,7 +1749,7 @@ export default function AdminExchanges() {
       {/* ==================== DELETE CONFIRMATION MODAL ==================== */}
       {isDeleteConfirmOpen && exchangeIdToDelete && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[32px] max-w-sm w-full p-8 shadow-2xl animate-in zoom-in duration-300">
+          <div className="bg-[#F8F9FD] rounded-[32px] max-w-sm w-full p-8 shadow-2xl animate-in zoom-in duration-300">
             <h2 className="text-lg font-black uppercase tracking-tight text-[#0F172A] mb-4">Confirm Deletion</h2>
             <p className="text-sm text-gray-600 mb-6">Are you sure you want to delete exchange transaction #{exchangeIdToDelete}? This action cannot be undone.</p>
             <div className="flex justify-end gap-3">

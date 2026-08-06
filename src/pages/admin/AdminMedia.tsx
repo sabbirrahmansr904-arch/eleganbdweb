@@ -149,7 +149,7 @@ export default function AdminMedia() {
           
           <button 
             onClick={handleSync}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white hover:bg-gray-50 text-[#4A5568] border border-gray-100 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all shadow-sm shrink-0"
+            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#F8F9FD] hover:bg-gray-50 text-[#4A5568] border border-gray-100 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all shadow-sm shrink-0"
           >
             <RefreshCw size={11} className={cn(isRefreshing ? "animate-spin" : "")} />
             SYNC FILES
@@ -158,7 +158,7 @@ export default function AdminMedia() {
       </div>
 
       {/* Main Container */}
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-[0_4px_30px_rgba(0,0,0,0.01)] flex flex-col overflow-hidden p-6 space-y-6">
+      <div className="bg-[#F8F9FD] rounded-3xl border border-gray-100 shadow-[0_4px_30px_rgba(0,0,0,0.01)] flex flex-col overflow-hidden p-6 space-y-6">
         
         {/* Search, Stats, and Layout Switcher bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50/50 p-4 rounded-2xl border border-gray-50">
@@ -171,7 +171,7 @@ export default function AdminMedia() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search media by filename..."
-              className="w-full pl-10 pr-24 py-2.5 bg-gray-50 border border-gray-150 rounded-xl text-xs text-[#0C1421] font-semibold focus:bg-white focus:border-[#5850EC] outline-none transition-all placeholder:text-gray-400 placeholder:font-normal"
+              className="w-full pl-10 pr-24 py-2.5 bg-gray-50 border border-gray-150 rounded-xl text-xs text-[#0C1421] font-semibold focus:bg-[#F8F9FD] focus:border-[#5850EC] outline-none transition-all placeholder:text-gray-400 placeholder:font-normal"
             />
             {searchQuery && (
               <button 
@@ -183,7 +183,7 @@ export default function AdminMedia() {
             )}
             
             {/* Quick stats indicator tucked in search bar */}
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-mono text-gray-400 font-bold bg-white px-2 py-0.5 rounded-md border border-gray-100">
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-mono text-gray-400 font-bold bg-[#F8F9FD] px-2 py-0.5 rounded-md border border-gray-100">
               {filteredMedia.length}
             </span>
           </div>
@@ -201,7 +201,7 @@ export default function AdminMedia() {
                 className={cn(
                   "p-1.5 rounded-lg transition-all",
                   viewMode === 'grid' 
-                    ? "bg-white text-[#5850EC] shadow-3xs" 
+                    ? "bg-[#F8F9FD] text-[#5850EC] shadow-3xs" 
                     : "text-gray-400 hover:text-black"
                 )}
                 title="Grid Layout"
@@ -213,7 +213,7 @@ export default function AdminMedia() {
                 className={cn(
                   "p-1.5 rounded-lg transition-all",
                   viewMode === 'list' 
-                    ? "bg-white text-[#5850EC] shadow-3xs" 
+                    ? "bg-[#F8F9FD] text-[#5850EC] shadow-3xs" 
                     : "text-gray-400 hover:text-black"
                 )}
                 title="List Details Layout"
@@ -261,7 +261,7 @@ export default function AdminMedia() {
                   
                   {/* Top quick tag */}
                   <div className="flex gap-1 justify-between items-center w-full">
-                    <span className="bg-white/95 text-[7px] font-black text-black uppercase tracking-widest px-2.5 py-1 rounded-full truncate max-w-[100px]">
+                    <span className="bg-[#F8F9FD]/95 text-[7px] font-black text-black uppercase tracking-widest px-2.5 py-1 rounded-full truncate max-w-[100px]">
                       {item.productSku}
                     </span>
                   </div>
@@ -270,14 +270,14 @@ export default function AdminMedia() {
                   <div className="flex items-center justify-center gap-2.5 my-auto">
                     <button 
                       onClick={() => setSelectedMedia(item)}
-                      className="p-2.5 bg-white text-[#0C1421] hover:bg-black hover:text-white rounded-2xl transition-all shadow-md transform hover:scale-110" 
+                      className="p-2.5 bg-[#F8F9FD] text-[#0C1421] hover:bg-black hover:text-white rounded-2xl transition-all shadow-md transform hover:scale-110" 
                       title="Preview Image Detail"
                     >
                       <Eye size={14} />
                     </button>
                     <button 
                       onClick={() => handleCopyLink(item.url)}
-                      className="p-2.5 bg-white text-[#5850EC] hover:bg-[#5850EC] hover:text-white rounded-2xl transition-all shadow-md transform hover:scale-110" 
+                      className="p-2.5 bg-[#F8F9FD] text-[#5850EC] hover:bg-[#5850EC] hover:text-white rounded-2xl transition-all shadow-md transform hover:scale-110" 
                       title="Copy Direct URL"
                     >
                       {copiedUrl === item.url ? <Check size={14} /> : <Copy size={14} />}
@@ -286,7 +286,7 @@ export default function AdminMedia() {
                       href={item.url} 
                       target="_blank" 
                       rel="noreferrer" 
-                      className="p-2.5 bg-white text-[#4A5568] hover:bg-black hover:text-white rounded-2xl transition-all shadow-md transform hover:scale-110 flex items-center justify-center"
+                      className="p-2.5 bg-[#F8F9FD] text-[#4A5568] hover:bg-black hover:text-white rounded-2xl transition-all shadow-md transform hover:scale-110 flex items-center justify-center"
                       title="Launch Original"
                     >
                       <ExternalLink size={14} />
@@ -294,7 +294,7 @@ export default function AdminMedia() {
                   </div>
 
                   {/* Text details in tiny card inside hover */}
-                  <div className="bg-white/95 backdrop-blur-3xs rounded-xl p-2 select-none">
+                  <div className="bg-[#F8F9FD]/95 backdrop-blur-3xs rounded-xl p-2 select-none">
                     <p className="text-[9.5px]/none font-black text-[#0C1421] truncate">{item.productName}</p>
                     <p className="text-[7.5px] font-bold text-gray-400 uppercase tracking-widest mt-1 truncate">{item.productCategory}</p>
                   </div>
@@ -341,7 +341,7 @@ export default function AdminMedia() {
                       <div className="flex items-center justify-end gap-1.5">
                         <button 
                           onClick={() => setSelectedMedia(item)}
-                          className="p-2 bg-white border border-gray-100 text-stone-700 hover:text-black hover:border-stone-400 rounded-lg transition-all"
+                          className="p-2 bg-[#F8F9FD] border border-gray-100 text-stone-700 hover:text-black hover:border-stone-400 rounded-lg transition-all"
                           title="Open Quick Lightbox"
                         >
                           <Eye size={12.5} />
@@ -366,7 +366,7 @@ export default function AdminMedia() {
       {/* Dynamic Lightbox Modal Module */}
       {selectedMedia && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[85vh] flex flex-col md:flex-row overflow-hidden shadow-2xl border border-white/10 animate-in zoom-in-95 duration-300">
+          <div className="bg-[#F8F9FD] rounded-3xl max-w-4xl w-full max-h-[85vh] flex flex-col md:flex-row overflow-hidden shadow-2xl border border-white/10 animate-in zoom-in-95 duration-300">
             
             {/* Visual canvas placeholder (Left pane) */}
             <div className="flex-1 bg-[#121212] flex items-center justify-center p-6 relative min-h-[300px] md:min-h-[450px]">
@@ -385,7 +385,7 @@ export default function AdminMedia() {
             </div>
 
             {/* Details Meta sidebar (Right pane) */}
-            <div className="w-full md:w-80 bg-white p-6 flex flex-col justify-between border-t md:border-t-0 md:border-l border-gray-100 text-left">
+            <div className="w-full md:w-80 bg-[#F8F9FD] p-6 flex flex-col justify-between border-t md:border-t-0 md:border-l border-gray-100 text-left">
               <div className="space-y-4">
                 <div className="flex justify-between items-start">
                   <div>
