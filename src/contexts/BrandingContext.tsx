@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 interface BrandingContextType {
   logoUrl: string;
   sizeChartUrl: string;
+  ceoPhotoUrl: string;
   collectionsBannerUrl: string;
   heroBannerUrl: string;
   heroBanner2Url: string;
@@ -28,6 +29,12 @@ interface BrandingContextType {
   showAnnouncementBar: boolean;
   announcementMessage: string;
   showCountdownBanner: boolean;
+  comboOfferTitle: string;
+  comboOfferSubTitle: string;
+  comboOfferDiscount: string;
+  comboOfferHours: number;
+  comboOfferMinutes: number;
+  comboOfferSeconds: number;
   showHeroBanner: boolean;
   facebookUrl: string;
   instagramUrl: string;
@@ -41,6 +48,7 @@ interface BrandingContextType {
 
   setLogoUrl: (url: string) => void;
   setSizeChartUrl: (url: string) => void;
+  setCeoPhotoUrl: (url: string) => void;
   setCollectionsBannerUrl: (url: string) => void;
   setHeroBannerUrl: (url: string) => void;
   setHeroBanner2Url: (url: string) => void;
@@ -58,6 +66,12 @@ interface BrandingContextType {
   setShowAnnouncementBar: (show: boolean) => void;
   setAnnouncementMessage: (msg: string) => void;
   setShowCountdownBanner: (show: boolean) => void;
+  setComboOfferTitle: (title: string) => void;
+  setComboOfferSubTitle: (subTitle: string) => void;
+  setComboOfferDiscount: (discount: string) => void;
+  setComboOfferHours: (hours: number) => void;
+  setComboOfferMinutes: (minutes: number) => void;
+  setComboOfferSeconds: (seconds: number) => void;
   setShowHeroBanner: (show: boolean) => void;
   setFacebookUrl: (url: string) => void;
   setInstagramUrl: (url: string) => void;
@@ -87,6 +101,9 @@ const DEFAULT_COMBO_OFFER_BANNER = "";
 
 const DEFAULT_ANNOUNCEMENT_MSG = "🔥 Special Combo Deal: Buy 3 Shirts for Only ৳1,799";
 const DEFAULT_ABOUT_TEXT = "Premium minimalist fashion for the modern individual.";
+const DEFAULT_COMBO_TITLE = "স্পেশাল কম্বো অফার - ২৫% ছাড়!";
+const DEFAULT_COMBO_SUBTITLE = "ফর্মাল প্যান্ট ও শার্টের সেরা কম্বো কলেকশনে পাচ্ছেন বিশেষ ছাড়। স্টক সীমিত!";
+const DEFAULT_COMBO_DISCOUNT = "২৫% ছাড়";
 
 const BrandingContext = createContext<BrandingContextType | undefined>(undefined);
 
@@ -106,6 +123,16 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (cached) {
       try {
         return cleanUrl(JSON.parse(cached).sizeChartUrl);
+      } catch (e) { return ""; }
+    }
+    return "";
+  });
+
+  const [ceoPhotoUrl, setCeoPhotoUrlState] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_branding');
+    if (cached) {
+      try {
+        return JSON.parse(cached).ceoPhotoUrl || "";
       } catch (e) { return ""; }
     }
     return "";
@@ -240,6 +267,69 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return true;
   });
 
+  const [comboOfferTitle, setComboOfferTitleState] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_branding');
+    if (cached) {
+      try {
+        return JSON.parse(cached).comboOfferTitle || DEFAULT_COMBO_TITLE;
+      } catch (e) { return DEFAULT_COMBO_TITLE; }
+    }
+    return DEFAULT_COMBO_TITLE;
+  });
+
+  const [comboOfferSubTitle, setComboOfferSubTitleState] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_branding');
+    if (cached) {
+      try {
+        return JSON.parse(cached).comboOfferSubTitle || DEFAULT_COMBO_SUBTITLE;
+      } catch (e) { return DEFAULT_COMBO_SUBTITLE; }
+    }
+    return DEFAULT_COMBO_SUBTITLE;
+  });
+
+  const [comboOfferDiscount, setComboOfferDiscountState] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_branding');
+    if (cached) {
+      try {
+        return JSON.parse(cached).comboOfferDiscount || DEFAULT_COMBO_DISCOUNT;
+      } catch (e) { return DEFAULT_COMBO_DISCOUNT; }
+    }
+    return DEFAULT_COMBO_DISCOUNT;
+  });
+
+  const [comboOfferHours, setComboOfferHoursState] = useState<number>(() => {
+    const cached = localStorage.getItem('eleganbd_branding');
+    if (cached) {
+      try {
+        const val = JSON.parse(cached).comboOfferHours;
+        return val !== undefined ? Number(val) : 14;
+      } catch (e) { return 14; }
+    }
+    return 14;
+  });
+
+  const [comboOfferMinutes, setComboOfferMinutesState] = useState<number>(() => {
+    const cached = localStorage.getItem('eleganbd_branding');
+    if (cached) {
+      try {
+        const val = JSON.parse(cached).comboOfferMinutes;
+        return val !== undefined ? Number(val) : 32;
+      } catch (e) { return 32; }
+    }
+    return 32;
+  });
+
+  const [comboOfferSeconds, setComboOfferSecondsState] = useState<number>(() => {
+    const cached = localStorage.getItem('eleganbd_branding');
+    if (cached) {
+      try {
+        const val = JSON.parse(cached).comboOfferSeconds;
+        return val !== undefined ? Number(val) : 45;
+      } catch (e) { return 45; }
+    }
+    return 45;
+  });
+
   const [showHeroBanner, setShowHeroBannerState] = useState<boolean>(() => {
     const cached = localStorage.getItem('eleganbd_branding');
     if (cached) {
@@ -354,11 +444,18 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           const data = brandingSnap.data();
           if (data.logoUrl) setLogoUrlState(cleanUrl(data.logoUrl));
           if (data.sizeChartUrl) setSizeChartUrlState(cleanUrl(data.sizeChartUrl));
+          if (data.ceoPhotoUrl) setCeoPhotoUrlState(data.ceoPhotoUrl);
           if (data.showShowcase !== undefined) setShowShowcaseState(data.showShowcase);
           
           if (data.showAnnouncementBar !== undefined) setShowAnnouncementBarState(data.showAnnouncementBar);
           if (data.announcementMessage !== undefined) setAnnouncementMessageState(data.announcementMessage);
           if (data.showCountdownBanner !== undefined) setShowCountdownBannerState(data.showCountdownBanner);
+          if (data.comboOfferTitle !== undefined) setComboOfferTitleState(data.comboOfferTitle);
+          if (data.comboOfferSubTitle !== undefined) setComboOfferSubTitleState(data.comboOfferSubTitle);
+          if (data.comboOfferDiscount !== undefined) setComboOfferDiscountState(data.comboOfferDiscount);
+          if (data.comboOfferHours !== undefined) setComboOfferHoursState(Number(data.comboOfferHours));
+          if (data.comboOfferMinutes !== undefined) setComboOfferMinutesState(Number(data.comboOfferMinutes));
+          if (data.comboOfferSeconds !== undefined) setComboOfferSecondsState(Number(data.comboOfferSeconds));
           if (data.showHeroBanner !== undefined) setShowHeroBannerState(data.showHeroBanner);
           if (data.facebookUrl !== undefined) setFacebookUrlState(data.facebookUrl);
           if (data.instagramUrl !== undefined) setInstagramUrlState(data.instagramUrl);
@@ -431,6 +528,13 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
     localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, sizeChartUrl: url }));
     updateFirestore('branding', { sizeChartUrl: url });
+  };
+
+  const setCeoPhotoUrl = (url: string) => {
+    setCeoPhotoUrlState(url);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
+    localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, ceoPhotoUrl: url }));
+    updateFirestore('branding', { ceoPhotoUrl: url });
   };
 
   const setCollectionsBannerUrl = (url: string) => {
@@ -522,6 +626,48 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
     localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, showCountdownBanner: show }));
     updateFirestore('branding', { showCountdownBanner: show });
+  };
+
+  const setComboOfferTitle = (title: string) => {
+    setComboOfferTitleState(title);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
+    localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, comboOfferTitle: title }));
+    updateFirestore('branding', { comboOfferTitle: title });
+  };
+
+  const setComboOfferSubTitle = (subTitle: string) => {
+    setComboOfferSubTitleState(subTitle);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
+    localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, comboOfferSubTitle: subTitle }));
+    updateFirestore('branding', { comboOfferSubTitle: subTitle });
+  };
+
+  const setComboOfferDiscount = (discount: string) => {
+    setComboOfferDiscountState(discount);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
+    localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, comboOfferDiscount: discount }));
+    updateFirestore('branding', { comboOfferDiscount: discount });
+  };
+
+  const setComboOfferHours = (hours: number) => {
+    setComboOfferHoursState(hours);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
+    localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, comboOfferHours: hours }));
+    updateFirestore('branding', { comboOfferHours: hours });
+  };
+
+  const setComboOfferMinutes = (minutes: number) => {
+    setComboOfferMinutesState(minutes);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
+    localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, comboOfferMinutes: minutes }));
+    updateFirestore('branding', { comboOfferMinutes: minutes });
+  };
+
+  const setComboOfferSeconds = (seconds: number) => {
+    setComboOfferSecondsState(seconds);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
+    localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, comboOfferSeconds: seconds }));
+    updateFirestore('branding', { comboOfferSeconds: seconds });
   };
 
   const setShowHeroBanner = (show: boolean) => {
@@ -637,12 +783,12 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   return (
     <BrandingContext.Provider value={{ 
-      logoUrl, sizeChartUrl, collectionsBannerUrl, heroBannerUrl, heroBanner2Url, heroBanner3Url, subHeroBannerUrl, featureBannerUrl, poloBannerUrl,
+      logoUrl, sizeChartUrl, ceoPhotoUrl, collectionsBannerUrl, heroBannerUrl, heroBanner2Url, heroBanner3Url, subHeroBannerUrl, featureBannerUrl, poloBannerUrl,
       shirtBannerUrl: featureBannerUrl, pantBannerUrl: poloBannerUrl, comboOfferBannerUrl, showShowcase, categoryImages, 
-      showAnnouncementBar, announcementMessage, showCountdownBanner, showHeroBanner, facebookUrl, instagramUrl, youtubeUrl, tiktokUrl, shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter, primaryDeliveryDistrict, aboutText,
-      setLogoUrl, setSizeChartUrl, setCollectionsBannerUrl, setHeroBannerUrl, setHeroBanner2Url, setHeroBanner3Url, setSubHeroBannerUrl, setFeatureBannerUrl, setPoloBannerUrl,
+      showAnnouncementBar, announcementMessage, showCountdownBanner, comboOfferTitle, comboOfferSubTitle, comboOfferDiscount, comboOfferHours, comboOfferMinutes, comboOfferSeconds, showHeroBanner, facebookUrl, instagramUrl, youtubeUrl, tiktokUrl, shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter, primaryDeliveryDistrict, aboutText,
+      setLogoUrl, setSizeChartUrl, setCeoPhotoUrl, setCollectionsBannerUrl, setHeroBannerUrl, setHeroBanner2Url, setHeroBanner3Url, setSubHeroBannerUrl, setFeatureBannerUrl, setPoloBannerUrl,
       setShirtBannerUrl: setFeatureBannerUrl, setPantBannerUrl: setPoloBannerUrl, setComboOfferBannerUrl, setShowShowcase, setCategoryImageUrl,
-      setShowAnnouncementBar, setAnnouncementMessage, setShowCountdownBanner, setShowHeroBanner, setFacebookUrl, setInstagramUrl, setYoutubeUrl, setTiktokUrl, setShippingInsideDhaka, setShippingOutsideDhaka, setShippingFreeAfter, setPrimaryDeliveryDistrict, setAboutText
+      setShowAnnouncementBar, setAnnouncementMessage, setShowCountdownBanner, setComboOfferTitle, setComboOfferSubTitle, setComboOfferDiscount, setComboOfferHours, setComboOfferMinutes, setComboOfferSeconds, setShowHeroBanner, setFacebookUrl, setInstagramUrl, setYoutubeUrl, setTiktokUrl, setShippingInsideDhaka, setShippingOutsideDhaka, setShippingFreeAfter, setPrimaryDeliveryDistrict, setAboutText
     }}>
       {children}
     </BrandingContext.Provider>

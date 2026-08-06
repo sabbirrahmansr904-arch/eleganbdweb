@@ -11,7 +11,10 @@ import {
   Image as ImageIcon,
   Check,
   Layout,
-  Paintbrush
+  Paintbrush,
+  Flame,
+  Clock,
+  Tag
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useBanners } from '../../../contexts/BannerContext';
@@ -22,7 +25,7 @@ import { cn } from '../../../lib/utils';
 import { compressImage } from '../../../utils/imageCompressor';
 
 export default function BannerSettings() {
-  const [activeTab, setActiveTab] = useState<'design' | 'banners' | 'promo'>('design');
+  const [activeTab, setActiveTab] = useState<'design' | 'banners' | 'promo' | 'offer'>('design');
 
   const { banners, addBanner, updateBanner, deleteBanner } = useBanners();
   const [isAdding, setIsAdding] = useState(false);
@@ -40,6 +43,12 @@ export default function BannerSettings() {
   const {
     showAnnouncementBar, announcementMessage, setShowAnnouncementBar, setAnnouncementMessage,
     showCountdownBanner, setShowCountdownBanner,
+    comboOfferTitle, setComboOfferTitle,
+    comboOfferSubTitle, setComboOfferSubTitle,
+    comboOfferDiscount, setComboOfferDiscount,
+    comboOfferHours, setComboOfferHours,
+    comboOfferMinutes, setComboOfferMinutes,
+    comboOfferSeconds, setComboOfferSeconds,
     showHeroBanner, setShowHeroBanner,
     shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter, primaryDeliveryDistrict, aboutText,
     setShippingInsideDhaka, setShippingOutsideDhaka, setShippingFreeAfter, setPrimaryDeliveryDistrict, setAboutText,
@@ -50,12 +59,19 @@ export default function BannerSettings() {
     collectionsBannerUrl, setCollectionsBannerUrl,
     featureBannerUrl, setFeatureBannerUrl,
     poloBannerUrl, setPoloBannerUrl,
-    comboOfferBannerUrl, setComboOfferBannerUrl
+    comboOfferBannerUrl, setComboOfferBannerUrl,
+    ceoPhotoUrl, setCeoPhotoUrl
   } = useBranding();
 
   const [localShowAnnouncement, setLocalShowAnnouncement] = useState(showAnnouncementBar);
   const [localAnnouncementMessage, setLocalAnnouncementMessage] = useState(announcementMessage);
   const [localShowCountdown, setLocalShowCountdown] = useState(showCountdownBanner);
+  const [localComboOfferTitle, setLocalComboOfferTitle] = useState(comboOfferTitle);
+  const [localComboOfferSubTitle, setLocalComboOfferSubTitle] = useState(comboOfferSubTitle);
+  const [localComboOfferDiscount, setLocalComboOfferDiscount] = useState(comboOfferDiscount);
+  const [localComboOfferHours, setLocalComboOfferHours] = useState(comboOfferHours);
+  const [localComboOfferMinutes, setLocalComboOfferMinutes] = useState(comboOfferMinutes);
+  const [localComboOfferSeconds, setLocalComboOfferSeconds] = useState(comboOfferSeconds);
   const [localShowHero, setLocalShowHero] = useState(showHeroBanner);
   const [localPrimaryDeliveryDistrict, setLocalPrimaryDeliveryDistrict] = useState(primaryDeliveryDistrict);
   const [localShippingInside, setLocalShippingInside] = useState(shippingInsideDhaka);
@@ -67,6 +83,12 @@ export default function BannerSettings() {
     setLocalShowAnnouncement(showAnnouncementBar);
     setLocalAnnouncementMessage(announcementMessage);
     setLocalShowCountdown(showCountdownBanner);
+    setLocalComboOfferTitle(comboOfferTitle);
+    setLocalComboOfferSubTitle(comboOfferSubTitle);
+    setLocalComboOfferDiscount(comboOfferDiscount);
+    setLocalComboOfferHours(comboOfferHours);
+    setLocalComboOfferMinutes(comboOfferMinutes);
+    setLocalComboOfferSeconds(comboOfferSeconds);
     setLocalShowHero(showHeroBanner);
     setLocalPrimaryDeliveryDistrict(primaryDeliveryDistrict);
     setLocalShippingInside(shippingInsideDhaka);
@@ -74,16 +96,19 @@ export default function BannerSettings() {
     setLocalShippingFreeAfter(shippingFreeAfter);
     setLocalAboutText(aboutText);
   }, [
-    showAnnouncementBar, announcementMessage, showCountdownBanner, showHeroBanner, 
+    showAnnouncementBar, announcementMessage, showCountdownBanner, comboOfferTitle, comboOfferSubTitle,
+    comboOfferDiscount, comboOfferHours, comboOfferMinutes, comboOfferSeconds, showHeroBanner, 
     primaryDeliveryDistrict, shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter, aboutText
   ]);
 
-  const handleStaticBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>, key: string, setter: (url: string) => void) => {
+  const handleStaticBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>, key: string, setter: (url: string) => void, isPortrait?: boolean) => {
     const file = e.target.files?.[0];
     if (file) {
       const loadingToast = toast.loading(`Uploading ${key}...`);
       try {
-        const result = await compressImage(file, 1600, 900, 0.8);
+        const result = isPortrait 
+          ? await compressImage(file, 800, 1000, 0.85)
+          : await compressImage(file, 1600, 900, 0.8);
         setter(result);
         toast.success(`${key} updated successfully.`, { id: loadingToast });
       } catch (err) {
@@ -163,17 +188,29 @@ export default function BannerSettings() {
     });
   };
 
+  const handleToggleCountdown = (newVal: boolean) => {
+    setLocalShowCountdown(newVal);
+    setShowCountdownBanner(newVal);
+    toast.success(newVal ? 'কম্বো অফার সচল করা হয়েছে! (ওয়েবসাইটে এখন দেখা যাবে)' : 'কম্বো অফার বন্ধ করা হয়েছে! (ওয়েবসাইটে এখন দেখা যাবে না)');
+  };
+
   const saveDesignSettings = () => {
     setShowAnnouncementBar(localShowAnnouncement);
     setAnnouncementMessage(localAnnouncementMessage);
     setShowCountdownBanner(localShowCountdown);
+    setComboOfferTitle(localComboOfferTitle);
+    setComboOfferSubTitle(localComboOfferSubTitle);
+    setComboOfferDiscount(localComboOfferDiscount);
+    setComboOfferHours(Number(localComboOfferHours));
+    setComboOfferMinutes(Number(localComboOfferMinutes));
+    setComboOfferSeconds(Number(localComboOfferSeconds));
     setShowHeroBanner(localShowHero);
     setPrimaryDeliveryDistrict(localPrimaryDeliveryDistrict);
     setShippingInsideDhaka(Number(localShippingInside));
     setShippingOutsideDhaka(Number(localShippingOutside));
     setShippingFreeAfter(Number(localShippingFreeAfter));
     setAboutText(localAboutText);
-    toast.success('Design configuration successfully synchronized');
+    toast.success('কম্বো অফার ও ডিজাইনের তথ্য সেভ করা হয়েছে!');
   };
 
   return (
@@ -215,6 +252,16 @@ export default function BannerSettings() {
         >
           <ImageIcon size={12} />
           Promo Banners
+        </button>
+        <button
+          onClick={() => setActiveTab('offer')}
+          className={cn(
+            "px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2 cursor-pointer",
+            activeTab === 'offer' ? "bg-black text-white shadow-lg" : "text-gray-400 hover:text-black"
+          )}
+        >
+          <Flame size={12} className={activeTab === 'offer' ? "text-amber-400 fill-amber-400" : "text-amber-500"} />
+          Special Offer (কম্বো অফার)
         </button>
       </div>
 
@@ -435,6 +482,14 @@ export default function BannerSettings() {
                 url: comboOfferBannerUrl,
                 setter: setComboOfferBannerUrl,
               },
+              {
+                id: 'ceoPhotoUrl',
+                title: 'CEO / Founder Passport Photo (Our Brand Commitment)',
+                description: 'Passport size photo of Founder & CEO displayed in "Our Brand Commitment" section on Home page.',
+                url: ceoPhotoUrl,
+                setter: setCeoPhotoUrl,
+                isPortrait: true,
+              },
             ].map((pBanner) => (
               <div key={pBanner.id} className="bg-white border border-gray-100 p-8 rounded-[32px] shadow-sm flex flex-col justify-between space-y-6 group hover:border-black/30 transition-all">
                 <div className="space-y-2">
@@ -442,7 +497,7 @@ export default function BannerSettings() {
                   <p className="text-xs text-gray-400 font-medium leading-relaxed">{pBanner.description}</p>
                 </div>
                 
-                <div className="aspect-[21/9] w-full rounded-2xl bg-gray-50 border border-gray-100 overflow-hidden relative flex items-center justify-center group/img shadow-2xs">
+                <div className={cn(pBanner.isPortrait ? "aspect-[3/4] max-w-[220px] mx-auto" : "aspect-[21/9]", "w-full rounded-2xl bg-gray-50 border border-gray-100 overflow-hidden relative flex items-center justify-center group/img shadow-2xs")}>
                   {pBanner.url ? (
                     <img 
                       src={pBanner.url} 
@@ -453,7 +508,7 @@ export default function BannerSettings() {
                   ) : (
                     <div className="text-center p-6 space-y-2">
                       <ImageIcon className="mx-auto text-gray-300" size={32} />
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-300">No Banner Set (Hidden)</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-300">No Photo Set (Default Used)</p>
                     </div>
                   )}
                 </div>
@@ -461,12 +516,12 @@ export default function BannerSettings() {
                 <div className="flex gap-4">
                   <label className="flex-1 py-3 text-[10px] uppercase tracking-wider font-black bg-black text-white hover:bg-gray-800 transition-all rounded-xl shadow-sm text-center cursor-pointer flex items-center justify-center gap-2">
                     <Upload size={14} />
-                    <span>Upload Banner</span>
+                    <span>Upload {pBanner.isPortrait ? 'Passport Photo' : 'Banner'}</span>
                     <input 
                       type="file" 
                       accept="image/*" 
                       className="hidden" 
-                      onChange={(e) => handleStaticBannerUpload(e, pBanner.title, pBanner.setter)} 
+                      onChange={(e) => handleStaticBannerUpload(e, pBanner.title, pBanner.setter, pBanner.isPortrait)} 
                     />
                   </label>
                   {pBanner.url && (
@@ -481,6 +536,181 @@ export default function BannerSettings() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'offer' && (
+        <div className="space-y-8 animate-in fade-in duration-500">
+          <div className="bg-white border border-gray-100 p-8 rounded-[32px] shadow-sm space-y-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-gray-50 pb-6">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Flame className="text-amber-500 fill-amber-500" size={20} />
+                  <h4 className="text-lg font-black uppercase tracking-tight text-black">
+                    স্পেশাল কম্বো অফার কনফিগারেশন (Special Combo Offer)
+                  </h4>
+                </div>
+                <p className="text-xs text-gray-500 font-medium mt-1">
+                  হোমপেজের স্পেশাল কম্বো অফার ব্যানার, কাউন্টডাউন টাইমার এবং ডিসকাউন্ট টেক্সট সেট করুন।
+                </p>
+              </div>
+
+              {/* Toggle switch for showing/hiding offer */}
+              <div className="flex items-center gap-3 bg-gray-50 p-2.5 px-4 rounded-2xl border border-gray-100">
+                <span className="text-xs font-bold text-gray-700">
+                  {localShowCountdown ? "স্ট্যাটাস: ওয়েবসাইটে দেখাবে" : "স্ট্যাটাস: ওয়েবসাইটে লুকানো"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleToggleCountdown(!localShowCountdown)}
+                  className={cn(
+                    "w-12 h-6 rounded-full transition-all relative flex items-center px-1 cursor-pointer",
+                    localShowCountdown ? "bg-black" : "bg-gray-300"
+                  )}
+                >
+                  <div className={cn("w-4 h-4 bg-white rounded-full transition-transform", localShowCountdown ? "translate-x-6" : "translate-x-0")} />
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Left column: Inputs */}
+              <div className="space-y-5">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                    <Tag size={14} className="text-amber-500" /> অফারের শিরোনাম (Heading Text)
+                  </label>
+                  <input
+                    type="text"
+                    value={localComboOfferTitle}
+                    onChange={(e) => setLocalComboOfferTitle(e.target.value)}
+                    placeholder="e.g. স্পেশাল কম্বো অফার - ২৫% ছাড়!"
+                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 outline-none focus:border-black transition-all text-sm font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-gray-700">
+                    অফারের সাবটাইটেল / বিবরণ (Description)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={localComboOfferSubTitle}
+                    onChange={(e) => setLocalComboOfferSubTitle(e.target.value)}
+                    placeholder="e.g. ফর্মাল প্যান্ট ও শার্টের সেরা কম্বো কলেকশনে পাচ্ছেন বিশেষ ছাড়। স্টক সীমিত!"
+                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 outline-none focus:border-black transition-all text-xs font-medium resize-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-gray-700">
+                    ডিসকাউন্ট টেক্সট / শতাংশ (Discount Badge)
+                  </label>
+                  <input
+                    type="text"
+                    value={localComboOfferDiscount}
+                    onChange={(e) => setLocalComboOfferDiscount(e.target.value)}
+                    placeholder="e.g. ২৫% ছাড় or LIMITED TIME OFFER"
+                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 outline-none focus:border-black transition-all text-xs font-bold text-amber-600"
+                  />
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-gray-50">
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                    <Clock size={14} className="text-blue-600" /> কাউন্টডাউন টাইমার সময়সূচী (Countdown Duration)
+                  </label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">ঘণ্টা (Hours)</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={99}
+                        value={localComboOfferHours}
+                        onChange={(e) => setLocalComboOfferHours(Math.max(0, Number(e.target.value)))}
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 outline-none focus:border-black transition-all text-sm font-black text-center"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">মিনিট (Minutes)</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={59}
+                        value={localComboOfferMinutes}
+                        onChange={(e) => setLocalComboOfferMinutes(Math.min(59, Math.max(0, Number(e.target.value))))}
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 outline-none focus:border-black transition-all text-sm font-black text-center"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">সেকেন্ড (Seconds)</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={59}
+                        value={localComboOfferSeconds}
+                        onChange={(e) => setLocalComboOfferSeconds(Math.min(59, Math.max(0, Number(e.target.value))))}
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 outline-none focus:border-black transition-all text-sm font-black text-center"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                  <button
+                    type="button"
+                    onClick={saveDesignSettings}
+                    className="w-full bg-black text-white py-4 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-gray-800 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                  >
+                    <Save size={16} />
+                    <span>সেভ ও আপডেট করুন</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Right column: Live Preview */}
+              <div className="space-y-3 bg-gray-50 p-6 rounded-3xl border border-gray-100 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">লাইভ ওয়েবসাইট প্রিভিউ (Live Preview)</span>
+                    <span className={cn("text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase", localShowCountdown ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700")}>
+                      {localShowCountdown ? "Visible" : "Hidden"}
+                    </span>
+                  </div>
+
+                  <div className="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 rounded-2xl p-5 text-white shadow-md relative overflow-hidden">
+                    <div className="relative z-10 space-y-3">
+                      <div className="inline-flex items-center gap-1.5 bg-amber-400 text-gray-950 font-black text-[10px] px-3 py-0.5 rounded-full uppercase tracking-wider">
+                        <Flame size={12} className="fill-gray-950" />
+                        <span>{localComboOfferDiscount || "LIMITED TIME OFFER"}</span>
+                      </div>
+                      <h5 className="text-lg font-black tracking-tight leading-snug">
+                        {localComboOfferTitle || "স্পেশাল কম্বো অফার - ২৫% ছাড়!"}
+                      </h5>
+                      {localComboOfferSubTitle && (
+                        <p className="text-[11px] text-blue-100 font-medium line-clamp-2">
+                          {localComboOfferSubTitle}
+                        </p>
+                      )}
+
+                      <div className="pt-2 flex items-center justify-between border-t border-white/10">
+                        <span className="text-[10px] text-blue-200 font-bold flex items-center gap-1">
+                          <Clock size={12} /> সময়: {String(localComboOfferHours).padStart(2, '0')}:{String(localComboOfferMinutes).padStart(2, '0')}:{String(localComboOfferSeconds).padStart(2, '0')}
+                        </span>
+                        <span className="bg-white text-blue-900 font-black text-[10px] px-3 py-1.5 rounded-lg uppercase">
+                          অর্ডার করুন
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-[10px] text-gray-400 text-center italic mt-4">
+                  * "সেভ ও আপডেট করুন" বাটনে ক্লিক করলে গ্রাহক ওয়েবসাইটে নতুন কম্বো অফার দেখবে।
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -34,15 +34,14 @@ interface StockOutRow {
   quantities: Record<string, number>;
 }
 
-// Complete set of standard sizes supported in the store including pants and apparel
+// Standard sizes requested: 28, 30, 32, 34, 36, 38, 40, M, L, XL, XXL, 3XL
 const AVAILABLE_SIZES = [
-  '28', '30', '32', '34', '36', '38', '40', '42', '44', '46',
-  '48', '50', '52', '54', '56', '58', '60', '62',
-  'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL', 'QN'
+  '28', '30', '32', '34', '36', '38', '40', 'M', 'L', 'XL', 'XXL', '3XL'
 ];
 
-// Default selected sizes as seen on the user's screenshot
-const DEFAULT_SELECTED_SIZES = ['30', '32', '34', '36', '38', '40', 'M', 'L', 'XL', '2XL', 'QN'];
+const DEFAULT_SELECTED_SIZES = [
+  '28', '30', '32', '34', '36', '38', '40', 'M', 'L', 'XL', 'XXL', '3XL'
+];
 
 export default function AdminStockOut() {
   const { products, updateProduct } = useProducts();
@@ -327,12 +326,6 @@ export default function AdminStockOut() {
         {/* Left Column: Filter Attributes Panel */}
         <div className="xl:col-span-3 space-y-4">
           
-          {/* Manual Mode Tab Button with custom red focus theme */}
-          <div className="w-full border border-red-500/20 text-red-600 bg-red-50/50 rounded-2xl py-3.5 px-4 font-bold flex items-center justify-center space-x-2.5 text-[13px] shadow-sm transition-all">
-            <Keyboard size={16} className="text-red-500 stroke-[2.5]" />
-            <span className="uppercase tracking-wider">Manual</span>
-          </div>
-
           {/* Filter Attributes Card */}
           <div className="bg-white rounded-3xl p-6 border border-[#EFF2F6] shadow-[0_4px_24px_rgba(0,0,0,0.01)] space-y-5">
             <div className="flex items-center justify-between border-b border-gray-100 pb-3">

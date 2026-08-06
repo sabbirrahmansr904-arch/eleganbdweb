@@ -268,24 +268,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
   const updateOrderStatus = async (id: string, status: Order['status']) => {
     try {
-      const currentUserEmail = auth.currentUser?.email ? auth.currentUser.email.toLowerCase().trim() : '';
-      const isCEOUser = currentUserEmail === 'eleganbd.ltd@gmail.com';
-      const targetStatus = (status || '').toUpperCase().trim();
-      const allowedStatuses = ['PENDING', 'ORDER PLACED', 'PRINTED', 'PREPARING', 'PROCESSING'];
-
-      if (!isCEOUser) {
-        const existingOrder = orders.find(o => o.id === id);
-        if (existingOrder) {
-          const currentStatus = (existingOrder.status || '').toUpperCase().trim();
-          if (currentStatus === 'SHIPPED' || currentStatus === 'DELIVERED') {
-            throw new Error('Only CEO (eleganbd.ltd@gmail.com) can modify orders that are already Shipped or Delivered.');
-          }
-        }
-        if (!allowedStatuses.includes(targetStatus)) {
-          throw new Error('Only CEO (eleganbd.ltd@gmail.com) can change order status to Shipped, Delivered, Cancelled, or other restricted statuses.');
-        }
-      }
-
       const order = orders.find(o => o.id === id);
       if (order) {
         await handleStatusChangeStock(order, status);

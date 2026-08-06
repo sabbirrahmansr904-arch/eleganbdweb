@@ -85,9 +85,7 @@ const normalizeStatus = (status: string): string => {
   const s = (status || '').toUpperCase().trim();
   if (s === 'PENDING') return 'ORDER PLACED';
   if (s === 'PROCESSING') return 'PREPARING';
-  if (s === 'DELIVERED') return 'DELIVERED';
-  if (s === 'QC' || s === 'PICK UP CANCEL') return 'DELIVERED';
-  if (s === 'SUCCESS') return 'DELIVERED';
+  if (s === 'DELIVERED' || s === 'QC') return 'SUCCESS';
   return s;
 };
 
@@ -1446,15 +1444,21 @@ export default function AdminOrders(): React.JSX.Element {
           text: 'PREPARING',
           class: 'bg-[#E3F2FD] text-[#0D47A1] border-[#BBDEFB]',
         };
-      case 'DELIVERED':
+      case 'PICK UP CANCEL':
         return {
-          text: 'DELIVERED',
-          class: 'bg-[#E6F4EA] text-[#137333] border-[#CEEAD6]',
+          text: 'PICK UP CANCEL',
+          class: 'bg-[#FFF7ED] text-[#C2410C] border-[#FFEDD5]',
         };
       case 'SHIPPED':
         return {
           text: 'SHIPPED',
           class: 'bg-[#EEF2FF] text-[#4F46E5] border-[#C7D2FE]',
+        };
+      case 'SUCCESS':
+      case 'DELIVERED':
+        return {
+          text: 'SUCCESS',
+          class: 'bg-[#E6F4EA] text-[#137333] border-[#CEEAD6]',
         };
       case 'PARTIAL DELIVERY':
         return {
@@ -1636,8 +1640,9 @@ export default function AdminOrders(): React.JSX.Element {
               <option value="ORDER PLACED">ORDER PLACED</option>
               <option value="PRINTED">PRINTED</option>
               <option value="PREPARING">PREPARING</option>
-              <option value="DELIVERED">DELIVERED</option>
+              <option value="PICK UP CANCEL">PICK UP CANCEL</option>
               <option value="SHIPPED">SHIPPED</option>
+              <option value="SUCCESS">SUCCESS</option>
               <option value="PARTIAL DELIVERY">PARTIAL DELIVERY</option>
               <option value="HOLD">HOLD</option>
               <option value="RETURNED">RETURNED</option>
@@ -1942,18 +1947,14 @@ export default function AdminOrders(): React.JSX.Element {
                                 { key: 'ORDER PLACED', label: 'ORDER PLACED' },
                                 { key: 'PRINTED', label: 'PRINTED' },
                                 { key: 'PREPARING', label: 'PREPARING' },
-                                { key: 'DELIVERED', label: 'DELIVERED' },
+                                { key: 'PICK UP CANCEL', label: 'PICK UP CANCEL' },
                                 { key: 'SHIPPED', label: 'SHIPPED' },
+                                { key: 'SUCCESS', label: 'SUCCESS' },
                                 { key: 'PARTIAL DELIVERY', label: 'PARTIAL DELIVERY' },
                                 { key: 'HOLD', label: 'HOLD' },
                                 { key: 'RETURNED', label: 'RETURNED' },
                                 { key: 'CANCELLED', label: 'CANCELLED' },
-                              ].filter(opt => {
-                                if (isCEO) return true;
-                                const currentNorm = normalizeStatus(order.status);
-                                if (currentNorm === 'SHIPPED' || currentNorm === 'DELIVERED') return false;
-                                return ['ORDER PLACED', 'PENDING', 'PRINTED', 'PREPARING', 'PROCESSING'].includes(opt.key);
-                              }).map(opt => {
+                              ].map(opt => {
                                 const isSelected = normalizeStatus(order.status) === opt.key;
                                 return (
                                   <button
@@ -4060,8 +4061,9 @@ export default function AdminOrders(): React.JSX.Element {
                             <option value="ORDER PLACED">ORDER PLACED</option>
                             <option value="PRINTED">PRINTED</option>
                             <option value="PREPARING">PREPARING</option>
-                            <option value="DELIVERED">DELIVERED</option>
+                            <option value="PICK UP CANCEL">PICK UP CANCEL</option>
                             <option value="SHIPPED">SHIPPED</option>
+                            <option value="SUCCESS">SUCCESS</option>
                             <option value="PARTIAL DELIVERY">PARTIAL DELIVERY</option>
                             <option value="HOLD">HOLD</option>
                             <option value="RETURNED">RETURNED</option>
