@@ -131,22 +131,22 @@ const Home = () => {
   
   const activeHeroBannersFromDb = banners.filter(b => b.active && b.type === 'hero' && b.image && !b.image.includes('unsplash.com'));
   
-  let activeHeroBanners: Array<{ id: string; active?: boolean; type?: string; image: string; title?: string; link?: string }> = [];
+  const promoHeroBanners = [heroBannerUrl, heroBanner2Url, heroBanner3Url]
+    .filter(Boolean)
+    .filter(url => !url.includes('unsplash.com'));
 
-  const promoHeroBanners = [heroBannerUrl].filter(url => url && !url.includes('unsplash.com'));
+  // User requirement: "hero banner e sudhu 1 tai picture thakbe" (Only 1 image in hero banner)
+  const singleHeroImage = (promoHeroBanners.length > 0 ? promoHeroBanners[0] : null) || 
+    (activeHeroBannersFromDb.length > 0 ? activeHeroBannersFromDb[0].image : null);
 
-  if (activeHeroBannersFromDb.length > 0) {
-    activeHeroBanners = [activeHeroBannersFromDb[0]];
-  } else if (promoHeroBanners.length > 0) {
-    activeHeroBanners = [{
-      id: 'promo-hero-1',
-      active: true,
-      type: 'hero',
-      image: promoHeroBanners[0],
-      title: '',
-      link: '/category/all'
-    }];
-  }
+  const activeHeroBanners = singleHeroImage ? [{
+    id: 'single-hero-1',
+    active: true,
+    type: 'hero',
+    image: singleHeroImage,
+    title: '',
+    link: ''
+  }] : [];
 
   const [currentBanner, setCurrentBanner] = React.useState(0);
 
