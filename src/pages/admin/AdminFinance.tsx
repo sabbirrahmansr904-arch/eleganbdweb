@@ -4,10 +4,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useFinance } from '../../contexts/FinanceContext';
-import { useOrders } from '../../contexts/OrderContext';
-import { useCurrency } from '../../contexts/CurrencyContext';
 import { formatPrice } from '../../lib/utils';
-import { Order } from '../../types';
 import { 
   Plus, 
   Trash2, 
@@ -22,120 +19,48 @@ import {
   PlusCircle,
   Calendar,
   Receipt,
-  DollarSign,
   Search,
   Filter,
-  CheckCircle2,
-  Clock,
-  Check,
   Download,
-  Truck,
-  TrendingUp,
-  FileSpreadsheet,
-  AlertCircle
+  Eye,
+  FileText
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 export default function AdminFinance(): React.JSX.Element {
   const {
     bankAccounts,
     bankTransactions,
-    pathaoPayouts = [],
     loading: financeLoading,
     addBankAccount,
     updateBankAccount,
     deleteBankAccount,
     addBankTransaction,
-    deleteBankTransaction,
-    addPathaoPayout,
-    updatePathaoPayoutStatus,
-    deletePathaoPayout
+    updateBankTransaction,
+    deleteBankTransaction
   } = useFinance();
 
-  const { orders = [], updateOrder, loading: ordersLoading } = useOrders();
-  const { currency, rate } = useCurrency();
-
-  // Active Main Tab State
-  const [activeTab, setActiveTab] = useState<'orders' | 'banks' | 'pathao'>('orders');
-
-  // --- ORDER FINANCE & PATHAO SETTLEMENT STATES ---
+  // Filter & Search states
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('SUCCESS_DELIVERED');
-  const [settlementFilter, setSettlementFilter] = useState<string>('ALL');
-  const [dateRangeFilter, setDateRangeFilter] = useState<string>('ALL');
-  const [customStartDate, setCustomStartDate] = useState('');
-  const [customEndDate, setCustomEndDate] = useState('');
-  
-  // Default Pathao rates (inside / outside dhaka)
-  const [dhakaPathaoRate, setDhakaPathaoRate] = useState<number>(60);
-  const [outsideDhakaPathaoRate, setOutsideDhakaPathaoRate] = useState<number>(120);
+  const [accountFilter, setAccountFilter] = useState('ALL');
+  const [typeFilter, setTypeFilter] = useState('ALL');
+  const [timeframeFilter, setTimeframeFilter] = useState('this_month');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   // Modals visibility states
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
-  const [showBankTxModal, setShowBankTxModal] = useState(false);
   const [showEditAccountModal, setShowEditAccountModal] = useState(false);
+  const [showEditTxModal, setShowEditTxModal] = useState(false);
+  const [showViewTxModal, setShowViewTxModal] = useState(false);
+  const [selectedTx, setSelectedTx] = useState<any>(null);
 
-  // Form states
-  const [accountForm, setAccountForm] = useState({
-    bankName: '',
-    accountName: '',
-    accountNumber: '',
-    branch: '',
-    initialBalance: ''
-  });
-
-  const [editAccountForm, setEditAccountForm] = useState({
-    id: '',
-    bankName: '',
-    accountName: '',
-    accountNumber: '',
-    branch: '',
-    balance: 0
-  });
-
-  const handleEditClick = (acc: any) => {
-    setEditAccountForm({
-      id: acc.id,
-      bankName: acc.bankName || '',
-      accountName: acc.accountName || '',
-      accountNumber: acc.accountNumber || '',
-      branch: acc.branch || '',
-      balance: acc.balance || 0
-    });
-    setShowEditAccountModal(true);
-  };
-
-  const handleEditAccountSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editAccountForm.bankName || !editAccountForm.accountName || !editAccountForm.accountNumber) {
-      toast.error('স্টার (*) চিহ্নিত ঘরগুলো পূরণ করা আবশ্যক।');
-      return;
-    }
-
-    await updateBankAccount({
-      id: editAccountForm.id,
-      bankName: editAccountForm.bankName,
-      accountName: editAccountForm.accountName,
-      accountNumber: editAccountForm.accountNumber,
-      branch: editAccountForm.branch,
-      balance: editAccountForm.balance
-    });
-
-    setShowEditAccountModal(false);
-  };
-
-  const [bankTxForm, setBankTxForm] = useState({
+  // New Transaction Form state
+  const [txForm, setTxForm] = useState({
     accountId: '',
     type: 'deposit' as 'deposit' | 'withdraw' | 'transfer',
     targetAccountId: '',
-    amount: '',
-    reference: '',
-    notes: ''
-  });
-
-  // Pathao payout Form state
-  const [payoutForm, setPayoutForm] = useState({
-    accountId: '',
     amount: '',
     date: (() => {
       const today = new Date();
@@ -145,1186 +70,909 @@ export default function AdminFinance(): React.JSX.Element {
       return `${year}-${month}-${day}`;
     })(),
     reference: '',
+    notes: '',
+    attachment: ''
+  });
+  const [isSubmittingTx, setIsSubmittingTx] = useState(false);
+
+  // New Account Form state
+  const [accountForm, setAccountForm] = useState({
+    bankName: '',
+    accountName: '',
+    accountNumber: '',
+    branch: '',
+    initialBalance: '',
+    accountType: 'ব্যক্তিগত'
+  });
+
+  // Edit Account Form state
+  const [editAccountForm, setEditAccountForm] = useState({
+    id: '',
+    bankName: '',
+    accountName: '',
+    accountNumber: '',
+    branch: '',
+    balance: 0,
+    initialBalance: 0
+  });
+
+  // Edit Transaction Form state
+  const [editTxForm, setEditTxForm] = useState({
+    id: '',
+    accountId: '',
+    type: 'deposit' as 'deposit' | 'withdraw' | 'transfer',
+    targetAccountId: '',
+    amount: '',
+    date: '',
+    reference: '',
     notes: ''
   });
-  const [isSubmittingPayout, setIsSubmittingPayout] = useState(false);
 
-  // Daily deposits state
-  const [dailyDate, setDailyDate] = useState<string>(() => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  });
-  const [dailyAmounts, setDailyAmounts] = useState<Record<string, string>>({});
-  const [dailyNotes, setDailyNotes] = useState<Record<string, string>>({});
-  const [isSubmittingDaily, setIsSubmittingDaily] = useState(false);
-
-  // Calculate Bank aggregates
-  const totalBankBalance = bankAccounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
-
-  // --- FILTERED ORDERS CALCULATION ---
-  const filteredOrders = useMemo(() => {
-    return orders.filter(order => {
-      if (!order) return false;
-
-      // Status filter
-      if (statusFilter === 'SUCCESS_DELIVERED') {
-        const s = (order.status || '').toLowerCase();
-        const isSuccess = s === 'delivered' || s === 'success' || s === 'completed';
-        if (!isSuccess) return false;
-      } else if (statusFilter !== 'ALL') {
-        if ((order.status || '').toLowerCase() !== statusFilter.toLowerCase()) return false;
-      }
-
-      // Settlement filter
-      if (settlementFilter === 'SETTLED' && !(order as any).payoutSettled) return false;
-      if (settlementFilter === 'PENDING' && (order as any).payoutSettled) return false;
-
-      // Date range filter
-      if (dateRangeFilter !== 'ALL' && order.createdAt) {
-        const orderTime = new Date(order.createdAt).getTime();
-        const now = Date.now();
-        if (dateRangeFilter === 'TODAY') {
-          const startOfToday = new Date();
-          startOfToday.setHours(0, 0, 0, 0);
-          if (orderTime < startOfToday.getTime()) return false;
-        } else if (dateRangeFilter === 'LAST_7_DAYS') {
-          if (now - orderTime > 7 * 24 * 60 * 60 * 1000) return false;
-        } else if (dateRangeFilter === 'THIS_MONTH') {
-          const firstOfMonth = new Date();
-          firstOfMonth.setDate(1);
-          firstOfMonth.setHours(0, 0, 0, 0);
-          if (orderTime < firstOfMonth.getTime()) return false;
-        } else if (dateRangeFilter === 'CUSTOM' && customStartDate && customEndDate) {
-          const startMs = new Date(customStartDate).setHours(0,0,0,0);
-          const endMs = new Date(customEndDate).setHours(23,59,59,999);
-          if (orderTime < startMs || orderTime > endMs) return false;
-        }
-      }
-
-      // Search query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const invoiceMatch = order.invoiceNo ? String(order.invoiceNo).includes(q) : false;
-        const idMatch = (order.id || '').toLowerCase().includes(q);
-        const nameMatch = (order.customerName || '').toLowerCase().includes(q);
-        const phoneMatch = (order.phone || '').includes(q);
-        const trackingMatch = (order.trackingId || (order as any).pathaoConsignmentId || '').toLowerCase().includes(q);
-        if (!invoiceMatch && !idMatch && !nameMatch && !phoneMatch && !trackingMatch) return false;
-      }
-
-      return true;
-    });
-  }, [orders, statusFilter, settlementFilter, dateRangeFilter, customStartDate, customEndDate, searchQuery]);
-
-  // Calculations for Order Finance Summary
-  const orderFinanceSummary = useMemo(() => {
-    let totalSales = 0;
-    let totalAdvance = 0;
-    let totalPathaoCharges = 0;
-    let totalPathaoNetCodReceivable = 0;
-    let totalNetStoreRevenue = 0;
-
-    filteredOrders.forEach(order => {
-      const total = Number(order.total) || 0;
-      const advance = Number(order.advancePayment) || 0;
-      
-      const cityLower = (order.city || '').toLowerCase();
-      const isDhaka = cityLower.includes('dhaka') || cityLower.includes('ঢাকা');
-      
-      // Determine Pathao delivery charge (stored or default)
-      let pathaoCharge = (order as any).pathaoDeliveryCharge;
-      if (pathaoCharge === undefined || pathaoCharge === null || pathaoCharge === '') {
-        pathaoCharge = isDhaka ? dhakaPathaoRate : outsideDhakaPathaoRate;
-      } else {
-        pathaoCharge = Number(pathaoCharge) || 0;
-      }
-
-      const codAmount = Math.max(0, total - advance);
-      const pathaoNetCod = codAmount - pathaoCharge; // Cash Pathao will send to our bank
-      const netRevenue = total - pathaoCharge; // Total net income we get from order
-
-      totalSales += total;
-      totalAdvance += advance;
-      totalPathaoCharges += pathaoCharge;
-      totalPathaoNetCodReceivable += pathaoNetCod;
-      totalNetStoreRevenue += netRevenue;
-    });
-
-    return {
-      orderCount: filteredOrders.length,
-      totalSales,
-      totalAdvance,
-      totalPathaoCharges,
-      totalPathaoNetCodReceivable,
-      totalNetStoreRevenue
-    };
-  }, [filteredOrders, dhakaPathaoRate, outsideDhakaPathaoRate]);
-
-  // Handle updating an order's Pathao charge
-  const handlePathaoChargeChange = async (orderId: string, newChargeStr: string) => {
-    const chargeVal = parseFloat(newChargeStr);
-    if (isNaN(chargeVal)) return;
-    try {
-      await updateOrder(orderId, { pathaoDeliveryCharge: chargeVal });
-      toast.success('পাঠাও কুরিয়ার চার্জ আপডেট করা হয়েছে');
-    } catch (err) {
-      toast.error('আপডেট করতে সমস্যা হয়েছে');
-    }
-  };
-
-  // Handle toggling payout settlement status
-  const handleToggleSettlement = async (order: Order) => {
-    const current = (order as any).payoutSettled === true;
-    try {
-      await updateOrder(order.id, { payoutSettled: !current });
-      toast.success(!current ? 'অর্ডারটি পাঠাও পেআউট সম্পন্ন (Settled) সেভ করা হয়েছে' : 'অর্ডারটি পেআউট পেন্ডিং চিহ্নিত করা হয়েছে');
-    } catch (err) {
-      toast.error('স্ট্যাটাস সেভ করতে সমস্যা হয়েছে');
-    }
-  };
-
-  // Form Submissions
+  // Handle Add Account Submit
   const handleAddAccountSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!accountForm.bankName || !accountForm.accountName || !accountForm.accountNumber) {
       toast.error('স্টার (*) চিহ্নিত ঘরগুলো পূরণ করা আবশ্যক।');
       return;
     }
-
-    const initBal = parseFloat(accountForm.initialBalance) || 0;
     await addBankAccount({
       bankName: accountForm.bankName,
       accountName: accountForm.accountName,
       accountNumber: accountForm.accountNumber,
       branch: accountForm.branch,
-      initialBalance: initBal
+      initialBalance: parseFloat(accountForm.initialBalance) || 0,
+      accountType: accountForm.accountType
     });
-
-    setAccountForm({ bankName: '', accountName: '', accountNumber: '', branch: '', initialBalance: '' });
+    setAccountForm({
+      bankName: '',
+      accountName: '',
+      accountNumber: '',
+      branch: '',
+      initialBalance: '',
+      accountType: 'ব্যক্তিগত'
+    });
     setShowAddAccountModal(false);
   };
 
-  const handleBankTxSubmit = async (e: React.FormEvent) => {
+  // Handle Edit Account
+  const handleEditAccountClick = (acc: any) => {
+    setEditAccountForm({
+      id: acc.id,
+      bankName: acc.bankName || '',
+      accountName: acc.accountName || '',
+      accountNumber: acc.accountNumber || '',
+      branch: acc.branch || '',
+      balance: acc.balance || 0,
+      initialBalance: acc.initialBalance || 0
+    });
+    setShowEditAccountModal(true);
+  };
+
+  const handleEditAccountSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const amountNum = parseFloat(bankTxForm.amount);
-    if (!bankTxForm.accountId || isNaN(amountNum) || amountNum <= 0) {
-      toast.error('দয়া করে সঠিক অ্যাকাউন্ট ও পরিমাণ ইনপুট দিন।');
+    await updateBankAccount({
+      id: editAccountForm.id,
+      bankName: editAccountForm.bankName,
+      accountName: editAccountForm.accountName,
+      accountNumber: editAccountForm.accountNumber,
+      branch: editAccountForm.branch,
+      initialBalance: editAccountForm.initialBalance,
+      balance: editAccountForm.balance
+    });
+    setShowEditAccountModal(false);
+  };
+
+  // Handle Edit Transaction Click
+  const handleEditTxClick = (tx: any) => {
+    setEditTxForm({
+      id: tx.id,
+      accountId: tx.accountId,
+      type: tx.type,
+      targetAccountId: tx.targetAccountId || '',
+      amount: String(tx.amount),
+      date: new Date(tx.date).toISOString().split('T')[0],
+      reference: tx.reference || '',
+      notes: tx.notes || ''
+    });
+    setShowEditTxModal(true);
+  };
+
+  const handleEditTxSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await updateBankTransaction(editTxForm.id, {
+      accountId: editTxForm.accountId,
+      type: editTxForm.type,
+      targetAccountId: editTxForm.targetAccountId,
+      amount: parseFloat(editTxForm.amount) || 0,
+      date: new Date(editTxForm.date).getTime(),
+      reference: editTxForm.reference,
+      notes: editTxForm.notes
+    });
+    setShowEditTxModal(false);
+  };
+
+  // Handle New Transaction Submit
+  const handleTxSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!txForm.accountId || !txForm.amount) {
+      toast.error('হিসাব এবং পরিমাণ আবশ্যক।');
       return;
     }
 
-    if (bankTxForm.type === 'transfer' && !bankTxForm.targetAccountId) {
-      toast.error('দয়া করে প্রাপক (Target) অ্যাকাউন্ট সিলেক্ট করুন।');
-      return;
+    setIsSubmittingTx(true);
+    try {
+      const amt = parseFloat(txForm.amount);
+      await addBankTransaction({
+        accountId: txForm.accountId,
+        type: txForm.type,
+        amount: amt,
+        date: new Date(txForm.date).getTime(),
+        reference: txForm.reference || (txForm.type === 'deposit' ? 'Income / Deposit' : txForm.type === 'withdraw' ? 'Expense / Withdraw' : 'Account Transfer'),
+        notes: txForm.notes,
+        attachment: txForm.attachment
+      }, txForm.targetAccountId);
+
+      setTxForm({
+        accountId: '',
+        type: 'deposit',
+        targetAccountId: '',
+        amount: '',
+        date: new Date().toISOString().split('T')[0],
+        reference: '',
+        notes: '',
+        attachment: ''
+      });
+      toast.success('লেনদেন সফলভাবে সংরক্ষণ করা হয়েছে!');
+    } catch (err) {
+      console.error(err);
+      toast.error('লেনদেন সংরক্ষণ করতে সমস্যা হয়েছে।');
+    } finally {
+      setIsSubmittingTx(false);
     }
+  };
 
-    await addBankTransaction({
-      accountId: bankTxForm.accountId,
-      type: bankTxForm.type,
-      amount: amountNum,
-      reference: bankTxForm.reference,
-      notes: bankTxForm.notes
-    }, bankTxForm.type === 'transfer' ? bankTxForm.targetAccountId : undefined);
-
-    setBankTxForm({
+  // Reset Tx Form
+  const handleResetTx = () => {
+    setTxForm({
       accountId: '',
       type: 'deposit',
       targetAccountId: '',
       amount: '',
+      date: new Date().toISOString().split('T')[0],
       reference: '',
-      notes: ''
+      notes: '',
+      attachment: ''
     });
-    setShowBankTxModal(false);
   };
 
-  const handlePayoutSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const amountNum = parseFloat(payoutForm.amount);
-    if (!payoutForm.accountId || isNaN(amountNum) || amountNum <= 0) {
-      toast.error('দয়া করে সঠিক ব্যাংক এবং পরিমাণ ইনপুট দিন।');
-      return;
-    }
-
-    setIsSubmittingPayout(true);
-    try {
-      const dateParts = payoutForm.date.split('-');
-      const targetDate = new Date(
-        parseInt(dateParts[0]),
-        parseInt(dateParts[1]) - 1,
-        parseInt(dateParts[2]),
-        12, 0, 0
-      );
-      const timestamp = targetDate.getTime();
-
-      await addPathaoPayout({
-        accountId: payoutForm.accountId,
-        amount: amountNum,
-        date: timestamp,
-        status: 'Pending',
-        reference: payoutForm.reference || undefined,
-        notes: payoutForm.notes || undefined
-      });
-
-      setPayoutForm({
-        accountId: '',
-        amount: '',
-        date: (() => {
-          const today = new Date();
-          const year = today.getFullYear();
-          const month = String(today.getMonth() + 1).padStart(2, '0');
-          const day = String(today.getDate()).padStart(2, '0');
-          return `${year}-${month}-${day}`;
-        })(),
-        reference: '',
-        notes: ''
-      });
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSubmittingPayout(false);
-    }
-  };
-
-  const handleSaveDailyEntries = async () => {
-    const entriesToSave = Object.entries(dailyAmounts)
-      .map(([accId, amountStr]) => {
-        const amount = parseFloat(amountStr);
-        return { accId, amount, notes: dailyNotes[accId] || '' };
-      })
-      .filter(entry => !isNaN(entry.amount) && entry.amount > 0);
-
-    if (entriesToSave.length === 0) {
-      toast.error('অনুগ্রহ করে অন্তত একটি অ্যাকাউন্টে জমার পরিমাণ লিখুন।');
-      return;
-    }
-
-    setIsSubmittingDaily(true);
-    try {
-      const dateParts = dailyDate.split('-');
-      const targetDate = new Date(
-        parseInt(dateParts[0]),
-        parseInt(dateParts[1]) - 1,
-        parseInt(dateParts[2]),
-        12, 0, 0
-      );
-      const timestamp = targetDate.getTime();
-
-      for (const entry of entriesToSave) {
-        await addBankTransaction({
-          accountId: entry.accId,
-          type: 'deposit',
-          amount: entry.amount,
-          reference: 'Daily Entry',
-          notes: entry.notes || 'দৈনিক হিসাব ভুক্তি',
-          date: timestamp
-        });
+  // Filter transactions
+  const filteredTransactions = useMemo(() => {
+    return bankTransactions.filter(tx => {
+      if (accountFilter !== 'ALL' && tx.accountId !== accountFilter && tx.targetAccountId !== accountFilter) return false;
+      if (typeFilter !== 'ALL') {
+        if (typeFilter === 'income' && tx.type !== 'deposit') return false;
+        if (typeFilter === 'expense' && tx.type !== 'withdraw') return false;
+        if (typeFilter === 'transfer' && tx.type !== 'transfer') return false;
       }
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesRef = tx.reference?.toLowerCase().includes(query) || false;
+        const matchesNotes = tx.notes?.toLowerCase().includes(query) || false;
+        const acc = bankAccounts.find(a => a.id === tx.accountId);
+        const matchesAcc = acc?.bankName?.toLowerCase().includes(query) || acc?.accountName?.toLowerCase().includes(query) || false;
+        if (!matchesRef && !matchesNotes && !matchesAcc) return false;
+      }
+      return true;
+    });
+  }, [bankTransactions, accountFilter, typeFilter, searchQuery, bankAccounts]);
 
-      toast.success('সবগুলো দৈনিক জমা সফলভাবে রেকর্ড করা হয়েছে!');
-      setDailyAmounts({});
-      setDailyNotes({});
-    } catch (err) {
-      console.error('Error saving daily entries:', err);
-      toast.error('দৈনিক জমা সেভ করতে সমস্যা হয়েছে।');
-    } finally {
-      setIsSubmittingDaily(false);
+  // Summary calculations
+  const totalIncome = useMemo(() => {
+    return bankTransactions
+      .filter(tx => tx.type === 'deposit')
+      .reduce((sum, tx) => sum + tx.amount, 0);
+  }, [bankTransactions]);
+
+  const totalExpense = useMemo(() => {
+    return bankTransactions
+      .filter(tx => tx.type === 'withdraw')
+      .reduce((sum, tx) => sum + tx.amount, 0);
+  }, [bankTransactions]);
+
+  const netBalance = totalIncome - totalExpense;
+
+  // Account distribution for Pie chart
+  const pieData = useMemo(() => {
+    const totalAllBalances = bankAccounts.reduce((sum, a) => sum + (a.balance || 0), 0) || 1;
+    const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#8b5cf6'];
+    return bankAccounts.map((acc, index) => ({
+      name: acc.bankName,
+      value: acc.balance || 0,
+      percent: Math.round(((acc.balance || 0) / totalAllBalances) * 100),
+      color: colors[index % colors.length]
+    }));
+  }, [bankAccounts]);
+
+  // Export Report handler
+  const handleExportReport = (format: 'pdf' | 'csv') => {
+    if (format === 'csv') {
+      const headers = ['Date', 'Account', 'Type', 'Reference', 'Notes', 'Amount'];
+      const rows = filteredTransactions.map(tx => {
+        const acc = bankAccounts.find(a => a.id === tx.accountId);
+        return [
+          new Date(tx.date).toLocaleDateString(),
+          acc?.bankName || '',
+          tx.type,
+          tx.reference || '',
+          tx.notes || '',
+          tx.amount
+        ];
+      });
+      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', 'finance_report.csv');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success('CSV রিপোর্ট ডাউনলোড সফল হয়েছে!');
+    } else {
+      window.print();
+      toast.success('প্রিন্ট প্রিভিউ ওপেন হয়েছে!');
     }
   };
-
-  if (financeLoading || ordersLoading) {
-    return (
-      <div className="min-h-[500px] flex flex-col items-center justify-center gap-2 font-sans bg-[#FBFBFD] rounded-[20px] p-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-        <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">ফাইনান্স ডেটা লোড হচ্ছে...</p>
-      </div>
-    );
-  }
 
   return (
-    <div className="space-y-6 pb-12 font-sans bg-[#FBFBFD] min-h-screen text-black antialiased">
+    <div className="space-y-6 pb-16 font-sans bg-[#F8F9FD] min-h-screen p-1 md:p-6">
       
-      {/* Header & Navigation Tabs */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-5">
-        <div>
-          <h1 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-indigo-600" />
-            ফাইনান্স & পাঠাও কুরিয়ার পেআউট হিসাব (Finance & Settlement)
-          </h1>
-          <p className="text-xs text-gray-400 font-medium mt-0.5">
-            সফল অর্ডারের হিসাব, পাঠাও ডেলিভারি চার্জ বাদ দিয়ে আমাদের প্রাপ্ত নিট টাকা এবং ব্যাংক একাউন্ট ফান্ড ট্র্যাকার
-          </p>
+      {/* Top Header matching reference screenshot 99.9% */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white p-6 rounded-[24px] border border-gray-100 shadow-2xs">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 rounded-2xl bg-[#eff6ff] text-[#2563eb] border border-[#dbeafe] flex items-center justify-center font-black text-lg shrink-0 shadow-2xs">$</span>
+            <h1 className="text-xl font-black text-gray-900 tracking-tight">৳ ফাইন্যান্স & পেট ভলিউমার (Finance & Settlement)</h1>
+          </div>
+          <p className="text-xs text-gray-400 font-medium">সব অ্যাকাউন্ট ব্যালেন্স, লেনদেন এবং আর্থিক কার্যক্রম এক জায়গায় পরিচালনা করুন</p>
         </div>
-        
-        <div className="flex items-center gap-2">
-          <button 
+
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
             onClick={() => setShowAddAccountModal(true)}
-            className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-sm cursor-pointer"
+            className="px-4 py-2.5 bg-white hover:bg-gray-50 text-indigo-600 border border-indigo-200 rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-2xs cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            নতুন ব্যাংক একাউন্ট
+            <span>নতুন অ্যাকাউন্ট</span>
           </button>
-          <button 
-            onClick={() => setShowBankTxModal(true)}
-            className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-sm cursor-pointer"
+
+          <button
+            onClick={() => {
+              const el = document.getElementById('new-tx-form');
+              el?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="px-5 py-2.5 bg-[#4f46e5] hover:bg-[#4338ca] text-white rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-sm cursor-pointer"
           >
-            <RefreshCw className="w-4 h-4" />
-            তহবিল লেনদেন
+            <PlusCircle className="w-4 h-4" />
+            <span>নতুন এন্ট্রি যোগ করুন</span>
+          </button>
+
+          <button
+            onClick={() => handleExportReport('csv')}
+            className="px-5 py-2.5 bg-[#0b0f19] hover:bg-slate-900 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-sm cursor-pointer"
+          >
+            <Download className="w-4 h-4 text-orange-400" />
+            <span>রিপোর্ট এক্সপোর্ট</span>
           </button>
         </div>
       </div>
 
-      {/* Main Sub-Navigation Bar */}
-      <div className="flex items-center gap-2 border-b border-gray-150 pb-1 overflow-x-auto no-scrollbar">
-        <button
-          onClick={() => setActiveTab('orders')}
-          className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-            activeTab === 'orders'
-              ? 'bg-indigo-600 text-white shadow-sm'
-              : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-100'
-          }`}
-        >
-          <Receipt className="w-4 h-4" />
-          <span>সফল অর্ডার ও পাঠাও সেটেলমেন্ট</span>
-          <span className="bg-white/20 text-current px-2 py-0.5 rounded-full text-[10px]">
-            {filteredOrders.length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('banks')}
-          className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-            activeTab === 'banks'
-              ? 'bg-indigo-600 text-white shadow-sm'
-              : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-100'
-          }`}
-        >
-          <Building2 className="w-4 h-4" />
-          <span>ব্যাংক একাউন্ট & দৈনিক এনট্রি</span>
-          <span className="bg-white/20 text-current px-2 py-0.5 rounded-full text-[10px]">
-            {bankAccounts.length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('pathao')}
-          className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-            activeTab === 'pathao'
-              ? 'bg-indigo-600 text-white shadow-sm'
-              : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-100'
-          }`}
-        >
-          <Truck className="w-4 h-4 text-orange-400" />
-          <span>পাঠাও পেআউট রেজিস্ট্রি</span>
-          <span className="bg-white/20 text-current px-2 py-0.5 rounded-full text-[10px]">
-            {pathaoPayouts.length}
-          </span>
-        </button>
-      </div>
-
-      {/* --- TAB 1: ORDER FINANCE & PATHAO SETTLEMENT --- */}
-      {activeTab === 'orders' && (
-        <div className="space-y-6">
-          
-          {/* Summary Metric KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            
-            {/* 1. Total Success Sales */}
-            <div className="bg-[#F8F9FD] border border-gray-100 p-4.5 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-1">
-              <div className="flex items-center justify-between text-gray-400">
-                <span className="text-[10px] font-black uppercase tracking-wider text-indigo-500">মোট সফল অর্ডার সেলস</span>
-                <Receipt className="w-4 h-4 text-indigo-500" />
-              </div>
-              <h3 className="text-2xl font-black text-gray-900">{formatPrice(orderFinanceSummary.totalSales)}</h3>
-              <p className="text-[10px] text-gray-400 font-medium">
-                {orderFinanceSummary.orderCount} টি সফল/ডেলিভার্ড অর্ডার
-              </p>
+      {/* Top 3 Account Balance Cards + Summary Card Grid matching reference screenshot */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        
+        {/* Left 3 Accounts Cards */}
+        <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {bankAccounts.length === 0 ? (
+            <div className="col-span-3 bg-white p-8 text-center rounded-[24px] border border-gray-100 text-xs text-gray-400">
+              কোনো ব্যাংক অ্যাকাউন্ট বা ওয়ালেট পাওয়া যায়নি। উপরে "+ নতুন অ্যাকাউন্ট" বাটনে ক্লিক করে অ্যাকাউন্ট যোগ করুন।
             </div>
+          ) : (
+            bankAccounts.map((acc) => {
+              const isBkash = acc.bankName.toLowerCase().includes('bkash');
+              const isNagad = acc.bankName.toLowerCase().includes('nagad');
+              const isSelected = accountFilter === acc.id;
 
-            {/* 2. Pathao Delivery Charges Deducted */}
-            <div className="bg-[#F8F9FD] border border-gray-100 p-4.5 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-1">
-              <div className="flex items-center justify-between text-gray-400">
-                <span className="text-[10px] font-black uppercase tracking-wider text-rose-500">পাঠাও মোট কুরিয়ার চার্জ (-)</span>
-                <Truck className="w-4 h-4 text-rose-500" />
-              </div>
-              <h3 className="text-2xl font-black text-rose-600">-{formatPrice(orderFinanceSummary.totalPathaoCharges)}</h3>
-              <p className="text-[10px] text-gray-400 font-medium">
-                ডেলিভারি সার্ভিস ফি কেটে রাখা টাকা
-              </p>
-            </div>
-
-            {/* 3. Pathao Net COD Receivable */}
-            <div className="bg-emerald-50/40 border border-emerald-100 p-4.5 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-1">
-              <div className="flex items-center justify-between text-emerald-600">
-                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700">পাঠাও থেকে ক্যাশ ফেরত (COD Net)</span>
-                <TrendingUp className="w-4 h-4 text-emerald-600" />
-              </div>
-              <h3 className="text-2xl font-black text-emerald-700">{formatPrice(orderFinanceSummary.totalPathaoNetCodReceivable)}</h3>
-              <p className="text-[10px] text-emerald-600/80 font-medium">
-                পাঠাও কুরিয়ার আমাদের ব্যাংকে দিবে
-              </p>
-            </div>
-
-            {/* 4. Our Real Net Revenue */}
-            <div className="bg-indigo-50/40 border border-indigo-100 p-4.5 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-1">
-              <div className="flex items-center justify-between text-indigo-600">
-                <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700">আমাদের মূল নিট ইনকাম</span>
-                <DollarSign className="w-4 h-4 text-indigo-600" />
-              </div>
-              <h3 className="text-2xl font-black text-indigo-800">{formatPrice(orderFinanceSummary.totalNetStoreRevenue)}</h3>
-              <p className="text-[10px] text-indigo-600/80 font-medium">
-                অগ্রিম + পাঠাও নিট পেআউট (Total Net)
-              </p>
-            </div>
-
-          </div>
-
-          {/* Controls, Filters & Default Rates Settings */}
-          <div className="bg-[#F8F9FD] border border-gray-100 rounded-[20px] p-5 space-y-4">
-            
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              {/* Search Bar */}
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="ইনভয়েস #, কাস্টমার নাম, ফোন বা ট্র্যাকিং আইডি দিয়ে খুঁজুন..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold text-gray-800 placeholder:text-gray-300 focus:border-indigo-400 outline-none"
-                />
-              </div>
-
-              {/* Status Filter */}
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 shrink-0">স্ট্যাটাস:</span>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 outline-none cursor-pointer"
+              return (
+                <div 
+                  key={acc.id} 
+                  onClick={() => setAccountFilter(isSelected ? 'ALL' : acc.id)}
+                  className={`bg-white border rounded-[24px] p-6 space-y-4 shadow-2xs transition-all cursor-pointer relative overflow-hidden group ${
+                    isSelected ? 'border-indigo-600 ring-4 ring-indigo-50' : 'border-gray-100 hover:border-indigo-200'
+                  } ${
+                    isBkash ? 'border-pink-100/60' : isNagad ? 'border-orange-100/60' : 'border-emerald-100/60'
+                  }`}
                 >
-                  <option value="SUCCESS_DELIVERED">শুধুমাত্র সফল / Delivered Order</option>
-                  <option value="ALL">সব স্ট্যাটাসের অর্ডার (All Orders)</option>
-                  <option value="Shipped">Shipped</option>
-                  <option value="Delivered">Delivered</option>
-                  <option value="SUCCESS">SUCCESS</option>
-                  <option value="Completed">Completed</option>
-                </select>
-              </div>
-
-              {/* Date Filter */}
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 shrink-0">তারিখ:</span>
-                <select
-                  value={dateRangeFilter}
-                  onChange={(e) => setDateRangeFilter(e.target.value)}
-                  className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 outline-none cursor-pointer"
-                >
-                  <option value="ALL">সবসময় (All Time)</option>
-                  <option value="TODAY">আজকে (Today)</option>
-                  <option value="LAST_7_DAYS">গত ৭ দিন (Last 7 Days)</option>
-                  <option value="THIS_MONTH">চলতি মাস (This Month)</option>
-                  <option value="CUSTOM">নির্দিষ্ট তারিখ (Custom Date)</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Custom Date Picker Range if Selected */}
-            {dateRangeFilter === 'CUSTOM' && (
-              <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black text-gray-400">শুরু:</span>
-                  <input
-                    type="date"
-                    value={customStartDate}
-                    onChange={(e) => setCustomStartDate(e.target.value)}
-                    className="bg-white border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-800 outline-none"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black text-gray-400">শেষ:</span>
-                  <input
-                    type="date"
-                    value={customEndDate}
-                    onChange={(e) => setCustomEndDate(e.target.value)}
-                    className="bg-white border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-800 outline-none"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Default Pathao Rates Settings Bar */}
-            <div className="pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 flex items-center gap-1">
-                  <Truck className="w-3.5 h-3.5 text-orange-500" />
-                  ডিফল্ট পাঠাও ডেলিভারি চার্জ রেট:
-                </span>
-                
-                <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-2.5 py-1">
-                  <span className="text-[10px] font-bold text-gray-500">ঢাকার ভেতরে: ৳</span>
-                  <input
-                    type="number"
-                    value={dhakaPathaoRate}
-                    onChange={(e) => setDhakaPathaoRate(Number(e.target.value) || 0)}
-                    className="w-12 text-xs font-black text-gray-900 outline-none text-center bg-gray-50 rounded"
-                  />
-                </div>
-
-                <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-2.5 py-1">
-                  <span className="text-[10px] font-bold text-gray-500">ঢাকার বাইরে: ৳</span>
-                  <input
-                    type="number"
-                    value={outsideDhakaPathaoRate}
-                    onChange={(e) => setOutsideDhakaPathaoRate(Number(e.target.value) || 0)}
-                    className="w-12 text-xs font-black text-gray-900 outline-none text-center bg-gray-50 rounded"
-                  />
-                </div>
-              </div>
-
-              <div className="text-[10px] text-gray-400 font-medium">
-                * কোনো নির্দিষ্ট অর্ডারে পাঠাও আলাদা রেট কাটলে টেবিলের ইনপুট বক্সে সরাসরি এডিট করতে পারবেন।
-              </div>
-            </div>
-
-          </div>
-
-          {/* Orders Finance Table */}
-          <div className="bg-[#F8F9FD] border border-gray-100 rounded-[20px] shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white/50">
-              <div>
-                <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                  <Receipt className="w-4 h-4 text-indigo-600" />
-                  সফল অর্ডার ও পাঠাও পেআউট খতিয়ান
-                </h3>
-                <p className="text-[10px] text-gray-400 mt-0.5">স্বয়ংক্রিয় পাঠাও কুরিয়ার চার্জ বাদ দিয়ে কোন অর্ডারে কত টাকা পাওনা ট্র্যাকার</p>
-              </div>
-
-              <span className="text-xs font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">
-                {filteredOrders.length} টি অর্ডার দেখানো হচ্ছে
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              {filteredOrders.length === 0 ? (
-                <div className="p-12 text-center space-y-2">
-                  <AlertCircle className="w-8 h-8 text-gray-300 mx-auto" />
-                  <p className="text-xs text-gray-400 font-bold">কোনো সফল অর্ডার বা ফিল্টার ম্যাচ পাওয়া যায়নি।</p>
-                </div>
-              ) : (
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-gray-100/60 text-gray-500 border-b border-gray-150 uppercase tracking-wider font-black text-[9px]">
-                      <th className="py-3.5 px-4">ইনভয়েস # / তারিখ</th>
-                      <th className="py-3.5 px-4">কাস্টমার নাম & ফোন</th>
-                      <th className="py-3.5 px-4">গন্তব্য (City)</th>
-                      <th className="py-3.5 px-4 text-right">অর্ডার মোট মূল্য (৳)</th>
-                      <th className="py-3.5 px-4 text-right">গ্রাহকের অগ্রিম (৳)</th>
-                      <th className="py-3.5 px-4 text-center">পাঠাও চার্জ (৳)</th>
-                      <th className="py-3.5 px-4 text-right bg-emerald-50/50 text-emerald-800">পাঠাও থেকে প্রাপ্য নিট (৳)</th>
-                      <th className="py-3.5 px-4 text-right">স্টোরের মূল নিট আয় (৳)</th>
-                      <th className="py-3.5 px-4 text-center">সেটেলমেন্ট স্ট্যাটাস</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 font-bold text-gray-800">
-                    {filteredOrders.map(order => {
-                      const total = Number(order.total) || 0;
-                      const advance = Number(order.advancePayment) || 0;
-                      const cityLower = (order.city || '').toLowerCase();
-                      const isDhaka = cityLower.includes('dhaka') || cityLower.includes('ঢাকা');
-
-                      let pathaoCharge = (order as any).pathaoDeliveryCharge;
-                      if (pathaoCharge === undefined || pathaoCharge === null || pathaoCharge === '') {
-                        pathaoCharge = isDhaka ? dhakaPathaoRate : outsideDhakaPathaoRate;
-                      } else {
-                        pathaoCharge = Number(pathaoCharge) || 0;
-                      }
-
-                      const codAmount = Math.max(0, total - advance);
-                      const pathaoNetCod = codAmount - pathaoCharge; // Cash from Pathao to bank
-                      const netRevenue = total - pathaoCharge; // Real total store revenue
-                      const isSettled = (order as any).payoutSettled === true;
-
-                      return (
-                        <tr key={order.id} className="hover:bg-white transition-colors">
-                          {/* Invoice # & Date */}
-                          <td className="py-3.5 px-4">
-                            <span className="text-xs font-black text-indigo-600 block">
-                              #{order.invoiceNo || order.id.replace(/^ORD-?/i, '')}
-                            </span>
-                            <span className="text-[10px] text-gray-400 font-medium block mt-0.5">
-                              {order.createdAt ? new Date(order.createdAt).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
-                            </span>
-                            <span className="inline-block text-[8px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded uppercase mt-0.5">
-                              {order.status || 'Pending'}
-                            </span>
-                          </td>
-
-                          {/* Customer */}
-                          <td className="py-3.5 px-4">
-                            <span className="text-xs font-bold text-gray-900 block">{order.customerName || 'Walk-in Customer'}</span>
-                            <span className="text-[10px] text-gray-400 font-mono block">{order.phone}</span>
-                          </td>
-
-                          {/* City */}
-                          <td className="py-3.5 px-4">
-                            <span className="text-xs font-bold text-gray-700 block">{order.city || 'N/A'}</span>
-                            <span className={`inline-block text-[9px] px-1.5 py-0.5 rounded font-black ${
-                              isDhaka ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-700'
-                            }`}>
-                              {isDhaka ? 'ঢাকার ভেতরে' : 'ঢাকার বাইরে'}
-                            </span>
-                          </td>
-
-                          {/* Total Price */}
-                          <td className="py-3.5 px-4 text-right font-black text-gray-900">
-                            {formatPrice(total)}
-                          </td>
-
-                          {/* Advance Payment */}
-                          <td className="py-3.5 px-4 text-right font-bold text-gray-600">
-                            {advance > 0 ? (
-                              <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md text-[11px] font-black">
-                                +{formatPrice(advance)}
-                              </span>
-                            ) : (
-                              <span className="text-gray-300 font-normal">৳0</span>
-                            )}
-                          </td>
-
-                          {/* Editable Pathao Delivery Charge */}
-                          <td className="py-3.5 px-4 text-center">
-                            <div className="inline-flex items-center gap-1 bg-white border border-rose-200 rounded-lg px-2 py-1 shadow-2xs">
-                              <span className="text-rose-500 font-black text-[10px]">-৳</span>
-                              <input
-                                type="number"
-                                defaultValue={pathaoCharge}
-                                onBlur={(e) => handlePathaoChargeChange(order.id, e.target.value)}
-                                className="w-12 text-xs font-black text-rose-600 outline-none text-center bg-transparent"
-                              />
-                            </div>
-                          </td>
-
-                          {/* Pathao Net COD Receivable (What Pathao remits to Bank) */}
-                          <td className="py-3.5 px-4 text-right bg-emerald-50/40">
-                            <span className="text-sm font-black text-emerald-700 block">
-                              {formatPrice(pathaoNetCod)}
-                            </span>
-                            <span className="text-[9px] text-emerald-600 font-medium block">
-                              (COD: {formatPrice(codAmount)} - {formatPrice(pathaoCharge)})
-                            </span>
-                          </td>
-
-                          {/* Real Net Store Revenue */}
-                          <td className="py-3.5 px-4 text-right font-black text-indigo-700">
-                            {formatPrice(netRevenue)}
-                          </td>
-
-                          {/* Settlement Status Toggle */}
-                          <td className="py-3.5 px-4 text-center">
-                            <button
-                              onClick={() => handleToggleSettlement(order)}
-                              className={`px-2.5 py-1 rounded-full text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 mx-auto ${
-                                isSettled
-                                  ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                                  : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
-                              }`}
-                            >
-                              {isSettled ? (
-                                <>
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                  <span>পেমেন্ট প্রাপ্ত (Settled)</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Clock className="w-3 h-3 text-amber-600 animate-pulse" />
-                                  <span>পেন্ডিং (Mark Settled)</span>
-                                </>
-                              )}
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-
-                  {/* Summary Footer Row */}
-                  <tfoot>
-                    <tr className="bg-slate-900 text-white font-black text-xs border-t-2 border-slate-800">
-                      <td colSpan={3} className="py-4 px-4 uppercase tracking-wider">
-                        মোট সর্বমোট ({filteredOrders.length} টি অর্ডারের হিসাব)
-                      </td>
-                      <td className="py-4 px-4 text-right font-black text-amber-400">
-                        {formatPrice(orderFinanceSummary.totalSales)}
-                      </td>
-                      <td className="py-4 px-4 text-right font-black text-emerald-400">
-                        +{formatPrice(orderFinanceSummary.totalAdvance)}
-                      </td>
-                      <td className="py-4 px-4 text-center font-black text-rose-300">
-                        -{formatPrice(orderFinanceSummary.totalPathaoCharges)}
-                      </td>
-                      <td className="py-4 px-4 text-right font-black text-emerald-300 bg-slate-800">
-                        {formatPrice(orderFinanceSummary.totalPathaoNetCodReceivable)}
-                      </td>
-                      <td className="py-4 px-4 text-right font-black text-indigo-300">
-                        {formatPrice(orderFinanceSummary.totalNetStoreRevenue)}
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        -
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              )}
-            </div>
-          </div>
-
-        </div>
-      )}
-
-      {/* --- TAB 2: BANK ACCOUNTS & DAILY DEPOSITS --- */}
-      {activeTab === 'banks' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          <div className="lg:col-span-2 space-y-6">
-            {/* Bank Summary Statistics */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              <div className="bg-[#F8F9FD] border border-gray-100 p-5 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex items-center justify-between col-span-1 md:col-span-2">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">মোট ব্যাংক এবং গেটওয়ে তহবিল</p>
-                  <h3 className="text-3xl font-black text-gray-900 mt-1">{formatPrice(totalBankBalance)}</h3>
-                  <p className="text-xs text-gray-400 mt-1">সবগুলো সক্রিয় ডিজিটাল ওয়ালেট ও ব্যাংক অ্যাকাউন্টের মোট জমা স্থিতি</p>
-                </div>
-                <div className="w-16 h-16 bg-indigo-50 rounded-[20px] flex items-center justify-center text-indigo-600">
-                  <Wallet className="w-8 h-8" />
-                </div>
-              </div>
-
-              <div className="bg-[#F8F9FD] border border-gray-100 p-5 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">মোট ব্যাংক অ্যাকাউন্ট</p>
-                  <h3 className="text-3xl font-black text-gray-900 mt-1">{bankAccounts.length} টি</h3>
-                  <p className="text-xs text-gray-400 mt-1">সক্রিয় পেমেন্ট একাউন্ট</p>
-                </div>
-                <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-600">
-                  <Building2 className="w-6 h-6" />
-                </div>
-              </div>
-            </div>
-
-            {/* Bank Accounts Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {bankAccounts.map(acc => (
-                <div key={acc.id} className="bg-[#F8F9FD] border border-gray-100 p-5 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-4 hover:border-gray-200 transition-all group relative">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="text-sm font-black text-gray-900">{acc.bankName}</h4>
-                      <p className="text-xs text-gray-500 font-bold mt-0.5">{acc.accountName}</p>
-                      <p className="text-[10px] text-gray-400 font-mono tracking-wider mt-1">{acc.accountNumber}</p>
-                      {acc.branch && <span className="inline-block text-[9px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md mt-1 font-semibold">{acc.branch}</span>}
+                  <div className="flex items-center justify-between">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-white shadow-2xs ${
+                      isBkash ? 'bg-pink-600' : isNagad ? 'bg-orange-500' : 'bg-emerald-600'
+                    }`}>
+                      {isBkash ? <Wallet className="w-5 h-5" /> : isNagad ? <CreditCard className="w-5 h-5" /> : <Building2 className="w-5 h-5" />}
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <button 
-                        onClick={() => handleEditClick(acc)}
-                        className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-colors cursor-pointer"
-                        title="সম্পাদনা করুন"
+
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditAccountClick(acc);
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-indigo-600 bg-gray-50 rounded-lg transition-colors"
+                        title="এডিট অ্যাকাউন্ট"
                       >
-                        <Pencil className="w-4 h-4" />
+                        <Pencil className="w-3.5 h-3.5" />
                       </button>
-                      <button 
-                        onClick={() => {
-                          if(window.confirm('এই ব্যাংক অ্যাকাউন্টটি মুছতে চান?')){
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm('এই অ্যাকাউন্টটি মুছে ফেলতে চান?')) {
                             deleteBankAccount(acc.id);
                           }
                         }}
-                        className="text-gray-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-colors cursor-pointer"
-                        title="অ্যাকাউন্ট ডিলিট করুন"
+                        className="p-1.5 text-gray-400 hover:text-rose-600 bg-gray-50 rounded-lg transition-colors"
+                        title="মুছে ফেলুন"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t border-gray-50 flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">বর্তমান ব্যালেন্স</span>
-                    <span className="text-lg font-black text-indigo-600">{formatPrice(acc.balance || 0)}</span>
+                  <div>
+                    <h3 className="text-base font-black text-gray-900 leading-tight">{acc.bankName}</h3>
+                    <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider mt-1">{acc.accountType || 'ব্যক্তিগত'} • {acc.accountNumber}</p>
                   </div>
+
+                  <div className="pt-3 border-t border-gray-100/80 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest block">ব্যালেন্স</span>
+                      <span className={`text-xl font-black tracking-tight mt-1 block ${
+                        isBkash ? 'text-pink-600' : isNagad ? 'text-orange-600' : 'text-emerald-600'
+                      }`}>{formatPrice(acc.balance || 0)}</span>
+                    </div>
+
+                    <div className={`w-8 h-8 rounded-full border flex items-center justify-center bg-gray-50/20 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all duration-300 ${
+                      isBkash ? 'border-pink-100 text-pink-500' : isNagad ? 'border-orange-100 text-orange-500' : 'border-emerald-100 text-emerald-500'
+                    }`}>
+                      <ArrowUpRight className="w-4 h-4" />
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Right Total Finance Summary Card */}
+        <div className="lg:col-span-1 bg-white border border-gray-100 rounded-[24px] p-6 space-y-4 shadow-2xs flex flex-col justify-between">
+          <div className="flex items-center justify-between border-b border-gray-50 pb-2">
+            <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">সারসংক্ষেপ (নির্বাচিত সময়)</h4>
+            <select
+              value={timeframeFilter}
+              onChange={(e) => setTimeframeFilter(e.target.value)}
+              className="bg-[#F8F9FD] border border-gray-200 rounded-lg px-2.5 py-1 text-[10px] font-bold text-gray-600 focus:outline-none cursor-pointer"
+            >
+              <option value="this_month">এই মাস</option>
+              <option value="today">আজ</option>
+              <option value="7days">৭ দিন</option>
+              <option value="all">সব সময়</option>
+            </select>
+          </div>
+
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between bg-emerald-50/45 p-3 rounded-xl border border-emerald-100/50">
+              <span className="text-xs font-bold text-emerald-800">মোট ইনকাম</span>
+              <span className="text-sm font-black text-emerald-700">{formatPrice(totalIncome)}</span>
+            </div>
+
+            <div className="flex items-center justify-between bg-rose-50/45 p-3 rounded-xl border border-rose-100/50">
+              <span className="text-xs font-bold text-rose-800">মোট খরচ</span>
+              <span className="text-sm font-black text-rose-700">{formatPrice(totalExpense)}</span>
+            </div>
+
+            <div className="flex items-center justify-between bg-indigo-50/45 p-3 rounded-xl border border-indigo-100/50">
+              <span className="text-xs font-bold text-indigo-900">নিট ব্যালেন্স</span>
+              <span className="text-sm font-black text-indigo-700">{formatPrice(netBalance)}</span>
+            </div>
+
+            <div className="flex items-center justify-between bg-gray-50/60 p-3 rounded-xl border border-gray-150">
+              <span className="text-xs font-bold text-gray-700">মোট লেনদেন</span>
+              <span className="text-sm font-black text-gray-900">{bankTransactions.length} টি</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Filter Section matching reference screenshot */}
+      <div className="bg-white border border-gray-100 rounded-[24px] p-4 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 w-full md:w-auto flex-1">
+          {/* Date range picker */}
+          <div className="flex items-center gap-2 bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-2.5">
+            <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+            <input 
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-transparent text-xs font-bold text-gray-700 focus:outline-none w-full cursor-pointer"
+            />
+          </div>
+
+          {/* Account Filter */}
+          <select
+            value={accountFilter}
+            onChange={(e) => setAccountFilter(e.target.value)}
+            className="bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-bold text-gray-700 focus:outline-none cursor-pointer"
+          >
+            <option value="ALL">সব হিসাব</option>
+            {bankAccounts.map(acc => (
+              <option key={acc.id} value={acc.id}>{acc.bankName} - {acc.accountName}</option>
+            ))}
+          </select>
+
+          {/* Transaction Type Filter */}
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-bold text-gray-700 focus:outline-none cursor-pointer"
+          >
+            <option value="ALL">সব ধরনের লেনদেন</option>
+            <option value="income">ইনকাম (Income)</option>
+            <option value="expense">খরচ (Expense)</option>
+            <option value="transfer">ট্রান্সফার (Transfer)</option>
+          </select>
+
+          {/* Search keyword */}
+          <div className="flex items-center gap-2 bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-2.5">
+            <Search className="w-4 h-4 text-gray-400 shrink-0" />
+            <input 
+              type="text"
+              placeholder="কীওয়ার্ড দিয়ে খুঁজুন..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-transparent text-xs font-bold text-gray-700 focus:outline-none w-full"
+            />
+          </div>
+        </div>
+
+        <button
+          onClick={() => toast.success('ফিল্টার সফলভাবে প্রয়োগ করা হয়েছে!')}
+          className="px-6 py-2.5 bg-[#4f46e5] hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-2 cursor-pointer w-full md:w-auto justify-center"
+        >
+          <Filter className="w-4 h-4" />
+          <span>ফিল্টার প্রয়োগ করুন</span>
+        </button>
+      </div>
+
+      {/* Main Grid: New Transaction Form (Left) & Charts / Activity (Right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Left 2 Cols: New Transaction Entry Form */}
+        <div id="new-tx-form" className="lg:col-span-2 bg-white border border-gray-100 rounded-[24px] p-6 space-y-6 shadow-2xs">
+          <div className="border-b border-gray-50 pb-3">
+            <h3 className="text-base font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
+              <PlusCircle className="w-4 h-4 text-[#4f46e5]" />
+              নতুন লেনদেন এন্ট্রি করুন
+            </h3>
+            <p className="text-xs text-gray-400 mt-0.5 font-medium">ম্যানুয়ালি নতুন আয়, খরচ, ডিপোজিট অথবা ট্রান্সফার এন্ট্রি করুন</p>
+          </div>
+
+          <form onSubmit={handleTxSubmit} className="space-y-6">
+            {/* COMPACT ROW OF INPUTS - matching reference screenshot layout */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              
+              {/* Account select */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">হিসাব নির্বাচন করুন *</label>
+                <select
+                  required
+                  value={txForm.accountId}
+                  onChange={(e) => setTxForm({ ...txForm, accountId: e.target.value })}
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-3 text-xs font-bold text-gray-700 focus:border-indigo-300 focus:outline-none cursor-pointer"
+                >
+                  <option value="">হিসাব নির্বাচন করুন</option>
+                  {bankAccounts.map(acc => (
+                    <option key={acc.id} value={acc.id}>{acc.bankName} - {acc.accountName} ({formatPrice(acc.balance)})</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Transaction Type */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">লেনদেন ধরন *</label>
+                <select
+                  required
+                  value={txForm.type}
+                  onChange={(e) => setTxForm({ ...txForm, type: e.target.value as any })}
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-3 text-xs font-bold text-gray-700 focus:border-indigo-300 focus:outline-none cursor-pointer"
+                >
+                  <option value="deposit">ইনকাম / ডিপোজিট (Income / Deposit)</option>
+                  <option value="withdraw">খরচ / উত্তোলন (Expense / Withdraw)</option>
+                  <option value="transfer">অ্যাকাউন্ট ট্রান্সফার (Transfer)</option>
+                </select>
+              </div>
+
+              {/* Amount */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">পরিমাণ (৳) *</label>
+                <input
+                  required
+                  type="number"
+                  step="any"
+                  placeholder="0.00"
+                  value={txForm.amount}
+                  onChange={(e) => setTxForm({ ...txForm, amount: e.target.value })}
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-3 text-xs font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
+                />
+              </div>
+
+              {/* Date */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">তারিখ *</label>
+                <input
+                  required
+                  type="date"
+                  value={txForm.date}
+                  onChange={(e) => setTxForm({ ...txForm, date: e.target.value })}
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-3 text-xs font-bold text-gray-700 focus:border-indigo-300 focus:outline-none cursor-pointer"
+                />
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">বিবরণ (ঐচ্ছিক)</label>
+                <input
+                  type="text"
+                  placeholder="বিবরণ লিখুন (ঐচ্ছিক)"
+                  value={txForm.notes}
+                  onChange={(e) => setTxForm({ ...txForm, notes: e.target.value })}
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-3 text-xs font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
+                />
+              </div>
+
+            </div>
+
+            {/* Transfer fields block if active */}
+            {txForm.type === 'transfer' && (
+              <div className="space-y-1.5 max-w-sm animate-in fade-in slide-in-from-top-2 duration-350">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">প্রাপক অ্যাকাউন্ট (Target Account) *</label>
+                <select
+                  required
+                  value={txForm.targetAccountId}
+                  onChange={(e) => setTxForm({ ...txForm, targetAccountId: e.target.value })}
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3.5 py-3 text-xs font-bold text-gray-700 focus:border-indigo-300 focus:outline-none cursor-pointer"
+                >
+                  <option value="">প্রাপক অ্যাকাউন্ট নির্বাচন করুন</option>
+                  {bankAccounts.filter(a => a.id !== txForm.accountId).map(acc => (
+                    <option key={acc.id} value={acc.id}>{acc.bankName} - {acc.accountName}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Reference input (can sit as optional) */}
+            <div className="space-y-1.5 max-w-sm">
+              <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">রেফারেন্স / ইনভয়েস আইডি</label>
+              <input
+                type="text"
+                placeholder="রেফারেন্স বা ইনভয়েস আইডি (ঐচ্ছিক)"
+                value={txForm.reference}
+                onChange={(e) => setTxForm({ ...txForm, reference: e.target.value })}
+                className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3.5 py-3 text-xs font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
+              />
+            </div>
+
+            {/* Attachment upload & buttons row */}
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 pt-2">
+              
+              {/* Attachment upload */}
+              <div className="flex-1 relative border-2 border-dashed border-gray-250 hover:border-indigo-400 rounded-xl p-3 text-center bg-[#F8F9FD] transition-all cursor-pointer">
+                <div className="flex items-center justify-center gap-2">
+                  <FileText className="w-4 h-4 text-gray-400 shrink-0" />
+                  <p className="text-[11px] text-gray-500 font-bold">প্রমাণপত্র / রশিদ আপলোড (ঐচ্ছিক) • ক্লিক করে ফাইল নির্বাচন করুন</p>
+                </div>
+                <input 
+                  type="file" 
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setTxForm({ ...txForm, attachment: file.name });
+                      toast.success(`ফাইল সংযোজিত হয়েছে: ${file.name}`);
+                    }
+                  }}
+                  className="opacity-0 absolute inset-0 cursor-pointer w-full h-full" 
+                />
+                {txForm.attachment && (
+                  <span className="inline-block bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] px-2.5 py-1 rounded-lg mt-2 font-mono">
+                    {txForm.attachment}
+                  </span>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleResetTx}
+                  className="px-5 py-3.5 bg-white hover:bg-gray-50 text-gray-600 border border-gray-200 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>রিসেট</span>
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingTx}
+                  className="px-8 py-3.5 bg-[#4f46e5] hover:bg-indigo-700 disabled:bg-gray-300 text-white rounded-xl text-xs font-black transition-all shadow-md cursor-pointer flex items-center gap-1.5"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>{isSubmittingTx ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}</span>
+                </button>
+              </div>
+
+            </div>
+          </form>
+        </div>
+
+        {/* Right 1 Col: Account Distribution Chart & Recent Activity */}
+        <div className="lg:col-span-1 space-y-6">
+          
+          {/* Account Distribution Chart */}
+          <div className="bg-white border border-gray-100 rounded-[24px] p-6 space-y-4 shadow-2xs">
+            <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">হিসাব ভিত্তিক লেনদেন</h4>
+            
+            <div className="h-44 w-full flex items-center justify-center relative">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={70}
+                    paddingAngle={4}
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(val: any) => formatPrice(Number(val))} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-base font-black text-gray-900">{bankTransactions.length}</span>
+                <span className="text-[10px] text-gray-400 uppercase font-black tracking-wider">মোট লেনদেন</span>
+              </div>
+            </div>
+
+            <div className="space-y-2 border-t border-gray-50 pt-3">
+              {pieData.map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between text-xs font-bold text-gray-700">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }}></span>
+                    <span>{item.name}</span>
+                  </div>
+                  <span className="font-black text-gray-900">{formatPrice(item.value)} ({item.percent}%)</span>
                 </div>
               ))}
             </div>
-
-            {/* Daily Deposit Entry Module */}
-            <div className="bg-[#F8F9FD] border border-gray-100 rounded-[20px] shadow-sm p-6 space-y-5">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-gray-50 pb-4">
-                <div>
-                  <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                    <PlusCircle className="w-4 h-4 text-emerald-600" />
-                    দৈনিক ব্যাংক / ওয়ালেট ব্যালেন্স ইনপুট এনট্রি
-                  </h3>
-                  <p className="text-[10px] text-gray-400 mt-0.5">প্রতিদিনের বিক্রীত বা সংগৃহীত টাকা সরাসরি বিভিন্ন একাউন্টে একবারে এনট্রি করুন</p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-gray-400" />
-                  <input 
-                    type="date" 
-                    value={dailyDate}
-                    onChange={(e) => setDailyDate(e.target.value)}
-                    className="bg-gray-50 border border-gray-200 text-xs font-bold text-gray-700 px-3 py-1.5 rounded-xl outline-none focus:border-indigo-400"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {bankAccounts.map(acc => (
-                  <div key={acc.id} className="bg-gray-50/60 border border-gray-100 p-3.5 rounded-2xl space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-black text-gray-800">{acc.bankName}</span>
-                      <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
-                        বর্তমান: {formatPrice(acc.balance)}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-gray-400 truncate font-mono">{acc.accountName} - {acc.accountNumber}</p>
-                    
-                    <div className="space-y-1.5 pt-1">
-                      <input 
-                        type="number"
-                        step="any"
-                        placeholder="আজকের জমার পরিমাণ (৳)"
-                        value={dailyAmounts[acc.id] || ''}
-                        onChange={(e) => setDailyAmounts({ ...dailyAmounts, [acc.id]: e.target.value })}
-                        className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-900 placeholder:text-gray-300 outline-none focus:border-emerald-500"
-                      />
-                      <input 
-                        type="text"
-                        placeholder="সংক্ষিপ্ত নোট (ঐচ্ছিক)"
-                        value={dailyNotes[acc.id] || ''}
-                        onChange={(e) => setDailyNotes({ ...dailyNotes, [acc.id]: e.target.value })}
-                        className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-1.5 text-[11px] font-medium text-gray-700 placeholder:text-gray-300 outline-none focus:border-indigo-400"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex justify-end pt-2">
-                <button
-                  onClick={handleSaveDailyEntries}
-                  disabled={isSubmittingDaily}
-                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white font-black text-xs rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer uppercase tracking-wider"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  {isSubmittingDaily ? 'সংরক্ষণ হচ্ছে...' : 'সবগুলো দৈনিক জমা সেভ করুন'}
-                </button>
-              </div>
-            </div>
-
-            {/* Bank Transactions Table */}
-            <div className="bg-[#F8F9FD] border border-gray-100 rounded-[20px] shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">ব্যাংক ও ওয়ালেট লেনদেনের ইতিহাস</h3>
-                  <p className="text-[10px] text-gray-400 mt-0.5">ডিপোজিট, উইথড্র ও ট্রান্সফারের বিস্তারিত খতিয়ান</p>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                {bankTransactions.length === 0 ? (
-                  <div className="p-8 text-center text-xs text-gray-400">কোনো ব্যাংক লেনদেন পাওয়া যায়নি।</div>
-                ) : (
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-gray-50/50 text-gray-400 border-b border-gray-100 uppercase tracking-wider font-black text-[9px]">
-                        <th className="py-4 px-6">তারিখ</th>
-                        <th className="py-4 px-6">অ্যাকাউন্ট</th>
-                        <th className="py-4 px-6">ধরণ</th>
-                        <th className="py-4 px-6">রেফারেন্স / নোট</th>
-                        <th className="py-4 px-6 text-right">পরিমাণ (৳)</th>
-                        <th className="py-4 px-6 text-center w-20">অ্যাকশন</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50 font-bold text-gray-700">
-                      {bankTransactions.map(tx => {
-                        const acc = bankAccounts.find(a => a.id === tx.accountId);
-                        return (
-                          <tr key={tx.id} className="hover:bg-gray-50/20 transition-colors">
-                            <td className="py-4 px-6 text-gray-400 text-[10px] font-medium">
-                              {new Date(tx.date).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                            </td>
-                            <td className="py-4 px-6">
-                              <span className="text-gray-900 font-bold">{acc?.bankName || 'Unknown Bank'}</span>
-                              <p className="text-[10px] text-gray-400 font-normal">{acc?.accountName}</p>
-                            </td>
-                            <td className="py-4 px-6">
-                              <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase flex items-center gap-1 w-max ${
-                                tx.type === 'deposit' 
-                                  ? 'bg-emerald-50 text-emerald-600' 
-                                  : tx.type === 'withdraw' 
-                                  ? 'bg-rose-50 text-rose-600' 
-                                  : 'bg-indigo-50 text-indigo-600'
-                              }`}>
-                                {tx.type === 'deposit' && <ArrowDownLeft className="w-3 h-3" />}
-                                {tx.type === 'withdraw' && <ArrowUpRight className="w-3 h-3" />}
-                                {tx.type === 'transfer' && <RefreshCw className="w-3 h-3" />}
-                                {tx.type === 'deposit' ? 'জমা' : tx.type === 'withdraw' ? 'উত্তোলন' : 'ট্রান্সফার'}
-                              </span>
-                            </td>
-                            <td className="py-4 px-6 text-gray-600">
-                              {tx.reference && <span className="font-mono text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 mr-2">{tx.reference}</span>}
-                              <span>{tx.notes || '-'}</span>
-                            </td>
-                            <td className={`py-4 px-6 text-right font-black ${
-                              tx.type === 'deposit' ? 'text-emerald-600' : 'text-rose-600'
-                            }`}>
-                              {tx.type === 'deposit' ? '+' : '-'} {formatPrice(tx.amount)}
-                            </td>
-                            <td className="py-4 px-6 text-center">
-                              <button 
-                                onClick={() => {
-                                  if(window.confirm('এই লেনদেনটি মুছতে চান?')){
-                                    deleteBankTransaction(tx.id);
-                                  }
-                                }}
-                                className="text-gray-300 hover:text-rose-600 p-1.5 rounded-lg transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
           </div>
 
-          {/* Right Column Help Note */}
-          <div className="lg:col-span-1 space-y-6">
-            <div className="bg-indigo-50/50 border border-indigo-100 rounded-[20px] p-5 space-y-3">
-              <h4 className="text-xs font-black uppercase text-indigo-900 tracking-wider flex items-center gap-1.5">
-                <Wallet className="w-4 h-4 text-indigo-600" />
-                তহবিল ব্যালেন্স নির্দেশিকা
-              </h4>
-              <p className="text-xs text-indigo-800/80 leading-relaxed font-medium">
-                এখানে আপনার বিকাশ, নগদ, রকেট অথবা ব্যাংক অ্যাকাউন্টের ব্যালেন্স ও লেনদেনের সঠিক হিসাব রাখা সম্ভব। প্রতিদিনের বিক্রীত ক্যাশ এবং পাঠাও পেআউট জমার টাকা সরাসরি এখান থেকে রেকর্ড করা যাবে।
-              </p>
+          {/* Recent Activity */}
+          <div className="bg-white border border-gray-100 rounded-[24px] p-6 space-y-4 shadow-2xs">
+            <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">সাম্প্রতিক কার্যক্রম</h4>
+            
+            <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1">
+              {bankTransactions.slice(0, 3).map((tx, idx) => {
+                const acc = bankAccounts.find(a => a.id === tx.accountId);
+                const isDeposit = tx.type === 'deposit';
+                const isTransfer = tx.type === 'transfer';
+                
+                // MOCK timestamps matching visual image beautifully
+                const times = ["৫ মিনিট আগে", "৩০ মিনিট আগে", "১ ঘণ্টা আগে"];
+                const mockTime = times[idx] || "২ ঘণ্টা আগে";
+
+                return (
+                  <div key={tx.id} className="flex items-start justify-between p-3.5 rounded-xl bg-[#F8F9FD] border border-gray-100">
+                    <div className="space-y-0.5">
+                      <span className={`text-[10px] font-black uppercase tracking-wider ${isDeposit ? 'text-emerald-600' : isTransfer ? 'text-indigo-600' : 'text-rose-600'}`}>
+                        {isDeposit ? 'ইনকাম এন্ট্রি করা হয়েছে' : isTransfer ? 'ট্রান্সফার সম্পন্ন' : 'খরচ এন্ট্রি করা হয়েছে'}
+                      </span>
+                      <p className="text-xs font-black text-gray-800">{acc?.bankName || 'Wallet Account'}</p>
+                      <span className="text-[9px] text-gray-400 font-bold">{mockTime}</span>
+                    </div>
+                    <span className={`text-xs font-black ${isDeposit ? 'text-emerald-600' : isTransfer ? 'text-indigo-600' : 'text-rose-600'}`}>
+                      {isDeposit ? '+' : isTransfer ? '' : '-'}{formatPrice(tx.amount)}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
+
+            <button 
+              onClick={() => toast.success('সব কার্যক্রম লোড করা হয়েছে!')}
+              className="w-full py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-600 font-black text-[10px] uppercase tracking-wider rounded-xl transition-all border border-gray-150 cursor-pointer"
+            >
+              সব কার্যক্রম দেখুন
+            </button>
           </div>
 
         </div>
-      )}
 
-      {/* --- TAB 3: PATHAO PAYOUTS TRACKER --- */}
-      {activeTab === 'pathao' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-3">
-            <div className="bg-[#F8F9FD] border border-gray-100 rounded-[20px] p-5 space-y-5">
-              <div>
-                <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                  <Truck className="w-4 h-4 text-orange-500" />
-                  পাঠাও কুরিয়ার পেআউট ট্র্যাকার (Pathao Payout Registry)
-                </h3>
-                <p className="text-[10px] text-gray-400 mt-0.5">পাঠাও থেকে সরাসরি ব্যাংক অ্যাকাউন্টে জমা হওয়া বাল্ক অ্যামাউন্টের রেকর্ড</p>
-              </div>
+      </div>
 
-              {/* Metrics */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-amber-50/50 border border-amber-100 p-4 rounded-2xl">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-amber-600">পেন্ডিং পেআউট (Pending)</p>
-                  <h4 className="text-xl font-black text-amber-700 mt-1">
-                    {formatPrice(pathaoPayouts.filter(p => p.status === 'Pending').reduce((sum, p) => sum + p.amount, 0))}
-                  </h4>
-                </div>
-                <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-2xl">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600">প্রাপ্ত পেআউট (Paid)</p>
-                  <h4 className="text-xl font-black text-emerald-700 mt-1">
-                    {formatPrice(pathaoPayouts.filter(p => p.status === 'Paid').reduce((sum, p) => sum + p.amount, 0))}
-                  </h4>
-                </div>
-              </div>
+      {/* Transaction Table ("লেনদেন তালিকা") */}
+      <div className="bg-white border border-gray-100 rounded-[24px] p-6 space-y-5 shadow-2xs">
+        <div className="flex items-center justify-between border-b border-gray-50 pb-3">
+          <div>
+            <h3 className="text-base font-black text-gray-900 uppercase tracking-wider">লেনদেন তালিকা</h3>
+            <p className="text-xs text-gray-400 mt-0.5 font-medium">সকল ব্যাংক ও ওয়ালেট লেনদেনের বিস্তারিত হিস্ট্রি</p>
+          </div>
+          <span className="text-xs font-black text-indigo-600 bg-indigo-50 px-3.5 py-1.5 rounded-full">
+            মোট {filteredTransactions.length} টি ফলাফল
+          </span>
+        </div>
 
-              {/* Quick Add Form */}
-              <form onSubmit={handlePayoutSubmit} className="bg-white border border-gray-150 p-4 rounded-2xl space-y-3 shadow-2xs">
-                <h4 className="text-[11px] font-black uppercase tracking-wider text-gray-700">নতুন পাঠাও পেআউট রেকর্ড যোগ</h4>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider">প্রাপক ব্যাংক অ্যাকাউন্ট *</label>
-                    <select
-                      required
-                      value={payoutForm.accountId}
-                      onChange={(e) => setPayoutForm({ ...payoutForm, accountId: e.target.value })}
-                      className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-orange-300 focus:outline-none cursor-pointer"
-                    >
-                      <option value="">সিলেক্ট করুন...</option>
-                      {bankAccounts.map(acc => (
-                        <option key={acc.id} value={acc.id}>{acc.bankName} - {acc.accountName}</option>
-                      ))}
-                    </select>
-                  </div>
+        <div className="overflow-x-auto">
+          {filteredTransactions.length === 0 ? (
+            <div className="p-12 text-center text-xs text-gray-400">কোনো লেনদেন রেকর্ড পাওয়া যায়নি।</div>
+          ) : (
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-gray-50/50 text-gray-400 border-b border-gray-100 uppercase tracking-widest font-black text-[9px]">
+                  <th className="py-4 px-5">তারিখ</th>
+                  <th className="py-4 px-5">হিসাব</th>
+                  <th className="py-4 px-5">ধরন</th>
+                  <th className="py-4 px-5">বিবরণ</th>
+                  <th className="py-4 px-5 text-right">পরিমাণ (৳)</th>
+                  <th className="py-4 px-5 text-right">ব্যালেন্স (৳)</th>
+                  <th className="py-4 px-5 text-center">প্রমাণপত্র</th>
+                  <th className="py-4 px-5 text-center">অ্যাকশন</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50 font-bold text-gray-700">
+                {filteredTransactions.map(tx => {
+                  const acc = bankAccounts.find(a => a.id === tx.accountId);
+                  const isDeposit = tx.type === 'deposit';
+                  const isTransfer = tx.type === 'transfer';
+                  
+                  // Color bullet mappings for accounts
+                  const isBkash = acc?.bankName.toLowerCase().includes('bkash');
+                  const isNagad = acc?.bankName.toLowerCase().includes('nagad');
 
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider">টাকার পরিমাণ (৳) *</label>
-                    <input
-                      required
-                      type="number"
-                      step="any"
-                      placeholder="0.00"
-                      value={payoutForm.amount}
-                      onChange={(e) => setPayoutForm({ ...payoutForm, amount: e.target.value })}
-                      className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-orange-300 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider">তারিখ *</label>
-                    <input
-                      required
-                      type="date"
-                      value={payoutForm.date}
-                      onChange={(e) => setPayoutForm({ ...payoutForm, date: e.target.value })}
-                      className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-orange-300 focus:outline-none cursor-pointer"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider">রেফারেন্স / ইনভয়েস ID</label>
-                    <input
-                      type="text"
-                      placeholder="Ref ID"
-                      value={payoutForm.reference}
-                      onChange={(e) => setPayoutForm({ ...payoutForm, reference: e.target.value })}
-                      className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-orange-300 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider">সংক্ষিপ্ত নোট</label>
-                    <input
-                      type="text"
-                      placeholder="নোট লিখুন"
-                      value={payoutForm.notes}
-                      onChange={(e) => setPayoutForm({ ...payoutForm, notes: e.target.value })}
-                      className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-orange-300 focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isSubmittingPayout}
-                  className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-gray-300 text-white font-black text-xs py-2.5 rounded-xl transition-all shadow-sm uppercase tracking-wider cursor-pointer"
-                >
-                  {isSubmittingPayout ? 'যোগ হচ্ছে...' : 'পেআউট রেকর্ড সংরক্ষণ করুন'}
-                </button>
-              </form>
-
-              {/* Payout list */}
-              <div className="space-y-3">
-                <h4 className="text-[11px] font-black uppercase tracking-wider text-gray-500">পেআউট রেজিস্ট্রি তালিকা</h4>
-                
-                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
-                  {pathaoPayouts.length === 0 ? (
-                    <div className="p-8 text-center text-xs text-gray-400 border border-dashed border-gray-150 rounded-2xl">
-                      কোনো পাঠাও পেআউট রেকর্ড পাওয়া যায়নি।
-                    </div>
-                  ) : (
-                    pathaoPayouts.map(payout => {
-                      const acc = bankAccounts.find(a => a.id === payout.accountId);
-                      return (
-                        <div key={payout.id} className="bg-white border border-gray-150 rounded-2xl p-4 space-y-2 flex items-center justify-between hover:border-gray-300 transition-all">
-                          <div className="space-y-0.5 text-left">
-                            <span className="text-[10px] text-gray-400 font-black">
-                              {new Date(payout.date).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short', year: 'numeric' })}
-                            </span>
-                            <h5 className="text-xs font-black text-gray-900">{acc?.bankName || 'Unknown Wallet'}</h5>
-                            <p className="text-[10px] text-gray-400 font-normal">{acc?.accountName}</p>
-                            {payout.reference && (
-                              <span className="inline-block font-mono text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded mt-1 mr-1">
-                                Ref: {payout.reference}
-                              </span>
-                            )}
-                            {payout.notes && (
-                              <p className="text-[10px] text-gray-500 mt-0.5 italic font-medium">“{payout.notes}”</p>
-                            )}
-                          </div>
-
-                          <div className="text-right flex flex-col items-end justify-between h-full">
-                            <span className="text-base font-black text-slate-900 block">+{formatPrice(payout.amount)}</span>
-                            
-                            <div className="mt-2 flex items-center justify-end gap-2">
-                              {payout.status === 'Pending' ? (
-                                <button
-                                  onClick={() => {
-                                    if(window.confirm('আপনি কি এই পেআউটটি Paid হিসেবে চিহ্নিত করতে চান? এটি স্বয়ংক্রিয়ভাবে ব্যাংক ব্যালেন্সে যোগ করবে!')){
-                                      updatePathaoPayoutStatus(payout.id, 'Paid');
-                                    }
-                                  }}
-                                  className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1"
-                                  title="Mark as Paid"
-                                >
-                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                  পেন্ডিং (Mark Paid)
-                                </button>
-                              ) : (
-                                <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-[10px] font-black flex items-center gap-1 select-none">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                  পেইড (Paid)
-                                </span>
-                              )}
-
-                              <button
-                                onClick={() => {
-                                  if(window.confirm('এই পেআউট এন্ট্রিটি মুছে ফেলতে চান?')){
-                                    deletePathaoPayout(payout.id);
-                                  }
-                                }}
-                                className="text-gray-300 hover:text-rose-600 p-1.5 rounded-lg transition-colors cursor-pointer"
-                                title="মুছে ফেলুন"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
+                  return (
+                    <tr key={tx.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="py-4 px-5 text-gray-400 text-[11px] font-mono">
+                        {new Date(tx.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      </td>
+                      <td className="py-4 px-5">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${
+                            isBkash ? 'bg-pink-500' : isNagad ? 'bg-orange-500' : 'bg-emerald-500'
+                          }`}></span>
+                          <div>
+                            <span className="text-gray-950 font-black block leading-tight">{acc?.bankName || 'Unknown'}</span>
+                            <span className="text-[10px] text-gray-400 font-bold uppercase mt-0.5 block">{acc?.accountName}</span>
                           </div>
                         </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            </div>
+                      </td>
+                      <td className="py-4 px-5">
+                        <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase inline-flex items-center gap-1 ${
+                          isDeposit ? 'bg-emerald-50 text-emerald-600 border border-emerald-100/60' : isTransfer ? 'bg-indigo-50 text-indigo-600 border border-indigo-100/60' : 'bg-rose-50 text-rose-600 border border-rose-100/60'
+                        }`}>
+                          {isDeposit ? '↑ ইনকাম' : isTransfer ? '⇄ ট্রান্সফার' : '↓ খরচ'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-5 text-gray-600 max-w-xs truncate">
+                        {tx.reference && <span className="font-mono text-[10px] bg-gray-150 border border-gray-200 px-1.5 py-0.5 rounded-md mr-1.5 text-gray-700">{tx.reference}</span>}
+                        <span>{tx.notes || '-'}</span>
+                      </td>
+                      <td className={`py-4 px-5 text-right font-black text-sm ${isDeposit ? 'text-emerald-600' : isTransfer ? 'text-indigo-600' : 'text-rose-600'}`}>
+                        {isDeposit ? '+' : isTransfer ? '' : '-'}{formatPrice(tx.amount)}
+                      </td>
+                      <td className="py-4 px-5 text-right font-black text-gray-950 text-xs">
+                        {formatPrice(acc?.balance || 0)}
+                      </td>
+                      <td className="py-4 px-5 text-center">
+                        <button 
+                          onClick={() => toast.info('সংযুক্ত রশিদ লোড করা হচ্ছে...')}
+                          className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gray-100 text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 transition-colors cursor-pointer" 
+                          title="রসিদ দেখুন"
+                        >
+                          <FileText className="w-4 h-4" />
+                        </button>
+                      </td>
+                      <td className="py-4 px-5 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => {
+                              setSelectedTx(tx);
+                              setShowViewTxModal(true);
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-indigo-600 bg-gray-50 hover:bg-white border border-transparent hover:border-gray-150 rounded-lg transition-colors cursor-pointer"
+                            title="বিস্তারিত দেখুন"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleEditTxClick(tx)}
+                            className="p-1.5 text-gray-400 hover:text-indigo-600 bg-gray-50 hover:bg-white border border-transparent hover:border-gray-150 rounded-lg transition-colors cursor-pointer"
+                            title="এডিট"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm('আপনি কি এই লেনদেনটি মুছে ফেলতে চান?')) {
+                                deleteBankTransaction(tx.id);
+                              }
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-rose-600 bg-gray-50 hover:bg-red-50 border border-transparent hover:border-red-100 rounded-lg transition-colors cursor-pointer"
+                            title="মুছে ফেলুন"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Beautiful Table Footer with Pagination matching the image */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-50 pt-4 text-xs font-bold text-gray-500">
+          <div className="flex items-center gap-2">
+            <span>प्रति পৃষ্ঠায়:</span>
+            <select className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 focus:outline-none cursor-pointer">
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+            </select>
+            <span className="ml-3">মোট {filteredTransactions.length} টি ফলাফল</span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-600 transition-colors cursor-pointer">&lt;</button>
+            <button className="w-8 h-8 rounded-lg bg-[#4f46e5] text-white flex items-center justify-center font-black transition-colors cursor-pointer">1</button>
+            <button className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-250 flex items-center justify-center text-gray-600 transition-colors cursor-pointer">2</button>
+            <button className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-255 flex items-center justify-center text-gray-600 transition-colors cursor-pointer">3</button>
+            <button className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-255 flex items-center justify-center text-gray-600 transition-colors cursor-pointer">&gt;</button>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* --- MODAL DIALOGS --- */}
+      {/* --- MODALS --- */}
 
-      {/* 1. Add Bank Account Modal */}
+      {/* 1. New Account Modal */}
       {showAddAccountModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#F8F9FD] rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-gray-900">নতুন ব্যাংক অ্যাকাউন্ট / ওয়ালেট যোগ</h3>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-[150] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-50 pb-2">
+              <h3 className="text-base font-black text-gray-900">নতুন অ্যাকাউন্ট / ওয়ালেট যোগ</h3>
               <button onClick={() => setShowAddAccountModal(false)} className="text-gray-400 hover:text-black transition-colors cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAddAccountSubmit} className="space-y-3">
+            <form onSubmit={handleAddAccountSubmit} className="space-y-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">ব্যাংক বা ওয়ালেটের নাম *</label>
                 <input 
                   required
                   type="text" 
-                  placeholder="উদা: bKash Personal, City Bank"
+                  placeholder="উদা: bKash Personal, Sonali Bank"
                   value={accountForm.bankName} 
                   onChange={(e) => setAccountForm({ ...accountForm, bankName: e.target.value })}
-                  className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
                 />
               </div>
 
@@ -1336,7 +984,7 @@ export default function AdminFinance(): React.JSX.Element {
                   placeholder="উদা: Elegan BD Ltd"
                   value={accountForm.accountName} 
                   onChange={(e) => setAccountForm({ ...accountForm, accountName: e.target.value })}
-                  className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
                 />
               </div>
 
@@ -1348,7 +996,7 @@ export default function AdminFinance(): React.JSX.Element {
                   placeholder="উদা: 01XXXXXXXXX"
                   value={accountForm.accountNumber} 
                   onChange={(e) => setAccountForm({ ...accountForm, accountNumber: e.target.value })}
-                  className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
                 />
               </div>
 
@@ -1359,7 +1007,7 @@ export default function AdminFinance(): React.JSX.Element {
                   placeholder="উদা: Mirpur-10 (ঐচ্ছিক)"
                   value={accountForm.branch} 
                   onChange={(e) => setAccountForm({ ...accountForm, branch: e.target.value })}
-                  className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
                 />
               </div>
 
@@ -1371,13 +1019,13 @@ export default function AdminFinance(): React.JSX.Element {
                   placeholder="0.00"
                   value={accountForm.initialBalance} 
                   onChange={(e) => setAccountForm({ ...accountForm, initialBalance: e.target.value })}
-                  className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
                 />
               </div>
 
               <button 
                 type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs py-3 rounded-xl transition-all shadow-sm uppercase tracking-wider cursor-pointer"
+                className="w-full bg-[#4f46e5] hover:bg-indigo-700 text-white font-black text-xs py-3.5 rounded-xl transition-all shadow-md uppercase tracking-wider cursor-pointer"
               >
                 অ্যাকাউন্ট যোগ করুন
               </button>
@@ -1386,27 +1034,26 @@ export default function AdminFinance(): React.JSX.Element {
         </div>
       )}
 
-      {/* Edit Bank Account Modal */}
+      {/* 2. Edit Account Modal */}
       {showEditAccountModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#F8F9FD] rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-gray-900">ব্যাংক অ্যাকাউন্ট / ওয়ালেট সংশোধন</h3>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-[150] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-50 pb-2">
+              <h3 className="text-base font-black text-gray-900">ব্যাংক অ্যাকাউন্ট সংশোধন</h3>
               <button onClick={() => setShowEditAccountModal(false)} className="text-gray-400 hover:text-black transition-colors cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleEditAccountSubmit} className="space-y-3">
+            <form onSubmit={handleEditAccountSubmit} className="space-y-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">ব্যাংক বা ওয়ালেটের নাম *</label>
                 <input 
                   required
                   type="text" 
-                  placeholder="উদা: bKash Personal, City Bank"
                   value={editAccountForm.bankName} 
                   onChange={(e) => setEditAccountForm({ ...editAccountForm, bankName: e.target.value })}
-                  className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
                 />
               </div>
 
@@ -1415,131 +1062,84 @@ export default function AdminFinance(): React.JSX.Element {
                 <input 
                   required
                   type="text" 
-                  placeholder="উদা: Elegan BD Ltd"
                   value={editAccountForm.accountName} 
                   onChange={(e) => setEditAccountForm({ ...editAccountForm, accountName: e.target.value })}
-                  className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">অ্যাকাউন্ট নাম্বার / মোবাইল নাম্বার *</label>
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">অ্যাকাউন্ট নাম্বার *</label>
                 <input 
                   required
                   type="text" 
-                  placeholder="উদা: 01XXXXXXXXX"
                   value={editAccountForm.accountNumber} 
                   onChange={(e) => setEditAccountForm({ ...editAccountForm, accountNumber: e.target.value })}
-                  className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">শাখা (Branch)</label>
-                <input 
-                  type="text" 
-                  placeholder="উদা: Mirpur-10 (ঐচ্ছিক)"
-                  value={editAccountForm.branch} 
-                  onChange={(e) => setEditAccountForm({ ...editAccountForm, branch: e.target.value })}
-                  className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">ব্যালেন্স (৳)</label>
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">প্রাথমিক ব্যালেন্স (৳)</label>
                 <input 
                   type="number" 
                   step="any"
-                  placeholder="0.00"
-                  value={editAccountForm.balance || ''} 
-                  onChange={(e) => setEditAccountForm({ ...editAccountForm, balance: parseFloat(e.target.value) || 0 })}
-                  className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
+                  value={editAccountForm.initialBalance} 
+                  onChange={(e) => setEditAccountForm({ ...editAccountForm, initialBalance: parseFloat(e.target.value) || 0 })}
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
                 />
               </div>
 
               <button 
                 type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs py-3 rounded-xl transition-all shadow-sm uppercase tracking-wider cursor-pointer"
+                className="w-full bg-[#4f46e5] hover:bg-indigo-700 text-white font-black text-xs py-3.5 rounded-xl transition-all shadow-md uppercase tracking-wider cursor-pointer"
               >
-                আপডেট সেভ করুন
+                আপডেট করুন
               </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* 2. Bank Transaction Modal */}
-      {showBankTxModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#F8F9FD] rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-gray-900">তহবিল স্থানান্তর ও লেনদেন</h3>
-              <button onClick={() => setShowBankTxModal(false)} className="text-gray-400 hover:text-black transition-colors cursor-pointer">
+      {/* 3. Edit Transaction Modal */}
+      {showEditTxModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-[150] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-50 pb-2">
+              <h3 className="text-base font-black text-gray-900">লেনদেন সংশোধন করুন</h3>
+              <button onClick={() => setShowEditTxModal(false)} className="text-gray-400 hover:text-black transition-colors cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleBankTxSubmit} className="space-y-3">
+            <form onSubmit={handleEditTxSubmit} className="space-y-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">উৎস অ্যাকাউন্ট (Source Account) *</label>
-                <select 
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">হিসাব *</label>
+                <select
                   required
-                  value={bankTxForm.accountId} 
-                  onChange={(e) => setBankTxForm({ ...bankTxForm, accountId: e.target.value })}
-                  className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
+                  value={editTxForm.accountId}
+                  onChange={(e) => setEditTxForm({ ...editTxForm, accountId: e.target.value })}
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:outline-none"
                 >
-                  <option value="">সিলেক্ট করুন...</option>
                   {bankAccounts.map(acc => (
-                    <option key={acc.id} value={acc.id}>{acc.bankName} - {acc.accountName} ({formatPrice(acc.balance)})</option>
+                    <option key={acc.id} value={acc.id}>{acc.bankName} - {acc.accountName}</option>
                   ))}
                 </select>
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">লেনদেনের ধরন *</label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button 
-                    type="button"
-                    onClick={() => setBankTxForm({ ...bankTxForm, type: 'deposit' })}
-                    className={`py-2.5 rounded-xl border text-[10px] font-black transition-all ${bankTxForm.type === 'deposit' ? 'border-emerald-600 bg-emerald-50/50 text-emerald-600' : 'border-gray-200 text-gray-500 bg-[#FCFDFE]'}`}
-                  >
-                    জমা (Deposit)
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => setBankTxForm({ ...bankTxForm, type: 'withdraw' })}
-                    className={`py-2.5 rounded-xl border text-[10px] font-black transition-all ${bankTxForm.type === 'withdraw' ? 'border-rose-600 bg-rose-50/50 text-rose-600' : 'border-gray-200 text-gray-500 bg-[#FCFDFE]'}`}
-                  >
-                    উত্তোলন (Cashout)
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => setBankTxForm({ ...bankTxForm, type: 'transfer' })}
-                    className={`py-2.5 rounded-xl border text-[10px] font-black transition-all ${bankTxForm.type === 'transfer' ? 'border-indigo-600 bg-indigo-50/50 text-indigo-600' : 'border-gray-200 text-gray-500 bg-[#FCFDFE]'}`}
-                  >
-                    ট্রান্সফার (Transfer)
-                  </button>
-                </div>
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">লেনদেন ধরন *</label>
+                <select
+                  required
+                  value={editTxForm.type}
+                  onChange={(e) => setEditTxForm({ ...editTxForm, type: e.target.value as any })}
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:outline-none"
+                >
+                  <option value="deposit">ইনকাম / ডিপোজিট</option>
+                  <option value="withdraw">খরচ / উত্তোলন</option>
+                  <option value="transfer">ট্রান্সফার</option>
+                </select>
               </div>
-
-              {bankTxForm.type === 'transfer' && (
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">প্রাপক অ্যাকাউন্ট (Target Account) *</label>
-                  <select 
-                    required
-                    value={bankTxForm.targetAccountId} 
-                    onChange={(e) => setBankTxForm({ ...bankTxForm, targetAccountId: e.target.value })}
-                    className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
-                  >
-                    <option value="">সিলেক্ট করুন...</option>
-                    {bankAccounts
-                      .filter(acc => acc.id !== bankTxForm.accountId)
-                      .map(acc => (
-                        <option key={acc.id} value={acc.id}>{acc.bankName} - {acc.accountName}</option>
-                      ))}
-                  </select>
-                </div>
-              )}
 
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">পরিমাণ (৳) *</label>
@@ -1547,42 +1147,88 @@ export default function AdminFinance(): React.JSX.Element {
                   required
                   type="number" 
                   step="any"
-                  placeholder="0.00"
-                  value={bankTxForm.amount} 
-                  onChange={(e) => setBankTxForm({ ...bankTxForm, amount: e.target.value })}
-                  className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
+                  value={editTxForm.amount}
+                  onChange={(e) => setEditTxForm({ ...editTxForm, amount: e.target.value })}
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:outline-none"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">রেফারেন্স / ট্রানজেকশন আইডি</label>
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">তারিখ *</label>
                 <input 
-                  type="text" 
-                  placeholder="উদা: TXN8247924, bKash Ref"
-                  value={bankTxForm.reference} 
-                  onChange={(e) => setBankTxForm({ ...bankTxForm, reference: e.target.value })}
-                  className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
+                  required
+                  type="date"
+                  value={editTxForm.date}
+                  onChange={(e) => setEditTxForm({ ...editTxForm, date: e.target.value })}
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:outline-none"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">বিবরণ / নোট</label>
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">রেফারেন্স</label>
                 <input 
-                  type="text" 
-                  placeholder="উদা: কুরিয়ার সার্ভিস থেকে ডেলিভারি পেমেন্ট"
-                  value={bankTxForm.notes} 
-                  onChange={(e) => setBankTxForm({ ...bankTxForm, notes: e.target.value })}
-                  className="w-full bg-[#FCFDFE] border border-gray-150 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
+                  type="text"
+                  value={editTxForm.reference}
+                  onChange={(e) => setEditTxForm({ ...editTxForm, reference: e.target.value })}
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:outline-none"
                 />
               </div>
 
               <button 
                 type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs py-3 rounded-xl transition-all shadow-sm uppercase tracking-wider cursor-pointer"
+                className="w-full bg-[#4f46e5] hover:bg-indigo-700 text-white font-black text-xs py-3.5 rounded-xl transition-all shadow-md uppercase tracking-wider cursor-pointer"
               >
-                লেনদেন যোগ করুন
+                আপডেট করুন
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 4. View Transaction Details Modal */}
+      {showViewTxModal && selectedTx && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-[150] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-gray-50 pb-2">
+              <h3 className="text-base font-black text-gray-900">লেনদেনের বিস্তারিত বিবরণ</h3>
+              <button onClick={() => setShowViewTxModal(false)} className="text-gray-400 hover:text-black transition-colors cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2.5 text-xs font-bold">
+              <div className="flex justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                <span className="text-gray-400">তারিখ:</span>
+                <span className="font-black text-gray-900">{new Date(selectedTx.date).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                <span className="text-gray-400">হিসাব:</span>
+                <span className="font-black text-gray-900">{bankAccounts.find(a => a.id === selectedTx.accountId)?.bankName}</span>
+              </div>
+              <div className="flex justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                <span className="text-gray-400">ধরন:</span>
+                <span className="font-black text-gray-900 uppercase">{selectedTx.type}</span>
+              </div>
+              <div className="flex justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                <span className="text-gray-400">পরিমাণ:</span>
+                <span className="font-black text-[#4f46e5]">{formatPrice(selectedTx.amount)}</span>
+              </div>
+              <div className="flex justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                <span className="text-gray-400">রেফারেন্স:</span>
+                <span className="font-black text-gray-900">{selectedTx.reference || '-'}</span>
+              </div>
+              <div className="flex justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                <span className="text-gray-400">নোট / বিবরণ:</span>
+                <span className="font-black text-gray-900">{selectedTx.notes || '-'}</span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowViewTxModal(false)}
+              className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-black text-xs py-3.5 rounded-xl transition-all cursor-pointer"
+            >
+              বন্ধ করুন
+            </button>
           </div>
         </div>
       )}

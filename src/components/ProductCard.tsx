@@ -26,7 +26,7 @@ interface ProductCardProps {
   badgeText?: string;
 }
 
-const ProductCard = React.memo(({ product, onAddToCart, loading = "lazy", badgeText }: ProductCardProps) => {
+const ProductCard = React.memo(({ product, onAddToCart, loading = "eager", badgeText }: ProductCardProps) => {
   const { currency, rate } = useCurrency();
   const { currentUser } = useAuth();
   const [isQuickViewOpen, setIsQuickViewOpen] = React.useState(false);
@@ -96,11 +96,7 @@ const ProductCard = React.memo(({ product, onAddToCart, loading = "lazy", badgeT
   const rating = product.rating || 0;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "0px 0px -30px 0px" }}
-      transition={{ duration: 0.25, ease: 'easeOut' }}
+    <div
       className="group relative bg-white rounded-2xl border border-gray-100/90 shadow-2xs hover:shadow-md transition-all duration-300 p-2 sm:p-2.5 flex flex-col justify-between h-full"
     >
       <div>
@@ -116,6 +112,8 @@ const ProductCard = React.memo(({ product, onAddToCart, loading = "lazy", badgeT
               )}
               referrerPolicy="no-referrer"
               loading={loading}
+              // @ts-ignore
+              fetchpriority="high"
               decoding="async"
             />
           ) : (
@@ -196,7 +194,7 @@ const ProductCard = React.memo(({ product, onAddToCart, loading = "lazy", badgeT
         isOpen={isQuickViewOpen} 
         onClose={() => setIsQuickViewOpen(false)} 
       />
-    </motion.div>
+    </div>
   );
 });
 

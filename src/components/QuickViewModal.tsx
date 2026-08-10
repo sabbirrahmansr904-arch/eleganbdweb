@@ -64,6 +64,9 @@ export default function QuickViewModal({ product, isOpen, onClose }: QuickViewMo
                 src={product.images[selectedImage]} 
                 alt={product.name} 
                 className="w-full h-full object-contain bg-white p-4"
+                loading="lazy"
+                decoding="async"
+                referrerPolicy="no-referrer"
               />
               {product.images.length > 1 && (
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">

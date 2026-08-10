@@ -135,7 +135,7 @@ export default function AdminOrders(): React.JSX.Element {
   
   // Pathao Booking Modal States
   const [pathaoBookingOrder, setPathaoBookingOrder] = useState<Order | null>(null);
-  const [pathaoPickupStore, setPathaoPickupStore] = useState('Elegan BD — ১-এফ / ৩-১১ মিরপুর-১, ঢাকা ১২১৬');
+  const [pathaoPickupStore, setPathaoPickupStore] = useState('Elegan BD — Ma Villa, House #11, Road #3, Block F, Section #1, Mirpur, Dhaka-1216');
   const [pathaoCity, setPathaoCity] = useState('Dhaka'); // Default to Dhaka
   const [pathaoZone, setPathaoZone] = useState('');
   const [pathaoArea, setPathaoArea] = useState('');
@@ -585,6 +585,11 @@ export default function AdminOrders(): React.JSX.Element {
   };
 
   const handleStatusChange = async (id: string, newStatus: Order['status']) => {
+    const order = orders.find(o => o.id === id);
+    if (order && isDeliveredOrSuccess(order.status)) {
+      toast.error('সাকসেস বা ডেলিভার্ড অর্ডারের স্ট্যাটাস কোনোভাবেই পরিবর্তন করা যাবে না।');
+      return;
+    }
     try {
       await updateOrderStatus(id, newStatus);
       toast.success(`Order #${id} status updated to: ${newStatus}`);
@@ -1943,6 +1948,10 @@ export default function AdminOrders(): React.JSX.Element {
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1.5">
                           <button 
                             onClick={() => {
+                              if (isDeliveredOrSuccess(order.status)) {
+                                toast.error('সাকসেস বা ডেলিভার্ড অর্ডারের স্ট্যাটাস কোনোভাবেই পরিবর্তন করা যাবে না।');
+                                return;
+                              }
                               setActiveStatusDropdownOrderId(activeStatusDropdownOrderId === order.id ? null : order.id);
                             }}
                             className={cn(
@@ -3138,7 +3147,7 @@ export default function AdminOrders(): React.JSX.Element {
                     PICKUP STORE
                   </label>
                   <div className="w-full bg-[#FAFBFD] border border-[#EFF2F6] rounded-xl px-4 py-3 text-sm font-bold text-gray-700 select-all leading-relaxed whitespace-nowrap overflow-x-auto text-left">
-                    Elegan BD. — ১-এফ / ৩-১১ মিরপুর-১, ঢাকা ১২১৬
+                    Elegan BD. — Ma Villa, House #11, Road #3, Block F, Section #1, Mirpur, Dhaka-1216
                   </div>
                 </div>
 

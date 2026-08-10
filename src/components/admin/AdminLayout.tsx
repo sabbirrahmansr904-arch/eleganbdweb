@@ -238,8 +238,8 @@ export default function AdminLayout() {
     if (path.startsWith('/admin/exchanges')) return 'exchanges';
     if (path.startsWith('/admin/issues')) return 'issues';
     if (path.startsWith('/admin/master-table') || path.startsWith('/admin/inventory-log')) return 'masterTable';
-    if (path.startsWith('/admin/settings')) return 'settings';
     if (path.startsWith('/admin/finance')) return 'finance';
+    if (path.startsWith('/admin/settings')) return 'settings';
     return null;
   };
 

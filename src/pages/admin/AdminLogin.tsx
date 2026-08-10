@@ -212,7 +212,7 @@ export default function AdminLogin() {
         <div className="mt-12 pt-8 border-t border-gray-50 text-center">
            <p className="text-[10px] uppercase tracking-widest text-gray-300">
              Authorized Personnel Only<br/>
-             ১-এফ / ৩-১১ মিরপুর-১, ঢাকা ১২১৬
+             Ma Villa, House #11, Road #3, Block F, Section #1, Mirpur, Dhaka-1216
            </p>
         </div>
       </motion.div>

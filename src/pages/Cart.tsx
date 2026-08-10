@@ -55,6 +55,8 @@ export default function Cart() {
                       src={item.product.images[0]}
                       alt={item.product.name}
                       className="w-full h-full group-hover:scale-105 transition-transform duration-500 object-contain bg-white p-1"
+                      loading="lazy"
+                      decoding="async"
                       referrerPolicy="no-referrer"
                     />
                   </div>

@@ -47,7 +47,7 @@ export default function Contact() {
               </div>
               <div>
                 <h4 className="text-[10px] uppercase tracking-widest text-brand-ink/40 font-bold mb-2">Visit Our Atelier</h4>
-                <p className="text-xl font-serif">১-এফ / ৩-১১ মিরপুর-১, ঢাকা ১২১৬</p>
+                <p className="text-xl font-serif">Ma Villa, House #11, Road #3, Block F, Section #1, Mirpur, Dhaka-1216</p>
               </div>
             </div>
           </div>

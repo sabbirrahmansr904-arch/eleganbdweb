@@ -145,6 +145,9 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
                       src={product.images[0]} 
                       alt="" 
                       className="w-16 h-20 object-contain bg-white p-1"
+                      loading="lazy"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
                     />
                     <div>
                       <h4 className="text-[10px] font-black uppercase tracking-tight text-brand-black truncate w-48">

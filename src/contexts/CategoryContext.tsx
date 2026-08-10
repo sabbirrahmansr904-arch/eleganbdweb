@@ -21,6 +21,30 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: '5', name: 'Premium Shirt', slug: 'premium-shirt', description: 'Luxury collection shirts' }
 ];
 
+export const sortCategories = (list: Category[]): Category[] => {
+  return [...list].sort((a, b) => {
+    const aName = (a.name || '').toLowerCase();
+    const bName = (b.name || '').toLowerCase();
+    
+    const isAPant = aName.includes('pant') || aName.includes('trouser');
+    const isBPant = bName.includes('pant') || bName.includes('trouser');
+    
+    const isAShirt = aName.includes('shirt') || aName.includes('polo');
+    const isBShirt = bName.includes('shirt') || bName.includes('polo');
+    
+    // Pants first
+    if (isAPant && !isBPant) return -1;
+    if (!isAPant && isBPant) return 1;
+    
+    // Shirts second
+    if (isAShirt && !isBShirt) return -1;
+    if (!isAShirt && isBShirt) return 1;
+    
+    // Then alphabetical
+    return aName.localeCompare(bName);
+  });
+};
+
 export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +58,7 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       try {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed)) {
-          setCategories(parsed);
+          setCategories(sortCategories(parsed));
           setLoading(false);
         }
       } catch (e) {
@@ -56,16 +80,17 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const data = Array.from(uniqueMap.values());
 
       if (data.length > 0) {
-        setCategories(data);
-        localStorage.setItem('eleganbd_categories', JSON.stringify(data));
+        const sortedData = sortCategories(data);
+        setCategories(sortedData);
+        localStorage.setItem('eleganbd_categories', JSON.stringify(sortedData));
       } else if (!cached) {
-        setCategories(DEFAULT_CATEGORIES);
+        setCategories(sortCategories(DEFAULT_CATEGORIES));
       }
       setLoading(false);
     }, (error) => {
       console.error("Category sync error:", error);
       if (!cached) {
-        setCategories(DEFAULT_CATEGORIES);
+        setCategories(sortCategories(DEFAULT_CATEGORIES));
       }
       setLoading(false);
     });
@@ -75,7 +100,7 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const addCategory = async (category: Category) => {
     // Optimistic update immediately
-    const updated = [...categories, category];
+    const updated = sortCategories([...categories, category]);
     setCategories(updated);
     localStorage.setItem('eleganbd_categories', JSON.stringify(updated));
 
@@ -87,7 +112,7 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const updateCategory = async (updatedCategory: Category) => {
-    const updated = categories.map(c => c.id === updatedCategory.id ? updatedCategory : c);
+    const updated = sortCategories(categories.map(c => c.id === updatedCategory.id ? updatedCategory : c));
     setCategories(updated);
     localStorage.setItem('eleganbd_categories', JSON.stringify(updated));
 
@@ -99,7 +124,7 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const deleteCategory = async (id: string) => {
-    const updated = categories.filter(c => c.id !== id);
+    const updated = sortCategories(categories.filter(c => c.id !== id));
     setCategories(updated);
     localStorage.setItem('eleganbd_categories', JSON.stringify(updated));
 

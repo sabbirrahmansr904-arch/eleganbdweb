@@ -62,7 +62,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } catch(e) {}
     return INITIAL_PRODUCTS;
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [offerProductIds, setOfferProductIds] = useState<string[]>(() => {
     try {
       const cached = localStorage.getItem('eleganbd_offers');

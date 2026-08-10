@@ -76,6 +76,9 @@ const CartDrawer: React.FC = () => {
                         src={item.product.images[0]}
                         alt={item.product.name}
                         className="w-full h-full object-contain bg-white p-1"
+                        loading="lazy"
+                        decoding="async"
+                        referrerPolicy="no-referrer"
                       />
                     </div>
                     <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">

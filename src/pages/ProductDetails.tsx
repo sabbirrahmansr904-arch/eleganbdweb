@@ -250,6 +250,9 @@ const ProductDetails = () => {
                     src={img} 
                     alt="" 
                     className="w-full h-full object-contain bg-white p-1" 
+                    loading="lazy"
+                    decoding="async"
+                    referrerPolicy="no-referrer"
                   />
                 </button>
               ))}
@@ -272,6 +275,9 @@ const ProductDetails = () => {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   className="w-full h-full object-contain bg-white p-4"
+                  loading="lazy"
+                  decoding="async"
+                  referrerPolicy="no-referrer"
                 />
               </AnimatePresence>
 
@@ -837,6 +843,9 @@ const ProductDetails = () => {
                 src={product.images?.[0]} 
                 alt="" 
                 className="w-10 h-12 object-contain bg-gray-50 border border-gray-100 p-0.5 rounded-xs shrink-0" 
+                loading="lazy"
+                decoding="async"
+                referrerPolicy="no-referrer"
               />
               <div className="min-w-0">
                 <p className="text-[11px] font-black uppercase text-black truncate max-w-[120px] xs:max-w-[160px]">{product.name}</p>

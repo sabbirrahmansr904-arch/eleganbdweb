@@ -163,6 +163,9 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                               src={product.images[0]} 
                               alt={product.name} 
                               className="w-full h-full group-hover:scale-110 transition-transform duration-500 object-contain bg-white p-1"
+                              loading="lazy"
+                              decoding="async"
+                              referrerPolicy="no-referrer"
                             />
                           </div>
                           <div className="flex flex-col justify-center">

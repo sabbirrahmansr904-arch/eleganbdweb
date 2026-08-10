@@ -1424,6 +1424,9 @@ export default function Checkout() {
                               src={prod.images?.[0] || 'https://via.placeholder.com/100'}
                               alt=""
                               className="w-14 h-16 object-contain rounded-xl border border-gray-100 bg-gray-50 shrink-0"
+                              loading="lazy"
+                              decoding="async"
+                              referrerPolicy="no-referrer"
                             />
                             <div className="min-w-0">
                               <p className="text-xs font-black uppercase text-[#0C1421] truncate">{prod.name}</p>

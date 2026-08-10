@@ -270,6 +270,9 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const updateOrderStatus = async (id: string, status: Order['status']) => {
     try {
       const order = orders.find(o => o.id === id);
+      if (order && isDeliveredOrSuccess(order.status)) {
+        throw new Error('সাকসেস বা ডেলিভার্ড অর্ডারের স্ট্যাটাস কোনোভাবেই পরিবর্তন করা যাবে না।');
+      }
       if (order) {
         await handleStatusChangeStock(order, status);
       }

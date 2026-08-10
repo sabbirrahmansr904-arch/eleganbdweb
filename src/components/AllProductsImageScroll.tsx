@@ -99,6 +99,7 @@ export default function AllProductsImageScroll() {
                     alt={product.name}
                     className="w-full h-full object-cover object-center group-hover/card:scale-108 transition-transform duration-500"
                     loading="lazy"
+                    decoding="async"
                     referrerPolicy="no-referrer"
                   />
                   

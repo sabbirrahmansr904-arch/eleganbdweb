@@ -12,8 +12,8 @@ import { CartProvider } from './contexts/CartContext';
 import { InventoryProvider } from './contexts/InventoryContext';
 import { BannerProvider } from './contexts/BannerContext';
 import { CategoryProvider } from './contexts/CategoryContext';
-import { FinanceProvider } from './contexts/FinanceContext';
 import { ExpenseProvider } from './contexts/ExpenseContext';
+import { FinanceProvider } from './contexts/FinanceContext';
 
 // Layouts
 import AdminLayout from './components/admin/AdminLayout';
@@ -60,8 +60,8 @@ import AdminExchanges from './pages/admin/AdminExchanges';
 import AdminIssues from './pages/admin/AdminIssues';
 import AdminMedia from './pages/admin/AdminMedia';
 import FixSizes from './pages/admin/FixSizes';
-import AdminFinance from './pages/admin/AdminFinance';
 import AdminExpenses from './pages/admin/AdminExpenses';
+import AdminFinance from './pages/admin/AdminFinance';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requireAdmin = true }: { children: React.ReactNode, requireAdmin?: boolean }) => {
@@ -138,8 +138,8 @@ function AppRoutes() {
           <Route path="issues" element={<AdminIssues />} />
           <Route path="media" element={<AdminMedia />} />
           <Route path="fix-sizes" element={<FixSizes />} />
-          <Route path="finance" element={<AdminFinance />} />
           <Route path="expenses" element={<AdminExpenses />} />
+          <Route path="finance" element={<AdminFinance />} />
         </Route>
 
         {/* Catch-all */}

@@ -9,7 +9,7 @@ import { Link } from 'react-router-dom';
 import { useProducts } from '../contexts/ProductContext';
 import { useBanners } from '../contexts/BannerContext';
 import { useBranding } from '../contexts/BrandingContext';
-import { useCategories } from '../contexts/CategoryContext';
+import { useCategories, sortCategories } from '../contexts/CategoryContext';
 import ProductCard from '../components/ProductCard';
 import ReviewsCarousel from '../components/ReviewsCarousel';
 import { cn } from '../lib/utils';
@@ -25,6 +25,7 @@ const Home = () => {
     showHeroBanner,
     shirtBannerUrl,
     pantBannerUrl,
+    subHeroBannerUrl,
     ceoPhotoUrl,
     showCountdownBanner,
     comboOfferTitle,
@@ -41,8 +42,10 @@ const Home = () => {
 
   const bestSellingScrollRef = React.useRef<HTMLDivElement>(null);
   const newArrivalScrollRef = React.useRef<HTMLDivElement>(null);
+  const shopByCategoryScrollRef = React.useRef<HTMLDivElement>(null);
   const [isHoveredBestSelling, setIsHoveredBestSelling] = React.useState(false);
   const [isHoveredNewArrival, setIsHoveredNewArrival] = React.useState(false);
+  const [isHoveredShopCategory, setIsHoveredShopCategory] = React.useState(false);
 
   // FAQ Accordion state
   const [openFaq, setOpenFaq] = React.useState<number | null>(0);
@@ -124,10 +127,13 @@ const Home = () => {
       if (!isHoveredNewArrival) {
         autoScrollSection(newArrivalScrollRef);
       }
+      if (!isHoveredShopCategory) {
+        autoScrollSection(shopByCategoryScrollRef);
+      }
     }, 3000); // Synchronized 3-second timing
 
     return () => clearInterval(timer);
-  }, [isHoveredBestSelling, isHoveredNewArrival]);
+  }, [isHoveredBestSelling, isHoveredNewArrival, isHoveredShopCategory]);
   
   const activeHeroBannersFromDb = banners.filter(b => b.active && b.type === 'hero' && b.image && !b.image.includes('unsplash.com'));
   
@@ -197,7 +203,7 @@ const Home = () => {
         }
       });
     }
-    return list;
+    return sortCategories(list);
   }, [categories, products]);
 
   // Best Selling Products section
@@ -488,83 +494,72 @@ const Home = () => {
 
 
 
-      {/* MIDDLE SECTION: CATEGORY BANNERS (SHIRTS & PANTS) - ONLY RENDERED WHEN UPLOADED IN ADMIN */}
-      {(shirtBannerUrl || pantBannerUrl) && (
-        <section className="max-w-7xl mx-auto w-full px-4 pb-6 sm:pb-10">
-          <div className={cn(
-            "grid",
-            shirtBannerUrl && pantBannerUrl ? "grid-cols-2 gap-2.5 sm:gap-4 md:gap-6" : "grid-cols-1 gap-4 md:gap-6"
-          )}>
-            
-            {/* CATEGORY 1: SHIRTS BANNER */}
-            {shirtBannerUrl && (
-              <Link 
-                to="/category/formal-shirt"
-                className="group block relative rounded-xl sm:rounded-2xl md:rounded-3xl overflow-hidden min-h-[110px] sm:min-h-[180px] md:min-h-[260px] bg-gray-100 shadow-xs border border-gray-100/80 transition-all hover:shadow-md"
-              >
-                <img 
-                  src={shirtBannerUrl} 
-                  alt="Shirts Category Banner" 
-                  className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
-                  referrerPolicy="no-referrer"
-                />
-              </Link>
-            )}
 
-            {/* CATEGORY 2: PANTS BANNER */}
-            {pantBannerUrl && (
-              <Link 
-                to="/category/formal-pant"
-                className="group block relative rounded-xl sm:rounded-2xl md:rounded-3xl overflow-hidden min-h-[110px] sm:min-h-[180px] md:min-h-[260px] bg-gray-100 shadow-xs border border-gray-100/80 transition-all hover:shadow-md"
-              >
-                <img 
-                  src={pantBannerUrl} 
-                  alt="Pants Category Banner" 
-                  className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
-                  referrerPolicy="no-referrer"
-                />
-              </Link>
-            )}
-
-          </div>
-        </section>
-      )}
 
       {/* SHOP BY CATEGORY SECTION */}
       {displayCategories.length > 0 && (
-        <section className="max-w-7xl mx-auto w-full px-4 pb-12">
-          {/* Section Header: SHOP BY CATEGORY (CENTERED & BLUE) */}
-          <div className="relative flex items-center justify-center border-b border-gray-100 pb-4 mb-8">
-            <h2 className="text-xl md:text-2xl font-black uppercase text-blue-600 tracking-tight text-center">
+        <section className="max-w-7xl mx-auto w-full px-3 sm:px-4 pb-12">
+          {/* Section Header: SHOP BY CATEGORY with Scroll Controls */}
+          <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-6 px-1">
+            <h2 className="text-sm sm:text-base md:text-xl font-extrabold uppercase text-blue-600 tracking-wide">
               SHOP BY CATEGORY
             </h2>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => scrollLeft(shopByCategoryScrollRef)}
+                className="w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-black hover:text-white hover:border-black transition-colors flex items-center justify-center text-gray-700 cursor-pointer shadow-2xs"
+                aria-label="Scroll left"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                onClick={() => scrollRight(shopByCategoryScrollRef)}
+                className="w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-black hover:text-white hover:border-black transition-colors flex items-center justify-center text-gray-700 cursor-pointer shadow-2xs"
+                aria-label="Scroll right"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
           </div>
 
-          {/* Category Cards Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-            {displayCategories.map((cat) => (
-              <Link
-                key={cat.id || cat.slug}
-                to={`/category/${cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-')}`}
-                className="group relative flex flex-col items-center justify-center p-5 sm:p-6 rounded-2xl bg-white border border-gray-200/90 shadow-xs hover:shadow-md hover:border-blue-500 transition-all text-center overflow-hidden"
-              >
-                {cat.image ? (
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 mb-3 rounded-2xl overflow-hidden bg-gray-50 border border-gray-100 flex items-center justify-center group-hover:scale-105 transition-transform">
-                    <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                  </div>
-                ) : (
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 mb-3 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-black group-hover:bg-blue-600 group-hover:text-white transition-all shadow-xs">
-                    <Tag size={22} />
-                  </div>
-                )}
-                <span className="font-black text-xs sm:text-sm text-gray-900 group-hover:text-blue-600 uppercase tracking-wider transition-colors line-clamp-1">
-                  {cat.name}
-                </span>
-                <span className="text-[10px] sm:text-[11px] font-bold text-gray-400 group-hover:text-blue-500 transition-colors mt-1 uppercase tracking-wider flex items-center gap-1">
-                  Explore <ArrowRight size={10} />
-                </span>
-              </Link>
-            ))}
+          <div className="relative group/carousel">
+            <div 
+              ref={shopByCategoryScrollRef}
+              onMouseEnter={() => setIsHoveredShopCategory(true)}
+              onMouseLeave={() => setIsHoveredShopCategory(false)}
+              onTouchStart={() => setIsHoveredShopCategory(true)}
+              onTouchEnd={() => setIsHoveredShopCategory(false)}
+              className="flex gap-3 sm:gap-4 overflow-x-auto pb-3 scroll-smooth snap-x snap-mandatory no-scrollbar"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {displayCategories.map((cat) => {
+                const catImg = cat.image || 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600&q=80';
+                return (
+                  <Link
+                    key={cat.id || cat.slug}
+                    to={`/category/${cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-')}`}
+                    className="shrink-0 w-[160px] sm:w-[210px] md:w-[240px] group/card relative rounded-2xl overflow-hidden aspect-3/4 bg-gray-900 border border-gray-200/80 shadow-xs hover:shadow-xl hover:border-blue-500 transition-all duration-300 block snap-start"
+                  >
+                    <img 
+                      src={catImg} 
+                      alt={cat.name} 
+                      className="w-full h-full object-cover object-center group-hover/card:scale-108 transition-transform duration-700" 
+                      referrerPolicy="no-referrer"
+                    />
+                    
+                    {/* Dark gradient overlay at bottom */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4 text-white">
+                      <h3 className="font-black text-xs sm:text-sm uppercase tracking-wider group-hover/card:text-blue-400 transition-colors line-clamp-1">
+                        {cat.name}
+                      </h3>
+                      <span className="text-[10px] sm:text-[11px] font-bold text-gray-300 group-hover:text-white transition-colors mt-1 uppercase tracking-wider flex items-center gap-1">
+                        EXPLORE <ArrowRight size={10} />
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
         </section>
       )}
@@ -673,9 +668,9 @@ const Home = () => {
                 <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
                   🧵
                 </div>
-                <h3 className="font-extrabold text-sm text-white uppercase mb-1">কটন টুয়েল স্ট্রেচ</h3>
+                <h3 className="font-extrabold text-sm text-white uppercase mb-1">Export Woven Cotton স্ট্রেচ</h3>
                 <p className="text-xs text-slate-300 font-medium leading-relaxed">
-                  উন্নত কটন টুয়েল কাপড়ে ৩% স্প্যানডেক্স মিক্সড যা আপনাকে বসা বা হাঁটার সময় সর্বোচ্চ আরাম দেয়।
+                  উন্নত Export Woven Cotton কাপড়ে ৩% স্প্যানডেক্স মিক্সড যা আপনাকে বসা বা হাঁটার সময় সর্বোচ্চ আরাম দেয়।
                 </p>
               </div>
 
@@ -789,6 +784,23 @@ const Home = () => {
           </div>
         )}
       </section>
+
+      {/* SUB-HERO BANNER - BELOW ALL PRODUCTS */}
+      {subHeroBannerUrl && (
+        <section className="max-w-7xl mx-auto w-full px-4 pb-16">
+          <Link 
+            to="/category/all" 
+            className="group block relative rounded-2xl sm:rounded-3xl overflow-hidden bg-gray-100 shadow-sm border border-gray-100/80 transition-all hover:shadow-md"
+          >
+            <img 
+              src={subHeroBannerUrl} 
+              alt="Sub-Hero Promotional Banner" 
+              className="w-full h-auto object-cover object-center transition-transform duration-700 group-hover:scale-101"
+              referrerPolicy="no-referrer"
+            />
+          </Link>
+        </section>
+      )}
 
       {/* BEST SELLING PRODUCTS SECTION */}
       {bestSellingProducts.length > 0 && (
@@ -1043,7 +1055,7 @@ const Home = () => {
                 <Users className="w-6 h-6 text-blue-600" />
               </div>
               <span className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-blue-600">
-                5000+
+                7k+
               </span>
               <span className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-blue-600 mt-1">
                 Happy Customers
@@ -1056,7 +1068,7 @@ const Home = () => {
                 <ShoppingBag className="w-6 h-6 text-blue-600" />
               </div>
               <span className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-blue-600">
-                1000+
+                19k+
               </span>
               <span className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-blue-600 mt-1">
                 Orders Delivered
