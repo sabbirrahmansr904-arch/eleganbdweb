@@ -239,7 +239,7 @@ export default function AdminLayout() {
     if (path.startsWith('/admin/issues')) return 'issues';
     if (path.startsWith('/admin/master-table') || path.startsWith('/admin/inventory-log')) return 'masterTable';
     if (path.startsWith('/admin/settings')) return 'settings';
-    if (path.startsWith('/admin/finance') || path.startsWith('/admin/expenses')) return 'finance';
+    if (path.startsWith('/admin/finance')) return 'finance';
     return null;
   };
 
@@ -260,6 +260,7 @@ export default function AdminLayout() {
         { name: 'Issues', path: '/admin/issues', icon: MessageCircle, perm: 'issues' },
         { name: 'Master Table', path: '/admin/master-table', icon: Table, perm: 'masterTable' },
         { name: 'Inventory Log', path: '/admin/inventory-log', icon: History, perm: 'masterTable' },
+        { name: 'Finance', path: '/admin/finance', icon: DollarSign, perm: 'finance' },
       ]
     },
     {
@@ -274,9 +275,7 @@ export default function AdminLayout() {
     },
     {
       items: [
-        { name: 'Payments', path: '/admin/settings?tab=Payments', icon: CreditCard, perm: 'settings' },
-        { name: 'Bank', path: '/admin/finance', icon: DollarSign, perm: 'finance' },
-        { name: 'Expenses', path: '/admin/expenses', icon: CreditCard, perm: 'finance' },
+        { name: 'Pay Method', path: '/admin/settings?tab=Payments', icon: CreditCard, perm: 'settings' },
       ]
     },
     {

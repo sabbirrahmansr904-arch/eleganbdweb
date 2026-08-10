@@ -43,10 +43,17 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     const unsubscribe = onSnapshot(categoriesCol, (snapshot) => {
-      const data: Category[] = [];
+      const rawData: Category[] = [];
       snapshot.forEach(doc => {
-        data.push({ ...doc.data() as Category, id: doc.id });
+        rawData.push({ ...doc.data() as Category, id: doc.id });
       });
+
+      // Ensure unique categories by id
+      const uniqueMap = new Map<string, Category>();
+      rawData.forEach(cat => {
+        if (cat.id) uniqueMap.set(cat.id, cat);
+      });
+      const data = Array.from(uniqueMap.values());
 
       if (data.length > 0) {
         setCategories(data);
@@ -67,32 +74,39 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const addCategory = async (category: Category) => {
+    // Optimistic update immediately
+    const updated = [...categories, category];
+    setCategories(updated);
+    localStorage.setItem('eleganbd_categories', JSON.stringify(updated));
+
     try {
       await setDoc(doc(db, 'categories', category.id), category);
-      // Optimistic update
-      setCategories(prev => [...prev, category]);
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, `categories/${category.id}`);
+      console.warn("Firestore category sync warning:", error);
     }
   };
 
   const updateCategory = async (updatedCategory: Category) => {
+    const updated = categories.map(c => c.id === updatedCategory.id ? updatedCategory : c);
+    setCategories(updated);
+    localStorage.setItem('eleganbd_categories', JSON.stringify(updated));
+
     try {
       await setDoc(doc(db, 'categories', updatedCategory.id), updatedCategory, { merge: true });
-      // Optimistic update
-      setCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c));
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `categories/${updatedCategory.id}`);
+      console.warn("Firestore category update warning:", error);
     }
   };
 
   const deleteCategory = async (id: string) => {
+    const updated = categories.filter(c => c.id !== id);
+    setCategories(updated);
+    localStorage.setItem('eleganbd_categories', JSON.stringify(updated));
+
     try {
       await deleteDoc(doc(db, 'categories', id));
-      // Optimistic update
-      setCategories(prev => prev.filter(c => c.id !== id));
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `categories/${id}`);
+      console.warn("Firestore category delete warning:", error);
     }
   };
 

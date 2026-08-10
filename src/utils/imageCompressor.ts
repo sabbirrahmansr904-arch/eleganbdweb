@@ -22,7 +22,7 @@ export const compressImage = (file: File, maxWidth = 1600, maxHeight = 1600, qua
           }
         }
 
-        // Iterative reduction loop to guarantee it fits under Firestore's 1MB limit
+        // Safe limit: 500,000 characters of base64 represents about ~375KB (well under Firestore's 1MB limit)
         let currentWidth = Math.round(width);
         let currentHeight = Math.round(height);
         let currentQuality = quality;
@@ -32,12 +32,11 @@ export const compressImage = (file: File, maxWidth = 1600, maxHeight = 1600, qua
         let dataUrl = '';
         let passes = 0;
         
-        while (passes < 10) {
+        while (passes < 12) {
           canvas.width = currentWidth;
           canvas.height = currentHeight;
           const ctx = canvas.getContext('2d');
           if (ctx) {
-            // For JPEG, fill white background to prevent black boxes on transparent PNGs
             if (currentFormat === 'image/jpeg') {
               ctx.fillStyle = '#FFFFFF';
               ctx.fillRect(0, 0, currentWidth, currentHeight);
@@ -49,25 +48,20 @@ export const compressImage = (file: File, maxWidth = 1600, maxHeight = 1600, qua
           
           dataUrl = canvas.toDataURL(currentFormat, currentQuality);
           
-          // Safe limit: 850,000 characters of base64 represents about 630KB
-          if (dataUrl.length < 850000) {
+          if (dataUrl.length < 500000) {
             break;
           }
           
           passes++;
-          if (isPng && passes <= 3) {
-            // Scale down PNG dimensions first before switching to JPEG
-            currentWidth = Math.round(currentWidth * 0.85);
-            currentHeight = Math.round(currentHeight * 0.85);
-          } else if (isPng && passes === 4) {
-            // Switch to JPEG after trying PNG scale-down
-            currentFormat = 'image/jpeg';
-            currentQuality = 0.9;
-          } else {
-            // JPEG: scale down dimensions and quality
-            currentQuality = Math.max(0.2, currentQuality - 0.15);
+          if (isPng && passes <= 2) {
             currentWidth = Math.round(currentWidth * 0.8);
             currentHeight = Math.round(currentHeight * 0.8);
+          } else {
+            // Force JPEG for large images since PNG quality parameter is ignored by HTML Canvas
+            currentFormat = 'image/jpeg';
+            currentQuality = Math.max(0.3, currentQuality - 0.15);
+            currentWidth = Math.round(currentWidth * 0.75);
+            currentHeight = Math.round(currentHeight * 0.75);
           }
         }
 

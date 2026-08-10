@@ -46,6 +46,18 @@ interface BrandingContextType {
   primaryDeliveryDistrict: string;
   aboutText: string;
 
+  // Why Choose Elegan BD 5-Image Grid
+  whyChooseImg1: string;
+  whyChooseImg2: string;
+  whyChooseImg3: string;
+  whyChooseImg4: string;
+  whyChooseImg5: string;
+  whyChooseText1: string;
+  whyChooseText2: string;
+  whyChooseText3: string;
+  whyChooseText4: string;
+  whyChooseText5: string;
+
   setLogoUrl: (url: string) => void;
   setSizeChartUrl: (url: string) => void;
   setCeoPhotoUrl: (url: string) => void;
@@ -82,7 +94,30 @@ interface BrandingContextType {
   setShippingFreeAfter: (val: number) => void;
   setPrimaryDeliveryDistrict: (val: string) => void;
   setAboutText: (text: string) => void;
+
+  setWhyChooseImg1: (url: string) => void;
+  setWhyChooseImg2: (url: string) => void;
+  setWhyChooseImg3: (url: string) => void;
+  setWhyChooseImg4: (url: string) => void;
+  setWhyChooseImg5: (url: string) => void;
+  setWhyChooseText1: (text: string) => void;
+  setWhyChooseText2: (text: string) => void;
+  setWhyChooseText3: (text: string) => void;
+  setWhyChooseText4: (text: string) => void;
+  setWhyChooseText5: (text: string) => void;
 }
+
+const DEFAULT_WHY_CHOOSE_IMG_1 = "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=800&q=80";
+const DEFAULT_WHY_CHOOSE_IMG_2 = "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80";
+const DEFAULT_WHY_CHOOSE_IMG_3 = "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=800&q=80";
+const DEFAULT_WHY_CHOOSE_IMG_4 = "https://images.unsplash.com/photo-1620012253295-c15cc3e65df4?auto=format&fit=crop&w=800&q=80";
+const DEFAULT_WHY_CHOOSE_IMG_5 = "https://images.unsplash.com/photo-1516257984-b1b4d707412e?auto=format&fit=crop&w=800&q=80";
+
+const DEFAULT_WHY_CHOOSE_TEXT_1 = "CRAFTED FOR COMFORT. DESIGNED FOR STYLE.";
+const DEFAULT_WHY_CHOOSE_TEXT_2 = "STAY COOL. STAY STYLISH.";
+const DEFAULT_WHY_CHOOSE_TEXT_3 = "LIGHTWEIGHT COMFORT FOR EVERY DAY.";
+const DEFAULT_WHY_CHOOSE_TEXT_4 = "PREMIUM FABRIC. EFFORTLESS STYLE.";
+const DEFAULT_WHY_CHOOSE_TEXT_5 = "ELEGANT CRAFTSMANSHIP FOR MEN.";
 
 const cleanUrl = (url?: string) => {
   if (!url) return "/logo.png";
@@ -434,6 +469,87 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return DEFAULT_ABOUT_TEXT;
   });
 
+  // Why Choose 4 Images & Text states
+  const [whyChooseImg1, setWhyChooseImg1State] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_why_choose');
+    if (cached) {
+      try { return JSON.parse(cached).img1 || DEFAULT_WHY_CHOOSE_IMG_1; } catch (e) { return DEFAULT_WHY_CHOOSE_IMG_1; }
+    }
+    return DEFAULT_WHY_CHOOSE_IMG_1;
+  });
+
+  const [whyChooseImg2, setWhyChooseImg2State] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_why_choose');
+    if (cached) {
+      try { return JSON.parse(cached).img2 || DEFAULT_WHY_CHOOSE_IMG_2; } catch (e) { return DEFAULT_WHY_CHOOSE_IMG_2; }
+    }
+    return DEFAULT_WHY_CHOOSE_IMG_2;
+  });
+
+  const [whyChooseImg3, setWhyChooseImg3State] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_why_choose');
+    if (cached) {
+      try { return JSON.parse(cached).img3 || DEFAULT_WHY_CHOOSE_IMG_3; } catch (e) { return DEFAULT_WHY_CHOOSE_IMG_3; }
+    }
+    return DEFAULT_WHY_CHOOSE_IMG_3;
+  });
+
+  const [whyChooseImg4, setWhyChooseImg4State] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_why_choose');
+    if (cached) {
+      try { return JSON.parse(cached).img4 || DEFAULT_WHY_CHOOSE_IMG_4; } catch (e) { return DEFAULT_WHY_CHOOSE_IMG_4; }
+    }
+    return DEFAULT_WHY_CHOOSE_IMG_4;
+  });
+
+  const [whyChooseImg5, setWhyChooseImg5State] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_why_choose');
+    if (cached) {
+      try { return JSON.parse(cached).img5 || DEFAULT_WHY_CHOOSE_IMG_5; } catch (e) { return DEFAULT_WHY_CHOOSE_IMG_5; }
+    }
+    return DEFAULT_WHY_CHOOSE_IMG_5;
+  });
+
+  const [whyChooseText1, setWhyChooseText1State] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_why_choose');
+    if (cached) {
+      try { return JSON.parse(cached).text1 ?? DEFAULT_WHY_CHOOSE_TEXT_1; } catch (e) { return DEFAULT_WHY_CHOOSE_TEXT_1; }
+    }
+    return DEFAULT_WHY_CHOOSE_TEXT_1;
+  });
+
+  const [whyChooseText2, setWhyChooseText2State] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_why_choose');
+    if (cached) {
+      try { return JSON.parse(cached).text2 ?? DEFAULT_WHY_CHOOSE_TEXT_2; } catch (e) { return DEFAULT_WHY_CHOOSE_TEXT_2; }
+    }
+    return DEFAULT_WHY_CHOOSE_TEXT_2;
+  });
+
+  const [whyChooseText3, setWhyChooseText3State] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_why_choose');
+    if (cached) {
+      try { return JSON.parse(cached).text3 ?? DEFAULT_WHY_CHOOSE_TEXT_3; } catch (e) { return DEFAULT_WHY_CHOOSE_TEXT_3; }
+    }
+    return DEFAULT_WHY_CHOOSE_TEXT_3;
+  });
+
+  const [whyChooseText4, setWhyChooseText4State] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_why_choose');
+    if (cached) {
+      try { return JSON.parse(cached).text4 ?? DEFAULT_WHY_CHOOSE_TEXT_4; } catch (e) { return DEFAULT_WHY_CHOOSE_TEXT_4; }
+    }
+    return DEFAULT_WHY_CHOOSE_TEXT_4;
+  });
+
+  const [whyChooseText5, setWhyChooseText5State] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_why_choose');
+    if (cached) {
+      try { return JSON.parse(cached).text5 ?? DEFAULT_WHY_CHOOSE_TEXT_5; } catch (e) { return DEFAULT_WHY_CHOOSE_TEXT_5; }
+    }
+    return DEFAULT_WHY_CHOOSE_TEXT_5;
+  });
+
   useEffect(() => {
     const fetchBranding = async () => {
       try {
@@ -498,6 +614,56 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           const images = catSnap.data().images || {};
           setCategoryImagesState(images);
           localStorage.setItem('eleganbd_category_images_map', JSON.stringify(images));
+        }
+
+        // 4. Fetch Why Choose Grid Images & Text (from separate documents, fallback to single document)
+        for (let i = 1; i <= 5; i++) {
+          try {
+            const itemRef = doc(db, 'config', `why_choose_${i}`);
+            const itemSnap = await getDoc(itemRef);
+            if (itemSnap.exists()) {
+              const data = itemSnap.data();
+              if (data.url || data.img) {
+                const imgVal = data.url || data.img;
+                if (i === 1) setWhyChooseImg1State(imgVal);
+                if (i === 2) setWhyChooseImg2State(imgVal);
+                if (i === 3) setWhyChooseImg3State(imgVal);
+                if (i === 4) setWhyChooseImg4State(imgVal);
+                if (i === 5) setWhyChooseImg5State(imgVal);
+              }
+              if (data.text !== undefined) {
+                if (i === 1) setWhyChooseText1State(data.text);
+                if (i === 2) setWhyChooseText2State(data.text);
+                if (i === 3) setWhyChooseText3State(data.text);
+                if (i === 4) setWhyChooseText4State(data.text);
+                if (i === 5) setWhyChooseText5State(data.text);
+              }
+            }
+          } catch (e) {
+            console.warn(`Failed to fetch why_choose_${i}`, e);
+          }
+        }
+
+        const whyChooseRef = doc(db, 'config', 'why_choose');
+        try {
+          const whyChooseSnap = await getDoc(whyChooseRef);
+          if (whyChooseSnap.exists()) {
+            const data = whyChooseSnap.data();
+            if (data.img1) setWhyChooseImg1State(prev => prev || data.img1);
+            if (data.img2) setWhyChooseImg2State(prev => prev || data.img2);
+            if (data.img3) setWhyChooseImg3State(prev => prev || data.img3);
+            if (data.img4) setWhyChooseImg4State(prev => prev || data.img4);
+            if (data.img5) setWhyChooseImg5State(prev => prev || data.img5);
+            if (data.text1 !== undefined) setWhyChooseText1State(prev => prev || data.text1);
+            if (data.text2 !== undefined) setWhyChooseText2State(prev => prev || data.text2);
+            if (data.text3 !== undefined) setWhyChooseText3State(prev => prev || data.text3);
+            if (data.text4 !== undefined) setWhyChooseText4State(prev => prev || data.text4);
+            if (data.text5 !== undefined) setWhyChooseText5State(prev => prev || data.text5);
+
+            localStorage.setItem('eleganbd_why_choose', JSON.stringify(data));
+          }
+        } catch (e) {
+          console.warn("Single why_choose fetch skipped", e);
         }
       } catch (err) {
         console.error("Branding sync error:", err);
@@ -740,6 +906,86 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     updateFirestore('branding', { aboutText: text });
   };
 
+  const setWhyChooseImg1 = (url: string) => {
+    setWhyChooseImg1State(url);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_why_choose') || '{}');
+    const updated = { ...cache, img1: url };
+    localStorage.setItem('eleganbd_why_choose', JSON.stringify(updated));
+    updateFirestore('why_choose_1', { url });
+  };
+
+  const setWhyChooseImg2 = (url: string) => {
+    setWhyChooseImg2State(url);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_why_choose') || '{}');
+    const updated = { ...cache, img2: url };
+    localStorage.setItem('eleganbd_why_choose', JSON.stringify(updated));
+    updateFirestore('why_choose_2', { url });
+  };
+
+  const setWhyChooseImg3 = (url: string) => {
+    setWhyChooseImg3State(url);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_why_choose') || '{}');
+    const updated = { ...cache, img3: url };
+    localStorage.setItem('eleganbd_why_choose', JSON.stringify(updated));
+    updateFirestore('why_choose_3', { url });
+  };
+
+  const setWhyChooseImg4 = (url: string) => {
+    setWhyChooseImg4State(url);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_why_choose') || '{}');
+    const updated = { ...cache, img4: url };
+    localStorage.setItem('eleganbd_why_choose', JSON.stringify(updated));
+    updateFirestore('why_choose_4', { url });
+  };
+
+  const setWhyChooseImg5 = (url: string) => {
+    setWhyChooseImg5State(url);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_why_choose') || '{}');
+    const updated = { ...cache, img5: url };
+    localStorage.setItem('eleganbd_why_choose', JSON.stringify(updated));
+    updateFirestore('why_choose_5', { url });
+  };
+
+  const setWhyChooseText1 = (text: string) => {
+    setWhyChooseText1State(text);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_why_choose') || '{}');
+    const updated = { ...cache, text1: text };
+    localStorage.setItem('eleganbd_why_choose', JSON.stringify(updated));
+    updateFirestore('why_choose_1', { text });
+  };
+
+  const setWhyChooseText2 = (text: string) => {
+    setWhyChooseText2State(text);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_why_choose') || '{}');
+    const updated = { ...cache, text2: text };
+    localStorage.setItem('eleganbd_why_choose', JSON.stringify(updated));
+    updateFirestore('why_choose_2', { text });
+  };
+
+  const setWhyChooseText3 = (text: string) => {
+    setWhyChooseText3State(text);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_why_choose') || '{}');
+    const updated = { ...cache, text3: text };
+    localStorage.setItem('eleganbd_why_choose', JSON.stringify(updated));
+    updateFirestore('why_choose_3', { text });
+  };
+
+  const setWhyChooseText4 = (text: string) => {
+    setWhyChooseText4State(text);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_why_choose') || '{}');
+    const updated = { ...cache, text4: text };
+    localStorage.setItem('eleganbd_why_choose', JSON.stringify(updated));
+    updateFirestore('why_choose_4', { text });
+  };
+
+  const setWhyChooseText5 = (text: string) => {
+    setWhyChooseText5State(text);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_why_choose') || '{}');
+    const updated = { ...cache, text5: text };
+    localStorage.setItem('eleganbd_why_choose', JSON.stringify(updated));
+    updateFirestore('why_choose_5', { text });
+  };
+
   useEffect(() => {
     const targetImage = heroBannerUrl || logoUrl || 'https://eleganbd.vercel.app/og-image.png';
     const faviconImage = logoUrl || heroBannerUrl || '/logo.png';
@@ -786,9 +1032,11 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       logoUrl, sizeChartUrl, ceoPhotoUrl, collectionsBannerUrl, heroBannerUrl, heroBanner2Url, heroBanner3Url, subHeroBannerUrl, featureBannerUrl, poloBannerUrl,
       shirtBannerUrl: featureBannerUrl, pantBannerUrl: poloBannerUrl, comboOfferBannerUrl, showShowcase, categoryImages, 
       showAnnouncementBar, announcementMessage, showCountdownBanner, comboOfferTitle, comboOfferSubTitle, comboOfferDiscount, comboOfferHours, comboOfferMinutes, comboOfferSeconds, showHeroBanner, facebookUrl, instagramUrl, youtubeUrl, tiktokUrl, shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter, primaryDeliveryDistrict, aboutText,
+      whyChooseImg1, whyChooseImg2, whyChooseImg3, whyChooseImg4, whyChooseImg5, whyChooseText1, whyChooseText2, whyChooseText3, whyChooseText4, whyChooseText5,
       setLogoUrl, setSizeChartUrl, setCeoPhotoUrl, setCollectionsBannerUrl, setHeroBannerUrl, setHeroBanner2Url, setHeroBanner3Url, setSubHeroBannerUrl, setFeatureBannerUrl, setPoloBannerUrl,
       setShirtBannerUrl: setFeatureBannerUrl, setPantBannerUrl: setPoloBannerUrl, setComboOfferBannerUrl, setShowShowcase, setCategoryImageUrl,
-      setShowAnnouncementBar, setAnnouncementMessage, setShowCountdownBanner, setComboOfferTitle, setComboOfferSubTitle, setComboOfferDiscount, setComboOfferHours, setComboOfferMinutes, setComboOfferSeconds, setShowHeroBanner, setFacebookUrl, setInstagramUrl, setYoutubeUrl, setTiktokUrl, setShippingInsideDhaka, setShippingOutsideDhaka, setShippingFreeAfter, setPrimaryDeliveryDistrict, setAboutText
+      setShowAnnouncementBar, setAnnouncementMessage, setShowCountdownBanner, setComboOfferTitle, setComboOfferSubTitle, setComboOfferDiscount, setComboOfferHours, setComboOfferMinutes, setComboOfferSeconds, setShowHeroBanner, setFacebookUrl, setInstagramUrl, setYoutubeUrl, setTiktokUrl, setShippingInsideDhaka, setShippingOutsideDhaka, setShippingFreeAfter, setPrimaryDeliveryDistrict, setAboutText,
+      setWhyChooseImg1, setWhyChooseImg2, setWhyChooseImg3, setWhyChooseImg4, setWhyChooseImg5, setWhyChooseText1, setWhyChooseText2, setWhyChooseText3, setWhyChooseText4, setWhyChooseText5
     }}>
       {children}
     </BrandingContext.Provider>

@@ -26,6 +26,9 @@ const ProductDetails = () => {
   const product = products.find(p => p.id === id);
   const isBag = (product?.category || '').toLowerCase().includes('bag');
   const isFormalShirt = (product?.category || '').toLowerCase().includes('formal');
+  const isPant = (product?.category || '').toLowerCase().includes('pant') || (product?.category || '').toLowerCase().includes('chino');
+  const isShirt = (product?.category || '').toLowerCase().includes('shirt') || (product?.category || '').toLowerCase().includes('polo');
+  const defaultFabric = isPant ? 'Woven Cotton Fabrics' : isShirt ? 'Refine Cotton' : (product?.fabric || product?.material || 'Premium Fabric');
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState('');
   const [quantity, setQuantity] = useState(1);
@@ -495,36 +498,36 @@ const ProductDetails = () => {
               </div>
             </div>
 
-            {/* Formal Shirt Specs Box */}
-            {isFormalShirt && (
-              <div className="bg-white border border-gray-100 rounded-3xl p-6 mb-6 shadow-sm">
-                <h3 className="text-[11px] font-black uppercase tracking-widest text-black mb-4 flex items-center gap-2">
-                  <Sparkles size={16} className="text-brand-gold" />
-                  Technical Specifications
+            {/* Fabric & Technical Specifications Box */}
+            {!isBag && (
+              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-5 mb-4 shadow-2xs">
+                <h3 className="text-[11px] font-black uppercase tracking-widest text-black mb-3.5 flex items-center gap-2">
+                  <Sparkles size={16} className="text-blue-600" />
+                  Fabric & Technical Specifications
                 </h3>
-                <div className="grid grid-cols-2 gap-y-4 gap-x-8">
-                  {product.fabric && (
-                    <div className="space-y-1">
-                      <p className="text-[9px] text-gray-400 font-black uppercase tracking-[0.2em]">Material</p>
-                      <p className="text-[12px] font-bold text-black uppercase tracking-tight">{product.fabric}</p>
-                    </div>
-                  )}
+                <div className="grid grid-cols-2 gap-y-3.5 gap-x-6">
+                  <div className="space-y-0.5">
+                    <p className="text-[9px] text-gray-400 font-black uppercase tracking-[0.2em]">Fabric / Material</p>
+                    <p className="text-[12px] font-extrabold text-blue-700 uppercase tracking-tight">
+                      {product.fabric || product.material || defaultFabric}
+                    </p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-[9px] text-gray-400 font-black uppercase tracking-[0.2em]">Category</p>
+                    <p className="text-[12px] font-bold text-gray-900 uppercase tracking-tight">{product.category}</p>
+                  </div>
                   {product.fitType && (
-                    <div className="space-y-1">
-                      <p className="text-[9px] text-gray-400 font-black uppercase tracking-[0.2em]">Silhouette</p>
-                      <p className="text-[12px] font-bold text-black uppercase tracking-tight">{product.fitType}</p>
+                    <div className="space-y-0.5">
+                      <p className="text-[9px] text-gray-400 font-black uppercase tracking-[0.2em]">Fit Silhouette</p>
+                      <p className="text-[12px] font-bold text-gray-900 uppercase tracking-tight">{product.fitType}</p>
                     </div>
                   )}
                   {product.sku && (
-                    <div className="space-y-1">
+                    <div className="space-y-0.5">
                       <p className="text-[9px] text-gray-400 font-black uppercase tracking-[0.2em]">Reference SKU</p>
-                      <p className="text-[12px] font-bold text-black uppercase tracking-tight">{product.sku}</p>
+                      <p className="text-[12px] font-bold text-gray-900 uppercase tracking-tight">{product.sku}</p>
                     </div>
                   )}
-                  <div className="space-y-1">
-                    <p className="text-[9px] text-gray-400 font-black uppercase tracking-[0.2em]">Category</p>
-                    <p className="text-[12px] font-bold text-black uppercase tracking-tight">{product.category}</p>
-                  </div>
                 </div>
               </div>
             )}

@@ -4,6 +4,8 @@
  */
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProducts } from '../../contexts/ProductContext';
 import { useOrders } from '../../contexts/OrderContext';
@@ -42,6 +44,123 @@ export default function AdminDashboard(): React.JSX.Element {
   const [isDownloading, setIsDownloading] = useState(false);
   const [timeRange, setTimeRange] = useState<'Monthly' | 'Yearly'>('Monthly');
   const [reportPeriod, setReportPeriod] = useState<'12 MONTHS' | '6 MONTHS' | '30 DAYS' | '7 DAYS'>('12 MONTHS');
+
+  // Real-time Active Admins State
+  const [activeAdmins, setActiveAdmins] = useState<Array<{
+    id: string;
+    email: string;
+    username: string;
+    department: string;
+    role: string;
+    isOnline: boolean;
+    lastActive: number;
+    updatedAt: number;
+  }>>([]);
+
+  // Real-time listener for active admins
+  useEffect(() => {
+    const unsubPerms = onSnapshot(collection(db, 'admin_permissions'), (permsSnap) => {
+      const permsMap = new Map<string, any>();
+      permsSnap.forEach(docSnap => {
+        const data = docSnap.data();
+        const email = (data.email || docSnap.id).toLowerCase().trim();
+        permsMap.set(email, {
+          email,
+          department: data.department || 'SALES EXECUTIVE DEPARTMENT',
+          permissions: data.permissions || []
+        });
+      });
+
+      const unsubAdmins = onSnapshot(collection(db, 'admins'), (adminsSnap) => {
+        const adminMap = new Map<string, any>();
+
+        // Default baseline admins
+        const defaultAdmins = [
+          { email: 'eleganbd.ltd@gmail.com', dept: 'CEO & FOUNDER', role: 'CEO' },
+          { email: 'sabbirrahmansr904@gmail.com', dept: 'SALES EXECUTIVE DEPARTMENT', role: 'Super Admin' },
+          { email: 'nasiruddinovi2025@gmail.com', dept: 'MANAGEMENT / ADMIN ASSISTANT', role: 'Admin' }
+        ];
+
+        defaultAdmins.forEach(item => {
+          const email = item.email.toLowerCase();
+          adminMap.set(email, {
+            id: email,
+            email: item.email,
+            username: email.split('@')[0],
+            department: permsMap.get(email)?.department || item.dept,
+            role: item.role,
+            isOnline: false,
+            lastActive: 0,
+            updatedAt: 0
+          });
+        });
+
+        permsMap.forEach((val, emailKey) => {
+          if (!adminMap.has(emailKey)) {
+            adminMap.set(emailKey, {
+              id: emailKey,
+              email: val.email,
+              username: val.email.split('@')[0],
+              department: val.department,
+              role: 'Admin',
+              isOnline: false,
+              lastActive: 0,
+              updatedAt: 0
+            });
+          }
+        });
+
+        adminsSnap.forEach(docSnap => {
+          const data = docSnap.data();
+          const email = (data.email || docSnap.id).toLowerCase().trim();
+          const username = email ? email.split('@')[0] : docSnap.id;
+          const dept = data.department || permsMap.get(email)?.department || (email === 'eleganbd.ltd@gmail.com' ? 'CEO & FOUNDER' : 'SALES EXECUTIVE DEPARTMENT');
+          const role = data.role === 'super-admin' ? 'Super Admin' : (email === 'eleganbd.ltd@gmail.com' ? 'CEO' : 'Admin');
+
+          adminMap.set(email, {
+            id: docSnap.id,
+            email: data.email || docSnap.id,
+            username,
+            department: dept,
+            role,
+            isOnline: data.isOnline === true,
+            lastActive: data.lastActive || data.updatedAt || 0,
+            updatedAt: data.updatedAt || 0
+          });
+        });
+
+        if (currentUser && currentUser.email) {
+          const currEmail = currentUser.email.toLowerCase().trim();
+          const existing = adminMap.get(currEmail);
+          adminMap.set(currEmail, {
+            id: currentUser.uid,
+            email: currentUser.email,
+            username: currEmail.split('@')[0],
+            department: existing?.department || 'SALES EXECUTIVE DEPARTMENT',
+            role: existing?.role || 'Admin',
+            isOnline: true,
+            lastActive: Date.now(),
+            updatedAt: Date.now()
+          });
+        }
+
+        const sortedList = Array.from(adminMap.values()).sort((a, b) => {
+          const now = Date.now();
+          const aOnline = a.isOnline && (now - a.lastActive < 90000);
+          const bOnline = b.isOnline && (now - b.lastActive < 90000);
+          if (aOnline && !bOnline) return -1;
+          if (!aOnline && bOnline) return 1;
+          return (b.lastActive || 0) - (a.lastActive || 0);
+        });
+
+        setActiveAdmins(sortedList);
+      });
+
+      return () => unsubAdmins();
+    });
+
+    return () => unsubPerms();
+  }, [currentUser]);
 
   // Real-time Stock alert tracker
   const prevProductsRef = useRef<Record<string, number>>({});
@@ -229,7 +348,7 @@ export default function AdminDashboard(): React.JSX.Element {
     return [];
   }, [orders, reportPeriod]);
 
-  // Low Stock Alert calculation - strictly based on real-time products
+  // Low Stock Alert calculation - strictly based on real-time products with stock <= 2 pcs (1-2 pcs remaining)
   const stockAlertProducts = useMemo(() => {
     const getProductFallbackImage = (name: string) => {
       const lowerName = name.toLowerCase();
@@ -249,14 +368,12 @@ export default function AdminDashboard(): React.JSX.Element {
       return [];
     }
 
-    // Sort products by stock ascending so items with lowest stock (e.g. 0, 1, 2, 3 pcs) appear first
-    const sorted = [...products].sort((a, b) => a.stock - b.stock);
+    // Filter products that ONLY have stock <= 2 pcs (1-2 pcs remaining, or 0 out of stock)
+    const alertItems = products
+      .filter(p => p.stock <= 2)
+      .sort((a, b) => a.stock - b.stock);
 
-    // Filter products that have stock <= 15 pcs
-    const lowStockItems = sorted.filter(p => p.stock <= 15);
-    const selected = lowStockItems.length > 0 ? lowStockItems.slice(0, 5) : sorted.slice(0, 5);
-
-    return selected.map(p => ({
+    return alertItems.map(p => ({
       id: p.id,
       name: p.name,
       brand: p.category || 'Elegan BD',
@@ -1500,20 +1617,18 @@ export default function AdminDashboard(): React.JSX.Element {
                 <h3 className="text-base font-black text-gray-900 tracking-tight">Stock Alert List</h3>
               </div>
               <span className="text-[10px] bg-amber-50 text-amber-600 border border-amber-200 font-bold px-2 py-0.5 rounded-full uppercase">
-                Real-Time
+                1-2 PCs Alert
               </span>
             </div>
 
             <div className="space-y-3.5 mt-5">
               {stockAlertProducts.length === 0 ? (
-                <div className="py-8 text-center text-xs text-gray-400 font-medium">
-                  All products have sufficient stock. No stock alerts.
+                <div className="py-8 text-center text-xs text-gray-400 font-bold">
+                  সকল প্রোডাক্টের পর্যাপ্ত স্টক রয়েছে। ১-২ পিসের নিচে কোনো প্রোডাক্ট নেই।
                 </div>
               ) : (
                 stockAlertProducts.map((p, idx) => {
                   const isOutOfStock = p.stock === 0;
-                  const isCritical = p.stock > 0 && p.stock <= 3;
-                  const isLow = p.stock > 3 && p.stock <= 10;
                   return (
                     <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100/60 rounded-2xl border border-gray-100/50 transition-all">
                       <div className="flex items-center gap-3">
@@ -1535,13 +1650,9 @@ export default function AdminDashboard(): React.JSX.Element {
                           <span className={`inline-block text-[10px] font-black px-2.5 py-1 rounded-full ${
                             isOutOfStock 
                               ? 'bg-rose-50 text-rose-600 border border-rose-200' 
-                              : isCritical 
-                                ? 'bg-amber-50 text-amber-700 border border-amber-300 animate-pulse' 
-                                : isLow
-                                  ? 'bg-orange-50 text-orange-600 border border-orange-200'
-                                  : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                              : 'bg-amber-50 text-amber-700 border border-amber-300 animate-pulse'
                           }`}>
-                            {isOutOfStock ? 'Out of Stock' : `${p.stock} pcs remaining`}
+                            {isOutOfStock ? 'Out of Stock' : `${p.stock} pc remaining`}
                           </span>
                           <div className="text-[10px] font-black text-gray-900 mt-1">{p.formattedPrice}</div>
                         </div>
@@ -1564,52 +1675,62 @@ export default function AdminDashboard(): React.JSX.Element {
               </div>
               <span className="inline-flex items-center gap-1 text-[9px] font-black bg-emerald-50 text-emerald-600 border border-emerald-100 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Live Status</span>
+                <span>Real-Time Status</span>
               </span>
             </div>
 
             <div className="divide-y divide-gray-100 mt-3">
-              {/* Admin 1 */}
-              <div className="flex items-center justify-between py-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-black text-gray-900">eleganbd.ltd</span>
-                    <span className="text-[8px] font-black bg-amber-50 text-amber-600 border border-amber-200 px-1.5 py-0.5 rounded uppercase">CEO</span>
-                  </div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">CEO & FOUNDER</p>
+              {activeAdmins.length === 0 ? (
+                <div className="py-8 text-center text-xs text-gray-400 font-medium">
+                  No active admins tracked.
                 </div>
-                <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-600 bg-emerald-50/80 px-2.5 py-1 rounded-full uppercase tracking-wider border border-emerald-100">
-                  <span className="w-1 h-1 rounded-full bg-emerald-500" />
-                  <span>ONLINE</span>
-                </span>
-              </div>
+              ) : (
+                activeAdmins.map((admin) => {
+                  const now = Date.now();
+                  const isOnline = admin.isOnline && admin.lastActive && (now - admin.lastActive < 90000);
+                  const isCeo = admin.email.toLowerCase().includes('eleganbd.ltd') || admin.role === 'CEO';
 
-              {/* Admin 2 */}
-              <div className="flex items-center justify-between py-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-black text-gray-900">sabbirrahmansr904</span>
-                  </div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">SALES EXECUTIVE DEPARTMENT</p>
-                </div>
-                <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-600 bg-emerald-50/80 px-2.5 py-1 rounded-full uppercase tracking-wider border border-emerald-100">
-                  <span className="w-1 h-1 rounded-full bg-emerald-500" />
-                  <span>ONLINE</span>
-                </span>
-              </div>
+                  let statusText = 'OFFLINE';
+                  if (isOnline) {
+                    statusText = 'ONLINE';
+                  } else if (admin.lastActive && admin.lastActive > 0) {
+                    const diffMs = now - admin.lastActive;
+                    const diffMins = Math.floor(diffMs / 60000);
+                    const diffHours = Math.floor(diffMins / 60);
+                    const diffDays = Math.floor(diffHours / 24);
+                    if (diffMins < 1) statusText = 'JUST NOW';
+                    else if (diffMins < 60) statusText = `${diffMins}M AGO`;
+                    else if (diffHours < 24) statusText = `${diffHours}H AGO`;
+                    else statusText = `${diffDays}D AGO`;
+                  }
 
-              {/* Admin 3 */}
-              <div className="flex items-center justify-between py-3 last:pb-0">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-black text-gray-900">nasiruddinovi2025</span>
-                  </div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">MANAGEMENT / ADMIN ASSISTANT</p>
-                </div>
-                <span className="inline-flex items-center gap-1 text-[10px] font-black text-gray-400 bg-gray-50 px-2.5 py-1 rounded-full uppercase tracking-wider">
-                  <span>• 1D AGO</span>
-                </span>
-              </div>
+                  return (
+                    <div key={admin.id || admin.email} className="flex items-center justify-between py-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black text-gray-900">{admin.username}</span>
+                          {isCeo && (
+                            <span className="text-[8px] font-black bg-amber-50 text-amber-600 border border-amber-200 px-1.5 py-0.5 rounded uppercase">CEO</span>
+                          )}
+                        </div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">{admin.department}</p>
+                      </div>
+
+                      {isOnline ? (
+                        <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-emerald-600 bg-emerald-50/80 px-2.5 py-1 rounded-full uppercase tracking-wider border border-emerald-100">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span>ONLINE</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-gray-400 bg-gray-50 px-2.5 py-1 rounded-full uppercase tracking-wider border border-gray-100">
+                          <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                          <span>{statusText}</span>
+                        </span>
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>

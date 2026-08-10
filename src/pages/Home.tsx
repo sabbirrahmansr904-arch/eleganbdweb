@@ -32,7 +32,11 @@ const Home = () => {
     comboOfferDiscount,
     comboOfferHours,
     comboOfferMinutes,
-    comboOfferSeconds
+    comboOfferSeconds,
+    whyChooseImg1,
+    whyChooseImg2,
+    whyChooseImg3,
+    whyChooseImg4
   } = useBranding();
 
   const bestSellingScrollRef = React.useRef<HTMLDivElement>(null);
@@ -313,9 +317,9 @@ const Home = () => {
     <div className="flex flex-col min-h-screen bg-white">
       
       {/* TOP SECTION: HERO BANNER */}
-      <section className="max-w-7xl mx-auto w-full px-4 sm:px-6 pt-3 sm:pt-4 pb-4 sm:pb-6">
+      <section className="w-full m-0 p-0 pb-2 sm:pb-4">
         {activeHeroBanners.length > 0 && showHeroBanner ? (
-          <div className="relative rounded-xl sm:rounded-2xl md:rounded-3xl overflow-hidden shadow-sm bg-black w-full min-h-[160px] sm:min-h-[220px] md:min-h-[280px] max-h-[280px] sm:max-h-[400px] md:max-h-[520px] flex items-center justify-center">
+          <div className="relative w-full overflow-hidden bg-black flex items-center justify-center m-0 p-0">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentBanner}
@@ -323,23 +327,15 @@ const Home = () => {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.5 }}
-                className="w-full h-full relative flex items-center justify-center overflow-hidden"
+                className="w-full relative flex items-center justify-center overflow-hidden bg-black"
               >
-                {/* Ambient Blurred Background to fill container edges gracefully */}
-                <img 
-                  src={activeHeroBanners[currentBanner].image} 
-                  alt="" 
-                  aria-hidden="true"
-                  className="absolute inset-0 w-full h-full object-cover blur-xl opacity-30 scale-110 pointer-events-none"
-                />
-
-                {/* Main Hero Banner Image - Object Contain to NEVER crop any picture edge */}
+                {/* Main Hero Banner Image - Fully visible with object-contain */}
                 {activeHeroBanners[currentBanner].link ? (
-                  <Link to={activeHeroBanners[currentBanner].link} className="relative z-10 block w-full h-full flex items-center justify-center">
+                  <Link to={activeHeroBanners[currentBanner].link} className="relative z-10 block w-full">
                     <img 
                       src={activeHeroBanners[currentBanner].image} 
                       alt="Hero Banner" 
-                      className="w-full h-full max-h-[280px] sm:max-h-[400px] md:max-h-[520px] object-contain object-center block rounded-xl sm:rounded-2xl md:rounded-3xl"
+                      className="w-full h-auto object-contain object-center block"
                       referrerPolicy="no-referrer"
                     />
                   </Link>
@@ -347,7 +343,7 @@ const Home = () => {
                   <img 
                     src={activeHeroBanners[currentBanner].image} 
                     alt="Hero Banner" 
-                    className="relative z-10 w-full h-full max-h-[280px] sm:max-h-[400px] md:max-h-[520px] object-contain object-center block rounded-xl sm:rounded-2xl md:rounded-3xl"
+                    className="relative z-10 w-full h-auto object-contain object-center block"
                     referrerPolicy="no-referrer"
                   />
                 )}
@@ -371,7 +367,7 @@ const Home = () => {
             )}
           </div>
         ) : (
-          <div className="bg-[#EAEAEA] rounded-xl sm:rounded-2xl md:rounded-3xl p-5 sm:p-8 md:p-10 relative overflow-hidden flex flex-col justify-between min-h-[160px] sm:min-h-[220px] md:min-h-[280px] max-h-[320px] shadow-xs">
+          <div className="bg-[#EAEAEA] w-full p-5 sm:p-8 md:p-10 relative overflow-hidden flex flex-col justify-between aspect-[2/1] sm:aspect-[2.5/1] shadow-xs">
             {/* Fallback Hero Banner matching exact image template */}
             <div className="relative z-10 max-w-xs sm:max-w-sm md:max-w-md my-auto">
               <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-[#B8860B] mb-1 sm:mb-2 block">
@@ -595,63 +591,7 @@ const Home = () => {
         </section>
       )}
 
-      {/* 1. BEST SELLING PRODUCTS SECTION */}
-      {bestSellingProducts.length > 0 && (
-        <section className="max-w-7xl mx-auto w-full px-3 sm:px-4 pb-10">
-          {/* Section Header: BEST SELLING PRODUCTS */}
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4 px-1">
-            <h2 className="text-sm sm:text-base md:text-xl font-extrabold uppercase text-blue-600 tracking-wide">
-              BEST SELLING PRODUCTS
-            </h2>
-            <Link 
-              to="/category/all" 
-              className="text-xs sm:text-sm font-bold uppercase text-gray-500 hover:text-blue-600 transition-colors tracking-wider flex items-center gap-1 shrink-0"
-            >
-              <span>View All</span>
-              <ArrowRight size={14} />
-            </Link>
-          </div>
-
-          <div className="relative group/carousel">
-            {/* Scroll Left Button */}
-            <button
-              onClick={() => scrollLeft(bestSellingScrollRef)}
-              className="absolute -left-2 sm:-left-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-all cursor-pointer opacity-90 hover:opacity-100"
-              aria-label="Scroll left"
-            >
-              <ChevronLeft size={18} />
-            </button>
-
-            {/* Scroll Right Button */}
-            <button
-              onClick={() => scrollRight(bestSellingScrollRef)}
-              className="absolute -right-2 sm:-right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-all cursor-pointer opacity-90 hover:opacity-100"
-              aria-label="Scroll right"
-            >
-              <ChevronRight size={18} />
-            </button>
-
-            {/* Scrollable Container */}
-            <div 
-              ref={bestSellingScrollRef}
-              onMouseEnter={() => setIsHoveredBestSelling(true)}
-              onMouseLeave={() => setIsHoveredBestSelling(false)}
-              onTouchStart={() => setIsHoveredBestSelling(true)}
-              onTouchEnd={() => setIsHoveredBestSelling(false)}
-              className="flex gap-2.5 sm:gap-4 overflow-x-auto pb-3 scroll-smooth snap-x snap-mandatory no-scrollbar"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {bestSellingProducts.map((product) => (
-                <div key={`bestseller-${product.id}`} className="w-[160px] sm:w-[210px] md:w-[230px] flex-shrink-0 snap-start">
-                  <ProductCard product={product} badgeText="Best Selling" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* 2. NEW ARRIVAL PRODUCTS SECTION */}
+      {/* NEW ARRIVAL PRODUCTS SECTION */}
       {newArrivalProducts.length > 0 && (
         <section className="max-w-7xl mx-auto w-full px-3 sm:px-4 pb-10">
           {/* Section Header: NEW ARRIVAL PRODUCTS */}
@@ -872,6 +812,62 @@ const Home = () => {
         )}
       </section>
 
+      {/* BEST SELLING PRODUCTS SECTION */}
+      {bestSellingProducts.length > 0 && (
+        <section className="max-w-7xl mx-auto w-full px-3 sm:px-4 pb-16">
+          {/* Section Header: BEST SELLING PRODUCTS */}
+          <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4 px-1">
+            <h2 className="text-sm sm:text-base md:text-xl font-extrabold uppercase text-blue-600 tracking-wide">
+              BEST SELLING PRODUCTS
+            </h2>
+            <Link 
+              to="/category/all" 
+              className="text-xs sm:text-sm font-bold uppercase text-gray-500 hover:text-blue-600 transition-colors tracking-wider flex items-center gap-1 shrink-0"
+            >
+              <span>View All</span>
+              <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          <div className="relative group/carousel">
+            {/* Scroll Left Button */}
+            <button
+              onClick={() => scrollLeft(bestSellingScrollRef)}
+              className="absolute -left-2 sm:-left-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-all cursor-pointer opacity-90 hover:opacity-100"
+              aria-label="Scroll left"
+            >
+              <ChevronLeft size={18} />
+            </button>
+
+            {/* Scroll Right Button */}
+            <button
+              onClick={() => scrollRight(bestSellingScrollRef)}
+              className="absolute -right-2 sm:-right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-all cursor-pointer opacity-90 hover:opacity-100"
+              aria-label="Scroll right"
+            >
+              <ChevronRight size={18} />
+            </button>
+
+            {/* Scrollable Container */}
+            <div 
+              ref={bestSellingScrollRef}
+              onMouseEnter={() => setIsHoveredBestSelling(true)}
+              onMouseLeave={() => setIsHoveredBestSelling(false)}
+              onTouchStart={() => setIsHoveredBestSelling(true)}
+              onTouchEnd={() => setIsHoveredBestSelling(false)}
+              className="flex gap-2.5 sm:gap-4 overflow-x-auto pb-3 scroll-smooth snap-x snap-mandatory no-scrollbar"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {bestSellingProducts.map((product) => (
+                <div key={`bestseller-${product.id}`} className="w-[160px] sm:w-[210px] md:w-[230px] flex-shrink-0 snap-start">
+                  <ProductCard product={product} badgeText="Best Selling" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
 
 
       {/* WHY CHOOSE ELEGAN BD SECTION */}
@@ -881,10 +877,10 @@ const Home = () => {
             Why Choose Elegan BD
           </h2>
           <h3 className="text-base md:text-lg font-bold text-gray-900 mt-2">
-            কেন Elegan BD বেছে নেবেন?
+            কেন Elegan BD-র কাপড় সবচেয়ে আলাদা?
           </h3>
           <p className="text-xs md:text-sm text-gray-600 font-medium max-w-2xl mt-2.5 leading-relaxed">
-            Elegan BD-তে আমরা শুধু পোশাক বিক্রি করি না, বরং আপনার স্টাইল, আত্মবিশ্বাস ও আরামকে গুরুত্ব দিই। উন্নত মানের কাপড়, নিখুঁত ফিটিং এবং সাশ্রয়ী মূল্যের সমন্বয়ে প্রতিটি পণ্য তৈরি করা হয়েছে, যাতে আপনি প্রতিদিন নিজেকে আরও আত্মবিশ্বাসীভাবে উপস্থাপন করতে পারেন।
+            Elegan BD-তে আমাদের প্যান্টের ফেব্রিক্স <span className="font-bold text-blue-600">Woven Cotton Fabrics</span> এবং শার্টের ফেব্রিক্স <span className="font-bold text-blue-600">Refine Cotton</span>। সেরা কোয়ালিটির সুতা ও উন্নত প্রক্রিয়ায় তৈরি আমাদের প্রতিটি পোশাক অত্যন্ত আরামদায়ক, দীর্ঘস্থায়ী ও প্রিমিয়াম লুক প্রদান করে।
           </p>
         </div>
 
@@ -939,6 +935,39 @@ const Home = () => {
             <p className="text-xs font-semibold text-gray-500 mt-1">
               ১০০% প্রিমিয়াম কোয়ালিটি
             </p>
+          </div>
+        </div>
+
+        {/* 4 FEATURE PICTURES GRID (4 PER ROW ON DESKTOP, FILLING SIDE SPACES) */}
+        <div className="mt-8 w-full max-w-[1440px] mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 w-full">
+            {[
+              { id: '1', url: whyChooseImg1, defaultUrl: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=800&q=80' },
+              { id: '2', url: whyChooseImg2, defaultUrl: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80' },
+              { id: '3', url: whyChooseImg3, defaultUrl: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=800&q=80' },
+              { id: '4', url: whyChooseImg4, defaultUrl: 'https://images.unsplash.com/photo-1620012253295-c15cc3e65df4?auto=format&fit=crop&w=800&q=80' },
+            ].map((item, idx) => {
+              const displayUrl = item.url || item.defaultUrl;
+              return (
+                <div 
+                  key={item.id} 
+                  className="relative aspect-[3/4] w-full rounded-2xl md:rounded-3xl overflow-hidden shadow-xs border border-gray-200/80 group bg-gray-100"
+                >
+                  <img 
+                    src={displayUrl} 
+                    alt={`Elegan BD Feature ${idx + 1}`} 
+                    className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105 block"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      if (target.src !== item.defaultUrl) {
+                        target.src = item.defaultUrl;
+                      }
+                    }}
+                  />
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -1016,106 +1045,14 @@ const Home = () => {
               <div className="mt-4 flex items-center justify-center md:justify-start gap-3">
                 <span className="font-extrabold text-sm text-amber-400 uppercase tracking-wider">— মোঃ সাব্বির রহমান</span>
                 <span className="text-slate-500">•</span>
-                <span className="text-xs text-slate-400 font-bold uppercase">Founder, Elegan BD</span>
+                <span className="text-xs text-slate-400 font-bold uppercase">Founder & CEO . Elegan BD</span>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* WHOLESALE & BULK ORDER SECTION (পাইকারি বিক্রয়) */}
-      <section className="max-w-7xl mx-auto w-full px-4 pb-16">
-        <div className="bg-gradient-to-br from-emerald-950 via-teal-950 to-slate-900 text-white rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden border border-emerald-800/80">
-          
-          {/* Decorative background glow */}
-          <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-80 h-80 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-8">
-            <div className="flex-1 text-center lg:text-left">
-              <div className="inline-flex items-center gap-2 bg-emerald-500/20 text-emerald-300 px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border border-emerald-400/30 mb-4">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                <span>WHOLESALE & BULK ORDERS • পাইকারি বিক্রয়</span>
-              </div>
-
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase tracking-tight text-white leading-tight">
-                দোকান বা শো-রুমের জন্য <span className="text-emerald-400 underline decoration-emerald-500/50">পাইকারি মূল্যে</span> কাপড় কিনুন!
-              </h2>
-
-              <p className="text-xs sm:text-sm text-emerald-100 font-medium mt-3 leading-relaxed max-w-2xl">
-                আপনি কি রিসেলার, শোরুমের মালিক বা খুচরা বিক্রেতা? Elegan BD সরাসরি নিজস্ব ফ্যাক্টরি থেকে সর্বাধুনিক ফর্মাল প্যান্ট ও শার্ট আকর্ষণীয় পাইকারি মূল্যে সরবরাহ করছে।
-              </p>
-
-              {/* Key Features Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6 text-left">
-                <div className="flex items-start gap-2.5 bg-emerald-900/40 border border-emerald-700/50 rounded-xl p-3">
-                  <span className="text-emerald-400 font-black text-base shrink-0">✔</span>
-                  <div>
-                    <strong className="text-xs font-extrabold text-white block uppercase">পাইকারি বিশেষ মূল্যছাড়</strong>
-                    <span className="text-[11px] text-emerald-200">বাল্ক অর্ডারে বিশাল মূল্যছাড়ের সুযোগ</span>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-2.5 bg-emerald-900/40 border border-emerald-700/50 rounded-xl p-3">
-                  <span className="text-emerald-400 font-black text-base shrink-0">✔</span>
-                  <div>
-                    <strong className="text-xs font-extrabold text-white block uppercase">ন্যূনতম ১০ পিস থেকে শুরু</strong>
-                    <span className="text-[11px] text-emerald-200">যেকোনো সাইজ ও কালার মিক্স নেওয়ার সুবিধা</span>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-2.5 bg-emerald-900/40 border border-emerald-700/50 rounded-xl p-3">
-                  <span className="text-emerald-400 font-black text-base shrink-0">✔</span>
-                  <div>
-                    <strong className="text-xs font-extrabold text-white block uppercase">ফ্যাক্টরি ডিরেক্ট কোয়ালিটি</strong>
-                    <span className="text-[11px] text-emerald-200">নিখুঁত ফিনিশিং ও প্রিমিয়াম ফেব্রিক</span>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-2.5 bg-emerald-900/40 border border-emerald-700/50 rounded-xl p-3">
-                  <span className="text-emerald-400 font-black text-base shrink-0">✔</span>
-                  <div>
-                    <strong className="text-xs font-extrabold text-white block uppercase">দ্রুত কুরিয়ার ডেলিভারি</strong>
-                    <span className="text-[11px] text-emerald-200">সারা বাংলাদেশে ১-৩ দিনে নিরাপদ শিপিং</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Direct WhatsApp Call to Action Box */}
-            <div className="w-full lg:w-auto bg-slate-900/95 border border-emerald-500/40 rounded-2xl p-6 sm:p-8 text-center shrink-0 max-w-md shadow-2xl">
-              <div className="w-16 h-16 bg-emerald-500 text-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/30">
-                <svg className="w-9 h-9 fill-current text-slate-950" viewBox="0 0 24 24">
-                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
-                </svg>
-              </div>
-
-              <h3 className="font-extrabold text-base text-white uppercase">
-                পাইকারি অর্ডার করতে হোয়াটসঅ্যাপে চ্যাট করুন
-              </h3>
-              <p className="text-xs text-slate-300 font-medium mt-1">
-                পাইকারি ক্যাটালগ ও প্রাইজ লিস্টের জন্য মেসেজ দিন
-              </p>
-
-              <a
-                href="https://wa.me/8801631496122?text=আসসালামু%20আলাইকুম,%20আমি%20পাইকারি%20(Wholesale)%20অর্ডার%20করতে%20চাই।%20পণ্য%20ও%20পাইকারি%20মূল্য%20জানাবেন।"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-5 w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider py-3.5 px-5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer group"
-              >
-                <svg className="w-5 h-5 fill-current text-slate-950 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
-                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
-                </svg>
-                <span>হোয়াটসঅ্যাপে পাইকারি অর্ডার করুন</span>
-              </a>
-
-              <p className="text-[10px] text-slate-400 font-bold mt-2.5">
-                হটলাইন: +8801631496122 (WhatsApp)
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* NUMBERS / STATS SECTION */}
       <section className="max-w-7xl mx-auto w-full px-4 pb-16">
@@ -1217,46 +1154,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* NEWSLETTER & VIP DISCOUNT SIGNUP */}
-      <section className="max-w-7xl mx-auto w-full px-4 pb-16">
-        <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-100/60 rounded-3xl p-8 sm:p-12 border border-blue-200/60 text-center relative overflow-hidden shadow-xs">
-          <div className="max-w-xl mx-auto relative z-10">
-            <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-md">
-              <Gift size={24} />
-            </div>
-            <h3 className="text-2xl sm:text-3xl font-black uppercase text-gray-900 tracking-tight">
-              ১০০ টাকা ইনস্ট্যান্ট ডিসকাউন্ট ভাউচার!
-            </h3>
-            <p className="text-xs sm:text-sm text-gray-600 font-medium mt-2 leading-relaxed">
-              আপনার ফোন নম্বর বা ইমেইল দিয়ে সাবস্ক্রাইব করুন এবং পরবর্তী প্রথম অর্ডারে পেয়ে যান বিশেষ ছাড়।
-            </p>
 
-            {newsletterSubscribed ? (
-              <div className="mt-6 bg-emerald-500 text-white rounded-2xl p-4 font-bold text-sm flex items-center justify-center gap-2 shadow-md">
-                <CheckCircle2 size={18} />
-                <span>ধন্যবাদ! আপনার ১০০ টাকা ডিসকাউন্ট কুপন কোড: <strong className="underline ml-1">ELEGAN100</strong></span>
-              </div>
-            ) : (
-              <form onSubmit={handleNewsletterSubmit} className="mt-6 flex flex-col sm:flex-row gap-2 max-w-md mx-auto">
-                <input 
-                  type="text"
-                  required
-                  value={newsletterInput}
-                  onChange={(e) => setNewsletterInput(e.target.value)}
-                  placeholder="আপনার ফোন নম্বর বা ইমেইল লিখুন"
-                  className="bg-white border border-gray-300 rounded-xl px-4 py-3.5 text-sm text-gray-900 focus:outline-none focus:border-blue-600 flex-1 shadow-xs font-medium"
-                />
-                <button 
-                  type="submit"
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-wider px-6 py-3.5 rounded-xl transition-all shadow-md shrink-0 cursor-pointer active:scale-95"
-                >
-                  কুপন পান
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      </section>
 
       {/* FLOATING WHATSAPP WHOLESALE BUTTON */}
       <div className="fixed bottom-6 right-6 z-50 flex items-center">

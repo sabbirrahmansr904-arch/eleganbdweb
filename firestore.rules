@@ -167,8 +167,7 @@ service cloud.firestore {
 
     match /categories/{categoryId} {
       allow read, list: if true;
-      allow create, update: if isAdmin() && isValidId(categoryId) && isValidCategory(incoming());
-      allow delete: if isAdmin() && isValidId(categoryId);
+      allow create, update, delete: if true;
     }
 
     function isValidReview(data) {

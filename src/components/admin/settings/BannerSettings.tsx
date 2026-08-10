@@ -60,7 +60,11 @@ export default function BannerSettings() {
     featureBannerUrl, setFeatureBannerUrl,
     poloBannerUrl, setPoloBannerUrl,
     comboOfferBannerUrl, setComboOfferBannerUrl,
-    ceoPhotoUrl, setCeoPhotoUrl
+    ceoPhotoUrl, setCeoPhotoUrl,
+    whyChooseImg1, whyChooseImg2, whyChooseImg3, whyChooseImg4, whyChooseImg5,
+    whyChooseText1, whyChooseText2, whyChooseText3, whyChooseText4, whyChooseText5,
+    setWhyChooseImg1, setWhyChooseImg2, setWhyChooseImg3, setWhyChooseImg4, setWhyChooseImg5,
+    setWhyChooseText1, setWhyChooseText2, setWhyChooseText3, setWhyChooseText4, setWhyChooseText5
   } = useBranding();
 
   const [localShowAnnouncement, setLocalShowAnnouncement] = useState(showAnnouncementBar);
@@ -107,8 +111,8 @@ export default function BannerSettings() {
       const loadingToast = toast.loading(`Uploading ${key}...`);
       try {
         const result = isPortrait 
-          ? await compressImage(file, 800, 1000, 0.85)
-          : await compressImage(file, 1600, 900, 0.8);
+          ? await compressImage(file, 600, 800, 0.75)
+          : await compressImage(file, 1200, 675, 0.75);
         setter(result);
         toast.success(`${key} updated successfully.`, { id: loadingToast });
       } catch (err) {
@@ -536,6 +540,87 @@ export default function BannerSettings() {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* WHY CHOOSE ELEGAN BD 4-IMAGE GRID MANAGEMENT */}
+          <div className="bg-white border border-gray-100 p-8 rounded-[32px] shadow-sm space-y-6 mt-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-4">
+              <div>
+                <h4 className="text-base font-black uppercase tracking-tight text-black flex items-center gap-2">
+                  <ImageIcon className="text-blue-600" size={18} />
+                  <span>Why Choose Elegan BD - 4-Image Grid Showcase</span>
+                </h4>
+                <p className="text-xs text-gray-500 font-medium mt-1">
+                  হোমপেজের "Why Choose Elegan BD" সেকশনের নিচে ৪ টি পোর্ট্রেট ছবি আপডেট করুন। এগুলো ফায়ারস্টোরে পারমানেন্টলি সেভ থাকবে।
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[
+                { id: '1', title: 'Picture 1', url: whyChooseImg1, setImg: setWhyChooseImg1, text: whyChooseText1, setText: setWhyChooseText1, defaultText: 'CRAFTED FOR COMFORT. DESIGNED FOR STYLE.' },
+                { id: '2', title: 'Picture 2', url: whyChooseImg2, setImg: setWhyChooseImg2, text: whyChooseText2, setText: setWhyChooseText2, defaultText: 'STAY COOL. STAY STYLISH.' },
+                { id: '3', title: 'Picture 3', url: whyChooseImg3, setImg: setWhyChooseImg3, text: whyChooseText3, setText: setWhyChooseText3, defaultText: 'LIGHTWEIGHT COMFORT FOR EVERY DAY.' },
+                { id: '4', title: 'Picture 4', url: whyChooseImg4, setImg: setWhyChooseImg4, text: whyChooseText4, setText: setWhyChooseText4, defaultText: 'PREMIUM FABRIC. EFFORTLESS STYLE.' },
+              ].map((item) => (
+                <div key={item.id} className="bg-gray-50 border border-gray-200/80 p-5 rounded-2xl flex flex-col justify-between space-y-4">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 bg-blue-50 px-2.5 py-1 rounded-md inline-block">
+                      {item.title}
+                    </span>
+                  </div>
+
+                  <div className="aspect-[3/4] w-full rounded-xl bg-gray-200 border border-gray-300/60 overflow-hidden relative group/img shadow-2xs">
+                    {item.url ? (
+                      <img 
+                        src={item.url} 
+                        alt={item.title} 
+                        className="w-full h-full object-cover transition-transform group-hover/img:scale-105"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="text-center p-4 h-full flex flex-col items-center justify-center space-y-1 text-gray-400">
+                        <ImageIcon size={28} />
+                        <span className="text-[10px] uppercase font-bold">No Image</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Overlay Text</label>
+                    <input 
+                      type="text"
+                      value={item.text}
+                      onChange={(e) => item.setText(e.target.value)}
+                      placeholder={item.defaultText}
+                      className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-xs font-semibold text-gray-900 focus:outline-none focus:border-blue-600"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <label className="flex-1 py-2.5 text-[10px] uppercase tracking-wider font-black bg-black text-white hover:bg-gray-800 transition-all rounded-xl shadow-xs text-center cursor-pointer flex items-center justify-center gap-1.5">
+                      <Upload size={13} />
+                      <span>Upload</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={(e) => handleStaticBannerUpload(e, `Why Choose ${item.title}`, item.setImg, true)} 
+                      />
+                    </label>
+                    {item.url && (
+                      <button 
+                        onClick={() => handleRemoveStaticBanner(`Why Choose ${item.title}`, item.setImg)}
+                        className="px-3 bg-red-50 text-red-500 border border-red-100 hover:bg-red-500 hover:text-white transition-all rounded-xl flex items-center justify-center cursor-pointer"
+                        title="Remove Image"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
