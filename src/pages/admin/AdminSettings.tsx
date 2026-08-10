@@ -3357,14 +3357,15 @@ export default function AdminSettings() {
                         <th className="py-3 px-4">Phone</th>
                         <th className="py-3 px-4">Gateway</th>
                         <th className="py-3 px-4">Transaction ID (Tran ID)</th>
-                        <th className="py-3 px-4">Amount</th>
+                        <th className="py-3 px-4">Amount Sent</th>
+                        <th className="py-3 px-4">Order Total</th>
                         <th className="py-3 px-4">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                       {orders.filter(o => o.paymentMethod === 'bkash' || o.paymentMethod === 'nagad' || o.paymentMethod === 'rocket' || (o.transactionId && o.transactionId.trim() !== '')).length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="py-8 text-center text-gray-400 font-medium">
+                          <td colSpan={8} className="py-8 text-center text-gray-400 font-medium">
                             No bKash, Nagad, or Rocket payment transaction records found yet.
                           </td>
                         </tr>
@@ -3388,6 +3389,9 @@ export default function AdminSettings() {
                                 </span>
                               </td>
                               <td className="py-3 px-4 font-mono font-bold text-[#5850ec]">{order.transactionId || 'N/A'}</td>
+                              <td className="py-3 px-4 font-extrabold text-emerald-600">
+                                ৳{(order as any).paidAmount ?? order.advancePayment ?? '—'}
+                              </td>
                               <td className="py-3 px-4 font-extrabold text-gray-900">৳{order.total}</td>
                               <td className="py-3 px-4">
                                 <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-gray-100 text-gray-800">

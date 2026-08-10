@@ -136,9 +136,9 @@ const DEFAULT_COMBO_OFFER_BANNER = "";
 
 const DEFAULT_ANNOUNCEMENT_MSG = "🔥 Special Combo Deal: Buy 3 Shirts for Only ৳1,799";
 const DEFAULT_ABOUT_TEXT = "Premium minimalist fashion for the modern individual.";
-const DEFAULT_COMBO_TITLE = "স্পেশাল কম্বো অফার - ২৫% ছাড়!";
-const DEFAULT_COMBO_SUBTITLE = "ফর্মাল প্যান্ট ও শার্টের সেরা কম্বো কলেকশনে পাচ্ছেন বিশেষ ছাড়। স্টক সীমিত!";
-const DEFAULT_COMBO_DISCOUNT = "২৫% ছাড়";
+const DEFAULT_COMBO_TITLE = "নতুন অফিস উদ্বোধন উপলক্ষে অফিস ভিজিট কেনাকাটায় ১০% ফ্ল্যাট ছাড়!";
+const DEFAULT_COMBO_SUBTITLE = "আমাদের নতুন অফিসে সরাসরি এসে যেকোনো কেনাকাটা করলেই উপভোগ করুন ১০% বিশেষ ফ্ল্যাট ডিসকাউন্ট।";
+const DEFAULT_COMBO_DISCOUNT = "১০% ছাড় (অফিস ভিজিট)";
 
 const BrandingContext = createContext<BrandingContextType | undefined>(undefined);
 

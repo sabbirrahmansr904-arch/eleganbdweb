@@ -72,6 +72,7 @@ export interface Order {
   status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Printed' | 'Hold' | 'Returned' | 'QC' | 'ORDER PLACED' | 'PREPARING' | 'PICK UP CANCEL' | 'SUCCESS' | 'PARTIAL DELIVERY';
   paymentMethod: 'cod' | 'bkash' | 'nagad' | 'rocket' | 'card';
   transactionId?: string;
+  paidAmount?: number;
   notes?: string;
   discount?: number;
   advancePayment?: number;
@@ -125,6 +126,7 @@ export interface CheckoutFormData {
   phone: string;
   paymentMethod: 'cod' | 'card' | 'bkash' | 'nagad' | 'rocket';
   transactionId?: string;
+  paidAmount?: string;
 }
 
 export interface StockTransaction {

@@ -347,10 +347,6 @@ export default function AdminOrders(): React.JSX.Element {
   };
 
   const openOrderInCreateModal = (order: Order) => {
-    if (isDeliveredOrSuccess(order.status)) {
-      toast.error('ডেলিভার্ড বা সাকসেস অর্ডার এডিট করা যাবে না। (Delivered or Success orders cannot be edited)');
-      return;
-    }
     setEditingOrderId(order.id);
     setNewCustomerName(order.customerName || '');
     setNewCustomerPhone(order.phone || '');
@@ -589,11 +585,6 @@ export default function AdminOrders(): React.JSX.Element {
   };
 
   const handleStatusChange = async (id: string, newStatus: Order['status']) => {
-    const order = orders.find(o => o.id === id);
-    if (order && isDeliveredOrSuccess(order.status)) {
-      toast.error('সাকসেস বা ডেলিভার্ড অর্ডারের স্ট্যাটাস কোনোভাবেই পরিবর্তন করা যাবে না।');
-      return;
-    }
     try {
       await updateOrderStatus(id, newStatus);
       toast.success(`Order #${id} status updated to: ${newStatus}`);
@@ -1814,18 +1805,11 @@ export default function AdminOrders(): React.JSX.Element {
                     <button 
                       onClick={(e) => { 
                         e.stopPropagation(); 
-                        if (isDeliveredOrSuccess(order.status)) {
-                          toast.error('ডেলিভার্ড বা সাকসেস অর্ডার এডিট করা যাবে না। (Delivered/Success order cannot be edited)');
-                          return;
-                        }
                         setSelectedOrder(order); 
                         setIsEditingDetails(true); 
                       }} 
-                      title={isDeliveredOrSuccess(order.status) ? "Delivered / Success order cannot be edited" : "Edit Order"} 
-                      className={cn(
-                        "p-2 bg-slate-50 rounded-lg transition-all",
-                        isDeliveredOrSuccess(order.status) ? "text-slate-300 cursor-not-allowed opacity-50" : "text-slate-400 hover:text-indigo-600 cursor-pointer"
-                      )}
+                      title="Edit Order" 
+                      className="p-2 bg-slate-50 rounded-lg transition-all text-slate-400 hover:text-indigo-600 cursor-pointer"
                     >
                       <Tag size={18} />
                     </button>
@@ -1959,15 +1943,10 @@ export default function AdminOrders(): React.JSX.Element {
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1.5">
                           <button 
                             onClick={() => {
-                              if (isDeliveredOrSuccess(order.status)) {
-                                toast.error('সাকসেস বা ডেলিভার্ড অর্ডারের স্ট্যাটাস কোনোভাবেই পরিবর্তন করা যাবে না।');
-                                return;
-                              }
                               setActiveStatusDropdownOrderId(activeStatusDropdownOrderId === order.id ? null : order.id);
                             }}
                             className={cn(
                               "inline-flex items-center justify-between gap-1.5 px-3 py-1.5 text-[10px] font-extrabold rounded-full border cursor-pointer select-none transition-all shadow-3xs",
-                              isDeliveredOrSuccess(order.status) ? "opacity-90 cursor-not-allowed" : "",
                               getStatusBadge(order.status).class
                             )}
                           >
@@ -2143,19 +2122,12 @@ export default function AdminOrders(): React.JSX.Element {
                         ) : (
                           <button
                             onClick={() => {
-                              if (isDeliveredOrSuccess(order.status)) {
-                                toast.error('ডেলিভার্ড বা সাকসেস অর্ডার এডিট করা যাবে না। (Delivered/Success order cannot be edited)');
-                                return;
-                              }
                               setEditingTrackingOrderId(order.id);
                               setTempTrackingId(order.trackingId || '');
                             }}
-                            title={isDeliveredOrSuccess(order.status) ? "Delivered / Success order cannot be edited" : undefined}
                             className={cn(
                               "px-3 py-1.5 text-[11px] font-bold rounded-lg border transition-all",
-                              isDeliveredOrSuccess(order.status)
-                                ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60"
-                                : order.trackingId
+                              order.trackingId
                                 ? "bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100 cursor-pointer"
                                 : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 cursor-pointer"
                             )}
@@ -2223,10 +2195,6 @@ export default function AdminOrders(): React.JSX.Element {
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (isDeliveredOrSuccess(order.status)) {
-                                  toast.error('ডেলিভার্ড বা সাকসেস অর্ডার এডিট করা যাবে না। (Delivered/Success order cannot be edited)');
-                                  return;
-                                }
                                 setSelectedOrder(order);
                                 setNewCustomerName(order.customerName || '');
                                 setNewCustomerPhone(order.phone || '');
@@ -2245,13 +2213,8 @@ export default function AdminOrders(): React.JSX.Element {
                                 setEditInvoiceBy(order.invoiceBy || '');
                                 setIsEditingDetails(true);
                               }} 
-                              title={isDeliveredOrSuccess(order.status) ? "Delivered / Success order cannot be edited" : "Edit Order"}
-                              className={cn(
-                                "p-1 rounded-md transition-all",
-                                isDeliveredOrSuccess(order.status)
-                                  ? "text-slate-300 cursor-not-allowed opacity-50"
-                                  : "text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8F9FD] hover:shadow-sm cursor-pointer"
-                              )}
+                              title="Edit Order"
+                              className="p-1 rounded-md transition-all text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8F9FD] hover:shadow-sm cursor-pointer"
                             >
                               <Tag size={13} className="stroke-[2.5]" />
                             </button>
@@ -4376,6 +4339,25 @@ export default function AdminOrders(): React.JSX.Element {
                               {getInvoiceBy(selectedOrder)}
                             </span>
                           </div>
+                          {(selectedOrder.transactionId || (selectedOrder as any).paidAmount) && (
+                            <div className="col-span-2 border-t border-slate-100/80 pt-3">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
+                                Payment Transaction ({selectedOrder.paymentMethod.toUpperCase()})
+                              </span>
+                              <div className="flex items-center gap-3">
+                                {selectedOrder.transactionId && (
+                                  <span className="text-xs font-black text-indigo-600 font-mono bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">
+                                    Trx: {selectedOrder.transactionId}
+                                  </span>
+                                )}
+                                {((selectedOrder as any).paidAmount || (selectedOrder as any).advancePayment) && (
+                                  <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100">
+                                    Sent: ৳{(selectedOrder as any).paidAmount || (selectedOrder as any).advancePayment}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
                           <div className="col-span-2 border-t border-slate-100/80 pt-3">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Invoice No</span>
                             <span className="text-sm font-black text-indigo-600 font-mono block whitespace-nowrap">

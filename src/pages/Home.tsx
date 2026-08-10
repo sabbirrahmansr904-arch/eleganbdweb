@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   ArrowRight, ChevronLeft, ChevronRight, Truck, Award, Lock, Tag, Users, 
   ShoppingBag, Star, Headphones, Clock, Sparkles, ShieldCheck, ArrowLeftRight, 
-  HelpCircle, ChevronDown, CheckCircle2, Flame, Gift, Mail, Phone 
+  HelpCircle, ChevronDown, CheckCircle2, Flame, Gift, Mail, Phone, Building2, MapPin 
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProducts } from '../contexts/ProductContext';
@@ -446,62 +446,40 @@ const Home = () => {
         </div>
       </section>
 
-      {/* FLASH SALE COUNTDOWN BANNER */}
+      {/* FLASH SALE / OFFER BANNER */}
       {showCountdownBanner && (
-        <section className="max-w-7xl mx-auto w-full px-4 pb-12">
-          <div className="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
-            <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-white/5 skew-x-12 pointer-events-none" />
-            
-            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="text-center md:text-left">
-                <div className="inline-flex items-center gap-2 bg-amber-400 text-gray-950 font-black text-[11px] px-3.5 py-1 rounded-full uppercase tracking-wider mb-3 shadow-xs">
-                  <Flame size={14} className="fill-gray-950" />
-                  <span>{comboOfferDiscount || "LIMITED TIME OFFER"}</span>
+        <section className="max-w-7xl mx-auto w-full px-4 pb-6">
+          <div className="bg-gradient-to-r from-[#0a1128] via-[#122046] to-[#0a1128] rounded-xl py-2 sm:py-2.5 px-4 sm:px-6 text-white shadow-lg relative overflow-hidden border border-amber-400/30">
+            {/* Background Glow FX */}
+            <div className="absolute -left-20 -top-20 w-48 h-48 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -right-20 -bottom-20 w-48 h-48 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+
+            <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-4">
+              <div className="text-center sm:text-left flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 text-gray-950 font-black text-[11px] px-3 py-1 rounded-full uppercase tracking-wider shadow-xs shrink-0 self-center sm:self-auto">
+                  <Sparkles size={13} className="fill-gray-950" />
+                  <span>{comboOfferDiscount || "১০% ছাড়"}</span>
                 </div>
-                <h3 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight leading-tight">
-                  {comboOfferTitle || "স্পেশাল কম্বো অফার - ২৫% ছাড়!"}
-                </h3>
-                {comboOfferSubTitle && (
-                  <p className="text-xs sm:text-sm text-blue-100 font-medium mt-1 max-w-xl">
-                    {comboOfferSubTitle}
-                  </p>
-                )}
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm sm:text-base font-black tracking-tight text-white leading-snug">
+                    {comboOfferTitle || "নতুন অফিস উদ্বোধন উপলক্ষে অফিস ভিজিট কেনাকাটায় ১০% ফ্ল্যাট ছাড়!"}
+                  </h3>
+                  {comboOfferSubTitle && (
+                    <p className="text-xs text-slate-300/90 font-medium leading-relaxed mt-0.5">
+                      {comboOfferSubTitle}
+                    </p>
+                  )}
+                </div>
               </div>
 
-              {/* Countdown Box */}
-              <div className="flex flex-col items-center shrink-0">
-                <span className="text-xs font-bold uppercase tracking-widest text-blue-200 mb-2 flex items-center gap-1">
-                  <Clock size={14} /> অফার শেষ হতে বাকী:
-                </span>
-                <div className="flex gap-2 sm:gap-3 text-center">
-                  <div className="bg-white/15 backdrop-blur-md border border-white/20 rounded-2xl p-2.5 sm:p-3 min-w-[55px] sm:min-w-[65px]">
-                    <span className="text-xl sm:text-2xl font-black block leading-none">
-                      {String(timeLeft.hours).padStart(2, '0')}
-                    </span>
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-blue-200 mt-1 block">Hours</span>
-                  </div>
-                  <div className="text-xl font-black self-center text-blue-200">:</div>
-                  <div className="bg-white/15 backdrop-blur-md border border-white/20 rounded-2xl p-2.5 sm:p-3 min-w-[55px] sm:min-w-[65px]">
-                    <span className="text-xl sm:text-2xl font-black block leading-none">
-                      {String(timeLeft.minutes).padStart(2, '0')}
-                    </span>
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-blue-200 mt-1 block">Mins</span>
-                  </div>
-                  <div className="text-xl font-black self-center text-blue-200">:</div>
-                  <div className="bg-white/15 backdrop-blur-md border border-white/20 rounded-2xl p-2.5 sm:p-3 min-w-[55px] sm:min-w-[65px]">
-                    <span className="text-xl sm:text-2xl font-black block leading-none">
-                      {String(timeLeft.seconds).padStart(2, '0')}
-                    </span>
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-blue-200 mt-1 block">Secs</span>
-                  </div>
+              {/* Office Visit Badge (Slim Pill) */}
+              <div className="flex items-center shrink-0">
+                <div className="bg-white/10 backdrop-blur-md border border-amber-400/35 rounded-lg px-3 py-1 flex items-center gap-2 shadow-xs hover:border-amber-400/60 transition-all">
+                  <Building2 size={13} className="text-amber-400 shrink-0" />
+                  <span className="text-[10.5px] font-extrabold text-amber-300 tracking-wide leading-none whitespace-nowrap">
+                    অফিস আউটলেট কেনাকাটায় ১০% ছাড়
+                  </span>
                 </div>
-
-                <Link 
-                  to="/category/all"
-                  className="mt-4 bg-white hover:bg-amber-300 text-blue-900 font-black text-xs uppercase tracking-wider px-6 py-3 rounded-xl transition-all shadow-md active:scale-95 block text-center"
-                >
-                  এখনই অর্ডার করুন
-                </Link>
               </div>
             </div>
           </div>

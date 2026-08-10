@@ -14,7 +14,10 @@ import {
   Paintbrush,
   Flame,
   Clock,
-  Tag
+  Tag,
+  Building2,
+  MapPin,
+  Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useBanners } from '../../../contexts/BannerContext';
@@ -633,11 +636,11 @@ export default function BannerSettings() {
                 <div className="flex items-center gap-2">
                   <Flame className="text-amber-500 fill-amber-500" size={20} />
                   <h4 className="text-lg font-black uppercase tracking-tight text-black">
-                    স্পেশাল কম্বো অফার কনফিগারেশন (Special Combo Offer)
+                    অফিস ভিজিট বিশেষ অফার কনফিগারেশন (Office Visit Offer)
                   </h4>
                 </div>
                 <p className="text-xs text-gray-500 font-medium mt-1">
-                  হোমপেজের স্পেশাল কম্বো অফার ব্যানার, কাউন্টডাউন টাইমার এবং ডিসকাউন্ট টেক্সট সেট করুন।
+                  নতুন অফিস উদ্বোধন উপলক্ষে ব্যানার শিরোনাম, বিবরণ এবং ডিসকাউন্ট ব্যাজ কনফিগার করুন।
                 </p>
               </div>
 
@@ -670,7 +673,7 @@ export default function BannerSettings() {
                     type="text"
                     value={localComboOfferTitle}
                     onChange={(e) => setLocalComboOfferTitle(e.target.value)}
-                    placeholder="e.g. স্পেশাল কম্বো অফার - ২৫% ছাড়!"
+                    placeholder="e.g. নতুন অফিস উদ্বোধন উপলক্ষে অফিস ভিজিট কেনাকাটায় ১০% ফ্ল্যাট ছাড়!"
                     className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 outline-none focus:border-black transition-all text-sm font-bold"
                   />
                 </div>
@@ -683,7 +686,7 @@ export default function BannerSettings() {
                     rows={3}
                     value={localComboOfferSubTitle}
                     onChange={(e) => setLocalComboOfferSubTitle(e.target.value)}
-                    placeholder="e.g. ফর্মাল প্যান্ট ও শার্টের সেরা কম্বো কলেকশনে পাচ্ছেন বিশেষ ছাড়। স্টক সীমিত!"
+                    placeholder="e.g. আমাদের নতুন অফিসে সরাসরি এসে যেকোনো কেনাকাটা করলেই উপভোগ করুন ১০% বিশেষ ফ্ল্যাট ডিসকাউন্ট।"
                     className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 outline-none focus:border-black transition-all text-xs font-medium resize-none"
                   />
                 </div>
@@ -696,50 +699,9 @@ export default function BannerSettings() {
                     type="text"
                     value={localComboOfferDiscount}
                     onChange={(e) => setLocalComboOfferDiscount(e.target.value)}
-                    placeholder="e.g. ২৫% ছাড় or LIMITED TIME OFFER"
+                    placeholder="e.g. ১০% ছাড় (অফিস ভিজিট)"
                     className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 outline-none focus:border-black transition-all text-xs font-bold text-amber-600"
                   />
-                </div>
-
-                <div className="space-y-2 pt-2 border-t border-gray-50">
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
-                    <Clock size={14} className="text-blue-600" /> কাউন্টডাউন টাইমার সময়সূচী (Countdown Duration)
-                  </label>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div>
-                      <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">ঘণ্টা (Hours)</span>
-                      <input
-                        type="number"
-                        min={0}
-                        max={99}
-                        value={localComboOfferHours}
-                        onChange={(e) => setLocalComboOfferHours(Math.max(0, Number(e.target.value)))}
-                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 outline-none focus:border-black transition-all text-sm font-black text-center"
-                      />
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">মিনিট (Minutes)</span>
-                      <input
-                        type="number"
-                        min={0}
-                        max={59}
-                        value={localComboOfferMinutes}
-                        onChange={(e) => setLocalComboOfferMinutes(Math.min(59, Math.max(0, Number(e.target.value))))}
-                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 outline-none focus:border-black transition-all text-sm font-black text-center"
-                      />
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">সেকেন্ড (Seconds)</span>
-                      <input
-                        type="number"
-                        min={0}
-                        max={59}
-                        value={localComboOfferSeconds}
-                        onChange={(e) => setLocalComboOfferSeconds(Math.min(59, Math.max(0, Number(e.target.value))))}
-                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 outline-none focus:border-black transition-all text-sm font-black text-center"
-                      />
-                    </div>
-                  </div>
                 </div>
 
                 <div className="pt-4">
@@ -764,27 +726,24 @@ export default function BannerSettings() {
                     </span>
                   </div>
 
-                  <div className="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 rounded-2xl p-5 text-white shadow-md relative overflow-hidden">
-                    <div className="relative z-10 space-y-3">
-                      <div className="inline-flex items-center gap-1.5 bg-amber-400 text-gray-950 font-black text-[10px] px-3 py-0.5 rounded-full uppercase tracking-wider">
-                        <Flame size={12} className="fill-gray-950" />
-                        <span>{localComboOfferDiscount || "LIMITED TIME OFFER"}</span>
+                  <div className="bg-gradient-to-r from-[#0a1128] via-[#122046] to-[#0a1128] rounded-xl py-2.5 px-3.5 text-white shadow-md relative overflow-hidden border border-amber-400/30">
+                    <div className="absolute -left-10 -top-10 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+                    <div className="relative z-10 flex flex-col gap-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 min-w-0">
+                        <div className="inline-flex items-center gap-1 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 text-gray-950 font-black text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0 shadow-xs">
+                          <Sparkles size={10} className="fill-gray-950" />
+                          <span>{localComboOfferDiscount || "১০% ছাড়"}</span>
+                        </div>
+                        <h5 className="text-xs font-black tracking-tight text-white leading-snug">
+                          {localComboOfferTitle || "নতুন অফিস উদ্বোধন উপলক্ষে অফিস ভিজিট কেনাকাটায় ১০% ফ্ল্যাট ছাড়!"}
+                        </h5>
                       </div>
-                      <h5 className="text-lg font-black tracking-tight leading-snug">
-                        {localComboOfferTitle || "স্পেশাল কম্বো অফার - ২৫% ছাড়!"}
-                      </h5>
-                      {localComboOfferSubTitle && (
-                        <p className="text-[11px] text-blue-100 font-medium line-clamp-2">
-                          {localComboOfferSubTitle}
-                        </p>
-                      )}
-
-                      <div className="pt-2 flex items-center justify-between border-t border-white/10">
-                        <span className="text-[10px] text-blue-200 font-bold flex items-center gap-1">
-                          <Clock size={12} /> সময়: {String(localComboOfferHours).padStart(2, '0')}:{String(localComboOfferMinutes).padStart(2, '0')}:{String(localComboOfferSeconds).padStart(2, '0')}
+                      <div className="flex items-center justify-between border-t border-white/10 pt-1.5 text-[9px]">
+                        <span className="text-amber-300 font-bold flex items-center gap-1">
+                          <Building2 size={11} /> অফিস আউটলেট
                         </span>
-                        <span className="bg-white text-blue-900 font-black text-[10px] px-3 py-1.5 rounded-lg uppercase">
-                          অর্ডার করুন
+                        <span className="bg-white/15 text-white font-bold text-[8.5px] px-1.5 py-0.5 rounded border border-amber-400/30">
+                          ১০% ফ্ল্যাট ছাড়
                         </span>
                       </div>
                     </div>
@@ -792,7 +751,7 @@ export default function BannerSettings() {
                 </div>
 
                 <p className="text-[10px] text-gray-400 text-center italic mt-4">
-                  * "সেভ ও আপডেট করুন" বাটনে ক্লিক করলে গ্রাহক ওয়েবসাইটে নতুন কম্বো অফার দেখবে।
+                  * "সেভ ও আপডেট করুন" বাটনে ক্লিক করলে গ্রাহক ওয়েবসাইটে নতুন অফিস ভিজিট অফার দেখবে।
                 </p>
               </div>
             </div>

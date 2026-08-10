@@ -152,13 +152,7 @@ const ProductCard = React.memo(({ product, onAddToCart, loading = "lazy", badgeT
             <Heart size={14} className={isWishlisted ? "fill-red-500 text-red-500" : ""} />
           </button>
 
-          {/* Rating Chip floating on bottom-left of image */}
-          <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-xs px-2 py-0.5 rounded-md flex items-center gap-1 text-[10px] font-bold text-gray-700 border border-gray-100/80 shadow-2xs">
-            <span>{rating > 0 ? rating.toFixed(1) : (4.8 + (product.price % 3) * 0.1).toFixed(1)}</span>
-            <Star size={10} className="fill-amber-400 text-amber-400 stroke-none" />
-            <span className="text-gray-300">|</span>
-            <span className="text-gray-500">{Math.floor((product.price % 35) + 15)}</span>
-          </div>
+
         </Link>
 
         {/* Title */}

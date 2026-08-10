@@ -137,9 +137,9 @@ export default function Cart() {
 
             <button
               onClick={() => navigate('/checkout')}
-              className="w-full bg-brand-ink text-white py-5 text-xs uppercase tracking-[0.3em] font-bold hover:bg-brand-gold transition-all duration-500 flex items-center justify-center space-x-3 group"
+              className="w-full bg-[#1b49c4] text-white py-5 text-xs uppercase tracking-[0.3em] font-bold hover:bg-blue-700 transition-all duration-300 flex items-center justify-center space-x-3 group rounded-xl shadow-md cursor-pointer"
             >
-              <span>Secure Checkout</span>
+              <span className="bg-[#1b49c4] text-white font-extrabold px-3 py-1 rounded-md border border-white/20">Secure Checkout</span>
               <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
             </button>
 
@@ -149,9 +149,9 @@ export default function Cart() {
                  <img src="https://img.icons8.com/color/48/000000/mastercard.png" className="h-6 grayscale opacity-50" alt="Mastercard" />
                  <img src="https://img.icons8.com/color/48/000000/amex.png" className="h-6 grayscale opacity-50" alt="Amex" />
               </div>
-              <p className="text-[9px] uppercase tracking-widest text-brand-ink/40">
+              <div className="bg-[#1b49c4] text-white font-black py-2.5 px-4 rounded-lg text-[10px] uppercase tracking-widest text-center shadow-xs">
                 100% SECURE CHECKOUT GUARANTEED
-              </p>
+              </div>
             </div>
           </div>
         </div>

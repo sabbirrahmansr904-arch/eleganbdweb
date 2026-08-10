@@ -15,14 +15,14 @@ import { useCart } from '../contexts/CartContext';
 import { useBranding } from '../contexts/BrandingContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useInventory } from '../contexts/InventoryContext';
-import { ArrowLeft, CheckCircle2, User, Phone, Mail, MapPin, FileText, ShoppingBag, Gift, CreditCard, Coins, ShieldCheck, RefreshCw, Truck, Lock, Award, RotateCcw, Plus } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, User, Phone, Mail, MapPin, FileText, ShoppingBag, Gift, CreditCard, Coins, ShieldCheck, RefreshCw, Truck, Lock, Award, RotateCcw, Plus, Minus, Trash2, Search, X, PlusCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import { db } from '../lib/firebase';
 import { doc, getDoc, getDocs, collection, query, where, setDoc } from 'firebase/firestore';
 
 export default function Checkout() {
-  const { items, clearCart } = useCart();
+  const { items, clearCart, updateQuantity, removeFromCart, updateSize, addToCart } = useCart();
   const { currency, rate } = useCurrency();
   const { shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter } = useBranding();
   const navigate = useNavigate();
@@ -39,6 +39,11 @@ export default function Checkout() {
   const [couponError, setCouponError] = useState('');
   const [couponEnabled, setCouponEnabled] = useState(false);
   const [couponLoading, setCouponLoading] = useState(false);
+
+  // Add Product Modal States
+  const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
+  const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [selectedProductSizes, setSelectedProductSizes] = useState<Record<string, string>>({});
 
   // OTP Verification States
   const [showOtpModal, setShowOtpModal] = useState(false);
@@ -57,6 +62,7 @@ export default function Checkout() {
     phone: '',
     paymentMethod: 'cod',
     transactionId: '',
+    paidAmount: '',
     orderNote: ''
   });
 
@@ -416,6 +422,8 @@ export default function Checkout() {
         status: 'Pending',
         paymentMethod: formData.paymentMethod,
         transactionId: formData.transactionId,
+        paidAmount: formData.paidAmount ? Number(formData.paidAmount) : undefined,
+        advancePayment: formData.paidAmount ? Number(formData.paidAmount) : undefined,
         notes: formData.orderNote,
         createdAt: new Date().toISOString(),
         invoiceBy: 'Website order'
@@ -932,7 +940,7 @@ export default function Checkout() {
                     <div className="text-[12.5px] space-y-3.5 text-[#0C1421] leading-relaxed font-sans font-bold">
                       <p>১. নিচের নাম্বারে <span className="font-extrabold underline">{formData.paymentMethod === 'bkash' ? 'bKash' : formData.paymentMethod === 'nagad' ? 'Nagad' : 'Rocket'} {formData.paymentMethod === 'bkash' ? paymentsConfig.bkashType : formData.paymentMethod === 'nagad' ? paymentsConfig.nagadType : paymentsConfig.rocketType}</span> এ <span className="font-extrabold">Send Money</span> করুন।</p>
                       <p>২. নাম্বার: <span className="text-[#0C1421] font-black text-base tracking-wider bg-white border border-gray-200 px-2.5 py-1 rounded-md shadow-3xs ml-1 font-mono">{formData.paymentMethod === 'bkash' ? paymentsConfig.bkashNumber : formData.paymentMethod === 'nagad' ? paymentsConfig.nagadNumber : paymentsConfig.rocketNumber}</span></p>
-                      <p>৩. টাকা পাঠানো হয়ে গেলে ট্রানজেকশন আইডি টি নিচের বক্সে লিখে অর্ডার সম্পন্ন করুন।</p>
+                      <p>৩. টাকা পাঠানো হয়ে গেলে ট্রানজেকশন আইডি ও পাঠানো টাকার পরিমাণ নিচের বক্সে লিখে অর্ডার সম্পন্ন করুন।</p>
                       
                       <div className="space-y-2 pt-3">
                         <label className="block text-[9.5px] font-extrabold uppercase tracking-widest text-[#62758A]">৪. TRANSACTION ID (ট্রানজেকশন আইডি)</label>
@@ -946,6 +954,20 @@ export default function Checkout() {
                           placeholder="TRX123456789"
                         />
                       </div>
+
+                      <div className="space-y-2 pt-2">
+                        <label className="block text-[9.5px] font-extrabold uppercase tracking-widest text-[#62758A]">৫. AMOUNT SENT / প্রেরিত টাকার পরিমাণ (TK)</label>
+                        <input
+                          required={formData.paymentMethod === 'bkash' || formData.paymentMethod === 'nagad' || formData.paymentMethod === 'rocket'}
+                          type="number"
+                          name="paidAmount"
+                          value={formData.paidAmount || ''}
+                          onChange={handleInputChange}
+                          className="w-full bg-white border border-gray-200 py-3 px-4.5 rounded-xl outline-none focus:outline-none focus:ring-2 focus:ring-[#0C1421]/10 focus:border-[#0C1421] transition-all font-sans text-sm font-bold placeholder-gray-400"
+                          placeholder={`e.g. ${total}`}
+                          min="1"
+                        />
+                      </div>
                     </div>
                   </motion.div>
                 )}
@@ -954,45 +976,145 @@ export default function Checkout() {
         </div>
         
         {/* Right Side: Order Summary Card */}
-        <div className="border border-gray-100/80 bg-white p-5 md:p-10 rounded-3xl shadow-sm space-y-8">
+        <div className="border border-gray-100/80 bg-white p-5 md:p-8 rounded-3xl shadow-sm space-y-6">
           
           {/* Header */}
           <div className="flex items-center justify-between border-b pb-4 border-gray-100">
-            <h2 className="text-sm font-black uppercase tracking-[0.15em] text-[#0C1421] flex items-center gap-2">
-              <ShoppingBag size={16} className="text-[#0C1421]" />
-              ORDER SUMMARY
-            </h2>
-            <span className="text-[10px] font-black bg-gray-150 text-[#0c1421] px-2.5 py-1 rounded-full uppercase tracking-widest">{items.length} {items.length === 1 ? 'item' : 'items'}</span>
+            <div>
+              <h2 className="text-sm font-black uppercase tracking-[0.15em] text-[#0C1421] flex items-center gap-2">
+                <ShoppingBag size={16} className="text-[#0C1421]" />
+                ORDER SUMMARY
+              </h2>
+              <span className="text-[10px] font-bold text-gray-400 block mt-0.5">
+                Manage size, qty or remove items below
+              </span>
+            </div>
+            <span className="text-[10px] font-black bg-gray-100 text-[#0c1421] px-2.5 py-1 rounded-full uppercase tracking-widest">
+              {items.reduce((sum, item) => sum + item.quantity, 0)} {items.reduce((sum, item) => sum + item.quantity, 0) === 1 ? 'item' : 'items'}
+            </span>
           </div>
 
+          {/* Add More Product Button */}
+          <button
+            type="button"
+            onClick={() => setIsAddProductModalOpen(true)}
+            className="w-full py-2.5 px-4 bg-indigo-50 hover:bg-indigo-100/80 text-indigo-700 border border-indigo-200/80 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs group"
+          >
+            <PlusCircle size={16} className="group-hover:scale-110 transition-transform text-indigo-600" />
+            <span>+ Add More Product / প্রোডাক্ট যোগ করুন</span>
+          </button>
+
           {/* Cart items listing */}
-          <div className="space-y-5 max-h-[350px] overflow-y-auto no-scrollbar pr-1">
+          <div className="space-y-4 max-h-[380px] overflow-y-auto no-scrollbar pr-1">
             {items.length === 0 ? (
-              <p className="text-center py-6 text-xs text-gray-500 font-semibold uppercase tracking-widest">No products in cart.</p>
+              <div className="text-center py-8 bg-gray-50/60 rounded-2xl border border-dashed border-gray-200 p-4 space-y-3">
+                <p className="text-xs text-gray-500 font-semibold uppercase tracking-widest">No products in cart.</p>
+                <button
+                  type="button"
+                  onClick={() => setIsAddProductModalOpen(true)}
+                  className="bg-[#0C1421] text-white px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer"
+                >
+                  + Add Product Now
+                </button>
+              </div>
             ) : (
-              items.map((item) => (
-                <div key={item.id} className="flex gap-4 items-center bg-gray-50/20 p-2.5 rounded-2xl border border-gray-100/50 hover:border-gray-200 transition-colors">
-                  <div className="w-14 h-18 shrink-0 bg-white p-1 rounded-lg border border-gray-100 flex items-center justify-center overflow-hidden">
-                    <img 
-                      src={item.product.images[0]} 
-                      className="w-full h-full object-contain"
-                      alt="" 
-                      referrerPolicy="no-referrer" 
-                    />
+              items.map((item) => {
+                const availableSizes = item.product.sizes && item.product.sizes.length > 0 
+                  ? item.product.sizes 
+                  : ['S', 'M', 'L', 'XL', 'XXL'];
+
+                return (
+                  <div key={item.id} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-gray-50/40 p-3 rounded-2xl border border-gray-150/80 hover:border-gray-200 transition-all shadow-3xs group">
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                      <div className="w-16 h-20 shrink-0 bg-white p-1 rounded-xl border border-gray-200 flex items-center justify-center overflow-hidden shadow-2xs">
+                        <img 
+                          src={item.product.images?.[0] || 'https://via.placeholder.com/100'} 
+                          className="w-full h-full object-contain"
+                          alt={item.product.name} 
+                          referrerPolicy="no-referrer" 
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0 sm:hidden">
+                        <p className="text-xs uppercase tracking-wider font-extrabold text-[#0C1421] truncate">{item.product.name}</p>
+                        <p className="text-xs font-black text-indigo-700 font-mono mt-0.5">
+                          {formatPrice(item.product.price * item.quantity, currency, rate)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeFromCart(item.id)}
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors sm:hidden ml-auto cursor-pointer"
+                        title="Remove Item"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+
+                    <div className="flex-1 min-w-0 text-left w-full">
+                      <div className="hidden sm:flex justify-between items-start gap-2">
+                        <p className="text-xs uppercase tracking-wider font-extrabold text-[#0C1421] truncate">{item.product.name}</p>
+                        <button
+                          type="button"
+                          onClick={() => removeFromCart(item.id)}
+                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer shrink-0"
+                          title="Remove Item"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2.5">
+                        {/* Size Selector */}
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">SIZE:</span>
+                          <select
+                            value={item.selectedSize}
+                            onChange={(e) => updateSize(item.id, e.target.value)}
+                            className="bg-white border border-gray-250 rounded-lg px-2 py-1 text-[11px] font-bold text-[#0C1421] font-mono outline-none focus:border-[#0C1421] cursor-pointer shadow-3xs"
+                          >
+                            {availableSizes.map(sz => (
+                              <option key={sz} value={sz}>{sz}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Quantity Counter */}
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">QTY:</span>
+                          <div className="flex items-center bg-white border border-gray-250 rounded-lg shadow-3xs overflow-hidden">
+                            <button
+                              type="button"
+                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                              className="p-1 px-1.5 hover:bg-gray-100 text-gray-700 transition-colors cursor-pointer"
+                              title="Decrease Quantity"
+                            >
+                              <Minus size={13} />
+                            </button>
+                            <span className="px-2 text-xs font-black font-mono text-[#0C1421] min-w-[20px] text-center">
+                              {item.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                              className="p-1 px-1.5 hover:bg-gray-100 text-gray-700 transition-colors cursor-pointer"
+                              title="Increase Quantity"
+                            >
+                              <Plus size={13} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Total Price for item */}
+                        <div className="hidden sm:block text-right">
+                          <span className="text-xs font-black text-[#0C1421] font-mono">
+                            {formatPrice(item.product.price * item.quantity, currency, rate)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0 text-left">
-                    <p className="text-xs uppercase tracking-wider font-extrabold text-[#0C1421] truncate">{item.product.name}</p>
-                    <p className="text-[9.5px] text-[#62758A] uppercase tracking-widest font-black mt-1 font-mono">
-                      QTY: {item.quantity} • SIZE: {item.selectedSize}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <span className="text-xs font-black text-[#0C1421] font-mono">
-                      {formatPrice(item.product.price * item.quantity, currency, rate)}
-                    </span>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
           
@@ -1087,6 +1209,10 @@ export default function Checkout() {
             <span className="text-center text-gray-500/85 uppercase tracking-[0.15em] text-[9.5px] font-black mt-4 block">
               ESTIMATED DELIVERY: 24-48 HOURS
             </span>
+            <div className="mt-3 bg-[#1b49c4] text-white py-2.5 px-4 rounded-xl text-center text-[10px] font-black uppercase tracking-widest shadow-xs flex items-center justify-center gap-2">
+              <ShieldCheck size={14} />
+              <span>SECURE CHECKOUT GUARANTEED</span>
+            </div>
           </div>
 
           <p className="text-[9.5px] text-[#62758A]/80 font-semibold leading-relaxed text-center pt-2">
@@ -1232,6 +1358,124 @@ export default function Checkout() {
                   ) : (
                     "Resend Code"
                   )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Add Product Modal */}
+      <AnimatePresence>
+        {isAddProductModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-gray-100 text-left"
+            >
+              {/* Modal Header */}
+              <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                <div>
+                  <h3 className="text-base font-black uppercase tracking-wider text-[#0C1421]">
+                    Add Products to Order / প্রোডাক্ট যোগ করুন
+                  </h3>
+                  <p className="text-xs text-gray-500 font-medium">Select a product & size to add to your order summary</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAddProductModalOpen(false)}
+                  className="p-2 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-200/60 transition-colors cursor-pointer"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Modal Search Bar */}
+              <div className="p-4 border-b border-gray-100 bg-white">
+                <div className="relative">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input
+                    type="text"
+                    value={productSearchQuery}
+                    onChange={(e) => setProductSearchQuery(e.target.value)}
+                    placeholder="Search product by name or category..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-[#0C1421] outline-none focus:border-[#0C1421] placeholder-gray-400"
+                  />
+                </div>
+              </div>
+
+              {/* Modal Products List */}
+              <div className="p-4 overflow-y-auto flex-1 space-y-3 max-h-[420px] no-scrollbar">
+                {products.filter(p => p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) || (p.category && p.category.toLowerCase().includes(productSearchQuery.toLowerCase()))).length === 0 ? (
+                  <p className="text-center py-8 text-xs font-semibold text-gray-500">No matching products found.</p>
+                ) : (
+                  products
+                    .filter(p => p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) || (p.category && p.category.toLowerCase().includes(productSearchQuery.toLowerCase())))
+                    .map((prod) => {
+                      const sizes = prod.sizes && prod.sizes.length > 0 ? prod.sizes : ['S', 'M', 'L', 'XL', 'XXL'];
+                      const currentSize = selectedProductSizes[prod.id] || sizes[0];
+
+                      return (
+                        <div key={prod.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-white border border-gray-150 rounded-2xl hover:border-indigo-200 hover:shadow-xs transition-all">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <img
+                              src={prod.images?.[0] || 'https://via.placeholder.com/100'}
+                              alt=""
+                              className="w-14 h-16 object-contain rounded-xl border border-gray-100 bg-gray-50 shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <p className="text-xs font-black uppercase text-[#0C1421] truncate">{prod.name}</p>
+                              <p className="text-xs font-bold text-indigo-600 font-mono mt-0.5">{formatPrice(prod.price, currency, rate)}</p>
+                              
+                              {/* Size picker */}
+                              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                <span className="text-[9px] font-black text-gray-400 uppercase">Size:</span>
+                                {sizes.map((sz) => (
+                                  <button
+                                    key={sz}
+                                    type="button"
+                                    onClick={() => setSelectedProductSizes(prev => ({ ...prev, [prod.id]: sz }))}
+                                    className={cn(
+                                      "px-2 py-0.5 text-[10px] font-bold rounded-md border transition-all cursor-pointer font-mono",
+                                      currentSize === sz
+                                        ? "bg-[#0C1421] text-white border-[#0C1421]"
+                                        : "bg-gray-50 text-gray-700 border-gray-200 hover:border-gray-300"
+                                    )}
+                                  >
+                                    {sz}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              addToCart(prod, currentSize, 1);
+                              toast.success(`${prod.name} (${currentSize}) added to order!`);
+                            }}
+                            className="bg-[#1e3a8a] hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-xs font-extrabold uppercase tracking-wider shrink-0 transition-all shadow-2xs cursor-pointer flex items-center gap-1.5 self-end sm:self-center"
+                          >
+                            <Plus size={14} />
+                            <span>Add to Order</span>
+                          </button>
+                        </div>
+                      );
+                    })
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsAddProductModalOpen(false)}
+                  className="bg-[#0C1421] text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer shadow-3xs"
+                >
+                  Done
                 </button>
               </div>
             </motion.div>
