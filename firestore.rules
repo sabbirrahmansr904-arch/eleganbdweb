@@ -263,6 +263,10 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    match /dollar_transactions/{transactionId} {
+      allow read, write: if isAdmin();
+    }
+
     match /invoice_by_options/{optionId} {
       allow read, list: if true;
       allow create, update: if isSignedIn();

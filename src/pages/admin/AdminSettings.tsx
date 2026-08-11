@@ -2053,7 +2053,7 @@ export default function AdminSettings() {
                     className="bg-blue-600 text-white px-5 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider hover:bg-blue-700 transition-all shadow-md flex items-center justify-center gap-2 shrink-0"
                   >
                     <Plus size={16} />
-                    <span>+ নতুন এডমিন পারমিশন দিন</span>
+                    <span>নতুন এডমিন পারমিশন দিন</span>
                   </button>
                 </div>
 
@@ -2239,7 +2239,7 @@ export default function AdminSettings() {
                     </div>
                   ) : adminList.length === 0 ? (
                     <div className="text-center py-12 bg-gray-50 border border-gray-150 rounded-3xl">
-                      <p className="text-xs text-gray-400 font-bold italic">No direct admins currently added. Click "+ নতুন এডমিন পারমিশন দিন" to add staff.</p>
+                      <p className="text-xs text-gray-400 font-bold italic">No direct admins currently added. Click "নতুন এডমিন পারমিশন দিন" to add staff.</p>
                     </div>
                   ) : (
                     <div className="border border-gray-200 rounded-3xl overflow-hidden divide-y divide-gray-100 bg-[#F8F9FD] shadow-xs">

@@ -45,7 +45,8 @@ import {
   DollarSign,
   RefreshCw,
   UserCheck,
-  History
+  History,
+  Coins
 } from 'lucide-react';
 import { cn, formatPrice } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -238,7 +239,7 @@ export default function AdminLayout() {
     if (path.startsWith('/admin/exchanges')) return 'exchanges';
     if (path.startsWith('/admin/issues')) return 'issues';
     if (path.startsWith('/admin/master-table') || path.startsWith('/admin/inventory-log')) return 'masterTable';
-    if (path.startsWith('/admin/finance')) return 'finance';
+    if (path.startsWith('/admin/finance') || path.startsWith('/admin/dollar-expenses')) return 'finance';
     if (path.startsWith('/admin/settings')) return 'settings';
     return null;
   };
@@ -261,6 +262,7 @@ export default function AdminLayout() {
         { name: 'Master Table', path: '/admin/master-table', icon: Table, perm: 'masterTable' },
         { name: 'Inventory Log', path: '/admin/inventory-log', icon: History, perm: 'masterTable' },
         { name: 'Finance', path: '/admin/finance', icon: DollarSign, perm: 'finance' },
+        { name: 'Dollar Expense', path: '/admin/dollar-expenses', icon: Coins, perm: 'finance' },
       ]
     },
     {

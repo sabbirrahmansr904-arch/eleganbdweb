@@ -3775,7 +3775,7 @@ export default function AdminOrders(): React.JSX.Element {
                             <button 
                               onClick={() => {
                                 setCancelRequestedClicked(true);
-                                toast.info("অর্ডার বাতিল চূড়ান্ত করতে 'APPROVED CANCEL' ক্লিক করুন");
+                                toast("অর্ডার বাতিল চূড়ান্ত করতে 'APPROVED CANCEL' ক্লিক করুন", { icon: 'ℹ️' });
                               }}
                               className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 bg-[#FFAB00] hover:bg-[#e09600] text-white font-extrabold text-[10.5px] rounded-full uppercase tracking-wider transition-all shadow-md cursor-pointer hover:shadow-lg"
                             >

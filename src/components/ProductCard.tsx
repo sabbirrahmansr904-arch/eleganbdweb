@@ -97,17 +97,17 @@ const ProductCard = React.memo(({ product, onAddToCart, loading = "eager", badge
 
   return (
     <div
-      className="group relative bg-white rounded-2xl border border-gray-100/90 shadow-2xs hover:shadow-md transition-all duration-300 p-2 sm:p-2.5 flex flex-col justify-between h-full"
+      className="group relative bg-white rounded-2xl border border-gray-100/90 shadow-2xs hover:shadow-md transition-all duration-300 p-3 sm:p-4 flex flex-col justify-between h-full"
     >
       <div>
         {/* Product Image Container */}
-        <Link to={`/product/${product.id}`} className="block relative aspect-square w-full rounded-xl overflow-hidden bg-[#f8f9fa] group/img">
+        <Link to={`/product/${product.id}`} className="block relative aspect-[4/5] w-full rounded-xl overflow-hidden bg-[#f8f9fa] group/img">
           {product.images && product.images.length > 0 && product.images[0] ? (
             <img
               src={product.images[0]}
               alt={product.name}
               className={cn(
-                "w-full h-full transition-transform duration-500 ease-out group-hover/img:scale-105 object-cover",
+                "w-full h-full transition-transform duration-500 ease-out group-hover/img:scale-105 object-contain",
                 product.stock === 0 && "grayscale"
               )}
               referrerPolicy="no-referrer"
@@ -154,17 +154,17 @@ const ProductCard = React.memo(({ product, onAddToCart, loading = "eager", badge
         </Link>
 
         {/* Title */}
-        <h3 className="text-xs sm:text-sm font-semibold text-gray-800 line-clamp-2 mt-2 px-0.5 uppercase tracking-tight hover:text-blue-600 transition-colors leading-snug min-h-[32px]">
+        <h3 className="text-base sm:text-lg font-bold text-gray-900 line-clamp-2 mt-3 px-1 uppercase tracking-tight hover:text-blue-600 transition-colors leading-snug min-h-[48px]">
           <Link to={`/product/${product.id}`}>{product.name}</Link>
         </h3>
 
         {/* Pricing */}
-        <div className="flex items-center gap-1.5 mt-1.5 px-0.5 flex-wrap">
-          <span className="text-xs sm:text-sm font-extrabold text-gray-950">
+        <div className="flex items-center gap-2 mt-2 px-1 flex-wrap">
+          <span className="text-base sm:text-lg font-black text-blue-700">
             {formatPrice(product.price, currency, rate)}
           </span>
           {product.regularPrice && product.regularPrice > product.price && (
-            <span className="text-[10px] sm:text-xs text-gray-400 line-through font-medium">
+            <span className="text-sm sm:text-base text-gray-400 line-through font-medium">
               {formatPrice(product.regularPrice, currency, rate)}
             </span>
           )}
@@ -172,18 +172,18 @@ const ProductCard = React.memo(({ product, onAddToCart, loading = "eager", badge
       </div>
 
       {/* Action Buttons: ADD & ORDER NOW */}
-      <div className="grid grid-cols-2 gap-1.5 mt-3 pt-1">
+      <div className="flex flex-col gap-2 mt-4 pt-2 w-full">
         <button 
           onClick={handleQuickAdd}
-          className="w-full bg-white text-gray-700 border border-gray-200 py-1.5 px-1 rounded-lg text-[10px] sm:text-xs font-bold flex items-center justify-center gap-1 hover:bg-gray-50 hover:border-gray-300 transition-all cursor-pointer"
+          className="w-full bg-white text-gray-800 border border-gray-300 py-2.5 px-3 rounded-xl text-sm sm:text-base font-bold flex items-center justify-center gap-2 hover:bg-gray-100 hover:border-gray-400 transition-all cursor-pointer whitespace-nowrap"
         >
-          <ShoppingBag size={12} className="text-gray-500 shrink-0" />
-          <span>ADD</span>
+          <ShoppingBag size={16} className="text-gray-600 shrink-0" />
+          <span>ADD TO CART</span>
         </button>
         
         <button 
           onClick={handleQuickOrder}
-          className="w-full bg-[#1b49c4] text-white py-1.5 px-1 rounded-lg text-[10px] sm:text-xs font-extrabold flex items-center justify-center hover:bg-blue-700 transition-all shadow-xs cursor-pointer uppercase"
+          className="w-full bg-[#1b49c4] text-white py-2.5 px-3 rounded-xl text-sm sm:text-base font-extrabold flex items-center justify-center hover:bg-blue-800 transition-all shadow-md cursor-pointer uppercase whitespace-nowrap"
         >
           <span>ORDER NOW</span>
         </button>

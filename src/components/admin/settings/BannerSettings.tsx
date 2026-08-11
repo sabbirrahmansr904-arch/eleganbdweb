@@ -726,11 +726,11 @@ export default function BannerSettings() {
                     </span>
                   </div>
 
-                  <div className="bg-gradient-to-r from-[#0a1128] via-[#122046] to-[#0a1128] rounded-xl py-2.5 px-3.5 text-white shadow-md relative overflow-hidden border border-amber-400/30">
-                    <div className="absolute -left-10 -top-10 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
-                    <div className="relative z-10 flex flex-col gap-2">
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 min-w-0">
-                        <div className="inline-flex items-center gap-1 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 text-gray-950 font-black text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0 shadow-xs">
+                  <div className="bg-gradient-to-r from-blue-950 via-indigo-900 to-blue-950 rounded-2xl py-3.5 px-4 text-white shadow-[0_0_20px_rgba(245,158,11,0.45)] relative overflow-hidden border-2 border-amber-400 animate-pulse">
+                    <div className="absolute -left-8 -top-8 w-32 h-32 bg-amber-400/25 rounded-full blur-3xl pointer-events-none" />
+                    <div className="relative z-10 flex flex-col gap-2.5">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 min-w-0">
+                        <div className="inline-flex items-center gap-1 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-gray-950 font-black text-[9.5px] px-2.5 py-0.5 rounded-full uppercase tracking-wider shrink-0 shadow-sm ring-1 ring-white/20">
                           <Sparkles size={10} className="fill-gray-950" />
                           <span>{localComboOfferDiscount || "১০% ছাড়"}</span>
                         </div>
@@ -738,11 +738,11 @@ export default function BannerSettings() {
                           {localComboOfferTitle || "নতুন অফিস উদ্বোধন উপলক্ষে অফিস ভিজিট কেনাকাটায় ১০% ফ্ল্যাট ছাড়!"}
                         </h5>
                       </div>
-                      <div className="flex items-center justify-between border-t border-white/10 pt-1.5 text-[9px]">
+                      <div className="flex items-center justify-between border-t border-white/10 pt-2 text-[9.5px]">
                         <span className="text-amber-300 font-bold flex items-center gap-1">
-                          <Building2 size={11} /> অফিস আউটলেট
+                          <Building2 size={12} className="animate-bounce text-amber-300" /> অফিস আউটলেট কেনাকাটায় ১০% ছাড়
                         </span>
-                        <span className="bg-white/15 text-white font-bold text-[8.5px] px-1.5 py-0.5 rounded border border-amber-400/30">
+                        <span className="bg-amber-400/25 text-amber-300 font-black text-[8.5px] px-2 py-0.5 rounded-lg border border-amber-400/40">
                           ১০% ফ্ল্যাট ছাড়
                         </span>
                       </div>

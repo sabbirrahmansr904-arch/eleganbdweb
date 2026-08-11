@@ -62,6 +62,7 @@ import AdminMedia from './pages/admin/AdminMedia';
 import FixSizes from './pages/admin/FixSizes';
 import AdminExpenses from './pages/admin/AdminExpenses';
 import AdminFinance from './pages/admin/AdminFinance';
+import AdminDollarExpenses from './pages/admin/AdminDollarExpenses';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requireAdmin = true }: { children: React.ReactNode, requireAdmin?: boolean }) => {
@@ -140,6 +141,7 @@ function AppRoutes() {
           <Route path="fix-sizes" element={<FixSizes />} />
           <Route path="expenses" element={<AdminExpenses />} />
           <Route path="finance" element={<AdminFinance />} />
+          <Route path="dollar-expenses" element={<AdminDollarExpenses />} />
         </Route>
 
         {/* Catch-all */}

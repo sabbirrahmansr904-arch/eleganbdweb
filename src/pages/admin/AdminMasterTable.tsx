@@ -13,8 +13,10 @@ import {
   DollarSign,
   Package,
   Boxes,
-  Grid3X3
+  Grid3X3,
+  History
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useProducts } from '../../contexts/ProductContext';
 import { useCategories } from '../../contexts/CategoryContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
@@ -25,14 +27,16 @@ export default function AdminMasterTable(): React.JSX.Element {
   const { products, updateProduct, loading } = useProducts();
   const { categories } = useCategories();
   const { currency } = useCurrency();
+  const navigate = useNavigate();
 
-  // Active matrix mode: 'STOCK' | 'PRICE' | 'SALE'
-  const [activeMode, setActiveMode] = useState<'STOCK' | 'PRICE' | 'SALE'>('STOCK');
+  // Active matrix mode: 'STOCK' | 'PRICE'
+  const [activeMode, setActiveMode] = useState<'STOCK' | 'PRICE'>('STOCK');
 
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [stockFilter, setStockFilter] = useState('All'); // 'All' | 'Low' | 'Out'
+  const [pageSize, setPageSize] = useState<number | 'All'>(100);
 
   // Inline editing state
   const [editingCell, setEditingCell] = useState<{
@@ -43,19 +47,43 @@ export default function AdminMasterTable(): React.JSX.Element {
 
   const [savingId, setSavingId] = useState<string | null>(null);
 
-  // Standard sizes to display in columns
-  const standardSizes = [
+  // Standard sizes ordered logically (numerical pants sizes first, then standard letter sizes)
+  const standardSizesOrder = [
     '28', '30', '32', '34', '36', '38', '40',
     'XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', '3XL', '4XL', '5XL', '6XL', '7XL', '8XL', '9XL', '10XL', '11XL', '12XL'
   ];
 
-  const shirtSizes = ['M', 'L', 'XL', '2XL'];
-  const pantSizes = ['28', '30', '32', '34', '36', '38', '40'];
+  // Dynamically extract all sizes actually present/active in any product of our website
+  const activeSizes = useMemo(() => {
+    const sizesSet = new Set<string>();
+    products.forEach(p => {
+      if (p.sizes && Array.isArray(p.sizes)) {
+        p.sizes.forEach(s => {
+          if (s) sizesSet.add(s);
+        });
+      }
+      if (p.sizeStock) {
+        Object.keys(p.sizeStock).forEach(s => {
+          if (s) sizesSet.add(s);
+        });
+      }
+    });
 
-  const isPantCategory = (category: string) => {
-    const cat = (category || '').toLowerCase();
-    return cat.includes('pant') || cat.includes('jeans') || cat.includes('trouser') || cat.includes('pajama') || cat.includes('bottom') || cat.includes('gabardine');
-  };
+    // Default to a fallback list if there are no active sizes yet
+    if (sizesSet.size === 0) {
+      return ['M', 'L', 'XL', '2XL'];
+    }
+
+    // Sort according to standardSizesOrder, and put any other custom sizes at the end
+    const sorted = standardSizesOrder.filter(size => sizesSet.has(size));
+    Array.from(sizesSet).forEach(size => {
+      if (!standardSizesOrder.includes(size)) {
+        sorted.push(size);
+      }
+    });
+
+    return sorted;
+  }, [products]);
 
   // Dynamic list of categories from products + categories context
   const categoriesList = useMemo(() => {
@@ -76,7 +104,7 @@ export default function AdminMasterTable(): React.JSX.Element {
     }, 0);
   }, [products]);
 
-  // Filtered products list
+  // Filtered products list matching active search & dropdowns
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
       // Search term matching (SKU or Product Name)
@@ -104,45 +132,30 @@ export default function AdminMasterTable(): React.JSX.Element {
     });
   }, [products, searchTerm, selectedCategory, stockFilter]);
 
-  const shirtProducts = useMemo(() => {
-    return filteredProducts.filter(p => !isPantCategory(p.category));
-  }, [filteredProducts]);
+  // Paged products according to selected pageSize dropdown
+  const displayedProducts = useMemo(() => {
+    if (pageSize === 'All') return filteredProducts;
+    return filteredProducts.slice(0, pageSize);
+  }, [filteredProducts, pageSize]);
 
-  const pantProducts = useMemo(() => {
-    return filteredProducts.filter(p => isPantCategory(p.category));
-  }, [filteredProducts]);
-
-  // Group shirt products by category
-  const groupedShirts = useMemo(() => {
-    const groups: Record<string, typeof shirtProducts> = {};
-    shirtProducts.forEach(product => {
-      const cat = product.category || 'Shirts';
+  // Group displayed products by category for rendering sections
+  const groupedProducts = useMemo(() => {
+    const groups: Record<string, typeof displayedProducts> = {};
+    displayedProducts.forEach(product => {
+      const cat = product.category || 'Uncategorized';
       if (!groups[cat]) {
         groups[cat] = [];
       }
       groups[cat].push(product);
     });
     return groups;
-  }, [shirtProducts]);
-
-  // Group pant products by category
-  const groupedPants = useMemo(() => {
-    const groups: Record<string, typeof pantProducts> = {};
-    pantProducts.forEach(product => {
-      const cat = product.category || 'Pants';
-      if (!groups[cat]) {
-        groups[cat] = [];
-      }
-      groups[cat].push(product);
-    });
-    return groups;
-  }, [pantProducts]);
+  }, [displayedProducts]);
 
   // Export functions (CSV download)
   const handleExport = () => {
     try {
       let headers = ['Product Name', 'SKU', 'Category', 'Price', 'Sale Price'];
-      standardSizes.forEach(size => headers.push(`Stock ${size}`));
+      activeSizes.forEach(size => headers.push(`Stock ${size}`));
       headers.push('Total Stock');
 
       const rows = filteredProducts.map(p => {
@@ -155,7 +168,7 @@ export default function AdminMasterTable(): React.JSX.Element {
         ];
         
         // Add size stock
-        standardSizes.forEach(size => {
+        activeSizes.forEach(size => {
           rowData.push(p.sizeStock?.[size] ?? 0);
         });
 
@@ -284,474 +297,366 @@ export default function AdminMasterTable(): React.JSX.Element {
   };
 
   return (
-    <div className="w-full h-full p-4 pb-8 font-sans text-[#0C1421] bg-[#F8F9FD]">
+    <div className="w-full h-full p-4 md:p-6 pb-12 font-sans text-[#1E293B] bg-[#F8FAFC]">
       
-      {/* Top Title & Quick Stock Card - Compacted */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-gray-100 pb-4 mb-4">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-            <Boxes className="w-5 h-5" />
+      {/* HEADER SECTION (Master Inventory Matrix UI) */}
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 shadow-xs">
+            <Grid3X3 className="w-6 h-6 text-[#4F46E5]" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-black text-black tracking-tighter uppercase">Inventory Matrix</h1>
-              <span className="bg-black/5 text-black px-2 py-0.5 rounded-full text-[9px] font-extrabold tracking-wider">
-                {products.length}
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight uppercase">
+                Master Inventory Matrix
+              </h1>
+              <span className="bg-slate-100 border border-slate-200 text-[#475569] px-3 py-1 rounded-full text-xs font-black tracking-wider whitespace-nowrap">
+                {filteredProducts.length} of {products.length}
               </span>
             </div>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Stock & Pricing Management</p>
+            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">
+              Stock & pricing master database
+            </p>
           </div>
         </div>
 
-        {/* Global Units Counter Card - Compacted */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center bg-black/5 border border-black/10 rounded-xl px-4 py-2 shrink-0">
-            <div className="mr-3">
-              <p className="text-[9px] text-black font-black uppercase tracking-wider">Products</p>
-              <p className="text-xl font-black text-black leading-none mt-0.5">{products.length}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center bg-[#2563EB]/5 border border-[#2563EB]/10 rounded-xl px-4 py-2 shrink-0">
-            <div className="mr-3">
-              <p className="text-[9px] text-[#2563EB] font-black uppercase tracking-wider">Total Stock</p>
-              <p className="text-xl font-black text-[#2563EB] leading-none mt-0.5">{globalTotalUnits}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Control Utility Bar - Compacted */}
-      <div className="flex flex-col xl:flex-row xl:items-center gap-3 justify-between bg-gray-50/50 p-3 rounded-xl border border-gray-100 mb-4">
-        
-        {/* Left Side: Modes Switchers & Export */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Mode Switchers */}
-          <div className="bg-[#F8F9FD] p-0.5 rounded-lg border border-gray-150 flex items-center shadow-xs">
-            {(['STOCK', 'PRICE', 'SALE'] as const).map(mode => (
+        {/* Global Stock Counter Card & Top Utilities */}
+        <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+          {/* Segmented Mode Selector */}
+          <div className="bg-[#ECEFF5] p-1 rounded-full flex items-center border border-slate-200/50 shadow-inner">
+            {(['STOCK', 'PRICE'] as const).map(mode => (
               <button
                 key={mode}
                 onClick={() => {
                   setActiveMode(mode);
                   setEditingCell(null);
                 }}
-                className={`px-4 py-1.5 rounded-md text-[9px] font-black uppercase tracking-wider transition-all duration-200 cursor-pointer group flex items-center gap-1.5 ${
+                className={`px-5 py-1.5 rounded-full text-xs font-black tracking-wider transition-all duration-200 cursor-pointer ${
                   activeMode === mode 
-                    ? 'bg-blue-600 text-white shadow-xs' 
-                    : 'text-gray-400 hover:text-blue-600 hover:bg-gray-50'
+                    ? 'bg-white text-[#4F46E5] shadow-sm' 
+                    : 'text-[#5E6A83] hover:text-[#0C1421]'
                 }`}
               >
-                {mode === 'PRICE' && <DollarSign size={9} />}
-                {mode === 'STOCK' && <Package size={9} />}
-                {mode === 'SALE' && <Tag size={9} />}
-                <span>{mode}</span>
+                {mode}
               </button>
             ))}
           </div>
 
-          {/* Export CSV Button */}
+          {/* Export Button */}
           <button
             onClick={handleExport}
-            className="bg-[#10B981] hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+            className="bg-[#00A36C] hover:bg-[#008f5c] text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer shadow-md shadow-emerald-100/60"
           >
-            <Download size={11} className="stroke-[2.5]" />
+            <Download size={14} className="stroke-[2.5]" />
             <span>Export</span>
           </button>
+
+          {/* History Button */}
+          <button
+            onClick={() => navigate('/admin/inventory-log')}
+            className="bg-white border border-[#D5DBE5] hover:bg-[#F8FAFC] text-slate-700 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer shadow-xs"
+          >
+            <History size={14} className="text-slate-500" />
+            <span>History</span>
+          </button>
+        </div>
+      </div>
+
+      {/* FILTER CONTROLS BAR (Matches picture UI exactly) */}
+      <div className="bg-white p-4 rounded-3xl border border-[#ECEFF5] flex flex-col xl:flex-row xl:items-center gap-3.5 mb-6 shadow-xs">
+        {/* Search Bar */}
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#7C88A1] w-4.5 h-4.5" />
+          <input 
+            type="text"
+            placeholder="Search product name or SKU..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-11 pr-4 py-2.5 bg-[#F1F3F9] border-none text-xs font-bold rounded-2xl placeholder-[#7C88A1] text-slate-800 focus:ring-2 focus:ring-[#4F46E5]/20 focus:bg-white outline-none transition-all duration-150"
+          />
         </div>
 
-        {/* Right Side: Search, Category, and Stock Filters - Compacted */}
-        <div className="flex flex-col md:flex-row items-center gap-2 w-full xl:w-auto">
-          {/* Search SKU/Product */}
-          <div className="relative w-full md:w-56">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
-            <input 
-              type="text"
-              placeholder="Search..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 bg-[#F8F9FD] border border-gray-200 text-[10px] font-semibold rounded-lg placeholder-gray-400 text-black focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all"
-            />
-          </div>
-
-          {/* Category Dropdown */}
-          <div className="relative w-full md:w-40">
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full pl-3 pr-8 py-1.5 bg-[#F8F9FD] border border-gray-200 text-[9px] font-black uppercase tracking-wider rounded-lg text-gray-500 focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all appearance-none cursor-pointer"
-            >
-              <option value="All">CAT: ALL</option>
-              {categoriesList.map(cat => (
-                <option key={cat} value={cat}>{cat.toUpperCase()}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 w-3 h-3 pointer-events-none" />
-          </div>
-
-          {/* Stock Filter Dropdown */}
-          <div className="relative w-full md:w-40">
+        {/* Filters Group */}
+        <div className="flex flex-wrap items-center gap-3.5 w-full xl:w-auto">
+          {/* Stock Filter */}
+          <div className="relative w-full sm:w-44">
             <select
               value={stockFilter}
               onChange={(e) => setStockFilter(e.target.value)}
-              className="w-full pl-3 pr-8 py-1.5 bg-[#F8F9FD] border border-gray-200 text-[9px] font-black uppercase tracking-wider rounded-lg text-gray-500 focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all appearance-none cursor-pointer"
+              className="w-full pl-4 pr-10 py-2.5 bg-[#F1F3F9] border-none text-xs font-black uppercase tracking-wider rounded-2xl text-[#3A4557] focus:ring-2 focus:ring-[#4F46E5]/20 outline-none transition-all cursor-pointer appearance-none"
             >
-              <option value="All">STOCK: ALL</option>
-              <option value="Low">LOW STOCK (1-5)</option>
-              <option value="Out">OUT</option>
+              <option value="All">Stock: All</option>
+              <option value="Low">Stock: Low (1-5)</option>
+              <option value="Out">Stock: Out</option>
             </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 w-3 h-3 pointer-events-none" />
+            <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#7C88A1] w-4.5 h-4.5 pointer-events-none" />
+          </div>
+
+          {/* Category Filter */}
+          <div className="relative w-full sm:w-48">
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="w-full pl-4 pr-10 py-2.5 bg-[#F1F3F9] border-none text-xs font-black uppercase tracking-wider rounded-2xl text-[#3A4557] focus:ring-2 focus:ring-[#4F46E5]/20 outline-none transition-all cursor-pointer appearance-none"
+            >
+              <option value="All">Category: All</option>
+              {categoriesList.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#7C88A1] w-4.5 h-4.5 pointer-events-none" />
+          </div>
+
+          {/* Preset Filter Indicator Button */}
+          <button className="bg-white border border-[#D5DBE5] hover:bg-[#F8FAFC] text-[#3A4557] px-5 py-2.5 rounded-2xl text-xs font-black tracking-wide flex items-center justify-center gap-2 transition-all cursor-pointer uppercase">
+            <Filter className="w-4 h-4 text-[#7C88A1]" />
+            <span>Filter</span>
+            <ChevronDown className="w-3.5 h-3.5 text-[#7C88A1]" />
+          </button>
+
+          {/* Page Limit Selector */}
+          <div className="relative w-full sm:w-36 sm:ml-auto xl:ml-0">
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                const val = e.target.value;
+                setPageSize(val === 'All' ? 'All' : Number(val));
+              }}
+              className="w-full pl-4 pr-10 py-2.5 bg-[#F1F3F9] border-none text-xs font-black uppercase tracking-wider rounded-2xl text-[#3A4557] focus:ring-2 focus:ring-[#4F46E5]/20 outline-none transition-all cursor-pointer appearance-none"
+            >
+              <option value={100}>Show 100</option>
+              <option value={250}>Show 250</option>
+              <option value={500}>Show 500</option>
+              <option value="All">Show All</option>
+            </select>
+            <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#7C88A1] w-4.5 h-4.5 pointer-events-none" />
           </div>
         </div>
       </div>
 
-      {/* Main Grid Matrix Table Wrapper - Compacted */}
-      <div className="space-y-6">
+      {/* MATRIX TABLE CONTAINER (Framer block style matching image) */}
+      <div className="bg-white rounded-[24px] border border-[#ECEFF5] shadow-xs overflow-hidden">
         {loading ? (
-          <div className="bg-[#F8F9FD] rounded-xl border border-gray-150 p-16 text-center text-[11px] text-gray-500 font-bold uppercase tracking-wider shadow-sm">
-            Syncing Matrix Data...
+          <div className="p-20 text-center text-xs font-bold text-[#7C88A1] uppercase tracking-widest animate-pulse">
+            Syncing Master Database Matrix...
           </div>
-        ) : filteredProducts.length === 0 ? (
-          <div className="bg-[#F8F9FD] rounded-xl border border-gray-150 p-16 text-center text-[11px] text-gray-500 font-bold uppercase tracking-wider shadow-sm">
+        ) : displayedProducts.length === 0 ? (
+          <div className="p-20 text-center text-xs font-bold text-[#7C88A1] uppercase tracking-widest">
             No matching products found.
           </div>
         ) : (
-          <>
-            {/* 1. Shirts & Tops Matrix */}
-            {shirtProducts.length > 0 && (
-              <div className="bg-[#F8F9FD] rounded-xl border border-gray-150 overflow-hidden shadow-sm">
-                <div className="bg-gray-50 px-4 py-3 border-b border-gray-150 flex justify-between items-center">
-                  <span className="text-xs font-black text-black uppercase tracking-wider flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
-                    Shirts & Tops Matrix (Sizes: M, L, XL, 2XL)
-                  </span>
-                  <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full uppercase">
-                    {shirtProducts.length} Items
-                  </span>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-[700px]">
-                    <thead>
-                      <tr className="border-b border-gray-150 text-xs font-extrabold uppercase tracking-wider text-black bg-gray-50/50 select-none">
-                        <th className="py-3 px-4 w-[280px] bg-gray-50 font-black border-r border-gray-150">PRODUCT DETAILS</th>
-                        {shirtSizes.map(size => (
-                          <th key={size} className="py-3 px-2 text-center font-black w-[80px] border-r border-gray-150/70 text-black text-sm">{size}</th>
-                        ))}
-                        <th className="py-3 px-4 text-center font-black w-[150px] bg-gray-50 text-black text-sm">
-                          {activeMode === 'STOCK' ? 'GLOBAL STOCK' : activeMode === 'PRICE' ? 'PRICE' : 'SALE'}
-                        </th>
+          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-200">
+            <table className="w-full text-left border-collapse min-w-[1200px]">
+              
+              {/* Table Double Headers */}
+              <thead>
+                {/* Level 1 Spanned Size Category Label */}
+                <tr className="border-b border-[#ECEFF5] text-[10px] font-extrabold tracking-widest uppercase text-slate-400 select-none bg-slate-50/10">
+                  <th className="py-3.5 px-5 font-black text-[#5E6A83] text-left border-r border-[#ECEFF5] w-[350px]">
+                    PRODUCT DETAILS
+                  </th>
+                  <th colSpan={activeSizes.length} className="py-2 px-2 text-center text-[#4F46E5] font-black tracking-widest text-[10px] border-r border-[#ECEFF5]">
+                    SIZE
+                  </th>
+                  <th className="py-3.5 px-5 text-center font-black text-[#5E6A83] text-[10px] w-[150px]">
+                    {activeMode === 'STOCK' ? 'TOTAL (STOCK)' : 'PRICE'}
+                  </th>
+                </tr>
+                {/* Level 2 Individual Size Columns */}
+                <tr className="border-b border-[#ECEFF5] text-xs font-black uppercase text-[#2c3a50] select-none bg-white">
+                  <th className="py-2.5 px-5 border-r border-[#ECEFF5] text-[10px] text-slate-300 font-semibold uppercase tracking-wider">
+                    Styles & Models
+                  </th>
+                  {activeSizes.map(size => (
+                    <th key={size} className="py-2 text-center font-extrabold w-[75px] border-r border-[#ECEFF5] text-[#2c3a50]">
+                      {size}
+                    </th>
+                  ))}
+                  <th className="py-2.5 px-5 text-center font-black text-[#2c3a50]">
+                    {/* Blank or active indicator */}
+                  </th>
+                </tr>
+              </thead>
+
+              {/* Table Body grouped by Categories */}
+              <tbody className="divide-y divide-[#ECEFF5]">
+                {Object.keys(groupedProducts).map(categoryName => {
+                  const items = groupedProducts[categoryName];
+                  
+                  // Calculate category total stock sum
+                  const categoryTotalStock = items.reduce((acc, p) => {
+                    if (p.sizes && p.sizes.length > 0) {
+                      const sumSizes = Object.values(p.sizeStock || {}).reduce((s, q) => s + (Number(q) || 0), 0);
+                      return acc + sumSizes;
+                    }
+                    return acc + (Number(p.stock) || 0);
+                  }, 0);
+
+                  return (
+                    <React.Fragment key={categoryName}>
+                      {/* CATEGORY BLOCK SEPARATOR ROW (Matches picture exact style) */}
+                      <tr className="bg-slate-50/25">
+                        <td colSpan={activeSizes.length + 1} className="py-3 px-5 border-r border-b border-[#ECEFF5]">
+                          <div className="flex items-center gap-2 text-xs font-black text-[#4F46E5] uppercase tracking-wider">
+                            <span className="w-2.5 h-2.5 rounded-full bg-[#4F46E5]" />
+                            <span>{categoryName}</span>
+                            <span className="text-slate-400 font-bold font-mono">({items.length})</span>
+                          </div>
+                        </td>
+                        {/* Purple / Indigo block display for total stock */}
+                        <td className="bg-[#4F46E5] text-white py-3 px-5 text-center font-black text-sm border-b border-[#4F46E5]">
+                          {categoryTotalStock}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-150">
-                      {Object.keys(groupedShirts).map(categoryName => {
-                        const items = groupedShirts[categoryName];
+
+                      {/* INDIVIDUAL PRODUCTS LIST */}
+                      {items.map(product => {
+                        const totalUnits = product.sizes && product.sizes.length > 0
+                          ? Object.values(product.sizeStock || {}).reduce((s, q) => s + (Number(q) || 0), 0)
+                          : (product.stock || 0);
+
                         return (
-                          <React.Fragment key={categoryName}>
-                            <tr className="bg-gray-50/30">
-                              <td colSpan={shirtSizes.length + 2} className="py-2.5 px-4 text-xs font-extrabold tracking-wider uppercase text-black border-b border-gray-150">
-                                {categoryName} <span className="text-gray-500 font-medium">({items.length})</span>
-                              </td>
-                            </tr>
-                            {items.map(product => {
-                              const totalUnits = product.sizes && product.sizes.length > 0
-                                ? Object.values(product.sizeStock || {}).reduce((s, q) => s + (Number(q) || 0), 0)
-                                : (product.stock || 0);
+                          <tr key={product.id} className="hover:bg-slate-50/40 transition-colors h-16 group">
+                            
+                            {/* 1. Product Details column */}
+                            <td className="py-2.5 px-5 border-r border-[#ECEFF5] flex items-center gap-3.5 h-16">
+                              <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
+                                {product.images?.[0] ? (
+                                  <img 
+                                    src={product.images[0]} 
+                                    alt={product.name} 
+                                    className="w-full h-full object-cover" 
+                                    referrerPolicy="no-referrer"
+                                  />
+                                ) : (
+                                  <Package size={16} className="text-slate-400" />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1 flex flex-col justify-center">
+                                <p className="text-xs font-black text-slate-900 tracking-tight uppercase truncate group-hover:text-[#4F46E5] transition-colors">
+                                  {product.name}
+                                </p>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  {product.sku && (
+                                    <span className="text-[9.5px] font-extrabold text-slate-500 bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded-md font-mono">
+                                      {product.sku}
+                                    </span>
+                                  )}
+                                  <button 
+                                    onClick={() => navigate(`/admin/inventory-log?sku=${product.sku}`)}
+                                    className="text-slate-400 hover:text-[#4F46E5] transition-colors p-0.5 rounded cursor-pointer"
+                                    title="View inventory history log"
+                                  >
+                                    <History size={11} />
+                                  </button>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* 2. Sizes cells */}
+                            {activeSizes.map(size => {
+                              const qty = product.sizeStock?.[size];
+                              const isSizeConfigured = product.sizes?.includes(size);
+                              const hasQty = qty !== undefined && qty > 0;
+                              const isEditingThis = editingCell && editingCell.productId === product.id && editingCell.field === size;
 
                               return (
-                                <tr key={product.id} className="hover:bg-gray-50/30 transition-colors h-14 group">
-                                  <td className="py-2 px-4 border-r border-gray-150 flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-md bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden shrink-0">
-                                      {product.images?.[0] ? (
-                                        <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" referrerPolicy="no-referrer"/>
-                                      ) : (
-                                        <Package size={14} className="text-gray-400" />
-                                      )}
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                      <p className="text-xs font-extrabold text-black tracking-tight uppercase truncate">{product.name}</p>
-                                      {product.sku && <p className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider">{product.sku}</p>}
-                                    </div>
-                                  </td>
-
-                                  {shirtSizes.map(size => {
-                                    const qty = product.sizeStock?.[size];
-                                    const isSizeConfigured = product.sizes?.includes(size);
-                                    const hasQty = qty !== undefined && qty > 0;
-                                    const isEditingThis = editingCell && editingCell.productId === product.id && editingCell.field === size;
-
-                                    return (
-                                      <td 
-                                        key={size} 
-                                        onClick={() => { if (activeMode === 'STOCK') handleCellClick(product.id, size, qty ?? 0); }}
-                                        className={`p-1 text-center border-r border-gray-150/70 text-sm select-none cursor-pointer hover:bg-gray-100/50 transition-all ${isEditingThis ? 'bg-blue-50 p-0' : ''}`}
-                                      >
-                                        {activeMode === 'STOCK' ? (
-                                          isEditingThis ? (
-                                            <div className="flex items-center justify-center px-1">
-                                              <input 
-                                                autoFocus 
-                                                type="number" 
-                                                value={editingCell.value} 
-                                                onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })} 
-                                                onKeyDown={(e) => handleKeyDown(e, product.id, size, shirtSizes)}
-                                                onBlur={() => {
-                                                  if (editingCell) handleSaveCell();
-                                                }}
-                                                className="w-16 text-center py-1 text-xs bg-[#F8F9FD] border border-blue-500 rounded outline-none font-bold text-black" 
-                                              />
-                                            </div>
-                                          ) : (
-                                            <span className={isSizeConfigured ? (hasQty ? "text-sm font-black text-black" : "text-xs text-gray-400 font-semibold") : "text-xs text-gray-300 font-medium"}>
-                                              {isSizeConfigured ? (qty ?? 0) : '0'}
-                                            </span>
-                                          )
-                                        ) : '-'}
-                                      </td>
-                                    );
-                                  })}
-
-                                  <td className="py-2 px-4 border-l border-gray-150 bg-gray-50/30 text-center font-bold text-xs">
-                                    {activeMode === 'STOCK' ? (
-                                      <span className={`text-sm font-black ${totalUnits === 0 ? 'text-red-600' : 'text-black'}`}>{totalUnits}</span>
-                                    ) : activeMode === 'PRICE' ? (
-                                      editingCell && editingCell.productId === product.id && editingCell.field === 'price' ? (
-                                        <div className="flex items-center justify-center gap-1">
-                                          <input
-                                            autoFocus
-                                            type="number"
-                                            step="any"
-                                            value={editingCell.value}
-                                            onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
-                                            onKeyDown={(e) => {
-                                              if (e.key === 'Enter') handleSaveCell();
-                                              if (e.key === 'Escape') setEditingCell(null);
-                                            }}
-                                            className="w-20 text-center py-1 text-xs border border-blue-400 rounded bg-[#F8F9FD] text-black outline-none font-bold"
-                                          />
-                                          <button onClick={handleSaveCell} className="bg-green-600 text-white p-1 rounded hover:bg-green-750"><Check size={10} /></button>
-                                          <button onClick={() => setEditingCell(null)} className="bg-red-500 text-white p-1 rounded hover:bg-red-600"><X size={10} /></button>
-                                        </div>
-                                      ) : (
-                                        <div 
-                                          onClick={() => handleCellClick(product.id, 'price', product.price)} 
-                                          className="cursor-pointer hover:underline text-sm font-extrabold text-black flex items-center justify-center gap-1"
-                                        >
-                                          <span>{formatPrice(product.price)}</span>
-                                          <Edit2 size={9} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        </div>
-                                      )
+                                <td 
+                                  key={size} 
+                                  onClick={() => { if (activeMode === 'STOCK') handleCellClick(product.id, size, qty ?? 0); }}
+                                  className={`p-1 text-center border-r border-[#ECEFF5] select-none cursor-pointer transition-all ${
+                                    isEditingThis 
+                                      ? 'bg-indigo-50/50 p-0' 
+                                      : activeMode === 'STOCK' 
+                                        ? 'hover:bg-slate-100/50' 
+                                        : 'bg-slate-50/15 cursor-not-allowed'
+                                  }`}
+                                >
+                                  {activeMode === 'STOCK' ? (
+                                    isEditingThis ? (
+                                      <div className="flex items-center justify-center px-1">
+                                        <input 
+                                          autoFocus 
+                                          type="number" 
+                                          value={editingCell.value} 
+                                          onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })} 
+                                          onKeyDown={(e) => handleKeyDown(e, product.id, size, activeSizes)}
+                                          onBlur={() => {
+                                            if (editingCell) handleSaveCell();
+                                          }}
+                                          className="w-14 text-center py-1 text-xs bg-white border border-[#4F46E5] rounded-lg outline-none font-black text-black ring-2 ring-indigo-100" 
+                                        />
+                                      </div>
                                     ) : (
-                                      editingCell && editingCell.productId === product.id && editingCell.field === 'salePrice' ? (
-                                        <div className="flex items-center justify-center gap-1">
-                                          <input
-                                            autoFocus
-                                            type="number"
-                                            step="any"
-                                            placeholder="No discount"
-                                            value={editingCell.value}
-                                            onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
-                                            onKeyDown={(e) => {
-                                              if (e.key === 'Enter') handleSaveCell();
-                                              if (e.key === 'Escape') setEditingCell(null);
-                                            }}
-                                            className="w-20 text-center py-1 text-xs border border-blue-400 rounded bg-[#F8F9FD] text-black outline-none font-bold"
-                                          />
-                                          <button onClick={handleSaveCell} className="bg-green-600 text-white p-1 rounded hover:bg-green-750"><Check size={10} /></button>
-                                          <button onClick={() => setEditingCell(null)} className="bg-red-500 text-white p-1 rounded hover:bg-red-600"><X size={10} /></button>
-                                        </div>
-                                      ) : (
-                                        <div 
-                                          onClick={() => handleCellClick(product.id, 'salePrice', product.salePrice ?? '')} 
-                                          className="cursor-pointer hover:underline text-sm font-extrabold text-rose-600 flex items-center justify-center gap-1"
-                                        >
-                                          <span>{product.salePrice ? formatPrice(product.salePrice) : '---'}</span>
-                                          <Edit2 size={9} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        </div>
-                                      )
-                                    )}
-                                  </td>
-                                </tr>
+                                      <span className={
+                                        isSizeConfigured 
+                                          ? hasQty 
+                                            ? "text-xs font-black text-slate-800" 
+                                            : "text-xs text-slate-400 font-semibold" 
+                                          : "text-xs text-slate-300 font-bold"
+                                      }>
+                                        {isSizeConfigured ? (qty ?? 0) : '-'}
+                                      </span>
+                                    )
+                                  ) : (
+                                    <span className="text-slate-300 text-xs font-bold">-</span>
+                                  )}
+                                </td>
                               );
                             })}
-                          </React.Fragment>
+
+                            {/* 3. Total / Price / Sale cell */}
+                            <td className="py-2 px-4 text-center font-bold text-xs bg-slate-50/10">
+                              {activeMode === 'STOCK' ? (
+                                <span className={`text-xs font-black ${totalUnits === 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+                                  {totalUnits}
+                                </span>
+                              ) : (
+                                editingCell && editingCell.productId === product.id && editingCell.field === 'price' ? (
+                                  <div className="flex items-center justify-center gap-1">
+                                    <input
+                                      autoFocus
+                                      type="number"
+                                      step="any"
+                                      value={editingCell.value}
+                                      onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleSaveCell();
+                                        if (e.key === 'Escape') setEditingCell(null);
+                                      }}
+                                      className="w-20 text-center py-1 text-xs border border-[#4F46E5] rounded bg-white text-black outline-none font-bold ring-2 ring-indigo-50"
+                                    />
+                                    <button onClick={() => handleSaveCell()} className="bg-emerald-600 text-white p-1 rounded hover:bg-emerald-700 cursor-pointer"><Check size={10} /></button>
+                                    <button onClick={() => setEditingCell(null)} className="bg-rose-500 text-white p-1 rounded hover:bg-rose-600 cursor-pointer"><X size={10} /></button>
+                                  </div>
+                                ) : (
+                                  <div 
+                                    onClick={() => handleCellClick(product.id, 'price', product.price)} 
+                                    className="cursor-pointer hover:underline text-xs font-black text-slate-900 flex items-center justify-center gap-1"
+                                  >
+                                    <span>{formatPrice(product.price)}</span>
+                                    <Edit2 size={10} className="text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                                  </div>
+                                )
+                              )}
+                            </td>
+
+                          </tr>
                         );
                       })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* 2. Pants & Bottoms Matrix */}
-            {pantProducts.length > 0 && (
-              <div className="bg-[#F8F9FD] rounded-xl border border-gray-150 overflow-hidden shadow-sm">
-                <div className="bg-gray-50 px-4 py-3 border-b border-gray-150 flex justify-between items-center">
-                  <span className="text-xs font-black text-black uppercase tracking-wider flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
-                    Pants & Bottoms Matrix (Sizes: 28, 30, 32, 34, 36, 38, 40)
-                  </span>
-                  <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full uppercase">
-                    {pantProducts.length} Items
-                  </span>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-[900px]">
-                    <thead>
-                      <tr className="border-b border-gray-150 text-xs font-extrabold uppercase tracking-wider text-black bg-gray-50/50 select-none">
-                        <th className="py-3 px-4 w-[280px] bg-gray-50 font-black border-r border-gray-150">PRODUCT DETAILS</th>
-                        {pantSizes.map(size => (
-                          <th key={size} className="py-3 px-2 text-center font-black w-[70px] border-r border-gray-150/70 text-black text-sm">{size}</th>
-                        ))}
-                        <th className="py-3 px-4 text-center font-black w-[150px] bg-gray-50 text-black text-sm">
-                          {activeMode === 'STOCK' ? 'GLOBAL STOCK' : activeMode === 'PRICE' ? 'PRICE' : 'SALE'}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-150">
-                      {Object.keys(groupedPants).map(categoryName => {
-                        const items = groupedPants[categoryName];
-                        return (
-                          <React.Fragment key={categoryName}>
-                            <tr className="bg-gray-50/30">
-                              <td colSpan={pantSizes.length + 2} className="py-2.5 px-4 text-xs font-extrabold tracking-wider uppercase text-black border-b border-gray-150">
-                                {categoryName} <span className="text-gray-500 font-medium">({items.length})</span>
-                              </td>
-                            </tr>
-                            {items.map(product => {
-                              const totalUnits = product.sizes && product.sizes.length > 0
-                                ? Object.values(product.sizeStock || {}).reduce((s, q) => s + (Number(q) || 0), 0)
-                                : (product.stock || 0);
-
-                              return (
-                                <tr key={product.id} className="hover:bg-gray-50/30 transition-colors h-14 group">
-                                  <td className="py-2 px-4 border-r border-gray-150 flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-md bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden shrink-0">
-                                      {product.images?.[0] ? (
-                                        <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" referrerPolicy="no-referrer"/>
-                                      ) : (
-                                        <Package size={14} className="text-gray-400" />
-                                      )}
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                      <p className="text-xs font-extrabold text-black tracking-tight uppercase truncate">{product.name}</p>
-                                      {product.sku && <p className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider">{product.sku}</p>}
-                                    </div>
-                                  </td>
-
-                                  {pantSizes.map(size => {
-                                    const qty = product.sizeStock?.[size];
-                                    const isSizeConfigured = product.sizes?.includes(size);
-                                    const hasQty = qty !== undefined && qty > 0;
-                                    const isEditingThis = editingCell && editingCell.productId === product.id && editingCell.field === size;
-
-                                    return (
-                                      <td 
-                                        key={size} 
-                                        onClick={() => { if (activeMode === 'STOCK') handleCellClick(product.id, size, qty ?? 0); }}
-                                        className={`p-1 text-center border-r border-gray-150/70 text-sm select-none cursor-pointer hover:bg-gray-100/50 transition-all ${isEditingThis ? 'bg-blue-50 p-0' : ''}`}
-                                      >
-                                        {activeMode === 'STOCK' ? (
-                                          isEditingThis ? (
-                                            <div className="flex items-center justify-center px-1">
-                                              <input 
-                                                autoFocus 
-                                                type="number" 
-                                                value={editingCell.value} 
-                                                onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })} 
-                                                onKeyDown={(e) => handleKeyDown(e, product.id, size, pantSizes)}
-                                                onBlur={() => {
-                                                  if (editingCell) handleSaveCell();
-                                                }}
-                                                className="w-16 text-center py-1 text-xs bg-[#F8F9FD] border border-blue-500 rounded outline-none font-bold text-black" 
-                                              />
-                                            </div>
-                                          ) : (
-                                            <span className={isSizeConfigured ? (hasQty ? "text-sm font-black text-black" : "text-xs text-gray-400 font-semibold") : "text-xs text-gray-300 font-medium"}>
-                                              {isSizeConfigured ? (qty ?? 0) : '0'}
-                                            </span>
-                                          )
-                                        ) : '-'}
-                                      </td>
-                                    );
-                                  })}
-
-                                  <td className="py-2 px-4 border-l border-gray-150 bg-gray-50/30 text-center font-bold text-xs">
-                                    {activeMode === 'STOCK' ? (
-                                      <span className={`text-sm font-black ${totalUnits === 0 ? 'text-red-600' : 'text-black'}`}>{totalUnits}</span>
-                                    ) : activeMode === 'PRICE' ? (
-                                      editingCell && editingCell.productId === product.id && editingCell.field === 'price' ? (
-                                        <div className="flex items-center justify-center gap-1">
-                                          <input
-                                            autoFocus
-                                            type="number"
-                                            step="any"
-                                            value={editingCell.value}
-                                            onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
-                                            onKeyDown={(e) => {
-                                              if (e.key === 'Enter') handleSaveCell();
-                                              if (e.key === 'Escape') setEditingCell(null);
-                                            }}
-                                            className="w-20 text-center py-1 text-xs border border-blue-400 rounded bg-[#F8F9FD] text-black outline-none font-bold"
-                                          />
-                                          <button onClick={handleSaveCell} className="bg-green-600 text-white p-1 rounded hover:bg-green-750"><Check size={10} /></button>
-                                          <button onClick={() => setEditingCell(null)} className="bg-red-500 text-white p-1 rounded hover:bg-red-600"><X size={10} /></button>
-                                        </div>
-                                      ) : (
-                                        <div 
-                                          onClick={() => handleCellClick(product.id, 'price', product.price)} 
-                                          className="cursor-pointer hover:underline text-sm font-extrabold text-black flex items-center justify-center gap-1"
-                                        >
-                                          <span>{formatPrice(product.price)}</span>
-                                          <Edit2 size={9} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        </div>
-                                      )
-                                    ) : (
-                                      editingCell && editingCell.productId === product.id && editingCell.field === 'salePrice' ? (
-                                        <div className="flex items-center justify-center gap-1">
-                                          <input
-                                            autoFocus
-                                            type="number"
-                                            step="any"
-                                            placeholder="No discount"
-                                            value={editingCell.value}
-                                            onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
-                                            onKeyDown={(e) => {
-                                              if (e.key === 'Enter') handleSaveCell();
-                                              if (e.key === 'Escape') setEditingCell(null);
-                                            }}
-                                            className="w-20 text-center py-1 text-xs border border-blue-400 rounded bg-[#F8F9FD] text-black outline-none font-bold"
-                                          />
-                                          <button onClick={handleSaveCell} className="bg-green-600 text-white p-1 rounded hover:bg-green-750"><Check size={10} /></button>
-                                          <button onClick={() => setEditingCell(null)} className="bg-red-500 text-white p-1 rounded hover:bg-red-600"><X size={10} /></button>
-                                        </div>
-                                      ) : (
-                                        <div 
-                                          onClick={() => handleCellClick(product.id, 'salePrice', product.salePrice ?? '')} 
-                                          className="cursor-pointer hover:underline text-sm font-extrabold text-rose-600 flex items-center justify-center gap-1"
-                                        >
-                                          <span>{product.salePrice ? formatPrice(product.salePrice) : '---'}</span>
-                                          <Edit2 size={9} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        </div>
-                                      )
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </React.Fragment>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </>
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
-      {/* Instructional Footer Help Row */}
-      <div className="flex items-center justify-between pt-3 text-[9px] text-gray-400 font-bold uppercase tracking-wider">
-        <span>Click STOCK cells to edit. Change MODE to edit PRICE/SALE.</span>
+      {/* INSTRUCTIONAL HELP ROW */}
+      <div className="flex items-center justify-between pt-4 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+        <span>Click STOCK cells to edit inline. Change mode above to edit Price.</span>
+        <span>Use Arrow keys & Enter for fast processing.</span>
       </div>
     </div>
   );

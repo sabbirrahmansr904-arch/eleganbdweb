@@ -160,6 +160,38 @@
       },
       "required": ["phone", "message", "status", "timestamp"]
     },
+    "BankAccount": {
+      "title": "BankAccount",
+      "description": "A bank or mobile wallet account",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "bankName": { "type": "string" },
+        "accountName": { "type": "string" },
+        "accountNumber": { "type": "string" },
+        "branch": { "type": "string" },
+        "initialBalance": { "type": "number" },
+        "balance": { "type": "number" },
+        "accountType": { "type": "string" }
+      },
+      "required": ["bankName", "accountName", "accountNumber", "balance"]
+    },
+    "BankTransaction": {
+      "title": "BankTransaction",
+      "description": "A financial transaction record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "accountId": { "type": "string" },
+        "targetAccountId": { "type": "string" },
+        "type": { "type": "string", "enum": ["deposit", "withdraw", "transfer"] },
+        "amount": { "type": "number" },
+        "date": { "type": "number" },
+        "reference": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["accountId", "type", "amount", "date", "reference"]
+    },
     "PathaoPayout": {
       "title": "PathaoPayout",
       "description": "Payout tracker from Pathao Courier to Bank Account",
@@ -174,9 +206,37 @@
         "notes": { "type": "string" }
       },
       "required": ["accountId", "amount", "date", "status"]
+    },
+    "DollarTransaction": {
+      "title": "DollarTransaction",
+      "description": "Records of buying or spending dollars",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["buy", "spend"] },
+        "amount": { "type": "number" },
+        "rate": { "type": "number" },
+        "bdtAmount": { "type": "number" },
+        "date": { "type": "number" },
+        "purpose": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["type", "amount", "rate", "bdtAmount", "date"]
     }
   },
   "firestore": {
+    "/dollar_transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/DollarTransaction" },
+      "description": "Stored dollar transactions (buy/spend) (admin only)"
+    },
+    "/bank_accounts/{accountId}": {
+      "schema": { "$ref": "#/entities/BankAccount" },
+      "description": "Financial bank accounts"
+    },
+    "/bank_transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/BankTransaction" },
+      "description": "Financial transactions"
+    },
     "/pathao_payouts/{payoutId}": {
       "schema": { "$ref": "#/entities/PathaoPayout" },
       "description": "Stored Pathao-to-Bank transfers (read/write admin)"

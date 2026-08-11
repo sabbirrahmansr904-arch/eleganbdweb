@@ -48,12 +48,16 @@ export default function AdminFinance(): React.JSX.Element {
   const [timeframeFilter, setTimeframeFilter] = useState('this_month');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Modals visibility states
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
   const [showEditAccountModal, setShowEditAccountModal] = useState(false);
   const [showEditTxModal, setShowEditTxModal] = useState(false);
   const [showViewTxModal, setShowViewTxModal] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [txToDelete, setTxToDelete] = useState<any>(null);
   const [selectedTx, setSelectedTx] = useState<any>(null);
 
   // New Transaction Form state
@@ -247,7 +251,7 @@ export default function AdminFinance(): React.JSX.Element {
 
   // Filter transactions
   const filteredTransactions = useMemo(() => {
-    return bankTransactions.filter(tx => {
+    const filtered = bankTransactions.filter(tx => {
       if (accountFilter !== 'ALL' && tx.accountId !== accountFilter && tx.targetAccountId !== accountFilter) return false;
       if (typeFilter !== 'ALL') {
         if (typeFilter === 'income' && tx.type !== 'deposit') return false;
@@ -264,7 +268,19 @@ export default function AdminFinance(): React.JSX.Element {
       }
       return true;
     });
-  }, [bankTransactions, accountFilter, typeFilter, searchQuery, bankAccounts]);
+    // Reset page if filtered results are fewer than previous page
+    if (currentPage > Math.ceil(filtered.length / itemsPerPage) && currentPage > 1) {
+      setCurrentPage(1);
+    }
+    return filtered;
+  }, [bankTransactions, accountFilter, typeFilter, searchQuery, bankAccounts, currentPage, itemsPerPage]);
+
+  const paginatedTransactions = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredTransactions.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredTransactions, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
 
   // Summary calculations
   const totalIncome = useMemo(() => {
@@ -367,7 +383,7 @@ export default function AdminFinance(): React.JSX.Element {
       </div>
 
       {/* Top 3 Account Balance Cards + Summary Card Grid matching reference screenshot */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
         
         {/* Left 3 Accounts Cards */}
         <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -385,17 +401,17 @@ export default function AdminFinance(): React.JSX.Element {
                 <div 
                   key={acc.id} 
                   onClick={() => setAccountFilter(isSelected ? 'ALL' : acc.id)}
-                  className={`bg-white border rounded-[24px] p-6 space-y-4 shadow-2xs transition-all cursor-pointer relative overflow-hidden group ${
+                  className={`bg-white border rounded-[20px] p-4 pb-5 space-y-3 shadow-2xs transition-all cursor-pointer relative overflow-hidden group ${
                     isSelected ? 'border-indigo-600 ring-4 ring-indigo-50' : 'border-gray-100 hover:border-indigo-200'
                   } ${
                     isBkash ? 'border-pink-100/60' : isNagad ? 'border-orange-100/60' : 'border-emerald-100/60'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-white shadow-2xs ${
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-white shadow-2xs ${
                       isBkash ? 'bg-pink-600' : isNagad ? 'bg-orange-500' : 'bg-emerald-600'
                     }`}>
-                      {isBkash ? <Wallet className="w-5 h-5" /> : isNagad ? <CreditCard className="w-5 h-5" /> : <Building2 className="w-5 h-5" />}
+                      {isBkash ? <Wallet className="w-4 h-4" /> : isNagad ? <CreditCard className="w-4 h-4" /> : <Building2 className="w-4 h-4" />}
                     </div>
 
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -425,22 +441,22 @@ export default function AdminFinance(): React.JSX.Element {
                   </div>
 
                   <div>
-                    <h3 className="text-base font-black text-gray-900 leading-tight">{acc.bankName}</h3>
-                    <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider mt-1">{acc.accountType || 'ব্যক্তিগত'} • {acc.accountNumber}</p>
+                    <h3 className="text-sm font-black text-gray-900 leading-tight">{acc.bankName}</h3>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">{acc.accountType || 'ব্যক্তিগত'} • {acc.accountNumber}</p>
                   </div>
 
-                  <div className="pt-3 border-t border-gray-100/80 flex items-center justify-between">
+                  <div className="pt-2.5 border-t border-gray-100/80 flex items-center justify-between">
                     <div>
-                      <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest block">ব্যালেন্স</span>
-                      <span className={`text-xl font-black tracking-tight mt-1 block ${
+                      <span className="text-[9.5px] text-gray-400 font-bold uppercase tracking-widest block">ব্যালেন্স</span>
+                      <span className={`text-lg font-black tracking-tight mt-0.5 block ${
                         isBkash ? 'text-pink-600' : isNagad ? 'text-orange-600' : 'text-emerald-600'
                       }`}>{formatPrice(acc.balance || 0)}</span>
                     </div>
 
-                    <div className={`w-8 h-8 rounded-full border flex items-center justify-center bg-gray-50/20 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all duration-300 ${
+                    <div className={`w-7 h-7 rounded-full border flex items-center justify-center bg-gray-50/20 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all duration-300 ${
                       isBkash ? 'border-pink-100 text-pink-500' : isNagad ? 'border-orange-100 text-orange-500' : 'border-emerald-100 text-emerald-500'
                     }`}>
-                      <ArrowUpRight className="w-4 h-4" />
+                      <ArrowUpRight className="w-3.5 h-3.5" />
                     </div>
                   </div>
                 </div>
@@ -837,7 +853,7 @@ export default function AdminFinance(): React.JSX.Element {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 font-bold text-gray-700">
-                {filteredTransactions.map(tx => {
+                {paginatedTransactions.map(tx => {
                   const acc = bankAccounts.find(a => a.id === tx.accountId);
                   const isDeposit = tx.type === 'deposit';
                   const isTransfer = tx.type === 'transfer';
@@ -881,7 +897,7 @@ export default function AdminFinance(): React.JSX.Element {
                       </td>
                       <td className="py-4 px-5 text-center">
                         <button 
-                          onClick={() => toast.info('সংযুক্ত রশিদ লোড করা হচ্ছে...')}
+                          onClick={() => toast('সংযুক্ত রশিদ লোড করা হচ্ছে...', { icon: 'ℹ️' })}
                           className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gray-100 text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 transition-colors cursor-pointer" 
                           title="রসিদ দেখুন"
                         >
@@ -909,9 +925,8 @@ export default function AdminFinance(): React.JSX.Element {
                           </button>
                           <button
                             onClick={() => {
-                              if (window.confirm('আপনি কি এই লেনদেনটি মুছে ফেলতে চান?')) {
-                                deleteBankTransaction(tx.id);
-                              }
+                              setTxToDelete(tx);
+                              setShowDeleteConfirmModal(true);
                             }}
                             className="p-1.5 text-gray-400 hover:text-rose-600 bg-gray-50 hover:bg-red-50 border border-transparent hover:border-red-100 rounded-lg transition-colors cursor-pointer"
                             title="মুছে ফেলুন"
@@ -932,7 +947,14 @@ export default function AdminFinance(): React.JSX.Element {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-50 pt-4 text-xs font-bold text-gray-500">
           <div className="flex items-center gap-2">
             <span>प्रति পৃষ্ঠায়:</span>
-            <select className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 focus:outline-none cursor-pointer">
+            <select 
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 focus:outline-none cursor-pointer"
+            >
               <option value="10">10</option>
               <option value="25">25</option>
               <option value="50">50</option>
@@ -941,11 +963,25 @@ export default function AdminFinance(): React.JSX.Element {
           </div>
 
           <div className="flex items-center gap-1.5">
-            <button className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-600 transition-colors cursor-pointer">&lt;</button>
-            <button className="w-8 h-8 rounded-lg bg-[#4f46e5] text-white flex items-center justify-center font-black transition-colors cursor-pointer">1</button>
-            <button className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-250 flex items-center justify-center text-gray-600 transition-colors cursor-pointer">2</button>
-            <button className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-255 flex items-center justify-center text-gray-600 transition-colors cursor-pointer">3</button>
-            <button className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-255 flex items-center justify-center text-gray-600 transition-colors cursor-pointer">&gt;</button>
+            <button 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-600 transition-colors cursor-pointer disabled:opacity-50"
+            >&lt;</button>
+            
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <button 
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`w-8 h-8 rounded-lg ${currentPage === page ? 'bg-[#4f46e5] text-white' : 'bg-gray-50 hover:bg-gray-100 border border-gray-250'} flex items-center justify-center font-black transition-colors cursor-pointer`}
+              >{page}</button>
+            ))}
+
+            <button 
+              disabled={currentPage === totalPages || totalPages === 0}
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-255 flex items-center justify-center text-gray-600 transition-colors cursor-pointer disabled:opacity-50"
+            >&gt;</button>
           </div>
         </div>
       </div>
@@ -1229,6 +1265,87 @@ export default function AdminFinance(): React.JSX.Element {
             >
               বন্ধ করুন
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 5. Delete Transaction Confirmation Modal */}
+      {showDeleteConfirmModal && txToDelete && (
+        <div className="fixed inset-0 bg-black/45 backdrop-blur-xs z-[160] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-5 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-gray-50 pb-2">
+              <h3 className="text-base font-black text-rose-600 flex items-center gap-2">
+                <Trash2 className="w-5 h-5 text-rose-500" />
+                লেনদেন মুছে ফেলার নিশ্চিতকরণ
+              </h3>
+              <button 
+                onClick={() => {
+                  setShowDeleteConfirmModal(false);
+                  setTxToDelete(null);
+                }} 
+                className="text-gray-400 hover:text-black transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs font-bold text-gray-500 leading-relaxed">
+                আপনি কি নিশ্চিতভাবে এই লেনদেনটি চিরতরে মুছে ফেলতে চান? এটি মুছে ফেললে সংশ্লিষ্ট ব্যাংক/ওয়ালেট ব্যালেন্স স্বয়ংক্রিয়ভাবে recalculate করা হবে এবং এই পরিবর্তন আর ফিরিয়ে আনা যাবে না।
+              </p>
+
+              <div className="p-3.5 bg-rose-50/50 rounded-2xl border border-rose-100/60 space-y-2 text-xs font-bold text-gray-700">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">হিসাব:</span>
+                  <span className="font-black text-gray-900">
+                    {bankAccounts.find(a => a.id === txToDelete.accountId)?.bankName || 'Unknown'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">ধরন:</span>
+                  <span className={`font-black ${txToDelete.type === 'deposit' ? 'text-emerald-600' : txToDelete.type === 'transfer' ? 'text-indigo-600' : 'text-rose-600'}`}>
+                    {txToDelete.type === 'deposit' ? '↑ ইনকাম/ডিপোজিট' : txToDelete.type === 'transfer' ? '⇄ ট্রান্সফার' : '↓ খরচ/উত্তোলন'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">পরিমাণ:</span>
+                  <span className="font-black text-gray-900">{formatPrice(txToDelete.amount)}</span>
+                </div>
+                {txToDelete.reference && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">রেফারেন্স:</span>
+                    <span className="font-mono text-gray-900">{txToDelete.reference}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirmModal(false);
+                  setTxToDelete(null);
+                }}
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-black text-xs py-3.5 rounded-xl transition-all cursor-pointer"
+              >
+                বাতিল করুন
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await deleteBankTransaction(txToDelete.id);
+                  } catch (e) {
+                    console.error("Delete failed", e);
+                  } finally {
+                    setShowDeleteConfirmModal(false);
+                    setTxToDelete(null);
+                  }
+                }}
+                className="w-full bg-rose-600 hover:bg-rose-700 text-white font-black text-xs py-3.5 rounded-xl transition-all shadow-md shadow-rose-100 cursor-pointer"
+              >
+                হ্যাঁ, মুছে ফেলুন
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -455,23 +455,23 @@ const Home = () => {
       {/* FLASH SALE / OFFER BANNER */}
       {showCountdownBanner && (
         <section className="max-w-7xl mx-auto w-full px-4 pb-6">
-          <div className="bg-gradient-to-r from-[#0a1128] via-[#122046] to-[#0a1128] rounded-xl py-2 sm:py-2.5 px-4 sm:px-6 text-white shadow-lg relative overflow-hidden border border-amber-400/30">
+          <div className="bg-gradient-to-r from-blue-950 via-indigo-900 to-blue-950 rounded-2xl py-4 sm:py-5 px-5 sm:px-8 text-white shadow-[0_0_30px_rgba(245,158,11,0.5)] relative overflow-hidden border-2 border-amber-400 animate-pulse">
             {/* Background Glow FX */}
-            <div className="absolute -left-20 -top-20 w-48 h-48 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
-            <div className="absolute -right-20 -bottom-20 w-48 h-48 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -left-10 -top-10 w-48 h-48 bg-amber-400/25 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-blue-400/25 rounded-full blur-3xl pointer-events-none" />
 
-            <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-4">
-              <div className="text-center sm:text-left flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 text-gray-950 font-black text-[11px] px-3 py-1 rounded-full uppercase tracking-wider shadow-xs shrink-0 self-center sm:self-auto">
-                  <Sparkles size={13} className="fill-gray-950" />
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6">
+              <div className="text-center md:text-left flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5">
+                <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-gray-950 font-black text-xs sm:text-sm px-4 py-1.5 rounded-full uppercase tracking-wider shadow-md shrink-0 self-center sm:self-auto ring-2 ring-white/30">
+                  <Sparkles size={14} className="fill-gray-950 animate-spin-slow" />
                   <span>{comboOfferDiscount || "১০% ছাড়"}</span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="text-sm sm:text-base font-black tracking-tight text-white leading-snug">
+                  <h3 className="text-base sm:text-lg md:text-xl font-black tracking-tight text-white leading-snug drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
                     {comboOfferTitle || "নতুন অফিস উদ্বোধন উপলক্ষে অফিস ভিজিট কেনাকাটায় ১০% ফ্ল্যাট ছাড়!"}
                   </h3>
                   {comboOfferSubTitle && (
-                    <p className="text-xs text-slate-300/90 font-medium leading-relaxed mt-0.5">
+                    <p className="text-xs sm:text-sm text-amber-100 font-bold leading-relaxed mt-1 drop-shadow-xs">
                       {comboOfferSubTitle}
                     </p>
                   )}
@@ -480,9 +480,9 @@ const Home = () => {
 
               {/* Office Visit Badge (Slim Pill) */}
               <div className="flex items-center shrink-0">
-                <div className="bg-white/10 backdrop-blur-md border border-amber-400/35 rounded-lg px-3 py-1 flex items-center gap-2 shadow-xs hover:border-amber-400/60 transition-all">
-                  <Building2 size={13} className="text-amber-400 shrink-0" />
-                  <span className="text-[10.5px] font-extrabold text-amber-300 tracking-wide leading-none whitespace-nowrap">
+                <div className="bg-amber-400/20 backdrop-blur-md border-2 border-amber-400 rounded-xl px-4 py-2 flex items-center gap-2.5 shadow-md hover:bg-amber-400/30 transition-all cursor-pointer transform hover:scale-105 duration-200">
+                  <Building2 size={16} className="text-amber-300 shrink-0 animate-bounce" />
+                  <span className="text-xs sm:text-sm font-black text-amber-300 tracking-wide leading-none whitespace-nowrap">
                     অফিস আউটলেট কেনাকাটায় ১০% ছাড়
                   </span>
                 </div>

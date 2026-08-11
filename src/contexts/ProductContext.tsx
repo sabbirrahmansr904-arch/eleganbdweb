@@ -18,6 +18,16 @@ interface ProductContextType {
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
+const deduplicateProducts = (list: Product[]): Product[] => {
+  const seen = new Set<string>();
+  return list.filter(p => {
+    if (!p.id) return false;
+    if (seen.has(p.id)) return false;
+    seen.add(p.id);
+    return true;
+  });
+};
+
 export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [products, setProducts] = useState<Product[]>(() => {
     // Optimistically load from localStorage or constants so the UI doesn't blink
@@ -56,7 +66,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
                sizeStock: p.sizeStock || {}
              };
           });
-          return parsed;
+          return deduplicateProducts(parsed);
         }
       }
     } catch(e) {}
@@ -128,8 +138,9 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
          return { ...p, category };
       });
 
-      setProducts(normalizedData);
-      localStorage.setItem('eleganbd_products', JSON.stringify(normalizedData));
+      const uniqueData = deduplicateProducts(normalizedData);
+      setProducts(uniqueData);
+      localStorage.setItem('eleganbd_products', JSON.stringify(uniqueData));
       localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
       setLoading(false);
     }, (err: any) => {
@@ -153,7 +164,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       await setDoc(docRef, productWithTimestamps);
       
       setProducts(prev => {
-        const next = [productWithTimestamps, ...prev];
+        const next = deduplicateProducts([productWithTimestamps, ...prev]);
         try {
           localStorage.setItem('eleganbd_products', JSON.stringify(next));
         } catch (e) {}
@@ -175,10 +186,11 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       
       setProducts(prev => {
         const next = prev.map(p => p.id === updatedProduct.id ? { ...p, ...updatedData } : p);
+        const uniqueNext = deduplicateProducts(next);
         try {
-          localStorage.setItem('eleganbd_products', JSON.stringify(next));
+          localStorage.setItem('eleganbd_products', JSON.stringify(uniqueNext));
         } catch (e) {}
-        return next;
+        return uniqueNext;
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `products/${updatedProduct.id}`);
@@ -190,10 +202,11 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       await deleteDoc(doc(db, 'products', id));
       setProducts(prev => {
         const next = prev.filter(p => p.id !== id);
+        const uniqueNext = deduplicateProducts(next);
         try {
-          localStorage.setItem('eleganbd_products', JSON.stringify(next));
+          localStorage.setItem('eleganbd_products', JSON.stringify(uniqueNext));
         } catch (e) {}
-        return next;
+        return uniqueNext;
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `products/${id}`);

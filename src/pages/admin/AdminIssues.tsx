@@ -551,7 +551,7 @@ export default function AdminIssues() {
                           <button 
                             onClick={() => {
                               setShowApprovedCancel(true);
-                              toast.info("অর্ডার বাতিল চূড়ান্ত করতে 'APPROVED CANCEL' ক্লিক করুন", { id: 'status-update' });
+                              toast("অর্ডার বাতিল চূড়ান্ত করতে 'APPROVED CANCEL' ক্লিক করুন", { id: 'status-update', icon: 'ℹ️' });
                             }}
                             className="flex items-center gap-2 px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all cursor-pointer"
                           >

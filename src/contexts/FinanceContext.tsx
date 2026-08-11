@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { db } from '../lib/firebase';
+import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 
 export interface BankAccount {
   id: string;
@@ -38,130 +41,31 @@ interface FinanceContextType {
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
-const DEFAULT_ACCOUNTS: BankAccount[] = [
-  {
-    id: 'acc_bkash_1',
-    bankName: 'bKash Personal',
-    accountName: 'Elegan BD Ltd',
-    accountNumber: '01712345678',
-    branch: 'Online',
-    initialBalance: 100000,
-    balance: 125750,
-    accountType: 'ব্যক্তিগত'
-  },
-  {
-    id: 'acc_sonali_1',
-    bankName: 'Sonali Bank',
-    accountName: 'Elegan BD Ltd',
-    accountNumber: '1234567890',
-    branch: 'Motijheel',
-    initialBalance: 50000,
-    balance: 78420.50,
-    accountType: 'ব্যাংক'
-  },
-  {
-    id: 'acc_nagad_1',
-    bankName: 'Nagad Personal',
-    accountName: 'Elegan BD Ltd',
-    accountNumber: '01812345678',
-    branch: 'Online',
-    initialBalance: 30000,
-    balance: 45390.75,
-    accountType: 'ব্যক্তিগত'
-  }
-];
-
-const DEFAULT_TRANSACTIONS: BankTransaction[] = [
-  {
-    id: 'tx_1',
-    accountId: 'acc_bkash_1',
-    type: 'deposit',
-    amount: 5000,
-    date: Date.now() - 3600000 * 2,
-    reference: 'Customer Payment - Order #1234',
-    notes: 'Paid via bKash Merchant'
-  },
-  {
-    id: 'tx_2',
-    accountId: 'acc_sonali_1',
-    type: 'withdraw',
-    amount: 2450,
-    date: Date.now() - 3600000 * 5,
-    reference: 'Supplier Payment - Invoice #5678',
-    notes: 'Fabric raw materials'
-  },
-  {
-    id: 'tx_3',
-    accountId: 'acc_nagad_1',
-    type: 'deposit',
-    amount: 8750,
-    date: Date.now() - 3600000 * 12,
-    reference: 'Cash Collection',
-    notes: 'Direct collection'
-  },
-  {
-    id: 'tx_4',
-    accountId: 'acc_bkash_1',
-    type: 'withdraw',
-    amount: 1200,
-    date: Date.now() - 3600000 * 24,
-    reference: 'Office Supplies',
-    notes: 'Stationery and tea'
-  },
-  {
-    id: 'tx_5',
-    accountId: 'acc_sonali_1',
-    type: 'deposit',
-    amount: 15000,
-    date: Date.now() - 3600000 * 48,
-    reference: 'Bank Transfer',
-    notes: 'Interbank transfer'
-  }
-];
-
 export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(() => {
-    try {
-      const saved = localStorage.getItem('elegan_bank_accounts');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error(e);
-    }
-    return DEFAULT_ACCOUNTS;
-  });
-
-  const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>(() => {
-    try {
-      const saved = localStorage.getItem('elegan_bank_transactions');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error(e);
-    }
-    return DEFAULT_TRANSACTIONS;
-  });
-
-  const [loading, setLoading] = useState(false);
-
-  // Recalculate balances whenever transactions change
-  useEffect(() => {
-    try {
-      localStorage.setItem('elegan_bank_accounts', JSON.stringify(bankAccounts));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [bankAccounts]);
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('elegan_bank_transactions', JSON.stringify(bankTransactions));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [bankTransactions]);
+    const unsubAccounts = onSnapshot(collection(db, 'bank_accounts'), (snapshot) => {
+      const accounts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as BankAccount));
+      setBankAccounts(accounts);
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'bank_accounts'));
 
-  // Helper to recalculate all account balances from transactions
-  const recalculateBalances = (accounts: BankAccount[], transactions: BankTransaction[]) => {
-    return accounts.map(acc => {
+    const unsubTransactions = onSnapshot(query(collection(db, 'bank_transactions'), orderBy('date', 'desc')), (snapshot) => {
+      const transactions = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as BankTransaction));
+      setBankTransactions(transactions);
+      setLoading(false);
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'bank_transactions'));
+
+    return () => {
+      unsubAccounts();
+      unsubTransactions();
+    };
+  }, []);
+
+  const recalculateBalances = async (accounts: BankAccount[], transactions: BankTransaction[]) => {
+    for (const acc of accounts) {
       let currentBalance = acc.initialBalance || 0;
       transactions.forEach(tx => {
         if (tx.accountId === acc.id) {
@@ -177,57 +81,66 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           currentBalance += tx.amount;
         }
       });
-      return { ...acc, balance: currentBalance };
-    });
+      if (acc.balance !== currentBalance) {
+        await updateDoc(doc(db, 'bank_accounts', acc.id), { balance: currentBalance });
+      }
+    }
   };
 
   const addBankAccount = async (account: Omit<BankAccount, 'id' | 'balance'>) => {
-    const newAcc: BankAccount = {
-      ...account,
-      id: 'acc_' + Date.now(),
-      balance: account.initialBalance
-    };
-    const updatedAccounts = [...bankAccounts, newAcc];
-    setBankAccounts(updatedAccounts);
-    toast.success('নতুন অ্যাকাউন্ট সফলভাবে যোগ করা হয়েছে!');
+    try {
+      await addDoc(collection(db, 'bank_accounts'), { ...account, balance: 0, initialBalance: 0 });
+      toast.success('নতুন অ্যাকাউন্ট সফলভাবে যোগ করা হয়েছে!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'bank_accounts');
+    }
   };
 
   const updateBankAccount = async (updatedAcc: BankAccount) => {
-    const updated = bankAccounts.map(acc => acc.id === updatedAcc.id ? { ...acc, ...updatedAcc } : acc);
-    setBankAccounts(recalculateBalances(updated, bankTransactions));
-    toast.success('অ্যাকাউন্ট সফলভাবে আপডেট করা হয়েছে!');
+    try {
+      await updateDoc(doc(db, 'bank_accounts', updatedAcc.id), { ...updatedAcc });
+      toast.success('অ্যাকাউন্ট সফলভাবে আপডেট করা হয়েছে!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `bank_accounts/${updatedAcc.id}`);
+    }
   };
 
   const deleteBankAccount = async (id: string) => {
-    const updated = bankAccounts.filter(acc => acc.id !== id);
-    setBankAccounts(updated);
-    toast.success('অ্যাকাউন্ট সফলভাবে মুছে ফেলা হয়েছে!');
+    try {
+      await deleteDoc(doc(db, 'bank_accounts', id));
+      toast.success('অ্যাকাউন্ট সফলভাবে মুছে ফেলা হয়েছে!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `bank_accounts/${id}`);
+    }
   };
 
   const addBankTransaction = async (tx: Omit<BankTransaction, 'id'>, targetAccountId?: string) => {
-    const newTx: BankTransaction = {
-      ...tx,
-      id: 'tx_' + Date.now(),
-      targetAccountId: targetAccountId || tx.targetAccountId
-    };
-
-    const updatedTxs = [newTx, ...bankTransactions];
-    setBankTransactions(updatedTxs);
-    setBankAccounts(prev => recalculateBalances(prev, updatedTxs));
+    try {
+      await addDoc(collection(db, 'bank_transactions'), { ...tx, targetAccountId: targetAccountId || tx.targetAccountId || null, date: Date.now() });
+      await recalculateBalances(bankAccounts, [...bankTransactions, { ...tx, targetAccountId: targetAccountId || tx.targetAccountId || null, date: Date.now(), id: 'temp' } as BankTransaction]);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'bank_transactions');
+    }
   };
 
   const updateBankTransaction = async (id: string, updatedFields: Partial<BankTransaction>) => {
-    const updatedTxs = bankTransactions.map(tx => tx.id === id ? { ...tx, ...updatedFields } : tx);
-    setBankTransactions(updatedTxs);
-    setBankAccounts(prev => recalculateBalances(prev, updatedTxs));
-    toast.success('লেনদেন আপডেট করা হয়েছে!');
+    try {
+      await updateDoc(doc(db, 'bank_transactions', id), updatedFields);
+      await recalculateBalances(bankAccounts, bankTransactions.map(tx => tx.id === id ? { ...tx, ...updatedFields } : tx));
+      toast.success('লেনদেন আপডেট করা হয়েছে!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `bank_transactions/${id}`);
+    }
   };
 
   const deleteBankTransaction = async (id: string) => {
-    const updatedTxs = bankTransactions.filter(tx => tx.id !== id);
-    setBankTransactions(updatedTxs);
-    setBankAccounts(prev => recalculateBalances(prev, updatedTxs));
-    toast.success('লেনদেন সফলভাবে মুছে ফেলা হয়েছে!');
+    try {
+      await deleteDoc(doc(db, 'bank_transactions', id));
+      await recalculateBalances(bankAccounts, bankTransactions.filter(tx => tx.id !== id));
+      toast.success('লেনদেন সফলভাবে মুছে ফেলা হয়েছে!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `bank_transactions/${id}`);
+    }
   };
 
   return (
@@ -254,3 +167,4 @@ export const useFinance = () => {
   }
   return context;
 };
+
