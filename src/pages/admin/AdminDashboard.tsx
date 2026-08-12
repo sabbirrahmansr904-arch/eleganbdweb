@@ -155,10 +155,10 @@ export default function AdminDashboard(): React.JSX.Element {
         });
 
         setActiveAdmins(sortedList);
-      });
+      }, (err) => console.warn('[AdminDashboard] Admins listener notice:', err));
 
       return () => unsubAdmins();
-    });
+    }, (err) => console.warn('[AdminDashboard] Perms listener notice:', err));
 
     return () => unsubPerms();
   }, [currentUser]);

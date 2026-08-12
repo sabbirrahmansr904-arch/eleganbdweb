@@ -475,10 +475,14 @@ async function startServer() {
       if (trackRes.ok && trackData.data) {
         const info = trackData.data;
         const statusStr = info.order_status || info.delivery_status || info.status || info.order_status_slug || "Booked";
+        const deliveryFee = Number(info.delivery_fee || info.delivery_charge || info.fee || 0);
+        const amountToCollect = Number(info.amount_to_collect || info.collectable_amount || info.order_amount || 0);
         return res.json({
           success: true,
           status: statusStr,
           consignment_id: consignmentId,
+          delivery_fee: deliveryFee,
+          amount_to_collect: amountToCollect,
           data: info
         });
       } else {

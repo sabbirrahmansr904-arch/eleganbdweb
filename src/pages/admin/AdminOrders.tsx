@@ -281,6 +281,7 @@ export default function AdminOrders(): React.JSX.Element {
   const [newAdvancePaymentMethod, setNewAdvancePaymentMethod] = useState<'Cash' | 'bKash' | 'Rocket' | 'Nagad' | ''>('');
   const [newDeliveryPartner, setNewDeliveryPartner] = useState('');
   const [newTrackingId, setNewTrackingId] = useState('');
+  const [newCourierCharge, setNewCourierCharge] = useState<number>(120);
   const [editingTrackingOrderId, setEditingTrackingOrderId] = useState<string | null>(null);
   const [tempTrackingId, setTempTrackingId] = useState('');
   const [newInternalNote, setNewInternalNote] = useState('');
@@ -340,6 +341,7 @@ export default function AdminOrders(): React.JSX.Element {
     setNewAdvancePaymentMethod('');
     setNewDeliveryPartner('');
     setNewTrackingId('');
+    setNewCourierCharge(120);
     setNewInternalNote('');
     setNewDeliveryDate('');
     setNewOrderItems([]);
@@ -358,6 +360,8 @@ export default function AdminOrders(): React.JSX.Element {
     setNewDiscountAmount((order as any).discount ?? 0);
     setNewAdvancePayment((order as any).advancePayment ?? 0);
     setNewDeliveryPartner(order.partner || order.courier || 'Pathao');
+    setNewTrackingId(order.trackingId || (order as any).pathaoConsignmentId || (order as any).trackingCode || '');
+    setNewCourierCharge(order.courierCharge ?? 120);
     setNewInternalNote(order.notes || '');
     setNewInvoiceBy((order.invoiceBy as any) || 'Sabbir');
     
@@ -694,15 +698,66 @@ export default function AdminOrders(): React.JSX.Element {
     }
   };
 
-  const handleSyncPathao = () => {
-    toast.promise(
-      new Promise(resolve => setTimeout(resolve, 1500)),
-      {
-        loading: 'Syncing live ledger to Pathao logs...',
-        success: 'Sync completed! Updated tracking statuses.',
-        error: 'Synchronization failed',
-      }
+  const handleSyncPathao = async () => {
+    const ordersToSync = orders.filter(o => 
+      (o.pathaoConsignmentId || o.trackingId) && 
+      (o.courier?.toLowerCase() === 'pathao' || o.partner?.toLowerCase() === 'pathao' || !o.courier)
     );
+
+    if (ordersToSync.length === 0) {
+      toast.info("No Pathao orders found to sync.");
+      return;
+    }
+
+    const toastId = toast.loading(`Syncing ${ordersToSync.length} Pathao parcels...`);
+    let updatedCount = 0;
+
+    try {
+      for (const ord of ordersToSync) {
+        const consignmentId = ord.pathaoConsignmentId || ord.trackingId;
+        if (!consignmentId) continue;
+
+        try {
+          const res = await fetch('/api/pathao/track-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ consignmentId })
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            const rawStatus = (data.status || '').toLowerCase();
+            let newStatus: Order['status'] = ord.status;
+
+            if (rawStatus.includes('deliver') || rawStatus.includes('success') || rawStatus === 'delivered') {
+              newStatus = 'Delivered';
+            } else if (rawStatus.includes('cancel') || rawStatus.includes('return')) {
+              newStatus = 'Returned';
+            } else if (rawStatus.includes('in_transit') || rawStatus.includes('pickup') || rawStatus.includes('shipped')) {
+              newStatus = 'Shipped';
+            }
+
+            const pathaoFee = data.delivery_fee > 0 ? data.delivery_fee : (ord.courierCharge || 120);
+            const payout = Math.max(0, (ord.total || 0) - pathaoFee);
+
+            await updateOrder(ord.id, {
+              status: newStatus,
+              trackingId: consignmentId,
+              trackingCode: consignmentId,
+              pathaoConsignmentId: consignmentId,
+              courierCharge: pathaoFee,
+              courierPayoutAmount: payout
+            });
+            updatedCount++;
+          }
+        } catch (e) {
+          console.warn(`Sync failed for ${ord.id}`, e);
+        }
+      }
+
+      toast.success(`Synced ${updatedCount} Pathao parcels live!`, { id: toastId });
+    } catch (e: any) {
+      toast.error(`Sync failed: ${e.message}`, { id: toastId });
+    }
   };
 
   const handleScanOrderSubmit = (orderIdToScan: string) => {
@@ -815,12 +870,19 @@ export default function AdminOrders(): React.JSX.Element {
       
       if (res.ok && data.success) {
         const consignment_id = data.consignment_id || "PL-000000";
+        const charge = pathaoBookingOrder.courierCharge || 120;
+        const payout = Math.max(0, (pathaoBookingOrder.total || 0) - charge);
         // Update Firestore status
         if (updateOrder) {
           await updateOrder(pathaoBookingOrder.id, { 
             status: 'Shipped', 
+            trackingId: consignment_id,
             trackingCode: consignment_id, 
-            pathaoConsignmentId: consignment_id 
+            pathaoConsignmentId: consignment_id,
+            courier: 'Pathao',
+            partner: 'Pathao',
+            courierCharge: charge,
+            courierPayoutAmount: payout
           });
         } else {
           await updateOrderStatus(pathaoBookingOrder.id, 'Shipped');
@@ -915,9 +977,21 @@ export default function AdminOrders(): React.JSX.Element {
       const data = await res.json();
 
       if (res.ok && data.success) {
+        const consignment_id = data.consignment_id || "PL-000000";
+        const charge = activeScanOrder.courierCharge || 120;
+        const payout = Math.max(0, (activeScanOrder.total || 0) - charge);
         // Update the order status to 'Shipped' and save consignment ID
         if (updateOrder) {
-          await updateOrder(activeScanOrder.id, { status: 'Shipped', trackingCode: data.consignment_id, pathaoConsignmentId: data.consignment_id });
+          await updateOrder(activeScanOrder.id, { 
+            status: 'Shipped', 
+            trackingId: consignment_id,
+            trackingCode: consignment_id, 
+            pathaoConsignmentId: consignment_id,
+            courier: 'Pathao',
+            partner: 'Pathao',
+            courierCharge: charge,
+            courierPayoutAmount: payout
+          });
         } else {
           await updateOrderStatus(activeScanOrder.id, 'Shipped');
         }
@@ -1371,9 +1445,12 @@ export default function AdminOrders(): React.JSX.Element {
 
     const subtotal = newOrderItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
     const totalCollectable = subtotal + newDeliveryCharge - newDiscountAmount - newAdvancePayment;
+    const courierChargeToSave = newCourierCharge >= 0 ? newCourierCharge : 120;
+    const courierPayoutToSave = Math.max(0, totalCollectable - courierChargeToSave);
 
     if (editingOrderId) {
       const existingOrder = orders.find(o => o.id === editingOrderId);
+      const trackingToSave = newTrackingId || (existingOrder?.trackingId || '');
       const updatedData: Partial<Order> = {
         customerName: newCustomerName,
         email: newCustomerEmail || '',
@@ -1390,7 +1467,11 @@ export default function AdminOrders(): React.JSX.Element {
         invoiceBy: newInvoiceBy,
         courier: newDeliveryPartner || 'Pathao',
         partner: newDeliveryPartner || '',
-        trackingId: newTrackingId || (existingOrder?.trackingId || '')
+        trackingId: trackingToSave,
+        trackingCode: trackingToSave,
+        pathaoConsignmentId: (newDeliveryPartner === 'Pathao' || !newDeliveryPartner) ? (trackingToSave || existingOrder?.pathaoConsignmentId || '') : existingOrder?.pathaoConsignmentId,
+        courierCharge: courierChargeToSave,
+        courierPayoutAmount: courierPayoutToSave
       };
 
       try {
@@ -1424,7 +1505,11 @@ export default function AdminOrders(): React.JSX.Element {
       invoiceBy: newInvoiceBy,
       courier: newDeliveryPartner || 'Pathao',
       partner: newDeliveryPartner || '',
-      trackingId: newTrackingId || ''
+      trackingId: newTrackingId || '',
+      trackingCode: newTrackingId || '',
+      pathaoConsignmentId: (newDeliveryPartner === 'Pathao' || !newDeliveryPartner) ? (newTrackingId || '') : undefined,
+      courierCharge: courierChargeToSave,
+      courierPayoutAmount: courierPayoutToSave
     };
 
     try {
@@ -2105,8 +2190,17 @@ export default function AdminOrders(): React.JSX.Element {
                             onChange={(e) => setTempTrackingId(e.target.value)}
                             onBlur={async () => {
                               try {
-                                await updateOrder(order.id, { ...order, trackingId: tempTrackingId });
-                                toast.success("Tracking ID updated successfully!");
+                                const charge = order.courierCharge || 120;
+                                const payout = Math.max(0, (order.total || 0) - charge);
+                                await updateOrder(order.id, { 
+                                  ...order, 
+                                  trackingId: tempTrackingId,
+                                  trackingCode: tempTrackingId,
+                                  pathaoConsignmentId: (order.courier?.toLowerCase() === 'pathao' || order.partner?.toLowerCase() === 'pathao' || !order.courier) ? tempTrackingId : order.pathaoConsignmentId,
+                                  courierCharge: charge,
+                                  courierPayoutAmount: payout
+                                });
+                                toast.success("Tracking ID & Net Payout updated!");
                               } catch (err) {
                                 toast.error("Failed to update Tracking ID");
                               }
@@ -2115,8 +2209,17 @@ export default function AdminOrders(): React.JSX.Element {
                             onKeyDown={async (e) => {
                               if (e.key === 'Enter') {
                                 try {
-                                  await updateOrder(order.id, { ...order, trackingId: tempTrackingId });
-                                  toast.success("Tracking ID updated successfully!");
+                                  const charge = order.courierCharge || 120;
+                                  const payout = Math.max(0, (order.total || 0) - charge);
+                                  await updateOrder(order.id, { 
+                                    ...order, 
+                                    trackingId: tempTrackingId,
+                                    trackingCode: tempTrackingId,
+                                    pathaoConsignmentId: (order.courier?.toLowerCase() === 'pathao' || order.partner?.toLowerCase() === 'pathao' || !order.courier) ? tempTrackingId : order.pathaoConsignmentId,
+                                    courierCharge: charge,
+                                    courierPayoutAmount: payout
+                                  });
+                                  toast.success("Tracking ID & Net Payout updated!");
                                 } catch (err) {
                                   toast.error("Failed to update Tracking ID");
                                 }
@@ -2845,7 +2948,7 @@ export default function AdminOrders(): React.JSX.Element {
                       {/* BILLING & PAYMENT Grid */}
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1 text-left">
-                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">DELIVERY CHARGE</label>
+                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">DELIVERY CHARGE (CUSTOMER)</label>
                           <div className="relative">
                             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold font-mono">৳</span>
                             <input 
@@ -2881,6 +2984,21 @@ export default function AdminOrders(): React.JSX.Element {
                               min={0}
                               value={newAdvancePayment}
                               onChange={(e) => setNewAdvancePayment(parseFloat(e.target.value) || 0)}
+                              className="w-full pl-8 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)] font-mono text-slate-900"
+                            />
+                          </div>
+                        </div>
+
+                        {/* PATHAO / COURIER CHARGE */}
+                        <div className="space-y-1 text-left">
+                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">PATHAO / COURIER FEE (কুরিয়ার চার্জ)</label>
+                          <div className="relative">
+                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold font-mono">৳</span>
+                            <input 
+                              type="number" 
+                              min={0}
+                              value={newCourierCharge}
+                              onChange={(e) => setNewCourierCharge(parseFloat(e.target.value) || 0)}
                               className="w-full pl-8 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)] font-mono text-slate-900"
                             />
                           </div>
@@ -3044,6 +3162,12 @@ export default function AdminOrders(): React.JSX.Element {
                           <span>ADVANCE PAYMENT (-)</span>
                           <span className="font-mono font-black">
                             {formatPrice(newAdvancePayment, currency, rate)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] font-extrabold text-[#E11D48] uppercase tracking-widest">
+                          <span>PATHAO COURIER FEE (-)</span>
+                          <span className="font-mono font-black">
+                            {formatPrice(newCourierCharge, currency, rate)}
                           </span>
                         </div>
                         <div className="flex justify-between items-end pt-3 border-t border-dashed border-slate-300/60">
@@ -4463,10 +4587,17 @@ export default function AdminOrders(): React.JSX.Element {
                             {formatPrice((selectedOrder as any).advancePayment || 0, currency, rate)}
                           </span>
                         </div>
+
+                        <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
+                          <span>Pathao Courier Fee (-)</span>
+                          <span className="font-bold text-[#E11D48] font-mono">
+                            -{formatPrice(selectedOrder.courierCharge ?? 120, currency, rate)}
+                          </span>
+                        </div>
                         
                         <div className="flex items-center justify-between pt-4 border-t border-slate-300/40">
                           <span className="text-sm font-black text-slate-950 uppercase tracking-wider">Collectable</span>
-                          <span className="text-3xl font-black text-slate-900 font-mono tracking-tight">
+                          <span className="text-2xl font-black text-slate-900 font-mono tracking-tight">
                             {formatPrice(
                               selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 
                               (selectedOrder.deliveryCharge || 0) - 

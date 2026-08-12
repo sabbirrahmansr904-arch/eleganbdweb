@@ -4,6 +4,7 @@ import { collection, onSnapshot, doc, addDoc, deleteDoc } from 'firebase/firesto
 import { Expense } from '../types';
 import toast from 'react-hot-toast';
 import { useAuth } from './AuthContext';
+import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 
 interface ExpenseContextType {
   expenses: Expense[];
@@ -33,6 +34,9 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
       list.sort((a, b) => b.date - a.date);
       setExpenses(list);
+      setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'expenses');
       setLoading(false);
     });
 

@@ -86,6 +86,11 @@ export interface Order {
   partner?: string;
   invoiceBy?: string;
   trackingId?: string;
+  trackingCode?: string;
+  pathaoConsignmentId?: string;
+  steadfastConsignmentId?: string;
+  courierCharge?: number;
+  courierPayoutAmount?: number;
 }
 
 export interface Customer {

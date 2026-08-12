@@ -665,8 +665,12 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         } catch (e) {
           console.warn("Single why_choose fetch skipped", e);
         }
-      } catch (err) {
-        console.error("Branding sync error:", err);
+      } catch (err: any) {
+        if (err?.message?.includes('Quota limit exceeded') || err?.message?.includes('resource-exhausted')) {
+          console.warn("Branding sync using local cache (Firestore daily quota limit reached)");
+        } else {
+          console.error("Branding sync error:", err);
+        }
       }
     };
 

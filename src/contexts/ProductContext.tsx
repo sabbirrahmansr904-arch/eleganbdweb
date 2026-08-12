@@ -4,7 +4,7 @@ import { PRODUCTS as INITIAL_PRODUCTS } from '../constants';
 import { db } from '../lib/firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, writeBatch, getDocs, getDoc } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
-import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
+import { handleFirestoreError, OperationType, isQuotaError } from '../lib/firestoreUtils';
 
 interface ProductContextType {
   products: Product[];
@@ -93,7 +93,11 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
           localStorage.setItem('eleganbd_offers', JSON.stringify(ids));
         }
       } catch (err) {
-        console.error("Failed to fetch offers config:", err);
+        if (isQuotaError(err)) {
+          console.warn("Failed to fetch offers config due to Firestore quota limit reached. Using cached offers.");
+        } else {
+          console.error("Failed to fetch offers config:", err);
+        }
       }
     };
     fetchOffers();
@@ -144,9 +148,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
       setLoading(false);
     }, (err: any) => {
-      if (!err?.message?.includes('resource-exhausted') && !err?.message?.includes('Quota limit exceeded')) {
-        console.error("Product fetch real-time error:", err);
-      }
+      handleFirestoreError(err, OperationType.GET, 'products');
       setLoading(false);
     });
 

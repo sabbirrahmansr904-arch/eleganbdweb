@@ -26,9 +26,72 @@ export interface FirestoreErrorInfo {
   }
 }
 
+let quotaExceededListeners: ((exceeded: boolean) => void)[] = [];
+export let isFirestoreQuotaExceeded = false;
+
+export function onQuotaStateChange(listener: (exceeded: boolean) => void) {
+  quotaExceededListeners.push(listener);
+  listener(isFirestoreQuotaExceeded);
+  return () => {
+    quotaExceededListeners = quotaExceededListeners.filter(l => l !== listener);
+  };
+}
+
+export function setQuotaExceededState(exceeded: boolean) {
+  if (isFirestoreQuotaExceeded !== exceeded) {
+    isFirestoreQuotaExceeded = exceeded;
+    quotaExceededListeners.forEach(l => l(exceeded));
+  }
+}
+
+export function isQuotaError(error: unknown): boolean {
+  if (!error) return false;
+  const msg = error instanceof Error ? error.message : String(error);
+  const matched = msg.includes('Quota limit exceeded') ||
+                  msg.includes('resource-exhausted') ||
+                  msg.includes('Free daily read units per project') ||
+                  msg.includes('quota metric');
+  if (matched) {
+    setQuotaExceededState(true);
+  }
+  return matched;
+}
+
+// Global Interception to suppress quota error spam in console and window events
+if (typeof window !== 'undefined') {
+  const originalConsoleError = console.error;
+  console.error = (...args: any[]) => {
+    const combined = args.map(arg => (arg instanceof Error ? arg.message : String(arg))).join(' ');
+    if (isQuotaError(combined)) {
+      console.warn('[Quota Exceeded Suppressed]', ...args);
+      return;
+    }
+    originalConsoleError(...args);
+  };
+
+  window.addEventListener('unhandledrejection', (event) => {
+    if (isQuotaError(event.reason)) {
+      event.preventDefault();
+    }
+  });
+
+  window.addEventListener('error', (event) => {
+    if (isQuotaError(event.error || event.message)) {
+      event.preventDefault();
+    }
+  });
+}
+
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errMsg = error instanceof Error ? error.message : String(error);
+
+  if (isQuotaError(error)) {
+    console.warn(`[Firestore Quota Exceeded] (${operationType} on ${path}):`, errMsg);
+    return;
+  }
+
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errMsg,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
@@ -42,12 +105,13 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     },
     operationType,
     path
-  }
+  };
   
-  if (errInfo.error.includes('Missing or insufficient permissions')) {
+  if (errMsg.includes('Missing or insufficient permissions')) {
     console.error('Firestore Permission Error: ', JSON.stringify(errInfo));
     throw new Error(JSON.stringify(errInfo));
   }
   
-  throw error;
+  console.error(`Firestore Error [${operationType} - ${path}]:`, error);
 }
+

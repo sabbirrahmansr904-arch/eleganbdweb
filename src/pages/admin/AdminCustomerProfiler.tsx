@@ -15,7 +15,7 @@ export default function CustomerProfiler() {
       const data: any[] = [];
       snapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() }));
       setCustomers(data);
-    });
+    }, (err) => console.warn('[AdminCustomerProfiler] Snapshot listener notice:', err));
     return () => unsubscribe();
   }, []);
 

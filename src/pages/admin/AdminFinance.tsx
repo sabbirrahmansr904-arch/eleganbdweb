@@ -6,6 +6,7 @@ import React, { useState, useMemo } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useFinance } from '../../contexts/FinanceContext';
+import { useOrders } from '../../contexts/OrderContext';
 import { formatPrice } from '../../lib/utils';
 import { 
   Plus, 
@@ -42,6 +43,204 @@ export default function AdminFinance(): React.JSX.Element {
     updateBankTransaction,
     deleteBankTransaction
   } = useFinance();
+
+  const { orders = [], updateOrder } = useOrders();
+
+  // Sonali Bank detection & Pathao Auto Settlement
+  const sonaliAccount = useMemo(() => {
+    return bankAccounts.find(a => 
+      a.bankName.toLowerCase().includes('sonali') || 
+      a.accountName.toLowerCase().includes('sonali') ||
+      a.bankName.includes('সোনালী')
+    );
+  }, [bankAccounts]);
+
+  // Pathao Fee & Net Payout Edit Modal state
+  const [showEditPathaoModal, setShowEditPathaoModal] = useState(false);
+  const [editingPathaoItem, setEditingPathaoItem] = useState<any>(null);
+  const [editPathaoCharge, setEditPathaoCharge] = useState<number>(120);
+  const [editPathaoNetPayout, setEditPathaoNetPayout] = useState<number>(800);
+
+  // Pathao Official Invoice Batch Entry Modal state
+  const [showPathaoBatchModal, setShowPathaoBatchModal] = useState(false);
+  const [pathaoBatchForm, setPathaoBatchForm] = useState({
+    invoiceNo: 'Invoice-020826EIWRPD',
+    ordersCount: '3',
+    collectedAmount: '1020',
+    totalFee: '235.20',
+    payoutSum: '784.80',
+    notes: 'পাঠাও ইনভয়েস ব্যাচ (১টি ডেলিভারি ৳৮৫০.৮০, ১টি রিটার্ন -৳৫৫, ১টি পার্শিয়াল -৳১১)'
+  });
+
+  const pathaoSettlementData = useMemo(() => {
+    const pathaoOrders = orders.filter(o => 
+      o.courier?.toLowerCase() === 'pathao' || 
+      o.partner?.toLowerCase() === 'pathao' || 
+      !!o.pathaoConsignmentId ||
+      (o.trackingId && String(o.trackingId).toLowerCase().includes('p'))
+    );
+
+    let totalGross = 0;
+    let totalDeductions = 0;
+    let totalNetPayout = 0;
+
+    const items = pathaoOrders.map(o => {
+      const invId = o.invoiceNo || o.id.slice(-6);
+      const trackingId = o.pathaoConsignmentId || o.trackingId || o.trackingCode || '';
+      const grossCollectable = o.total || 0;
+      const courierCharge = o.courierCharge ?? 120;
+      const netPayout = o.courierPayoutAmount !== undefined && o.courierPayoutAmount !== null
+        ? Number(o.courierPayoutAmount)
+        : Math.max(0, grossCollectable - courierCharge);
+
+      totalGross += grossCollectable;
+      totalDeductions += courierCharge;
+      totalNetPayout += netPayout;
+
+      const isSynced = bankTransactions.some(tx => 
+        sonaliAccount && 
+        tx.accountId === sonaliAccount.id && 
+        (tx.reference?.includes(invId) || (trackingId && tx.reference?.includes(trackingId)) || tx.notes?.includes(invId))
+      );
+
+      return {
+        order: o,
+        invId,
+        trackingId,
+        grossCollectable,
+        courierCharge,
+        netPayout,
+        isSynced,
+        date: o.date || o.createdAt || Date.now(),
+        customerName: o.customerName || 'N/A',
+        status: o.status
+      };
+    });
+
+    return {
+      items,
+      totalGross,
+      totalDeductions,
+      totalNetPayout,
+      syncedCount: items.filter(i => i.isSynced).length
+    };
+  }, [orders, bankTransactions, sonaliAccount]);
+
+  const handleAutoSyncSonaliBank = async (specificItem?: any) => {
+    let activeSonaliAcc = sonaliAccount;
+
+    if (!activeSonaliAcc) {
+      try {
+        toast.loading('সোনালী ব্যাংক অ্যাকাউন্ট তৈরি ও লিঙ্ক করা হচ্ছে...', { id: 'sonali-init' });
+        await addBankAccount({
+          bankName: 'Sonali Bank (সোনালী ব্যাংক)',
+          accountName: 'Pathao Courier Payout Account',
+          accountNumber: 'SB-PATHAO-PAYOUT-01',
+          branch: 'Main Branch',
+          initialBalance: 0,
+          accountType: 'ব্যবসায়িক'
+        });
+        toast.success('সোনালী ব্যাংক অ্যাকাউন্ট তৈরি হয়েছে! সিঙ্ক পুনরায় চাপুন।', { id: 'sonali-init' });
+        return;
+      } catch (e: any) {
+        toast.error('সোনালী ব্যাংক তৈরি করা সম্ভব হয়নি: ' + e.message, { id: 'sonali-init' });
+        return;
+      }
+    }
+
+    const itemsToSync = specificItem ? [specificItem] : pathaoSettlementData.items.filter(i => !i.isSynced);
+
+    if (itemsToSync.length === 0) {
+      toast.info('সবগুলো পাঠাও ইনভয়েস ইতিমধ্যে সোনালী ব্যাংকে সিঙ্ক করা আছে!');
+      return;
+    }
+
+    const toastId = toast.loading(`${itemsToSync.length} টি পাঠাও ইনভয়েস সোনালী ব্যাংকে অটো-সিঙ্ক হচ্ছে...`);
+    let syncedCount = 0;
+
+    try {
+      for (const item of itemsToSync) {
+        await addBankTransaction({
+          accountId: activeSonaliAcc.id,
+          type: 'deposit',
+          amount: item.netPayout,
+          date: typeof item.date === 'number' ? item.date : Date.now(),
+          reference: `PATHAO-INV #${item.invId} (${item.trackingId || 'PL-000'})`,
+          notes: `পাঠাও কালেকশন: ৳${item.grossCollectable} | কুরিয়ার ফি কেটেছে: ৳${item.courierCharge} | সোনালী ব্যাংকে জমা নিট টাকা: ৳${item.netPayout} | কাস্টমার: ${item.customerName}`
+        });
+        syncedCount++;
+      }
+      toast.success(`সফলভাবে ${syncedCount} টি পাঠাও ইনভয়েসের নিট ব্যালেন্স সোনালী ব্যাংকে ক্রেডিট ও সেট করা হয়েছে!`, { id: toastId });
+    } catch (err: any) {
+      toast.error('সিঙ্ক করতে সমস্যা হয়েছে: ' + err.message, { id: toastId });
+    }
+  };
+
+  // Save updated Pathao fee/payout for a specific order
+  const handleSavePathaoFeeUpdate = async () => {
+    if (!editingPathaoItem) return;
+    try {
+      toast.loading('পাঠাও ফি আপডেট করা হচ্ছে...', { id: 'pathao-update' });
+      await updateOrder(editingPathaoItem.order.id, {
+        courierCharge: editPathaoCharge,
+        courierPayoutAmount: editPathaoNetPayout
+      });
+      toast.success('সফলভাবে পাঠাও কুরিয়ার ফি ও নিট জমা আপডেট করা হয়েছে!', { id: 'pathao-update' });
+      setShowEditPathaoModal(false);
+      setEditingPathaoItem(null);
+    } catch (e: any) {
+      toast.error('আপডেট করতে সমস্যা হয়েছে: ' + (e.message || 'অজ্ঞাত ভুল'), { id: 'pathao-update' });
+    }
+  };
+
+  // Save official Pathao Invoice Batch to Sonali Bank
+  const handleSavePathaoBatchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    let activeSonaliAcc = sonaliAccount;
+
+    if (!activeSonaliAcc) {
+      try {
+        toast.loading('সোনালী ব্যাংক অ্যাকাউন্ট লিঙ্ক করা হচ্ছে...', { id: 'sonali-init' });
+        await addBankAccount({
+          bankName: 'Sonali Bank (সোনালী ব্যাংক)',
+          accountName: 'Pathao Courier Payout Account',
+          accountNumber: 'SB-PATHAO-PAYOUT-01',
+          branch: 'Main Branch',
+          initialBalance: 0,
+          accountType: 'ব্যবসায়িক'
+        });
+        toast.success('সোনালী ব্যাংক অ্যাকাউন্ট তৈরি হয়েছে!', { id: 'sonali-init' });
+        activeSonaliAcc = bankAccounts.find(a => a.bankName.toLowerCase().includes('sonali') || a.accountName.toLowerCase().includes('sonali'));
+      } catch (err: any) {
+        toast.error('সোনালী ব্যাংক অ্যাকাউন্ট তৈরি ব্যর্থ: ' + err.message);
+        return;
+      }
+    }
+
+    if (!activeSonaliAcc) {
+      toast.error('সোনালী ব্যাংক অ্যাকাউন্ট পেতে আবার সিঙ্ক বাটনে চাপুন');
+      return;
+    }
+
+    const payoutAmount = parseFloat(pathaoBatchForm.payoutSum) || 0;
+    const invNo = pathaoBatchForm.invoiceNo || `Invoice-${Date.now().toString().slice(-6)}`;
+
+    try {
+      toast.loading(`ইনভয়েস #${invNo} সোনালী ব্যাংকে ডিপোজিট করা হচ্ছে...`, { id: 'batch-submit' });
+      await addBankTransaction({
+        accountId: activeSonaliAcc.id,
+        type: 'deposit',
+        amount: payoutAmount,
+        date: Date.now(),
+        reference: `PATHAO-INVOICE #${invNo}`,
+        notes: `পাঠাও ইনভয়েস #${invNo} (${pathaoBatchForm.ordersCount} টি অর্ডার) | মোট কালেকশন: ৳${pathaoBatchForm.collectedAmount} | মোট পাঠাও চার্জ: ৳${pathaoBatchForm.totalFee} | সোনালী ব্যাংকে জমা নিট টাকা: ৳${payoutAmount} | ${pathaoBatchForm.notes}`
+      });
+      toast.success(`সফলভাবে পাঠাও ইনভয়েস #${invNo} এর নিট ৳${payoutAmount} সোনালী ব্যাংকে যোগ হয়েছে!`, { id: 'batch-submit' });
+      setShowPathaoBatchModal(false);
+    } catch (err: any) {
+      toast.error('ইনভয়েস সেভ করতে সমস্যা: ' + err.message, { id: 'batch-submit' });
+    }
+  };
 
   // Filter & Search states
   const [searchQuery, setSearchQuery] = useState('');
@@ -852,6 +1051,202 @@ export default function AdminFinance(): React.JSX.Element {
 
       </div>
 
+      {/* PATHAO INVOICE & SONALI BANK AUTO SETTLEMENT LEDGER */}
+      <div className="bg-gradient-to-br from-[#041E42] via-[#0B2A5B] to-[#0A1931] border border-blue-900/60 rounded-[28px] p-6 text-white space-y-6 shadow-xl relative overflow-hidden">
+        {/* Background glow decorative effects */}
+        <div className="absolute -top-12 -right-12 w-60 h-60 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-12 -left-12 w-60 h-60 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        {/* Card Header */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-white/10 pb-4 relative z-10">
+          <div className="space-y-1">
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center justify-center font-black text-lg shadow-inner">
+                🏦
+              </span>
+              <div>
+                <h3 className="text-lg font-black tracking-tight text-white flex items-center gap-2">
+                  পাঠাও ইনভয়েস ও সোনালী ব্যাংক অটো-সেট স্টেটমেন্ট
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                    Live Auto Sync
+                  </span>
+                </h3>
+                <p className="text-xs text-blue-200/80 font-medium mt-0.5">
+                  পাঠাও কুরিয়ার ফি ও চার্জ কেটে সরাসরি সোনালী ব্যাংক অ্যাকাউন্টে জমা হওয়া পেআউটের ইনভয়েস-ভিত্তিক লাইভ হিসাব
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setShowPathaoBatchModal(true)}
+              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold rounded-2xl text-xs transition-all shadow-md shadow-blue-500/20 flex items-center gap-2 cursor-pointer shrink-0 border border-blue-400/30 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <Plus className="w-4 h-4" />
+              <span>পাঠাও ইনভয়েস ব্যাচ এন্ট্রি</span>
+            </button>
+
+            <button
+              onClick={() => handleAutoSyncSonaliBank()}
+              className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-2xl text-xs transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2 cursor-pointer shrink-0 border border-emerald-300/40 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>সোনালী ব্যাংকে অটো-সেট / সিঙ্ক</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 4 Metric Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative z-10">
+          {/* Sonali Bank Balance */}
+          <div className="bg-white/5 border border-white/10 backdrop-blur-md p-4 rounded-2xl space-y-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-300 block">
+              সোনালী ব্যাংক কারেন্ট ব্যালেন্স
+            </span>
+            <span className="text-2xl font-black text-white font-mono tracking-tight block">
+              {formatPrice(sonaliAccount?.balance || 0)}
+            </span>
+            <span className="text-[9.5px] text-emerald-200/60 font-semibold block">
+              {sonaliAccount ? `${sonaliAccount.accountNumber}` : 'অ্যাকাউন্ট তৈরি হয়নি (অটো তৈরি হবে)'}
+            </span>
+          </div>
+
+          {/* Pathao Total Gross Collectable */}
+          <div className="bg-white/5 border border-white/10 backdrop-blur-md p-4 rounded-2xl space-y-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-blue-300 block">
+              পাঠাও মোট গ্রস কালেকশন
+            </span>
+            <span className="text-2xl font-black text-blue-100 font-mono tracking-tight block">
+              {formatPrice(pathaoSettlementData.totalGross)}
+            </span>
+            <span className="text-[9.5px] text-blue-200/60 font-semibold block">
+              মোট কাস্টমার বিল
+            </span>
+          </div>
+
+          {/* Total Pathao Courier Charge Deducted */}
+          <div className="bg-white/5 border border-white/10 backdrop-blur-md p-4 rounded-2xl space-y-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-rose-300 block">
+              পাঠাও কুরিয়ার ফি কেটেছে (-)
+            </span>
+            <span className="text-2xl font-black text-rose-300 font-mono tracking-tight block">
+              -{formatPrice(pathaoSettlementData.totalDeductions)}
+            </span>
+            <span className="text-[9.5px] text-rose-200/60 font-semibold block">
+              কুরিয়ার চার্জ ও সার্ভিস কস্ট
+            </span>
+          </div>
+
+          {/* Total Net Deposited in Sonali Bank */}
+          <div className="bg-emerald-500/10 border border-emerald-400/30 backdrop-blur-md p-4 rounded-2xl space-y-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-300 block">
+              সোনালী ব্যাংকে ঢোকা নিট ক্যাশ
+            </span>
+            <span className="text-2xl font-black text-emerald-300 font-mono tracking-tight block">
+              {formatPrice(pathaoSettlementData.totalNetPayout)}
+            </span>
+            <span className="text-[9.5px] text-emerald-200/80 font-bold block">
+              {pathaoSettlementData.syncedCount} / {pathaoSettlementData.items.length} টি ইনভয়েস সিঙ্কড
+            </span>
+          </div>
+        </div>
+
+        {/* Live Invoice Breakdown Table */}
+        <div className="bg-black/20 border border-white/10 rounded-2xl overflow-hidden relative z-10">
+          <div className="p-3.5 bg-white/5 border-b border-white/10 flex items-center justify-between">
+            <span className="text-xs font-black uppercase tracking-wider text-blue-200 flex items-center gap-2">
+              <Receipt className="w-4 h-4 text-emerald-400" />
+              ইনভয়েস পেআউট লিস্ট
+            </span>
+            <span className="text-[10px] text-blue-200/70 font-semibold">
+              পাঠাও বুকিং আইডি মিল রেখে সরাসরি সোনালী ব্যাংকে সেট হয়
+            </span>
+          </div>
+
+          {pathaoSettlementData.items.length === 0 ? (
+            <div className="p-8 text-center text-xs text-blue-200/60 font-medium">
+              কোনো পাঠাও কুরিয়ার অর্ডার পাওয়া যায়নি। অর্ডার সেকশন থেকে পাঠাও ইনভয়েস তৈরি করুন।
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-white/5 text-blue-200/60 border-b border-white/10 uppercase tracking-widest font-extrabold text-[9px]">
+                    <th className="py-3 px-4">তারিখ</th>
+                    <th className="py-3 px-4">ইনভয়েস / ট্র্যাকিং আইডি</th>
+                    <th className="py-3 px-4">গ্রাহক</th>
+                    <th className="py-3 px-4 text-right">সংগৃহীত বিল (৳)</th>
+                    <th className="py-3 px-4 text-right">পাঠাও ফি (৳)</th>
+                    <th className="py-3 px-4 text-right">সোনালী ব্যাংকে নিট (৳)</th>
+                    <th className="py-3 px-4 text-center">স্টেটাস</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5 font-bold text-blue-100">
+                  {pathaoSettlementData.items.map((item, idx) => (
+                    <tr key={idx} className="hover:bg-white/5 transition-colors">
+                      <td className="py-3 px-4 text-[10.5px] font-mono text-blue-200/80">
+                        {new Date(item.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="font-mono text-xs font-black text-emerald-300">
+                          #{item.invId}
+                        </div>
+                        {item.trackingId && (
+                          <div className="text-[9.5px] text-blue-300/70 font-mono">
+                            {item.trackingId}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-xs font-semibold text-white">
+                        {item.customerName}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono font-bold text-blue-200">
+                        {formatPrice(item.grossCollectable)}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono font-bold text-rose-300">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <span>-{formatPrice(item.courierCharge)}</span>
+                          <button
+                            onClick={() => {
+                              setEditingPathaoItem(item);
+                              setEditPathaoCharge(item.courierCharge);
+                              setEditPathaoNetPayout(item.netPayout);
+                              setShowEditPathaoModal(true);
+                            }}
+                            className="p-1 hover:bg-white/10 text-amber-300 rounded-md transition-all cursor-pointer"
+                            title="পাঠাও ফি বা নিট জমা পরিবর্তন করুন"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono font-black text-emerald-300 text-sm">
+                        {formatPrice(item.netPayout)}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        {item.isSynced ? (
+                          <span className="inline-flex items-center gap-1 bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2.5 py-1 rounded-full text-[10px] font-black shadow-3xs">
+                            ✓ সোনালী ব্যাংকে ডিপোজিটেড
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleAutoSyncSonaliBank(item)}
+                            className="inline-flex items-center gap-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/30 px-2.5 py-1 rounded-full text-[10px] font-black shadow-3xs transition-all cursor-pointer hover:scale-105"
+                          >
+                            ⚡ সোনালী ব্যাংকে যোগ করুন
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Transaction Table ("লেনদেন তালিকা") */}
       <div className="bg-white border border-gray-100 rounded-[24px] p-6 space-y-5 shadow-2xs">
         <div className="flex items-center justify-between border-b border-gray-50 pb-3">
@@ -1375,6 +1770,250 @@ export default function AdminFinance(): React.JSX.Element {
                 হ্যাঁ, মুছে ফেলুন
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 1: EDIT PATHAO FEE & NET PAYOUT FOR SINGLE PARCEL */}
+      {showEditPathaoModal && editingPathaoItem && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl border border-gray-100 relative">
+            <button
+              onClick={() => {
+                setShowEditPathaoModal(false);
+                setEditingPathaoItem(null);
+              }}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 p-2 rounded-full hover:bg-gray-100 transition-all cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="space-y-1">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full border border-blue-200 inline-block">
+                পাঠাও কুরিয়ার ফি ও নিট জমা এডজাস্ট
+              </span>
+              <h3 className="text-lg font-black text-gray-900">
+                ইনভয়েস #{editingPathaoItem.invId} (গ্রাহক: {editingPathaoItem.customerName})
+              </h3>
+              <p className="text-xs text-gray-500 font-medium">
+                পাঠাও এর অফিসিয়াল ইনভয়েসের ফি (COD Charge + Delivery Charge) অনুযায়ী ফি ও নিট পেআউট টিউন করুন
+              </p>
+            </div>
+
+            <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
+              <div className="flex justify-between text-slate-600">
+                <span>সংগৃহীত মোট বিল (Collected):</span>
+                <span className="font-mono font-bold text-slate-900">৳{editingPathaoItem.grossCollectable}</span>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">
+                  পাঠাও কুরিয়ার ফি (ডেলিভারি + COD চার্জ)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs font-bold">৳</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={editPathaoCharge}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      setEditPathaoCharge(val);
+                      setEditPathaoNetPayout(Math.max(0, editingPathaoItem.grossCollectable - val));
+                    }}
+                    className="w-full pl-8 pr-4 py-3 bg-white border border-slate-200 text-sm font-mono font-extrabold rounded-xl text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none shadow-2xs"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">উদাহরণ: পাঠাও COD ১% ফি ৳৯.২০ + ডেলিভারি চার্জ ৳৬০ = ৳৬৯.২০</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-emerald-800 uppercase tracking-wider mb-1">
+                  সোনালী ব্যাংকে জমা নিট পেআউট (Net Paid Out)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 font-mono text-xs font-bold">৳</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={editPathaoNetPayout}
+                    onChange={(e) => setEditPathaoNetPayout(parseFloat(e.target.value) || 0)}
+                    className="w-full pl-8 pr-4 py-3 bg-emerald-50 border border-emerald-300 text-sm font-mono font-black rounded-xl text-emerald-900 focus:ring-2 focus:ring-emerald-500 outline-none shadow-2xs"
+                  />
+                </div>
+                <p className="text-[10px] text-emerald-700 font-medium mt-1">পাঠাও অফিসিয়াল স্টেটমেন্ট অনুযায়ী আসল টাকা যোগ করুন</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditPathaoModal(false);
+                  setEditingPathaoItem(null);
+                }}
+                className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                বাতিল
+              </button>
+              <button
+                type="button"
+                onClick={handleSavePathaoFeeUpdate}
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl shadow-md shadow-blue-200 transition-all cursor-pointer"
+              >
+                আপডেট সেভ করুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: OFFICIAL PATHAO BATCH INVOICE SETTLEMENT TO SONALI BANK */}
+      {showPathaoBatchModal && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-gray-100 relative">
+            <button
+              onClick={() => setShowPathaoBatchModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 p-2 rounded-full hover:bg-gray-100 transition-all cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="space-y-1">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full border border-emerald-200 inline-block">
+                🏦 পাঠাও পেআউট ইনভয়েস স্টেটমেন্ট এন্ট্রি
+              </span>
+              <h3 className="text-lg font-black text-gray-900">
+                সোনালী ব্যাংক ইনভয়েস ডিপোজিট ম্যাচিং
+              </h3>
+              <p className="text-xs text-gray-500 font-medium">
+                পাঠাও পোর্টাল থেকে প্রাপ্ত ইনভয়েসের মোট কালেকশন, ফি ও সোনালী ব্যাংকে জমা নিট টাকা ইনপুট দিন
+              </p>
+            </div>
+
+            <form onSubmit={handleSavePathaoBatchSubmit} className="space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-black text-gray-700 mb-1 uppercase tracking-wider text-[10px]">
+                    ইনভয়েস নম্বর (Invoice ID)
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Invoice-020826EIWRPD"
+                    value={pathaoBatchForm.invoiceNo}
+                    onChange={(e) => setPathaoBatchForm({ ...pathaoBatchForm, invoiceNo: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-black text-gray-700 mb-1 uppercase tracking-wider text-[10px]">
+                    অর্ডার সংখ্যা (Orders Count)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={pathaoBatchForm.ordersCount}
+                    onChange={(e) => setPathaoBatchForm({ ...pathaoBatchForm, ordersCount: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                <div>
+                  <label className="block font-bold text-slate-500 text-[9.5px] uppercase">
+                    মোট কালেকশন (৳)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={pathaoBatchForm.collectedAmount}
+                    onChange={(e) => {
+                      const col = parseFloat(e.target.value) || 0;
+                      const fee = parseFloat(pathaoBatchForm.totalFee) || 0;
+                      setPathaoBatchForm({
+                        ...pathaoBatchForm,
+                        collectedAmount: e.target.value,
+                        payoutSum: (col - fee).toFixed(2)
+                      });
+                    }}
+                    className="w-full mt-1 px-2.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-rose-600 text-[9.5px] uppercase">
+                    পাঠাও ফি (-) (৳)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={pathaoBatchForm.totalFee}
+                    onChange={(e) => {
+                      const fee = parseFloat(e.target.value) || 0;
+                      const col = parseFloat(pathaoBatchForm.collectedAmount) || 0;
+                      setPathaoBatchForm({
+                        ...pathaoBatchForm,
+                        totalFee: e.target.value,
+                        payoutSum: (col - fee).toFixed(2)
+                      });
+                    }}
+                    className="w-full mt-1 px-2.5 py-2 bg-white border border-rose-200 rounded-lg text-xs font-mono font-bold text-rose-700"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-black text-emerald-800 text-[9.5px] uppercase">
+                    সোনালী ব্যাংকে নিট (৳)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={pathaoBatchForm.payoutSum}
+                    onChange={(e) => setPathaoBatchForm({ ...pathaoBatchForm, payoutSum: e.target.value })}
+                    className="w-full mt-1 px-2.5 py-2 bg-emerald-100 border border-emerald-300 rounded-lg text-xs font-mono font-black text-emerald-900"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-black text-gray-700 mb-1 uppercase tracking-wider text-[10px]">
+                  বিবরণ / নোট (Notes)
+                </label>
+                <textarea
+                  rows={2}
+                  value={pathaoBatchForm.notes}
+                  onChange={(e) => setPathaoBatchForm({ ...pathaoBatchForm, notes: e.target.value })}
+                  placeholder="রিটার্ন চার্জ বা অ্যাডজাস্টমেন্টের বিবরণ..."
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium text-gray-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPathaoBatchModal(false)}
+                  className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md shadow-emerald-200 transition-all cursor-pointer"
+                >
+                  সোনালী ব্যাংকে জমা করুন
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

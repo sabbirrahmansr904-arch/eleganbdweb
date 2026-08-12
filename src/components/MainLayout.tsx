@@ -4,6 +4,7 @@ import Footer from './Footer';
 import BottomNav from './BottomNav';
 import CartDrawer from './CartDrawer';
 import FloatingWhatsApp from './FloatingWhatsApp';
+import { FirestoreQuotaBanner } from './FirestoreQuotaBanner';
 import { useCart } from '../contexts/CartContext';
 import { useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -19,6 +20,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="flex flex-col min-h-screen">
+      <FirestoreQuotaBanner />
       <Navbar />
       <CartDrawer />
       <main className="flex-grow">

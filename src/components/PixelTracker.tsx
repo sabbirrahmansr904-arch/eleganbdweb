@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { db } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { isQuotaError } from '../lib/firestoreUtils';
 
 export default function PixelTracker() {
   useEffect(() => {
@@ -102,7 +103,11 @@ export default function PixelTracker() {
         }
 
       } catch (err) {
-        console.error('Error loading or executing tracking scripts:', err);
+        if (isQuotaError(err)) {
+          console.warn('Tracking scripts skipped due to Firestore quota limit reached');
+        } else {
+          console.error('Error loading or executing tracking scripts:', err);
+        }
       }
     };
 

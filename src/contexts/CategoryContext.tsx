@@ -88,7 +88,7 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
       setLoading(false);
     }, (error) => {
-      console.error("Category sync error:", error);
+      handleFirestoreError(error, OperationType.GET, 'categories');
       if (!cached) {
         setCategories(sortCategories(DEFAULT_CATEGORIES));
       }
