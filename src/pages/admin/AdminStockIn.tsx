@@ -288,12 +288,12 @@ export default function AdminStockIn() {
   return (
     <div className="max-w-[1600px] mx-auto space-y-8 pb-20 font-sans bg-[#F8F9FD]">
       
-      {/* Visual Header exactly matching the green screenshot styling */}
-      <div className="space-y-1">
-        <h1 className="text-3xl font-bold text-[#10B981] tracking-tight flex items-center gap-2">
+      {/* Visual Header centered inside soft 3D neumorphic box */}
+      <div className="bg-[#E6ECF4] border border-white/90 rounded-3xl p-6 shadow-[-6px_-6px_16px_rgba(255,255,255,0.95),6px_6px_18px_rgba(165,180,205,0.35)] text-center flex flex-col items-center justify-center space-y-1.5">
+        <h1 className="text-3xl font-black text-[#10B981] tracking-tight flex items-center justify-center gap-2">
           Stock In
         </h1>
-        <p className="text-[14px] text-gray-500 font-medium">
+        <p className="text-sm font-bold text-slate-500">
           Receive new inventory and automatically increase stock counts.
         </p>
       </div>

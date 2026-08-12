@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { 
   Package, 
   Search, 
@@ -13,12 +15,14 @@ import {
   Boxes,
   ArrowRight,
   TrendingDown,
-  Tag
+  Tag,
+  Download
 } from 'lucide-react';
 import { useProducts } from '../../contexts/ProductContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { useCategories } from '../../contexts/CategoryContext';
 import { formatPrice } from '../../lib/utils';
+import toast from 'react-hot-toast';
 
 export default function AdminInventoryOverview(): React.JSX.Element {
   const { products } = useProducts();
@@ -85,6 +89,24 @@ export default function AdminInventoryOverview(): React.JSX.Element {
     setSearchTerm('');
     setSelectedCategory('');
     setSelectedSize('');
+  };
+
+  // Export Report handler
+  const handleExportInventory = () => {
+    const doc = new jsPDF();
+    doc.text('Inventory Report', 14, 15);
+    autoTable(doc, {
+        head: [['SKU', 'Name', 'Category', 'Stock']],
+        body: filteredProducts.map(p => [
+          p.sku || 'N/A',
+          p.name,
+          p.category || 'N/A',
+          p.stock || 0
+        ]),
+        startY: 20,
+    });
+    doc.save('inventory_report.pdf');
+    toast.success('Inventory PDF রিপোর্ট ডাউনলোড সফল হয়েছে!');
   };
 
   return (
@@ -162,16 +184,6 @@ export default function AdminInventoryOverview(): React.JSX.Element {
               }
             </span>
           </div>
-
-          {isActiveFilter && (
-            <button 
-              onClick={handleReset} 
-              className="rounded-full px-5 py-2.5 bg-blue-600 text-white hover:bg-blue-700 transition-all uppercase font-black text-[10px] tracking-wider flex items-center space-x-1.5 shadow-[0_4px_12px_rgba(37,99,235,0.15)]"
-            >
-              <XCircle size={14} className="stroke-[2.5]" />
-              <span>Clear All Filters</span>
-            </button>
-          )}
         </div>
       </div>
 

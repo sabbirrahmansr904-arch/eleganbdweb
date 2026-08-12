@@ -3,6 +3,8 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { useFinance } from '../../contexts/FinanceContext';
 import { formatPrice } from '../../lib/utils';
 import { 
@@ -333,6 +335,26 @@ export default function AdminFinance(): React.JSX.Element {
       link.click();
       document.body.removeChild(link);
       toast.success('CSV রিপোর্ট ডাউনলোড সফল হয়েছে!');
+    } else if (format === 'pdf') {
+        const doc = new jsPDF();
+        doc.text('Finance Report', 14, 15);
+        autoTable(doc, {
+            head: [['Date', 'Account', 'Type', 'Reference', 'Notes', 'Amount']],
+            body: filteredTransactions.map(tx => {
+                const acc = bankAccounts.find(a => a.id === tx.accountId);
+                return [
+                  new Date(tx.date).toLocaleDateString(),
+                  acc?.bankName || '',
+                  tx.type,
+                  tx.reference || '',
+                  tx.notes || '',
+                  tx.amount
+                ];
+            }),
+            startY: 20,
+        });
+        doc.save('finance_report.pdf');
+        toast.success('PDF রিপোর্ট ডাউনলোড সফল হয়েছে!');
     } else {
       window.print();
       toast.success('প্রিন্ট প্রিভিউ ওপেন হয়েছে!');
@@ -377,7 +399,14 @@ export default function AdminFinance(): React.JSX.Element {
             className="px-5 py-2.5 bg-[#0b0f19] hover:bg-slate-900 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-sm cursor-pointer"
           >
             <Download className="w-4 h-4 text-orange-400" />
-            <span>রিপোর্ট এক্সপোর্ট</span>
+            <span>CSV রিপোর্ট</span>
+          </button>
+          <button
+            onClick={() => handleExportReport('pdf')}
+            className="px-5 py-2.5 bg-[#0b0f19] hover:bg-slate-900 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-sm cursor-pointer"
+          >
+            <Download className="w-4 h-4 text-red-400" />
+            <span>PDF রিপোর্ট</span>
           </button>
         </div>
       </div>

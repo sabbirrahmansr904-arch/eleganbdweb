@@ -146,3 +146,172 @@ html.dark .border-indigo-100 {
   border-color: #312e81 !important;
 }
 
+/* Admin Soft White-Shadow Neumorphic Box Design System */
+.admin-page-container {
+  background-color: #e6ecf4 !important;
+}
+
+/* 1. Universal Admin Cards, Panels & Boxes */
+.admin-page-container .bg-white,
+.admin-page-container .bg-white\/50,
+.admin-page-container .bg-white\/70,
+.admin-page-container .bg-white\/80,
+.admin-page-container .bg-white\/90,
+.admin-page-container .bg-gray-50,
+.admin-page-container .bg-gray-50\/50,
+.admin-page-container .bg-gray-50\/80,
+.admin-page-container .bg-gray-100,
+.admin-page-container .bg-slate-50,
+.admin-page-container .bg-slate-100,
+.admin-page-container .bg-slate-200\/50,
+.admin-page-container .bg-\[\#F8F9FD\],
+.admin-page-container .bg-\[\#F4F6F8\],
+.admin-page-container .bg-\[\#F9FAFB\],
+.admin-page-container .bg-\[\#EBF1F6\],
+.admin-page-container .bg-\[\#FAFAFA\],
+.admin-page-container .bg-\[\#F8FAFC\],
+.admin-page-container .bg-\[\#ECEFF5\],
+.admin-page-container .bg-\[\#F1F3F9\],
+.admin-page-container .bg-\[\#EAEFF5\],
+.admin-page-container .bg-\[\#F3F6FA\],
+.admin-page-container .bg-\[\#F5F7FA\],
+.admin-soft-box {
+  background-color: #e6ecf4 !important;
+  border-radius: 1.25rem !important; /* 20px */
+  border: 1px solid rgba(255, 255, 255, 0.8) !important;
+  box-shadow: 
+    -6px -6px 14px 0px rgba(255, 255, 255, 0.95),
+    6px 6px 16px 0px rgba(165, 180, 205, 0.35) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.admin-page-container .bg-white:hover,
+.admin-soft-box:hover {
+  box-shadow: 
+    -8px -8px 18px 0px rgba(255, 255, 255, 1),
+    8px 8px 20px 0px rgba(160, 175, 200, 0.45) !important;
+}
+
+/* Exclude badge overlays & primary CTA buttons from card background override */
+.admin-page-container .bg-\[\#E01E22\],
+.admin-page-container .bg-[#E01E22],
+.admin-page-container .bg-emerald-500,
+.admin-page-container .bg-emerald-600,
+.admin-page-container .bg-red-500,
+.admin-page-container .bg-red-600,
+.admin-page-container .bg-indigo-600,
+.admin-page-container .bg-indigo-700,
+.admin-page-container .bg-black,
+.admin-page-container .bg-emerald-50,
+.admin-page-container .bg-red-50,
+.admin-page-container .bg-amber-50,
+.admin-page-container .bg-blue-50,
+.admin-page-container .bg-indigo-50,
+.admin-page-container .bg-purple-50 {
+  background-color: unset;
+}
+
+/* 2. Admin Tables & Data Grids */
+.admin-page-container table {
+  background-color: transparent !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+.admin-page-container table thead,
+.admin-page-container table thead tr,
+.admin-page-container table thead th {
+  background-color: #e0e7f1 !important;
+  color: #334155 !important;
+  font-weight: 700 !important;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.9) !important;
+}
+
+.admin-page-container table tbody tr {
+  background-color: #e6ecf4 !important;
+  transition: background-color 0.15s ease;
+}
+
+.admin-page-container table tbody tr:hover {
+  background-color: #dce4f0 !important;
+}
+
+.admin-page-container table tbody td {
+  border-bottom: 1px solid rgba(200, 212, 230, 0.4) !important;
+}
+
+/* 3. Admin Modals & Dialog Portals */
+div[class*="fixed"][class*="inset-0"] div[class*="bg-white"],
+div[class*="fixed"][class*="inset-0"] div[class*="bg-gray"],
+div[class*="fixed"][class*="inset-0"] div[class*="bg-slate"],
+[role="dialog"] {
+  background-color: #e6ecf4 !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 
+    -10px -10px 28px 0px rgba(255, 255, 255, 1),
+    10px 10px 30px 0px rgba(150, 168, 195, 0.45) !important;
+  border-radius: 1.25rem !important;
+}
+
+/* 4. Dropdowns & Action Menus */
+.admin-page-container div[class*="absolute"][class*="bg-white"],
+.admin-page-container div[class*="shadow-lg"][class*="bg-white"],
+.admin-page-container div[class*="shadow-xl"][class*="bg-white"] {
+  background-color: #e6ecf4 !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 
+    -6px -6px 16px 0px rgba(255, 255, 255, 1),
+    6px 6px 18px 0px rgba(160, 175, 200, 0.4) !important;
+  border-radius: 1rem !important;
+}
+
+/* 5. Soft White Shadow Pill Buttons & Sidebar Menu Boxes */
+.admin-soft-pill {
+  background-color: #e6ecf4 !important;
+  border-radius: 1.125rem !important; /* 18px */
+  border: 1px solid rgba(255, 255, 255, 0.8) !important;
+  box-shadow: 
+    -4px -4px 10px 0px rgba(255, 255, 255, 0.95),
+    4px 4px 12px 0px rgba(165, 180, 205, 0.3) !important;
+  transition: all 0.2s ease;
+}
+
+.admin-soft-pill:hover,
+.admin-soft-pill-active {
+  background-color: #e6ecf4 !important;
+  box-shadow: 
+    -5px -5px 12px 0px rgba(255, 255, 255, 1),
+    5px 5px 14px 0px rgba(160, 175, 200, 0.4) !important;
+}
+
+/* 6. Admin Form Controls & Inset Input Fields */
+.admin-page-container input,
+.admin-page-container select,
+.admin-page-container textarea,
+div[class*="fixed"][class*="inset-0"] input,
+div[class*="fixed"][class*="inset-0"] select,
+div[class*="fixed"][class*="inset-0"] textarea {
+  background-color: #e2e8f2 !important;
+  border-radius: 0.875rem !important; /* 14px */
+  border: 1px solid rgba(255, 255, 255, 0.6) !important;
+  box-shadow: 
+    inset 3px 3px 6px 0px rgba(160, 175, 200, 0.3),
+    inset -3px -3px 6px 0px rgba(255, 255, 255, 0.9) !important;
+  transition: all 0.2s ease;
+}
+
+.admin-page-container input:focus,
+.admin-page-container select:focus,
+.admin-page-container textarea:focus,
+div[class*="fixed"][class*="inset-0"] input:focus,
+div[class*="fixed"][class*="inset-0"] select:focus,
+div[class*="fixed"][class*="inset-0"] textarea:focus {
+  background-color: #e6ecf4 !important;
+  border-color: rgba(224, 30, 34, 0.4) !important;
+  box-shadow: 
+    inset 2px 2px 4px 0px rgba(160, 175, 200, 0.2),
+    inset -2px -2px 4px 0px rgba(255, 255, 255, 0.9),
+    -3px -3px 8px 0px rgba(255, 255, 255, 0.9),
+    3px 3px 8px 0px rgba(165, 180, 205, 0.25) !important;
+}
+

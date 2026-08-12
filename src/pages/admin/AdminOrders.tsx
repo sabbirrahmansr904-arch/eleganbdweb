@@ -2405,50 +2405,50 @@ export default function AdminOrders(): React.JSX.Element {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#F8F9FD] rounded-[24px] w-full max-w-[1080px] h-[90vh] overflow-hidden shadow-2xl relative z-10 border border-[#EFF2F6] flex flex-col font-sans"
+              className="relative z-10 bg-[#E6ECF4] rounded-[28px] w-full max-w-[1080px] h-[90vh] overflow-hidden shadow-[-10px_-10px_30px_rgba(255,255,255,0.95),10px_10px_30px_rgba(165,180,205,0.4)] border border-white/90 flex flex-col font-sans"
             >
               {/* Modal Title / Header bar */}
-              <div className="p-6 border-b border-[#EFF2F6] flex items-center justify-between bg-[#F8F9FD] shrink-0">
-                <div className="text-left">
-                  <h2 className="text-xl font-black text-[#0C1421] tracking-tight">
+              <div className="p-6 flex items-center justify-center bg-[#E6ECF4] border-b border-white/80 shrink-0 relative text-center">
+                <div className="flex flex-col items-center justify-center text-center">
+                  <h2 className="text-xl font-black text-slate-900 tracking-tight text-center">
                     {editingOrderId ? `Order Details & Edit #${editingOrderId.slice(-6)}` : 'Create Order'}
                   </h2>
-                  <p className="text-xs text-gray-400 font-semibold mt-1">
+                  <p className="text-xs text-slate-500 font-bold mt-1 text-center">
                     {editingOrderId ? 'View and modify order items, customer details, address, and logistics.' : 'Record precise transaction details and sync with inventory catalog.'}
                   </p>
                 </div>
                 <button 
                   onClick={resetCreateModalState}
-                  className="p-1 text-gray-400 hover:text-black transition-all cursor-pointer"
+                  className="w-8 h-8 rounded-full bg-[#E2E8F2] border border-white/90 shadow-[-2px_-2px_5px_rgba(255,255,255,0.95),2px_2px_5px_rgba(165,180,205,0.35)] text-slate-500 hover:text-slate-800 flex items-center justify-center transition-all cursor-pointer absolute right-6 top-1/2 -translate-y-1/2"
                 >
-                  <XCircle size={22} className="stroke-[1.8]" />
+                  <XCircle size={18} />
                 </button>
               </div>
 
               {/* Split Screen Grid Layout */}
-              <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden bg-[#FAFBFD]">
+              <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden bg-[#E6ECF4]">
                 
                 {/* LEFT COLUMN: IBL Search panel */}
-                <div className="lg:col-span-5 border-r border-[#EFF2F6] p-6 flex flex-col bg-[#F8F9FD] overflow-y-auto no-scrollbar">
+                <div className="lg:col-span-5 border-r border-white/80 p-6 flex flex-col bg-[#E6ECF4] overflow-y-auto no-scrollbar">
                   
                   <div className="flex items-center justify-between mb-3 shrink-0">
                     <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#2563EB] flex items-center gap-1.5">
                       <Scan size={12} className="stroke-[3]" /> IBL SEARCH
                     </span>
-                    <span className="text-[9px] font-extrabold uppercase tracking-widest text-gray-400 font-mono">
+                    <span className="text-[9px] font-extrabold uppercase tracking-widest text-slate-400 font-mono">
                       SCAN OR ENTER SKU
                     </span>
                   </div>
 
                   {/* SKU/Barcode input box */}
                   <div className="relative mb-5 shrink-0">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 stroke-[2.2]" />
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 stroke-[2.2]" />
                     <input 
                       type="text" 
                       placeholder="Scan Barcode or Search SKU/Name..." 
                       value={leftSearchVal}
                       onChange={(e) => setLeftSearchVal(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 bg-[#FAFBFD] border border-gray-200 text-[12px] font-semibold rounded-xl placeholder-gray-400 text-[#0C1421] focus:ring-2 focus:ring-[#2563EB]/15 focus:border-[#2563EB]/40 outline-none transition-all shadow-3xs"
+                      className="w-full pl-10 pr-4 py-2.5 bg-[#E2E8F2] border border-white/90 text-[12px] font-semibold rounded-xl placeholder-slate-400 text-slate-800 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
                     />
                   </div>
 
@@ -2514,7 +2514,7 @@ export default function AdminOrders(): React.JSX.Element {
                 {/* RIGHT COLUMN: Order details & Memo billing */}
                 <form 
                   onSubmit={handleCreateOrderSubmit}
-                  className="lg:col-span-7 flex flex-col overflow-hidden h-full"
+                  className="lg:col-span-7 flex flex-col overflow-hidden h-full bg-[#E6ECF4]"
                 >
                   
                   {/* Scrollable inputs field wrapper */}
@@ -2523,28 +2523,28 @@ export default function AdminOrders(): React.JSX.Element {
                     {/* ORDER ITEMS */}
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">ORDER ITEMS (REQUIRED)</span>
-                        <span className="bg-[#EFF6FF] text-[#2563EB] px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide font-mono shadow-3xs">
+                        <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">ORDER ITEMS (REQUIRED)</span>
+                        <span className="bg-[#E2E8F2] border border-white/90 text-[#2563EB] px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide font-mono shadow-[-2px_-2px_5px_rgba(255,255,255,0.95),2px_2px_5px_rgba(165,180,205,0.3)]">
                           {newOrderItems.length} styles
                         </span>
                       </div>
 
                       {newOrderItems.length === 0 ? (
-                        <div className="py-8 bg-[#F1F5F9]/40 border border-dashed border-slate-200 rounded-2xl text-center flex items-center justify-center">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <div className="py-8 bg-[#E2E8F2] border border-white/90 rounded-2xl text-center flex items-center justify-center shadow-[inset_2px_2px_5px_rgba(160,175,195,0.25),inset_-2px_-2px_5px_rgba(255,255,255,0.9)]">
+                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
                             Select products from the left catalog
                           </p>
                         </div>
                       ) : (
                         <div className="space-y-2">
                           {newOrderItems.map(item => (
-                            <div key={item.id} className="p-3 bg-[#F8F9FD] border border-slate-150 rounded-2xl flex items-center justify-between gap-4 shadow-3xs transition-all hover:border-slate-250">
+                            <div key={item.id} className="p-3 bg-[#E6ECF4] border border-white/90 rounded-2xl flex items-center justify-between gap-4 shadow-[-4px_-4px_10px_rgba(255,255,255,0.95),4px_4px_10px_rgba(165,180,205,0.3)] transition-all">
                               <div className="flex items-center gap-3 min-w-0 flex-1">
                                 <div className="flex-1 min-w-0 text-left">
-                                  <p className="text-xs font-black text-[#0F172A] truncate">
+                                  <p className="text-xs font-black text-slate-900 truncate">
                                     {item.product.name} ({item.selectedSize})
                                   </p>
-                                  <p className="text-[10px] font-bold text-slate-400 font-mono mt-0.5">
+                                  <p className="text-[10px] font-bold text-slate-500 font-mono mt-0.5">
                                     SKU: EP-{item.product.id.slice(-4).toUpperCase()}
                                   </p>
                                 </div>
@@ -2560,7 +2560,7 @@ export default function AdminOrders(): React.JSX.Element {
                                     const val = parseInt(e.target.value) || 1;
                                     setNewOrderItems(prev => prev.map(it => it.id === item.id ? { ...it, quantity: val } : it));
                                   }}
-                                  className="w-12 text-center py-1 bg-[#F8FAFC] border border-slate-200 text-xs font-black rounded-lg outline-none focus:ring-2 focus:ring-blue-500/15"
+                                  className="w-12 text-center py-1 bg-[#E2E8F2] border border-white/80 text-xs font-black rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 shadow-[inset_1.5px_1.5px_3px_rgba(160,175,195,0.3),inset_-1.5px_-1.5px_3px_rgba(255,255,255,0.9)]"
                                 />
                                 <span className="text-xs font-black text-slate-400">×</span>
                                 
@@ -2575,7 +2575,7 @@ export default function AdminOrders(): React.JSX.Element {
                                       const val = parseFloat(e.target.value) || 0;
                                       setNewOrderItems(prev => prev.map(it => it.id === item.id ? { ...it, price: val } : it));
                                     }}
-                                    className="w-20 pl-4 pr-1 text-center py-1 bg-[#F8FAFC] border border-slate-200 text-xs font-black rounded-lg outline-none focus:ring-2 focus:ring-blue-500/15"
+                                    className="w-20 pl-4 pr-1 text-center py-1 bg-[#E2E8F2] border border-white/80 text-xs font-black rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 shadow-[inset_1.5px_1.5px_3px_rgba(160,175,195,0.3),inset_-1.5px_-1.5px_3px_rgba(255,255,255,0.9)]"
                                   />
                                 </div>
 
@@ -2596,7 +2596,7 @@ export default function AdminOrders(): React.JSX.Element {
 
                     {/* CUSTOMER DETAILS SECTION */}
                     <div className="space-y-4">
-                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block border-b border-slate-100 pb-1.5 text-left">
+                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block border-b border-slate-300/50 pb-1.5 text-left">
                         CUSTOMER DETAILS
                       </span>
                       
@@ -2610,7 +2610,7 @@ export default function AdminOrders(): React.JSX.Element {
                             placeholder="e.g., 017XXXXXXXX" 
                             value={newCustomerPhone}
                             onChange={(e) => setNewCustomerPhone(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+                            className="w-full pl-10 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
                           />
                         </div>
                         
@@ -2645,7 +2645,7 @@ export default function AdminOrders(): React.JSX.Element {
                               placeholder="e.g., John Doe" 
                               value={newCustomerName}
                               onChange={(e) => setNewCustomerName(e.target.value)}
-                              className="w-full pl-10 pr-4 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+                              className="w-full pl-10 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
                             />
                           </div>
                         </div>
@@ -2670,7 +2670,7 @@ export default function AdminOrders(): React.JSX.Element {
                                     setNewDeliveryCharge(0);
                                   }
                               }}
-                              className="w-full pl-10 pr-8 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all appearance-none cursor-pointer shadow-3xs"
+                              className="w-full pl-10 pr-8 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all appearance-none cursor-pointer shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
                             >
                               <option value="" disabled>Select Region</option>
                               <option value="Inside Dhaka">Inside Dhaka</option>
@@ -2693,7 +2693,7 @@ export default function AdminOrders(): React.JSX.Element {
                             placeholder="e.g., john@example.com" 
                             value={newCustomerEmail}
                             onChange={(e) => setNewCustomerEmail(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+                            className="w-full pl-10 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
                           />
                         </div>
                       </div>
@@ -2709,7 +2709,7 @@ export default function AdminOrders(): React.JSX.Element {
                               placeholder="e.g., House 12, Road 4, Dhanmondi" 
                               value={newCustomerAddress}
                               onChange={(e) => setNewCustomerAddress(e.target.value)}
-                              className="w-full pl-10 pr-4 py-2 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all resize-none shadow-3xs"
+                              className="w-full pl-10 pr-4 py-2 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all resize-none shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
                             />
                           </div>
                         </div>
@@ -2723,7 +2723,7 @@ export default function AdminOrders(): React.JSX.Element {
                               placeholder="e.g., Savar" 
                               value={newCustomerThana}
                               onChange={(e) => setNewCustomerThana(e.target.value)}
-                              className="w-full pl-10 pr-4 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+                              className="w-full pl-10 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
                             />
                           </div>
                         </div>
@@ -2732,7 +2732,7 @@ export default function AdminOrders(): React.JSX.Element {
 
                     {/* TRACKING INFO SECTION */}
                     <div className="space-y-4">
-                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block border-b border-slate-100 pb-1.5 text-left">
+                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block border-b border-slate-300/50 pb-1.5 text-left">
                         TRACKING INFO
                       </span>
 
@@ -2745,7 +2745,7 @@ export default function AdminOrders(): React.JSX.Element {
                             <select 
                               value={newDeliveryPartner}
                               onChange={(e) => setNewDeliveryPartner(e.target.value)}
-                              className="w-full pl-10 pr-8 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all appearance-none cursor-pointer shadow-3xs"
+                              className="w-full pl-10 pr-8 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all appearance-none cursor-pointer shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
                             >
                               <option value="">Select Partner (Optional)</option>
                               <option value="Pathao">Pathao</option>
@@ -2767,7 +2767,7 @@ export default function AdminOrders(): React.JSX.Element {
                                 setAddingForField('create');
                                 setShowAddInvoiceByModal(true);
                               }}
-                              className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-lg transition-all cursor-pointer active:scale-95 shadow-3xs"
+                              className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 bg-[#E2E8F2] border border-white/80 px-2 py-0.5 rounded-lg transition-all cursor-pointer active:scale-95 shadow-[-2px_-2px_4px_rgba(255,255,255,0.95),2px_2px_4px_rgba(165,180,205,0.3)]"
                               title="Add new name"
                             >
                               <Plus size={12} className="stroke-[3]" />
@@ -2779,7 +2779,7 @@ export default function AdminOrders(): React.JSX.Element {
                             <select 
                               value={newInvoiceBy}
                               onChange={(e) => setNewInvoiceBy(e.target.value)}
-                              className="w-full pl-10 pr-8 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all appearance-none cursor-pointer shadow-3xs"
+                              className="w-full pl-10 pr-8 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all appearance-none cursor-pointer shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
                             >
                               {invoiceByOptions.map((opt) => (
                                 <option key={opt} value={opt}>{opt}</option>
@@ -2800,7 +2800,7 @@ export default function AdminOrders(): React.JSX.Element {
                               type="text" 
                               disabled
                               value="Will be generated automatically (e.g., INV-123456)"
-                              className="w-full pl-10 pr-4 py-2.5 bg-[#F1F5F9]/30 border border-slate-200/50 text-[11px] font-semibold rounded-xl text-slate-400 select-none cursor-not-allowed"
+                              className="w-full pl-10 pr-4 py-2.5 bg-[#E2E8F2]/60 border border-white/50 text-[11px] font-semibold rounded-xl text-slate-400 select-none cursor-not-allowed shadow-[inset_1px_1px_3px_rgba(160,175,195,0.2)]"
                             />
                           </div>
                         </div>
@@ -2815,7 +2815,7 @@ export default function AdminOrders(): React.JSX.Element {
                               placeholder="Tracking Number" 
                               value={newTrackingId}
                               onChange={(e) => setNewTrackingId(e.target.value)}
-                              className="w-full pl-10 pr-4 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+                              className="w-full pl-10 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
                             />
                           </div>
                         </div>
@@ -2830,7 +2830,7 @@ export default function AdminOrders(): React.JSX.Element {
                             type="date" 
                             value={newDeliveryDate} 
                             onChange={(e) => setNewDeliveryDate(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl outline-none focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 transition-all cursor-pointer font-mono shadow-3xs text-left text-slate-800"
+                            className="w-full pl-10 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl outline-none focus:ring-2 focus:ring-[#2563EB]/20 transition-all cursor-pointer font-mono shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)] text-left text-slate-800"
                           />
                         </div>
                       </div>
@@ -2838,7 +2838,7 @@ export default function AdminOrders(): React.JSX.Element {
 
                     {/* BILLING & PAYMENT SECTION */}
                     <div className="space-y-4">
-                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block border-b border-slate-100 pb-1.5 text-left">
+                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block border-b border-slate-300/50 pb-1.5 text-left">
                         BILLING &amp; PAYMENT
                       </span>
 
@@ -2853,7 +2853,7 @@ export default function AdminOrders(): React.JSX.Element {
                               min={0}
                               value={newDeliveryCharge}
                               onChange={(e) => setNewDeliveryCharge(parseFloat(e.target.value) || 0)}
-                              className="w-full pl-8 pr-4 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs font-mono"
+                              className="w-full pl-8 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)] font-mono text-slate-900"
                             />
                           </div>
                         </div>
@@ -2867,7 +2867,7 @@ export default function AdminOrders(): React.JSX.Element {
                               min={0}
                               value={newDiscountAmount}
                               onChange={(e) => setNewDiscountAmount(parseFloat(e.target.value) || 0)}
-                              className="w-full pl-8 pr-4 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs font-mono"
+                              className="w-full pl-8 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)] font-mono text-slate-900"
                             />
                           </div>
                         </div>
@@ -2881,7 +2881,7 @@ export default function AdminOrders(): React.JSX.Element {
                               min={0}
                               value={newAdvancePayment}
                               onChange={(e) => setNewAdvancePayment(parseFloat(e.target.value) || 0)}
-                              className="w-full pl-8 pr-4 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs font-mono"
+                              className="w-full pl-8 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)] font-mono text-slate-900"
                             />
                           </div>
                         </div>
@@ -3021,7 +3021,7 @@ export default function AdminOrders(): React.JSX.Element {
                           placeholder="e.g., Call before delivery, handle with care..." 
                           value={newInternalNote}
                           onChange={(e) => setNewInternalNote(e.target.value)}
-                          className="w-full px-4 py-2.5 bg-[#F1F5F9]/50 border border-slate-200 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/10 focus:border-[#2563EB]/30 outline-none transition-all shadow-3xs"
+                          className="w-full px-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
                         />
                       </div>
                     </div>
@@ -3029,7 +3029,7 @@ export default function AdminOrders(): React.JSX.Element {
                   </div>
 
                   {/* STICKY BOTTOM SUMMARY SECTION */}
-                  <div className="p-5 bg-[#F8F9FD] border-t border-slate-100 shrink-0 text-left">
+                  <div className="p-5 bg-[#E6ECF4] border-t border-white/80 shrink-0 text-left shadow-[-4px_-4px_12px_rgba(255,255,255,0.95)]">
                     <div className="space-y-4">
                       
                       {/* Financial values mapping */}
@@ -3046,7 +3046,7 @@ export default function AdminOrders(): React.JSX.Element {
                             {formatPrice(newAdvancePayment, currency, rate)}
                           </span>
                         </div>
-                        <div className="flex justify-between items-end pt-3 border-t border-dashed border-slate-200">
+                        <div className="flex justify-between items-end pt-3 border-t border-dashed border-slate-300/60">
                           <span className="text-[11px] font-black text-[#0F172A] uppercase tracking-widest leading-none">COLLECTABLE AMOUNT</span>
                           <span className="text-3xl font-black text-slate-900 font-mono-numbers leading-none">
                             {formatPrice(newOrderItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0) + newDeliveryCharge - newDiscountAmount - newAdvancePayment, currency, rate)}
@@ -3063,7 +3063,7 @@ export default function AdminOrders(): React.JSX.Element {
                             "w-full py-4 uppercase font-black text-xs tracking-widest rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 active:scale-98",
                             (!newCustomerName || !newCustomerPhone || !newCustomerAddress || !newCustomerCity || newOrderItems.length === 0)
                               ? "bg-[#94A3B8] text-white cursor-not-allowed opacity-80"
-                              : "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer hover:shadow-lg hover:shadow-slate-500/10"
+                              : "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-[-4px_-4px_10px_rgba(255,255,255,0.8),4px_4px_12px_rgba(37,99,235,0.3)] hover:shadow-blue-500/25"
                           )}
                         >
                           <CheckCircle2 size={14} className="stroke-[3.5]" />
@@ -4799,22 +4799,22 @@ export default function AdminOrders(): React.JSX.Element {
       {/* PATHAO BOOKING CUSTOM MODAL */}
       <AnimatePresence>
         {pathaoBookingOrder && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-[#F8F9FD] rounded-[28px] w-full max-w-[540px] overflow-hidden shadow-2xl border border-gray-100 flex flex-col font-sans max-h-[92vh]"
+              className="relative z-10 bg-[#E6ECF4] rounded-[28px] w-full max-w-[540px] overflow-hidden shadow-[-8px_-8px_24px_rgba(255,255,255,0.95),8px_8px_24px_rgba(165,180,205,0.4)] border border-white/90 flex flex-col font-sans max-h-[92vh]"
             >
               {/* Modal Header */}
-              <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-emerald-50/20">
-                <div className="flex items-center gap-3 text-left">
-                  <div className="w-12 h-12 rounded-2xl bg-[#00B074] text-white flex items-center justify-center shadow-md shadow-emerald-100">
+              <div className="px-6 py-5 border-b border-white/80 flex items-center justify-center bg-[#E6ECF4] relative text-center shrink-0">
+                <div className="flex items-center gap-3 text-center">
+                  <div className="w-11 h-11 rounded-2xl bg-[#00B074] text-white flex items-center justify-center shadow-md shadow-emerald-500/20 shrink-0">
                     <Send className="w-5 h-5" />
                   </div>
-                  <div>
+                  <div className="text-center">
                     <h2 className="text-lg font-black text-slate-900 tracking-tight leading-tight">Book via Pathao</h2>
-                    <p className="text-[11px] text-slate-400 font-bold mt-0.5">Invoice #{pathaoBookingOrder.invoiceNo || pathaoBookingOrder.id.replace(/^ORD-?/i, '')}</p>
+                    <p className="text-[11px] text-slate-500 font-bold mt-0.5">Invoice #{pathaoBookingOrder.invoiceNo || pathaoBookingOrder.id.replace(/^ORD-?/i, '')}</p>
                   </div>
                 </div>
                 <button 
@@ -4822,18 +4822,18 @@ export default function AdminOrders(): React.JSX.Element {
                     setPathaoBookingOrder(null);
                     setPathaoSuccessResult(null);
                   }}
-                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-all cursor-pointer"
+                  className="w-8 h-8 rounded-full bg-[#E2E8F2] border border-white/90 shadow-[-2px_-2px_5px_rgba(255,255,255,0.95),2px_2px_5px_rgba(165,180,205,0.35)] text-slate-500 hover:text-slate-800 flex items-center justify-center transition-all cursor-pointer absolute right-6 top-1/2 -translate-y-1/2"
                 >
                   <X size={16} />
                 </button>
               </div>
 
               {/* Modal Content */}
-              <div className="flex-1 overflow-y-auto bg-[#F1F3F7] p-6 space-y-4 text-left">
+              <div className="flex-1 overflow-y-auto bg-[#E6ECF4] p-6 space-y-4 text-left">
                 {!pathaoSuccessResult ? (
                   <>
                     {/* Recipient Box */}
-                    <div className="bg-[#F8F9FD]/90 border border-white rounded-[20px] p-5 space-y-3 shadow-[0_4px_20px_rgba(0,0,0,0.015)]">
+                    <div className="bg-[#E2E8F2] border border-white/90 rounded-[20px] p-5 space-y-3 shadow-[inset_2px_2px_5px_rgba(160,175,200,0.25),inset_-2px_-2px_5px_rgba(255,255,255,0.9)]">
                       <p className="text-[9px] font-extrabold text-slate-400 tracking-widest uppercase">Recipient</p>
                       <div className="space-y-2.5">
                         <div className="flex items-center gap-2.5 text-slate-800">
@@ -5033,22 +5033,22 @@ export default function AdminOrders(): React.JSX.Element {
       {/* STEADFAST BOOKING CUSTOM MODAL */}
       <AnimatePresence>
         {steadfastBookingOrder && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-[#F8F9FD] rounded-[28px] w-full max-w-[540px] overflow-hidden shadow-2xl border border-gray-100 flex flex-col font-sans max-h-[92vh]"
+              className="relative z-10 bg-[#E6ECF4] rounded-[28px] w-full max-w-[540px] overflow-hidden shadow-[-8px_-8px_24px_rgba(255,255,255,0.95),8px_8px_24px_rgba(165,180,205,0.4)] border border-white/90 flex flex-col font-sans max-h-[92vh]"
             >
               {/* Modal Header */}
-              <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-indigo-50/20">
-                <div className="flex items-center gap-3 text-left">
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-100">
+              <div className="px-6 py-5 border-b border-white/80 flex items-center justify-center bg-[#E6ECF4] relative text-center shrink-0">
+                <div className="flex items-center gap-3 text-center">
+                  <div className="w-11 h-11 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
                     <Send className="w-5 h-5" />
                   </div>
-                  <div>
+                  <div className="text-center">
                     <h2 className="text-lg font-black text-slate-900 tracking-tight leading-tight">Book via Steadfast</h2>
-                    <p className="text-[11px] text-slate-400 font-bold mt-0.5">Order {steadfastBookingOrder.id.slice(-8).toUpperCase()}</p>
+                    <p className="text-[11px] text-slate-500 font-bold mt-0.5">Order {steadfastBookingOrder.id.slice(-8).toUpperCase()}</p>
                   </div>
                 </div>
                 <button 
@@ -5056,18 +5056,18 @@ export default function AdminOrders(): React.JSX.Element {
                     setSteadfastBookingOrder(null);
                     setSteadfastSuccessResult(null);
                   }}
-                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-all cursor-pointer"
+                  className="w-8 h-8 rounded-full bg-[#E2E8F2] border border-white/90 shadow-[-2px_-2px_5px_rgba(255,255,255,0.95),2px_2px_5px_rgba(165,180,205,0.35)] text-slate-500 hover:text-slate-800 flex items-center justify-center transition-all cursor-pointer absolute right-6 top-1/2 -translate-y-1/2"
                 >
                   <X size={16} />
                 </button>
               </div>
 
               {/* Modal Content */}
-              <div className="flex-1 overflow-y-auto bg-[#F1F3F7] p-6 space-y-4 text-left">
+              <div className="flex-1 overflow-y-auto bg-[#E6ECF4] p-6 space-y-4 text-left">
                 {!steadfastSuccessResult ? (
                   <>
                     {/* Recipient Box */}
-                    <div className="bg-[#F8F9FD]/90 border border-white rounded-[20px] p-5 space-y-3 shadow-[0_4px_20px_rgba(0,0,0,0.015)]">
+                    <div className="bg-[#E2E8F2] border border-white/90 rounded-[20px] p-5 space-y-3 shadow-[inset_2px_2px_5px_rgba(160,175,200,0.25),inset_-2px_-2px_5px_rgba(255,255,255,0.9)]">
                       <p className="text-[9px] font-extrabold text-slate-400 tracking-widest uppercase">Recipient</p>
                       <div className="space-y-2.5">
                         <div className="flex items-center gap-2.5 text-slate-800">

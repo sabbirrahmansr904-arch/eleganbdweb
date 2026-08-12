@@ -249,6 +249,7 @@ export default function AdminLayout() {
 
   const rawMenuGroups = [
     {
+      title: 'OVERVIEW',
       items: [
         { name: 'Dashboard', path: '/admin', icon: Home, perm: 'dashboard' },
         { name: 'Customer Profiler', path: '/admin/customer-profiler', icon: UserCheck, perm: 'customers' },
@@ -266,6 +267,7 @@ export default function AdminLayout() {
       ]
     },
     {
+      title: 'SETTINGS',
       items: [
         { name: 'Settings', path: '/admin/settings', icon: Settings, perm: 'settings' },
         { name: 'Branding', path: '/admin/settings?tab=Branding', icon: Palette, perm: 'settings' },
@@ -276,11 +278,13 @@ export default function AdminLayout() {
       ]
     },
     {
+      title: 'PAYMENTS',
       items: [
         { name: 'Pay Method', path: '/admin/settings?tab=Payments', icon: CreditCard, perm: 'settings' },
       ]
     },
     {
+      title: 'ACCESS',
       items: [
         ...(isSuperAdmin ? [{ name: 'Admin Access', path: '/admin/settings?tab=Admin Access', icon: Lock, perm: 'settings' }] : []),
       ]
@@ -288,6 +292,7 @@ export default function AdminLayout() {
   ];
 
   const menuGroups = rawMenuGroups.map(group => ({
+    title: group.title,
     items: group.items.filter(item => isPermitted(item.perm || 'dashboard'))
   })).filter(group => group.items.length > 0);
 
@@ -327,7 +332,7 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="flex h-screen bg-[#F8F9FD] overflow-hidden font-sans text-black">
+    <div className="flex h-screen bg-[#EAEFF5] overflow-hidden font-sans text-black">
       {/* Mobile Sidebar Overlay */}
       <AnimatePresence>
         {isMobileOpen && (
@@ -344,11 +349,11 @@ export default function AdminLayout() {
                animate={{ x: 0 }}
                exit={{ x: '-100%' }}
                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-               className="fixed inset-y-0 left-0 w-72 bg-[#F8F9FD] z-[70] lg:hidden flex flex-col shadow-2xl border-r border-[#F0F2F5]"
+               className="fixed inset-y-0 left-0 w-72 bg-[#EAEFF5] z-[70] lg:hidden flex flex-col shadow-2xl border-r border-[#DCE4EE]"
             >
-              <div className="h-20 flex items-center justify-between px-6 border-b border-[#F0F2F5] bg-[#F8F9FD] text-black">
+              <div className="h-20 flex items-center justify-between px-6 border-b border-[#DCE4EE] bg-[#EAEFF5] text-black">
                 <Link to="/" onClick={() => setIsMobileOpen(false)} className="shrink-0 flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-[#E01E22] flex items-center justify-center text-white font-sans text-xl font-bold shrink-0 shadow-sm">
+                  <div className="w-10 h-10 rounded-2xl bg-[#E01E22] flex items-center justify-center text-white font-sans text-xl font-bold shrink-0 shadow-md">
                     E
                   </div>
                   <div className="flex flex-col text-left">
@@ -361,11 +366,15 @@ export default function AdminLayout() {
                   <X size={20} />
                 </button>
               </div>
-              <nav className="flex-1 py-4 px-4 space-y-4 overflow-y-auto no-scrollbar bg-[#F8F9FD]">
+              <nav className="flex-1 py-4 px-4 space-y-4 overflow-y-auto no-scrollbar bg-[#EAEFF5]">
                 {menuGroups.map((group, gIdx) => (
                   <React.Fragment key={gIdx}>
-                    {gIdx > 0 && <hr className="border-gray-100 my-2" />}
-                    <div className="space-y-1">
+                    {group.title && (
+                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-2 pt-2 pb-1">
+                        {group.title}
+                      </p>
+                    )}
+                    <div className="space-y-1.5">
                       {group.items.map((item) => {
                         const isActive = getIsActive(item.path);
                         const Icon = item.icon;
@@ -375,13 +384,13 @@ export default function AdminLayout() {
                             to={item.path}
                             onClick={() => setIsMobileOpen(false)}
                             className={cn(
-                              "flex items-center space-x-3.5 px-3 py-2.5 rounded-xl transition-all font-semibold text-xs tracking-tight",
+                              "flex items-center space-x-3 px-3.5 py-2.5 rounded-[18px] transition-all font-bold text-xs tracking-tight",
                               isActive 
-                                ? "bg-[#4F46E5] text-white shadow-xs" 
-                                : "text-gray-600 hover:text-black hover:bg-gray-50"
+                                ? "bg-[#E6ECF4] text-slate-900 shadow-[-5px_-5px_12px_rgba(255,255,255,0.95),5px_5px_12px_rgba(165,180,205,0.35)] border border-white/80" 
+                                : "text-gray-600 hover:text-black hover:bg-[#E6ECF4] hover:shadow-[-3px_-3px_8px_rgba(255,255,255,0.9),3px_3px_8px_rgba(165,180,205,0.25)]"
                             )}
                           >
-                            <Icon size={17} strokeWidth={isActive ? 2.5 : 1.8} className={cn(isActive ? "text-white" : "text-gray-500")} />
+                            <Icon size={17} strokeWidth={isActive ? 2.5 : 1.8} className={cn(isActive ? "text-[#f97316]" : "text-gray-500")} />
                             <span className="flex-1 text-left">{item.name}</span>
                             {item.badge && (
                               <span className="text-[10px] bg-[#EEF2FF] text-[#4F46E5] px-2 py-0.5 rounded font-bold uppercase tracking-wider">
@@ -395,12 +404,12 @@ export default function AdminLayout() {
                   </React.Fragment>
                 ))}
               </nav>
-              <div className="p-3.5 border-t border-gray-100 bg-gray-50/50">
-                <div className="flex items-center gap-3 mb-3 p-2 bg-[#F8F9FD] rounded-2xl border border-gray-200/80 shadow-2xs">
+              <div className="p-3.5 border-t border-[#DCE4EE] bg-[#EAEFF5]">
+                <div className="flex items-center gap-3 mb-3 p-2.5 bg-[#E6ECF4] rounded-2xl border border-white/90 shadow-[-4px_-4px_10px_rgba(255,255,255,0.95),4px_4px_12px_rgba(165,180,205,0.32)]">
                   {currentUser?.photoURL ? (
-                    <img src={currentUser.photoURL} alt="User Profile" className="w-9 h-9 rounded-full object-cover border border-gray-200 shrink-0" />
+                    <img src={currentUser.photoURL} alt="User Profile" className="w-9 h-9 rounded-full object-cover border border-white shrink-0 shadow-inner" />
                   ) : (
-                    <div className="w-9 h-9 bg-black text-white rounded-full flex items-center justify-center font-black text-xs shrink-0 shadow-2xs">
+                    <div className="w-9 h-9 bg-[#1E293B] text-white rounded-full flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
                       {userInitials}
                     </div>
                   )}
@@ -415,14 +424,14 @@ export default function AdminLayout() {
                   <Link 
                     to="/" 
                     onClick={() => setIsMobileOpen(false)}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-full bg-[#EBF1F6] hover:bg-slate-200 text-slate-800 font-bold text-xs transition-all border border-slate-200/60"
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-full bg-[#E6ECF4] hover:bg-[#DEE5F0] text-slate-800 font-bold text-xs transition-all border border-white/90 shadow-[-3px_-3px_8px_rgba(255,255,255,0.95),3px_3px_8px_rgba(165,180,205,0.3)]"
                   >
                     <Store size={15} className="text-slate-700" />
                     <span>Store</span>
                   </Link>
                   <button 
                     onClick={handleLogout}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-full bg-[#FFF0F0] hover:bg-red-100 text-red-600 font-bold text-xs transition-all border border-red-200/60"
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-full bg-[#E6ECF4] hover:bg-[#FEE2E2] text-red-600 font-bold text-xs transition-all border border-white/90 shadow-[-3px_-3px_8px_rgba(255,255,255,0.95),3px_3px_8px_rgba(165,180,205,0.3)] cursor-pointer"
                   >
                     <LogOut size={15} />
                     <span>Sign Out</span>
@@ -437,13 +446,13 @@ export default function AdminLayout() {
       {/* Desktop Sidebar */}
       <aside 
         className={cn(
-          "hidden lg:flex flex-col bg-[#F8F9FD] border-r border-[#EFF2F6] transition-all duration-300 shrink-0 z-50 shadow-[4px_0_24px_rgba(0,0,0,0.008)]",
+          "hidden lg:flex flex-col bg-[#EAEFF5] border-r border-[#DCE4EE] transition-all duration-300 shrink-0 z-50",
           isSidebarOpen ? "w-64" : "w-20"
         )}
       >
-        <div className="h-20 flex items-center justify-between px-6 border-b border-[#EFF2F6] overflow-hidden bg-[#F8F9FD] shrink-0">
+        <div className="h-20 flex items-center justify-between px-6 border-b border-[#DCE4EE] overflow-hidden bg-[#EAEFF5] shrink-0">
           <Link to="/" className="shrink-0 flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-[#E01E22] flex items-center justify-center text-white font-sans text-xl font-bold shrink-0 shadow-sm">
+            <div className="w-10 h-10 rounded-2xl bg-[#E01E22] flex items-center justify-center text-white font-sans text-xl font-bold shrink-0 shadow-md">
               E
             </div>
             {isSidebarOpen && (
@@ -469,11 +478,15 @@ export default function AdminLayout() {
           )}
         </div>
 
-        <nav className="flex-1 py-4 px-3.5 space-y-4 overflow-y-auto no-scrollbar bg-[#F8F9FD]">
+        <nav className="flex-1 py-4 px-3.5 space-y-3 overflow-y-auto no-scrollbar bg-[#EAEFF5]">
           {menuGroups.map((group, gIdx) => (
             <React.Fragment key={gIdx}>
-              {gIdx > 0 && isSidebarOpen && <hr className="border-gray-100 my-2" />}
-              <div className="space-y-1">
+              {group.title && isSidebarOpen && (
+                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-2 pt-2 pb-1">
+                  {group.title}
+                </p>
+              )}
+              <div className="space-y-1.5">
                 {group.items.map((item) => {
                   const isActive = getIsActive(item.path);
                   const Icon = item.icon;
@@ -483,13 +496,13 @@ export default function AdminLayout() {
                       key={item.name}
                       to={item.path}
                       className={cn(
-                        "flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-all group relative font-semibold text-xs tracking-tight",
+                        "flex items-center space-x-3 px-3.5 py-2.5 rounded-[18px] transition-all group relative font-bold text-xs tracking-tight",
                         isActive 
-                          ? "bg-[#4F46E5] text-white shadow-xs" 
-                          : "text-gray-600 hover:text-black hover:bg-gray-50"
+                          ? "bg-[#E6ECF4] text-slate-900 shadow-[-5px_-5px_12px_rgba(255,255,255,0.95),5px_5px_12px_rgba(165,180,205,0.35)] border border-white/80" 
+                          : "text-gray-600 hover:text-black hover:bg-[#E6ECF4] hover:shadow-[-3px_-3px_8px_rgba(255,255,255,0.9),3px_3px_8px_rgba(165,180,205,0.25)]"
                       )}
                     >
-                      <Icon size={17} strokeWidth={isActive ? 2.5 : 1.8} className={cn(isActive ? "text-white" : "text-gray-500")} />
+                      <Icon size={18} strokeWidth={isActive ? 2.5 : 1.8} className={cn(isActive ? "text-[#f97316]" : "text-gray-500")} />
                       {isSidebarOpen && (
                         <span className="truncate flex-1 text-left">{item.name}</span>
                       )}
@@ -499,7 +512,7 @@ export default function AdminLayout() {
                         </span>
                       )}
                       {!isSidebarOpen && (
-                        <div className="absolute left-full ml-4 px-3 py-1.5 bg-[#F8F9FD] text-black text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg border border-gray-100">
+                        <div className="absolute left-full ml-4 px-3 py-1.5 bg-white text-black text-xs rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-xl border border-white">
                           {item.name}
                         </div>
                       )}
@@ -512,14 +525,14 @@ export default function AdminLayout() {
         </nav>
 
         {/* Desktop Sidebar Profile Footer */}
-        <div className="p-3 border-t border-gray-100 bg-[#F8F9FD] shrink-0">
+        <div className="p-3 border-t border-[#DCE4EE] bg-[#EAEFF5] shrink-0">
           {isSidebarOpen ? (
             <div className="space-y-2">
-              <div className="flex items-center gap-2.5 p-2 bg-gray-50/80 rounded-2xl border border-gray-200/60 shadow-2xs">
+              <div className="flex items-center gap-2.5 p-2 bg-[#E6ECF4] rounded-2xl border border-white/90 shadow-[-4px_-4px_10px_rgba(255,255,255,0.95),4px_4px_12px_rgba(165,180,205,0.32)]">
                 {currentUser?.photoURL ? (
-                  <img src={currentUser.photoURL} alt="User Profile" className="w-9 h-9 rounded-full object-cover border border-gray-200 shrink-0" />
+                  <img src={currentUser.photoURL} alt="User Profile" className="w-9 h-9 rounded-full object-cover border border-white shrink-0 shadow-inner" />
                 ) : (
-                  <div className="w-9 h-9 bg-black text-white rounded-full flex items-center justify-center font-black text-xs shrink-0 shadow-2xs">
+                  <div className="w-9 h-9 bg-[#1E293B] text-white rounded-full flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
                     {userInitials}
                   </div>
                 )}
@@ -533,14 +546,14 @@ export default function AdminLayout() {
               <div className="flex items-center gap-2 mt-2">
                 <Link 
                   to="/" 
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-full bg-[#EBF1F6] hover:bg-slate-200 text-slate-800 font-bold text-xs transition-all border border-slate-200/60"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-full bg-[#E6ECF4] hover:bg-[#DEE5F0] text-slate-800 font-bold text-xs transition-all border border-white/90 shadow-[-3px_-3px_8px_rgba(255,255,255,0.95),3px_3px_8px_rgba(165,180,205,0.3)]"
                 >
                   <Store size={15} className="text-slate-700" />
                   <span>Store</span>
                 </Link>
                 <button 
                   onClick={handleLogout}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-full bg-[#FFF0F0] hover:bg-red-100 text-red-600 font-bold text-xs transition-all border border-red-200/60 cursor-pointer"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-full bg-[#E6ECF4] hover:bg-[#FEE2E2] text-red-600 font-bold text-xs transition-all border border-white/90 shadow-[-3px_-3px_8px_rgba(255,255,255,0.95),3px_3px_8px_rgba(165,180,205,0.3)] cursor-pointer"
                 >
                   <LogOut size={15} />
                   <span>Sign Out</span>
@@ -552,14 +565,14 @@ export default function AdminLayout() {
               <button
                 onClick={() => setShowProfileDropdown(true)}
                 title={`${currentUser?.email} (${activeDepartment})`}
-                className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center font-black text-xs hover:scale-105 transition-all shadow-2xs"
+                className="w-10 h-10 bg-[#1E293B] text-white rounded-full flex items-center justify-center font-black text-xs hover:scale-105 transition-all shadow-xs"
               >
                 {userInitials}
               </button>
               <button 
                 onClick={handleLogout}
                 title="Logout"
-                className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                className="p-2.5 text-gray-500 hover:text-red-600 hover:bg-[#FEE2E2] rounded-xl transition-colors cursor-pointer"
               >
                 <LogOut size={18} />
               </button>
@@ -570,25 +583,16 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#F8F9FD]">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#EAEFF5]">
         {/* Header */}
-        <header className="h-20 bg-[#F8F9FD]/80 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-6 shrink-0 sticky top-0 z-40">
+        <header className="h-20 bg-[#EAEFF5]/90 backdrop-blur-md border-b border-[#DCE4EE] flex items-center justify-between px-6 shrink-0 sticky top-0 z-40">
           <div className="flex items-center space-x-4">
             <button 
               onClick={toggleSidebar}
-              className="text-black bg-gray-50 hover:bg-gray-100 transition-colors p-2 rounded-lg border border-gray-100"
+              className="text-black bg-[#E6ECF4] hover:bg-[#DEE5F0] transition-colors p-2.5 rounded-2xl border border-white/90 shadow-[-3px_-3px_8px_rgba(255,255,255,0.95),3px_3px_8px_rgba(165,180,205,0.3)] cursor-pointer"
             >
               {isMobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
-            <div className="relative hidden md:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-              <input 
-                type="text"
-                placeholder="Search anything..."
-                onKeyDown={handleSearch}
-                className="bg-gray-50 border border-gray-100 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:border-brand-gold outline-none w-72 transition-all text-black"
-              />
-            </div>
           </div>
 
           <div className="flex items-center space-x-3">
@@ -596,7 +600,7 @@ export default function AdminLayout() {
             <Link 
               to="/" 
               title="Visit Store Front"
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#EBF1F6] hover:bg-slate-200 text-slate-800 font-bold text-xs transition-all border border-slate-200/60 shadow-2xs"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#E6ECF4] hover:bg-[#DEE5F0] text-slate-800 font-bold text-xs transition-all border border-white/90 shadow-[-3px_-3px_8px_rgba(255,255,255,0.95),3px_3px_8px_rgba(165,180,205,0.3)]"
             >
               <Store size={15} className="text-slate-700" />
               <span>Store</span>
@@ -605,126 +609,13 @@ export default function AdminLayout() {
             <button
               onClick={handleLogout}
               title="Sign Out Account"
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#FFF0F0] hover:bg-red-100 text-red-600 font-bold text-xs transition-all border border-red-200/60 shadow-2xs cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#E6ECF4] hover:bg-[#FEE2E2] text-red-600 font-bold text-xs transition-all border border-white/90 shadow-[-3px_-3px_8px_rgba(255,255,255,0.95),3px_3px_8px_rgba(165,180,205,0.3)] cursor-pointer"
             >
               <LogOut size={15} className="text-red-600" />
               <span>Sign Out</span>
             </button>
 
-            <button 
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              title={isDarkMode ? "Light Mode" : "Dark Mode"}
-              className="p-2 text-gray-400 hover:text-black bg-gray-50 rounded-xl transition-colors border border-gray-100 cursor-pointer flex items-center justify-center"
-            >
-              {isDarkMode ? <Sun size={18} className="text-amber-500" /> : <Moon size={18} />}
-            </button>
-            
-            <div className="relative" ref={dropdownRef}>
-              <button 
-                onClick={() => setShowNotifications(!showNotifications)}
-                title="Notifications"
-                className="relative p-2 text-gray-400 hover:text-black bg-gray-50 rounded-xl transition-colors border border-gray-100 cursor-pointer flex items-center justify-center"
-              >
-                <Bell size={18} />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-[8px] font-bold text-white px-1.5 py-0.5 rounded-full leading-none scale-90">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </button>
-
-              <AnimatePresence>
-                {showNotifications && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 15 }}
-                    className="absolute right-0 mt-3 w-80 sm:w-96 bg-[#F8F9FD] dark:bg-[#121824] rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden z-[100]"
-                  >
-                    <div className="p-4 bg-gray-50 dark:bg-[#182235] border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Bell size={16} className="text-gray-700 dark:text-gray-300" />
-                        <span className="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">Notifications</span>
-                      </div>
-                      {unreadCount > 0 && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const allIds = notifications.map(n => n.id);
-                            setReadIds(allIds);
-                            toast.success('All notifications marked as read.');
-                          }}
-                          className="text-[10px] text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-extrabold uppercase tracking-widest transition-colors cursor-pointer bg-transparent border-none"
-                        >
-                          Mark all read
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="max-h-[360px] overflow-y-auto no-scrollbar py-1">
-                      {notifications.length === 0 ? (
-                        <div className="p-8 text-center text-gray-400 dark:text-gray-500">
-                          <Bell size={32} className="mx-auto mb-3 opacity-30" />
-                          <p className="text-xs">No notifications yet.</p>
-                        </div>
-                      ) : (
-                        notifications.slice(0, 15).map((n) => {
-                          const isRead = readIds.includes(n.id);
-                          const IconComponent = n.icon;
-                          return (
-                            <div 
-                              key={n.id}
-                              onClick={() => {
-                                if (!isRead) {
-                                  setReadIds(prev => [...prev, n.id]);
-                                }
-                                setShowNotifications(false);
-                                navigate(n.link);
-                              }}
-                              className={cn(
-                                "p-3.5 border-b border-gray-50 dark:border-gray-800/50 flex gap-3 hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors cursor-pointer relative",
-                                !isRead && "bg-indigo-50/10 dark:bg-indigo-950/5"
-                              )}
-                            >
-                              {!isRead && (
-                                <div className="absolute top-4 right-4 w-2 h-2 bg-indigo-600 rounded-full" />
-                              )}
-                              <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border border-transparent", n.color)}>
-                                <IconComponent size={15} />
-                              </div>
-                              <div className="flex-1 min-w-0 text-left">
-                                <h4 className="text-xs font-bold text-gray-900 dark:text-white truncate">
-                                  {n.title}
-                                </h4>
-                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 leading-relaxed">
-                                  {n.message}
-                                </p>
-                                <span className="text-[9px] text-gray-400 dark:text-gray-500 mt-1.5 block font-medium">
-                                  {formatDistanceToNow(n.time, { addSuffix: true })}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-
-                    <div className="p-3 bg-gray-50 dark:bg-[#182235] border-t border-gray-100 dark:border-gray-800 text-center">
-                      <button
-                        onClick={() => {
-                          setShowNotifications(false);
-                          navigate('/admin/settings?tab=Notifications');
-                        }}
-                        className="text-[10px] text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white font-black uppercase tracking-widest transition-colors cursor-pointer bg-transparent border-none"
-                      >
-                        View all notification settings
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-            <div className="h-8 w-[1px] bg-gray-100 mx-2 hidden sm:block"></div>
+            <div className="h-8 w-[1px] bg-slate-300/60 mx-1 hidden sm:block"></div>
             <div className="relative" ref={profileRef}>
               <button 
                 onClick={() => setShowProfileDropdown(!showProfileDropdown)}
@@ -828,7 +719,7 @@ export default function AdminLayout() {
         </header>
 
         {/* Content Area */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 no-scrollbar scroll-smooth bg-[#F8F9FD]">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 no-scrollbar scroll-smooth bg-[#EAEFF5] admin-page-container">
           {isCurrentRouteAllowed ? (
             <Outlet />
           ) : (
