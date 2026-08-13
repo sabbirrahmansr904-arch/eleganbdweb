@@ -1632,6 +1632,16 @@ export default function AdminOrders(): React.JSX.Element {
             <span>Export All</span>
           </button>
 
+          {selectedOrderIds.length > 0 && (
+            <button 
+              onClick={handlePrintSelectedInvoices}
+              className="px-4 py-2.5 bg-white hover:bg-slate-50 text-[#0F172A] border border-slate-200 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-2 animate-fadeIn"
+            >
+              <Printer size={13} className="stroke-[2.5] text-blue-600" />
+              <span>PRINT SELECTED ({selectedOrderIds.length})</span>
+            </button>
+          )}
+
           <button 
             onClick={() => setShowCamera(true)}
             className="px-4 py-2.5 bg-[#0D9488] hover:bg-[#0F766E] text-white font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-2"
@@ -1812,41 +1822,7 @@ export default function AdminOrders(): React.JSX.Element {
           </div>
         </div>
 
-        {/* Dynamic bulk highlighted actions bar */}
-        {selectedOrderIds.length > 0 && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="p-4 bg-blue-600 text-white rounded-[16px] flex items-center justify-between shadow-lg"
-          >
-            <div className="flex items-center gap-3">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-xs font-bold uppercase tracking-wider">{selectedOrderIds.length} orders highlighted</span>
-            </div>
-            <div className="flex gap-2.5">
-              <button 
-                onClick={handleExportSelectedCSV}
-                className="px-5 py-2.5 bg-[#F8F9FD]/10 hover:bg-[#F8F9FD]/20 text-white font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2"
-              >
-                <Download size={13} />
-                <span>Export Download</span>
-              </button>
-              <button 
-                onClick={handlePrintSelectedInvoices}
-                className="px-5 py-2.5 bg-[#F8F9FD] hover:bg-gray-100 text-black font-black text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2 shadow-md"
-              >
-                <Printer size={13} />
-                <span>Print ({selectedOrderIds.length} Pcs - {formatPrice(orders.filter(o => selectedOrderIds.includes(o.id)).reduce((sum, o) => sum + (o.total || 0), 0), currency, rate)})</span>
-              </button>
-              <button 
-                onClick={() => setSelectedOrderIds([])}
-                className="px-3.5 py-2.5 bg-[#F8F9FD]/5 hover:bg-[#F8F9FD]/10 text-gray-400 hover:text-white font-bold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer"
-              >
-                Clear
-              </button>
-            </div>
-          </motion.div>
-        )}
+
 
         {/* Table/Card representation */}
         <div className="overflow-x-auto elegant-scrollbar pb-3 min-h-[720px]">

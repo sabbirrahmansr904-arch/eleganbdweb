@@ -35,6 +35,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/AuthContext';
+import { handleFirestoreError, OperationType, isQuotaError } from '../../lib/firestoreUtils';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
@@ -214,8 +215,10 @@ export default function AdminExchanges() {
       setExchanges(list);
       setLoading(false);
     }, (error) => {
-      console.error('Error fetching exchanges:', error);
-      toast.error('Failed to load exchanges.');
+      handleFirestoreError(error, OperationType.GET, 'exchanges');
+      if (!isQuotaError(error)) {
+        toast.error('Failed to load exchanges.');
+      }
       setLoading(false);
     });
 

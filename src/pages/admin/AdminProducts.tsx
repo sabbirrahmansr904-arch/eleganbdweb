@@ -182,7 +182,7 @@ export default function AdminProducts(): React.JSX.Element {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 pb-24 font-sans text-gray-900 px-4 md:px-8">
+    <div className="w-full space-y-6 pb-24 font-sans text-gray-900 px-4 md:px-8">
       
       {/* Brand & Page Header matching screenshot */}
       <div className="flex items-center justify-between pt-4 border-b border-gray-100 pb-4">

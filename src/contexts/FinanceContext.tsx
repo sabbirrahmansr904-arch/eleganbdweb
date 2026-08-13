@@ -13,6 +13,7 @@ export interface BankAccount {
   initialBalance: number;
   balance: number;
   accountType?: string;
+  logoUrl?: string;
 }
 
 export interface BankTransaction {

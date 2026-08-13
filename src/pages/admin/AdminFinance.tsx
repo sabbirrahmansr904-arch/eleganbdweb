@@ -287,7 +287,8 @@ export default function AdminFinance(): React.JSX.Element {
     accountNumber: '',
     branch: '',
     initialBalance: '',
-    accountType: 'ব্যক্তিগত'
+    accountType: 'ব্যক্তিগত',
+    logoUrl: ''
   });
 
   // Edit Account Form state
@@ -298,7 +299,8 @@ export default function AdminFinance(): React.JSX.Element {
     accountNumber: '',
     branch: '',
     balance: 0,
-    initialBalance: 0
+    initialBalance: 0,
+    logoUrl: ''
   });
 
   // Edit Transaction Form state
@@ -326,7 +328,8 @@ export default function AdminFinance(): React.JSX.Element {
       accountNumber: accountForm.accountNumber,
       branch: accountForm.branch,
       initialBalance: parseFloat(accountForm.initialBalance) || 0,
-      accountType: accountForm.accountType
+      accountType: accountForm.accountType,
+      logoUrl: accountForm.logoUrl
     });
     setAccountForm({
       bankName: '',
@@ -334,7 +337,8 @@ export default function AdminFinance(): React.JSX.Element {
       accountNumber: '',
       branch: '',
       initialBalance: '',
-      accountType: 'ব্যক্তিগত'
+      accountType: 'ব্যক্তিগত',
+      logoUrl: ''
     });
     setShowAddAccountModal(false);
   };
@@ -348,7 +352,8 @@ export default function AdminFinance(): React.JSX.Element {
       accountNumber: acc.accountNumber || '',
       branch: acc.branch || '',
       balance: acc.balance || 0,
-      initialBalance: acc.initialBalance || 0
+      initialBalance: acc.initialBalance || 0,
+      logoUrl: acc.logoUrl || ''
     });
     setShowEditAccountModal(true);
   };
@@ -362,7 +367,8 @@ export default function AdminFinance(): React.JSX.Element {
       accountNumber: editAccountForm.accountNumber,
       branch: editAccountForm.branch,
       initialBalance: editAccountForm.initialBalance,
-      balance: editAccountForm.balance
+      balance: editAccountForm.balance,
+      logoUrl: editAccountForm.logoUrl
     });
     setShowEditAccountModal(false);
   };
@@ -636,10 +642,14 @@ export default function AdminFinance(): React.JSX.Element {
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-white shadow-2xs ${
-                      isBkash ? 'bg-pink-600' : isNagad ? 'bg-orange-500' : 'bg-emerald-600'
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-white shadow-2xs overflow-hidden bg-white border border-gray-100 ${
+                      !acc.logoUrl && (isBkash ? 'bg-pink-600 text-white' : isNagad ? 'bg-orange-500 text-white' : 'bg-emerald-600 text-white')
                     }`}>
-                      {isBkash ? <Wallet className="w-4 h-4" /> : isNagad ? <CreditCard className="w-4 h-4" /> : <Building2 className="w-4 h-4" />}
+                      {acc.logoUrl ? (
+                        <img src={acc.logoUrl} alt={acc.bankName} className="w-full h-full object-contain p-1" />
+                      ) : (
+                        isBkash ? <Wallet className="w-4 h-4 text-white" /> : isNagad ? <CreditCard className="w-4 h-4 text-white" /> : <Building2 className="w-4 h-4 text-white" />
+                      )}
                     </div>
 
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1426,14 +1436,67 @@ export default function AdminFinance(): React.JSX.Element {
             <form onSubmit={handleAddAccountSubmit} className="space-y-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">ব্যাংক বা ওয়ালেটের নাম *</label>
-                <input 
-                  required
-                  type="text" 
-                  placeholder="উদা: bKash Personal, Sonali Bank"
-                  value={accountForm.bankName} 
-                  onChange={(e) => setAccountForm({ ...accountForm, bankName: e.target.value })}
-                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
-                />
+                <div className="flex gap-2">
+                  <input 
+                    required
+                    type="text" 
+                    placeholder="উদা: bKash Personal, Sonali Bank"
+                    value={accountForm.bankName} 
+                    onChange={(e) => setAccountForm({ ...accountForm, bankName: e.target.value })}
+                    className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setAccountForm({
+                      ...accountForm,
+                      bankName: 'bKash Personal',
+                      accountName: 'Official bKash Wallet',
+                      logoUrl: 'https://www.logo.wine/a/logo/BKash/BKash-Logo.wine.svg'
+                    })}
+                    className="px-3 py-2 bg-pink-50 hover:bg-pink-100 text-pink-600 border border-pink-200 rounded-xl text-[10px] font-black shrink-0 transition-all cursor-pointer flex items-center gap-1"
+                    title="অফিশিয়াল বিকাশ লোগো এবং নাম সেট করুন"
+                  >
+                    <span>বিকাশ প্রিসেট</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">অ্যাকাউন্টের লোগো বা ছবি (লোগো URL অথবা ডিভাইস থেকে আপলোড)</label>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="url" 
+                    placeholder="https://... অথবা ডিভাইস থেকে সিলেক্ট করুন"
+                    value={accountForm.logoUrl} 
+                    onChange={(e) => setAccountForm({ ...accountForm, logoUrl: e.target.value })}
+                    className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
+                  />
+                  <label className="px-3 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-black shrink-0 cursor-pointer transition-all flex items-center gap-1">
+                    <span>ফাইল</span>
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setAccountForm({ ...accountForm, logoUrl: reader.result as string });
+                            toast.success('লোগো ছবি সফলভাবে লোড হয়েছে!');
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+                {accountForm.logoUrl && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <img src={accountForm.logoUrl} alt="Logo preview" className="w-8 h-8 rounded-lg object-contain border bg-white p-0.5" />
+                    <span className="text-[10px] text-emerald-600 font-bold">লোগো প্রিভিউ যুক্ত হয়েছে</span>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1">
@@ -1508,13 +1571,66 @@ export default function AdminFinance(): React.JSX.Element {
             <form onSubmit={handleEditAccountSubmit} className="space-y-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">ব্যাংক বা ওয়ালেটের নাম *</label>
-                <input 
-                  required
-                  type="text" 
-                  value={editAccountForm.bankName} 
-                  onChange={(e) => setEditAccountForm({ ...editAccountForm, bankName: e.target.value })}
-                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
-                />
+                <div className="flex gap-2">
+                  <input 
+                    required
+                    type="text" 
+                    value={editAccountForm.bankName} 
+                    onChange={(e) => setEditAccountForm({ ...editAccountForm, bankName: e.target.value })}
+                    className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setEditAccountForm({
+                      ...editAccountForm,
+                      bankName: 'bKash Personal',
+                      accountName: 'Official bKash Wallet',
+                      logoUrl: 'https://www.logo.wine/a/logo/BKash/BKash-Logo.wine.svg'
+                    })}
+                    className="px-3 py-2 bg-pink-50 hover:bg-pink-100 text-pink-600 border border-pink-200 rounded-xl text-[10px] font-black shrink-0 transition-all cursor-pointer flex items-center gap-1"
+                    title="অফিশিয়াল বিকাশ লোগো এবং নাম সেট করুন"
+                  >
+                    <span>বিকাশ প্রিসেট</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">অ্যাকাউন্টের লোগো বা ছবি (লোগো URL অথবা ডিভাইস থেকে আপলোড)</label>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="url" 
+                    placeholder="https://... অথবা ডিভাইস থেকে সিলেক্ট করুন"
+                    value={editAccountForm.logoUrl} 
+                    onChange={(e) => setEditAccountForm({ ...editAccountForm, logoUrl: e.target.value })}
+                    className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
+                  />
+                  <label className="px-3 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-black shrink-0 cursor-pointer transition-all flex items-center gap-1">
+                    <span>ফাইল</span>
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setEditAccountForm({ ...editAccountForm, logoUrl: reader.result as string });
+                            toast.success('লোগো ছবি সফলভাবে আপডেট হয়েছে!');
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+                {editAccountForm.logoUrl && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <img src={editAccountForm.logoUrl} alt="Logo preview" className="w-8 h-8 rounded-lg object-contain border bg-white p-0.5" />
+                    <span className="text-[10px] text-emerald-600 font-bold">লোগো প্রিভিউ যুক্ত হয়েছে</span>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1">
