@@ -384,9 +384,13 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     console.log(`[OrderContext] START: Attempting to delete order: ${id}`);
     try {
       const order = orders.find(o => o.id === id);
-      if (order && order.status !== 'Cancelled' && order.status !== 'Returned') {
-        // If order was active, restore its items to stock on deletion
-        await restoreOrderStock(order);
+      if (order) {
+        const s = (order.status || '').toString().trim().toLowerCase();
+        const isAlreadyRestored = s === 'cancelled' || s === 'canceled' || s === 'returned' || s === 'return';
+        if (!isAlreadyRestored) {
+          // If order was in any status other than cancelled/returned, restore its items to stock on deletion
+          await restoreOrderStock(order);
+        }
       }
       const orderRef = doc(db, 'orders', id);
       await deleteDoc(orderRef);

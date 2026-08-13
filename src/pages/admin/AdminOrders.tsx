@@ -278,7 +278,7 @@ export default function AdminOrders(): React.JSX.Element {
   const [newCustomerEmail, setNewCustomerEmail] = useState('');
   const [newDiscountAmount, setNewDiscountAmount] = useState(0);
   const [newAdvancePayment, setNewAdvancePayment] = useState(0);
-  const [newAdvancePaymentMethod, setNewAdvancePaymentMethod] = useState<'Cash' | 'bKash' | 'Rocket' | 'Nagad' | ''>('');
+  const [newAdvancePaymentMethod, setNewAdvancePaymentMethod] = useState<'Cash' | 'bKash' | 'Nagad' | ''>('');
   const [newDeliveryPartner, setNewDeliveryPartner] = useState('');
   const [newTrackingId, setNewTrackingId] = useState('');
   const [newCourierCharge, setNewCourierCharge] = useState<number>(120);
@@ -2956,20 +2956,7 @@ export default function AdminOrders(): React.JSX.Element {
                           </div>
                         </div>
 
-                        {/* PATHAO / COURIER CHARGE */}
-                        <div className="space-y-1 text-left">
-                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">PATHAO / COURIER FEE (কুরিয়ার চার্জ)</label>
-                          <div className="relative">
-                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold font-mono">৳</span>
-                            <input 
-                              type="number" 
-                              min={0}
-                              value={newCourierCharge}
-                              onChange={(e) => setNewCourierCharge(parseFloat(e.target.value) || 0)}
-                              className="w-full pl-8 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)] font-mono text-slate-900"
-                            />
-                          </div>
-                        </div>
+
 
                         {/* Orange computed Collectable card */}
                         <div className="space-y-1 text-left">
@@ -2984,23 +2971,23 @@ export default function AdminOrders(): React.JSX.Element {
                       {/* ADVANCE PAYMENT METHOD pills row */}
                       <div className="space-y-1.5 text-left">
                         <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">ADVANCE PAYMENT METHOD</label>
-                        <div className="flex items-center gap-1.5 flex-wrap md:flex-nowrap">
+                        <div className="flex items-center gap-2 flex-wrap md:flex-nowrap">
                           {/* Cash Button */}
                           <button
                             type="button"
                             onClick={() => setNewAdvancePaymentMethod('Cash')}
                             className={cn(
-                              "flex-1 min-w-[100px] py-2 px-2.5 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-2 cursor-pointer active:scale-95",
+                              "flex-1 min-w-[100px] py-2 px-3 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-2.5 cursor-pointer active:scale-95",
                               newAdvancePaymentMethod === 'Cash'
                                 ? "bg-[#E6F4EA] border-[#137333] text-[#137333] font-black"
                                 : "bg-[#F8F9FD] border-slate-200 text-slate-600 hover:text-black hover:border-slate-300"
                             )}
                           >
-                            <div className="w-7 h-7 rounded-lg bg-[#F8F9FD] shrink-0 border border-gray-100 flex items-center justify-center overflow-hidden relative shadow-3xs">
+                            <div className="w-12 h-12 rounded-xl bg-white shrink-0 border border-slate-200/80 flex items-center justify-center overflow-hidden relative shadow-3xs p-1">
                               {paymentsConfig.codLogo ? (
-                                <img src={paymentsConfig.codLogo} alt="Cash" className="w-full h-full object-contain p-0.5" />
+                                <img src={paymentsConfig.codLogo} alt="Cash" className="w-full h-full object-contain" />
                               ) : (
-                                <span className="text-sm">💵</span>
+                                <span className="text-xl">💵</span>
                               )}
                             </div>
                             <span>Cash</span>
@@ -3011,53 +2998,26 @@ export default function AdminOrders(): React.JSX.Element {
                             type="button"
                             onClick={() => setNewAdvancePaymentMethod('bKash')}
                             className={cn(
-                              "flex-1 min-w-[100px] py-2 px-2.5 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-2 cursor-pointer active:scale-95",
+                              "flex-1 min-w-[100px] py-2.5 px-3.5 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-3 cursor-pointer active:scale-95",
                               newAdvancePaymentMethod === 'bKash'
                                 ? "bg-[#FDF2F8] border-[#DB2777] text-[#DB2777] font-black"
                                 : "bg-[#F8F9FD] border-slate-200 text-slate-600 hover:text-black hover:border-slate-300"
                             )}
                           >
-                            <div className="w-7 h-7 rounded-lg bg-[#F8F9FD] shrink-0 border border-gray-100 flex items-center justify-center overflow-hidden relative shadow-3xs">
+                            <div className="w-12 h-12 rounded-xl bg-white shrink-0 border border-slate-200/80 flex items-center justify-center overflow-hidden relative shadow-3xs p-1">
                               <img 
                                 src={paymentsConfig.bkashLogo || "https://upload.wikimedia.org/wikipedia/commons/7/7a/BKash_Logo.svg"} 
                                 alt="bKash" 
-                                className="w-full h-full object-contain p-0.5"
+                                className="w-full h-full object-contain scale-110"
                                 onError={(e) => {
                                   e.currentTarget.style.display = 'none';
                                   const fb = e.currentTarget.parentElement?.querySelector('.fallback-bkash') as HTMLElement;
                                   if (fb) fb.style.display = 'flex';
                                 }}
                               />
-                              <div className="fallback-bkash hidden absolute inset-0 bg-[#D12053] items-center justify-center text-white text-[9px] font-black">bK</div>
+                              <div className="fallback-bkash hidden absolute inset-0 bg-[#D12053] items-center justify-center text-white text-[11px] font-black">bK</div>
                             </div>
                             <span>bKash</span>
-                          </button>
-
-                          {/* Rocket Button */}
-                          <button
-                            type="button"
-                            onClick={() => setNewAdvancePaymentMethod('Rocket')}
-                            className={cn(
-                              "flex-1 min-w-[100px] py-2 px-2.5 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-2 cursor-pointer active:scale-95",
-                              newAdvancePaymentMethod === 'Rocket'
-                                ? "bg-[#FAF5FF] border-[#7C3AED] text-[#7C3AED] font-black"
-                                : "bg-[#F8F9FD] border-slate-200 text-slate-600 hover:text-black hover:border-slate-300"
-                            )}
-                          >
-                            <div className="w-7 h-7 rounded-lg bg-[#F8F9FD] shrink-0 border border-gray-100 flex items-center justify-center overflow-hidden relative shadow-3xs">
-                              <img 
-                                src={paymentsConfig.rocketLogo || "https://upload.wikimedia.org/wikipedia/commons/8/82/Rocket_logo.svg"} 
-                                alt="Rocket" 
-                                className="w-full h-full object-contain p-0.5"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = 'none';
-                                  const fb = e.currentTarget.parentElement?.querySelector('.fallback-rocket') as HTMLElement;
-                                  if (fb) fb.style.display = 'flex';
-                                }}
-                              />
-                              <div className="fallback-rocket hidden absolute inset-0 bg-[#8c0c5c] items-center justify-center text-white text-[9px] font-black">Rk</div>
-                            </div>
-                            <span>Rocket</span>
                           </button>
 
                           {/* Nagad Button */}
@@ -3065,24 +3025,24 @@ export default function AdminOrders(): React.JSX.Element {
                             type="button"
                             onClick={() => setNewAdvancePaymentMethod('Nagad')}
                             className={cn(
-                              "flex-1 min-w-[100px] py-2 px-2.5 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-2 cursor-pointer active:scale-95",
+                              "flex-1 min-w-[100px] py-2.5 px-3.5 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-3 cursor-pointer active:scale-95",
                               newAdvancePaymentMethod === 'Nagad'
                                 ? "bg-[#FFF7ED] border-[#EA580C] text-[#EA580C] font-black"
                                 : "bg-[#F8F9FD] border-slate-200 text-slate-600 hover:text-black hover:border-slate-300"
                             )}
                           >
-                            <div className="w-7 h-7 rounded-lg bg-[#F8F9FD] shrink-0 border border-gray-100 flex items-center justify-center overflow-hidden relative shadow-3xs">
+                            <div className="w-12 h-12 rounded-xl bg-white shrink-0 border border-slate-200/80 flex items-center justify-center overflow-hidden relative shadow-3xs p-1">
                               <img 
                                 src={paymentsConfig.nagadLogo || "https://upload.wikimedia.org/wikipedia/commons/1/1b/Nagad_logo.png"} 
                                 alt="Nagad" 
-                                className="w-full h-full object-contain p-0.5"
+                                className="w-full h-full object-contain scale-110"
                                 onError={(e) => {
                                   e.currentTarget.style.display = 'none';
                                   const fb = e.currentTarget.parentElement?.querySelector('.fallback-nagad') as HTMLElement;
                                   if (fb) fb.style.display = 'flex';
                                 }}
                               />
-                              <div className="fallback-nagad hidden absolute inset-0 bg-[#F47216] items-center justify-center text-white text-[9px] font-black">Ng</div>
+                              <div className="fallback-nagad hidden absolute inset-0 bg-[#F47216] items-center justify-center text-white text-[10px] font-black">Ng</div>
                             </div>
                             <span>Nagad</span>
                           </button>
@@ -3131,12 +3091,7 @@ export default function AdminOrders(): React.JSX.Element {
                             {formatPrice(newAdvancePayment, currency, rate)}
                           </span>
                         </div>
-                        <div className="flex justify-between items-center text-[10px] font-extrabold text-[#E11D48] uppercase tracking-widest">
-                          <span>PATHAO COURIER FEE (-)</span>
-                          <span className="font-mono font-black">
-                            {formatPrice(newCourierCharge, currency, rate)}
-                          </span>
-                        </div>
+
                         <div className="flex justify-between items-end pt-3 border-t border-dashed border-slate-300/60">
                           <span className="text-[11px] font-black text-[#0F172A] uppercase tracking-widest leading-none">COLLECTABLE AMOUNT</span>
                           <span className="text-3xl font-black text-slate-900 font-mono-numbers leading-none">
