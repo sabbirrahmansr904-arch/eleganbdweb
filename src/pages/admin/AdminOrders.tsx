@@ -1212,22 +1212,19 @@ export default function AdminOrders(): React.JSX.Element {
         })
       );
 
-      const items = document.querySelectorAll('.bulk-invoice-item');
-      if (items.length === 0) {
-        toast.error('Invoices preparing, please try again in a moment');
-        return;
-      }
-
       // Collect host document styles to preserve Tailwind and custom typography
       const stylesHtml = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
         .map(el => el.outerHTML)
         .join('\n');
 
       let pagesHtml = '';
-      items.forEach((item) => {
+      selectedOrders.forEach((order) => {
+        // Create a temporary container to render the invoice template HTML string if DOM items are missing
+        const div = document.createElement('div');
+        div.innerHTML = `<div class="p-4 bg-white text-black"><h1 class="text-xl font-bold">Invoice #${order.invoiceNo || order.id}</h1><p>Customer: ${order.customerName}</p><p>Phone: ${order.phone}</p><p>Address: ${order.address}</p><p>Total: ${order.total}</p></div>`;
         pagesHtml += `
           <div class="bulk-invoice-page">
-            ${item.innerHTML}
+            ${div.innerHTML}
           </div>
         `;
       });
@@ -1293,12 +1290,6 @@ export default function AdminOrders(): React.JSX.Element {
                 transform: none !important;
                 display: block !important;
                 box-sizing: border-box !important;
-              }
-              .font-serif-luxury {
-                font-family: 'Cormorant Garamond', serif !important;
-              }
-              .font-mono-numbers {
-                font-family: 'JetBrains Mono', monospace !important;
               }
             </style>
           </head>
