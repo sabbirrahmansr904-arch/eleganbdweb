@@ -19,6 +19,7 @@
     "firebase": "^12.12.1",
     "firebase-admin": "^14.1.0",
     "framer-motion": "^11.2.10",
+    "html2pdf.js": "^0.14.0",
     "html5-qrcode": "^2.3.8",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
@@ -31,7 +32,8 @@
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^6.23.1",
     "recharts": "^3.8.1",
-    "tailwind-merge": "^2.6.1"
+    "tailwind-merge": "^2.6.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@firebase/eslint-plugin-security-rules": "^0.0.2",

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import * as XLSX from 'xlsx';
 import InvoiceTemplate from '../../components/admin/InvoiceTemplate';
 import { ParcelLiveStatusBadge } from '../../components/admin/ParcelLiveStatusBadge';
 import { useInvoiceByOptions } from '../../hooks/useInvoiceByOptions';
@@ -1096,95 +1097,60 @@ export default function AdminOrders(): React.JSX.Element {
     }
   }, [showCamera]);
 
-  const handleExportCSV = () => {
+  const handleExportExcel = () => {
     try {
-      if (filteredOrders.length === 0) {
+      const ordersToExport = selectedOrderIds.length > 0
+        ? orders.filter(o => selectedOrderIds.includes(o.id))
+        : filteredOrders;
+
+      if (ordersToExport.length === 0) {
         toast.error('No orders to export');
         return;
       }
 
-      let csvContent = 'DATE,TIME,ORDER_NO,INVOICE_BY,INVOICE_NO,CUSTOMER_NAME,PHONE,ADDRESS,CITY,DELIVERY_CHARGE,TOTAL_TOTAL,STATUS\r\n';
-
-      filteredOrders.forEach(o => {
+      const exportData = ordersToExport.map(o => {
         const dateObj = new Date(o.createdAt);
-        const dateStr = dateObj.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: '2-digit' });
-        const timeStr = dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true });
-        
-        const row = [
-          `"${dateStr}"`,
-          `"${timeStr}"`,
-          `"${o.id}"`,
-          `"${getInvoiceBy(o)}"`,
-          `"${o.id}"`,
-          `"${o.customerName.replace(/"/g, '""')}"`,
-          `"${o.phone}"`,
-          `"${o.address.replace(/"/g, '""')}"`,
-          `"${o.city}"`,
-          o.deliveryCharge,
-          o.total,
-          `"${o.status}"`
-        ].join(',');
-        csvContent += row + '\r\n';
+        const dateStr = !isNaN(dateObj.getTime())
+          ? dateObj.toLocaleDateString('en-GB')
+          : (o.createdAt || '');
+
+        const locationStr = [o.city, o.thana].filter(Boolean).join(', ') || o.city || 'Inside Dhaka';
+
+        const productCodeStr = o.items && o.items.length > 0
+          ? o.items.map(it => `${it.sku || it.id || it.name}${it.selectedSize ? ' (' + it.selectedSize + ')' : ''}`).join(', ')
+          : '';
+
+        const totalQty = o.items && o.items.length > 0
+          ? o.items.reduce((sum, it) => sum + (it.quantity || 1), 0)
+          : 1;
+
+        const advance = (o as any).advancePayment || o.paidAmount || 0;
+        const billTotal = o.total || 0;
+        const collectable = Math.max(0, billTotal - advance);
+
+        return {
+          'Date': dateStr,
+          'Invoice ID': o.id,
+          'Name': o.customerName || '',
+          'Number': o.phone || '',
+          'Address': o.address || '',
+          'Location': locationStr,
+          'Product Code': productCodeStr,
+          'QTY': totalQty,
+          'Bill Total': billTotal,
+          'Collectable': collectable,
+          'STATUS': o.status || 'Pending'
+        };
       });
 
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `Elegan_BD_Orders_Spreadsheet_${new Date().toISOString().slice(0,10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast.success('Spreadsheet exported successfully');
-    } catch {
-      toast.error('Failed to export data');
-    }
-  };
-
-  const handleExportSelectedCSV = () => {
-    try {
-      if (selectedOrderIds.length === 0) {
-        toast.error('No orders selected');
-        return;
-      }
-
-      const selectedOrders = orders.filter(o => selectedOrderIds.includes(o.id));
-
-      let csvContent = 'DATE,TIME,ORDER_NO,INVOICE_BY,INVOICE_NO,CUSTOMER_NAME,PHONE,ADDRESS,CITY,DELIVERY_CHARGE,TOTAL_TOTAL,STATUS\r\n';
-
-      selectedOrders.forEach(o => {
-        const dateObj = new Date(o.createdAt);
-        const dateStr = dateObj.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: '2-digit' });
-        const timeStr = dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true });
-        
-        const row = [
-          `"${dateStr}"`,
-          `"${timeStr}"`,
-          `"${o.id}"`,
-          `"${getInvoiceBy(o)}"`,
-          `"${o.id}"`,
-          `"${o.customerName.replace(/"/g, '""')}"`,
-          `"${o.phone}"`,
-          `"${o.address.replace(/"/g, '""')}"`,
-          `"${o.city}"`,
-          o.deliveryCharge,
-          o.total,
-          `"${o.status}"`
-        ].join(',');
-        csvContent += row + '\r\n';
-      });
-
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `Elegan_BD_Selected_Orders_${new Date().toISOString().slice(0,10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast.success(`${selectedOrders.length} orders exported successfully`);
-    } catch {
-      toast.error('Failed to export selected data');
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Orders");
+      XLSX.writeFile(workbook, `Elegan_BD_Orders_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast.success(`${exportData.length} order(s) exported to Excel successfully!`);
+    } catch (err) {
+      console.error("Export Excel error:", err);
+      toast.error('Failed to export Excel file');
     }
   };  const handlePrintSelectedInvoices = () => {
     if (selectedOrderIds.length === 0) {
@@ -1616,11 +1582,11 @@ export default function AdminOrders(): React.JSX.Element {
         {/* Global Actions Bar matching screenshot */}
         <div className="flex flex-wrap items-center gap-2.5">
           <button 
-            onClick={handleExportCSV}
+            onClick={handleExportExcel}
             className="px-4 py-2.5 bg-[#10B981] hover:bg-[#059669] text-white font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-2"
           >
             <FileSpreadsheet size={13} className="stroke-[2.5]" />
-            <span>Export All</span>
+            <span>EXPORT{selectedOrderIds.length > 0 ? ` (${selectedOrderIds.length})` : ''}</span>
           </button>
 
           {selectedOrderIds.length > 0 && (

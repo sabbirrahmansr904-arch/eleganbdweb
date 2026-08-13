@@ -32,6 +32,7 @@ import {
   Filter,
   Check
 } from 'lucide-react';
+import html2pdf from 'html2pdf.js';
 import toast from 'react-hot-toast';
 
 interface DollarTransaction {
@@ -55,6 +56,9 @@ export default function AdminDollarExpenses(): React.JSX.Element {
   const [selectedMonth, setSelectedMonth] = useState<string>('all'); // format: 'YYYY-MM'
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+
+  // Selection for PDF download
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Add / Edit Modal State
   const [showModal, setShowModal] = useState(false);
@@ -305,77 +309,145 @@ export default function AdminDollarExpenses(): React.JSX.Element {
     }
   };
 
-  // Export to native Excel-compatible CSV file with UTF-8 BOM
-  const handleDownloadCSV = () => {
-    if (filteredTransactions.length === 0) {
-      toast.error('ডাউনলোড করার জন্য কোনো তথ্য পাওয়া যায়নি!');
+  // Selection logic for PDF export
+  const isAllSelected = filteredTransactions.length > 0 && filteredTransactions.every(t => selectedIds.includes(t.id));
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredTransactions.map(t => t.id));
+    }
+  };
+  const toggleSelectOne = (id: string) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds(selectedIds.filter(i => i !== id));
+    } else {
+      setSelectedIds([...selectedIds, id]);
+    }
+  };
+
+  // Export selected transactions to PDF using html2pdf.js for clean Bengali font rendering
+  const handleDownloadPDF = () => {
+    const targetTransactions = selectedIds.length > 0 
+      ? filteredTransactions.filter(t => selectedIds.includes(t.id))
+      : filteredTransactions;
+
+    if (targetTransactions.length === 0) {
+      toast.error('PDF ডাউনলোড করার জন্য অনুগ্রহ করে অন্তত একটি লেনদেন নির্বাচন করুন অথবা ফিল্টার করুন!');
       return;
     }
 
+    const toastId = toast.loading('PDF ফাইল জেনারেট ও ডাউনলোড হচ্ছে...');
+
     try {
-      const headers = [
-        'তারিখ (Date)',
-        'ধরন (Type)',
-        'ডলারের পরিমাণ (USD)',
-        'উদ্দেশ্য / মাধ্যম (Purpose/Source)',
-        'নোট (Notes)'
-      ];
+      let totalUSD = 0;
+      let totalBuy = 0;
+      let totalSpend = 0;
 
-      const rows = filteredTransactions.map(t => {
-        const dateStr = new Date(t.date).toLocaleDateString('en-GB', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
-        });
-        const typeStr = t.type === 'buy' ? 'ডলার ক্রয় (Buy)' : 'ডলার খরচ (Spend)';
-        const amountStr = `$${t.amount.toFixed(2)}`;
-        const purposeStr = t.type === 'spend' ? (t.purpose || '-') : 'ডলার ক্রয়';
-        const notesStr = (t.notes || '-').replace(/,/g, ' ');
-
-        return [dateStr, typeStr, amountStr, purposeStr, notesStr];
-      });
-
-      // Aggregate calculations for Excel
-      let totalUSDInReport = 0;
-      filteredTransactions.forEach(t => {
+      targetTransactions.forEach(t => {
         if (t.type === 'buy') {
-          totalUSDInReport += t.amount;
+          totalBuy += t.amount;
+          totalUSD += t.amount;
         } else {
-          totalUSDInReport -= t.amount;
+          totalSpend += t.amount;
+          totalUSD -= t.amount;
         }
       });
 
-      rows.push([]);
-      rows.push([
-        'রিপোর্ট ব্যালেন্স (Report Net Balance)',
-        '',
-        `$${totalUSDInReport.toFixed(2)}`,
-        '',
-        'ক্রয় যোগ এবং খরচ বিয়োগ করা হয়েছে'
-      ]);
+      // Create a temporary element for PDF rendering
+      const container = document.createElement('div');
+      container.style.padding = '20px';
+      container.style.fontFamily = "Arial, 'SolaimanLipi', sans-serif";
+      container.style.color = '#111827';
+      container.style.background = '#FFFFFF';
+      container.style.width = '750px';
 
-      // Add UTF-8 BOM for Bengali support in MS Excel
-      const csvContent = '\uFEFF' + [
-        headers.join(','),
-        ...rows.map(r => r.join(','))
-      ].join('\n');
+      container.innerHTML = `
+        <div style="background: #2563EB; color: #FFFFFF; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px;">
+          <h1 style="margin: 0; font-size: 20px; font-weight: bold; letter-spacing: -0.5px;">ডলার খরচ ও ক্রয়ের হিসাব স্টেটমেন্ট</h1>
+          <p style="margin: 6px 0 0 0; font-size: 12px; opacity: 0.95;">Elegan BD ম্যানেজমেন্ট সিস্টেম • জেনারেটেড তারিখ: ${new Date().toLocaleDateString('bn-BD')}</p>
+        </div>
 
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      const todayStr = new Date().toISOString().split('T')[0];
-      
-      link.setAttribute('href', url);
-      link.setAttribute('download', `dollar_ledger_report_${todayStr}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+          <div style="flex: 1; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 12px; border-radius: 8px; text-align: center;">
+            <span style="font-size: 10px; color: #64748B; font-weight: bold; display: block; text-transform: uppercase;">মোট ক্রয় (TOTAL BUY)</span>
+            <strong style="font-size: 16px; color: #047857;">$${totalBuy.toFixed(2)}</strong>
+          </div>
+          <div style="flex: 1; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 12px; border-radius: 8px; text-align: center;">
+            <span style="font-size: 10px; color: #64748B; font-weight: bold; display: block; text-transform: uppercase;">মোট খরচ (TOTAL SPEND)</span>
+            <strong style="font-size: 16px; color: #B91C1C;">$${totalSpend.toFixed(2)}</strong>
+          </div>
+          <div style="flex: 1; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 12px; border-radius: 8px; text-align: center;">
+            <span style="font-size: 10px; color: #64748B; font-weight: bold; display: block; text-transform: uppercase;">নেট ব্যালেন্স (BALANCE)</span>
+            <strong style="font-size: 16px; color: #1E293B;">$${totalUSD.toFixed(2)}</strong>
+          </div>
+        </div>
 
-      toast.success('রিপোর্ট সফলভাবে এক্সেল (CSV) ফরম্যাটে ডাউনলোড হয়েছে!');
-    } catch (err) {
-      console.error('Error generating CSV:', err);
-      toast.error('ডাউনলোড করতে ত্রুটি ঘটেছে।');
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px;">
+          <thead>
+            <tr style="background-color: #0F172A; color: #FFFFFF;">
+              <th style="padding: 10px 12px; text-align: left; border: 1px solid #0F172A; font-weight: bold;">তারিখ (Date)</th>
+              <th style="padding: 10px 12px; text-align: left; border: 1px solid #0F172A; font-weight: bold;">ধরন (Type)</th>
+              <th style="padding: 10px 12px; text-align: right; border: 1px solid #0F172A; font-weight: bold;">পরিমাণ (USD)</th>
+              <th style="padding: 10px 12px; text-align: left; border: 1px solid #0F172A; font-weight: bold;">উদ্দেশ্য / মাধ্যম</th>
+              <th style="padding: 10px 12px; text-align: left; border: 1px solid #0F172A; font-weight: bold;">নোট (Notes)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${targetTransactions.map((t, idx) => {
+              const dateStr = new Date(t.date).toLocaleDateString('en-GB');
+              const isBuy = t.type === 'buy';
+              const typeStr = isBuy ? 'ডলার ক্রয় (Buy)' : 'ডলার খরচ (Spend)';
+              const amountStr = `${isBuy ? '+' : '-'}$${t.amount.toFixed(2)}`;
+              const purposeStr = isBuy ? 'ডলার ক্রয়' : (t.purpose || 'ডলার খরচ');
+              const notesStr = t.notes || '-';
+              const bg = idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC';
+              return `
+                <tr style="background-color: ${bg};">
+                  <td style="padding: 9px 12px; border: 1px solid #E2E8F0; color: #334155;">${dateStr}</td>
+                  <td style="padding: 9px 12px; border: 1px solid #E2E8F0; font-weight: bold; color: ${isBuy ? '#047857' : '#B91C1C'};">${typeStr}</td>
+                  <td style="padding: 9px 12px; border: 1px solid #E2E8F0; text-align: right; font-weight: bold; color: ${isBuy ? '#047857' : '#0F172A'};">${amountStr}</td>
+                  <td style="padding: 9px 12px; border: 1px solid #E2E8F0; color: #1E293B; font-weight: 600;">${purposeStr}</td>
+                  <td style="padding: 9px 12px; border: 1px solid #E2E8F0; color: #64748B;">${notesStr}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+
+        <div style="margin-top: 30px; text-align: center; font-size: 11px; color: #94A3B8; border-top: 1px solid #E2E8F0; padding-top: 12px;">
+          স্বয়ংক্রিয়ভাবে জেনারেটেড ডলার হিসাব স্টেটমেন্ট • Elegan BD ম্যানেজমেন্ট সিস্টেম
+        </div>
+      `;
+
+      document.body.appendChild(container);
+
+      const opt = {
+        margin: [10, 10, 10, 10],
+        filename: `dollar_statement_${Date.now()}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      (html2pdf as any)().from(container).set(opt).save().then(() => {
+        if (document.body.contains(container)) {
+          document.body.removeChild(container);
+        }
+        toast.dismiss(toastId);
+        toast.success('PDF ফাইল সফলভাবে ডাউনলোড হয়েছে!', { id: toastId });
+      }).catch((e: any) => {
+        if (document.body.contains(container)) {
+          document.body.removeChild(container);
+        }
+        toast.dismiss(toastId);
+        console.error('PDF Error:', e);
+        toast.error('PDF তৈরি করতে সমস্যা হয়েছে: ' + (e.message || ''));
+      });
+
+    } catch (err: any) {
+      toast.dismiss(toastId);
+      toast.error('ত্রুটি ঘটেছে: ' + err.message);
     }
   };
 
@@ -417,11 +489,11 @@ export default function AdminDollarExpenses(): React.JSX.Element {
 
         <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={handleDownloadCSV}
+            onClick={handleDownloadPDF}
             className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer"
           >
             <Download className="w-4 h-4" />
-            এক্সেল ডাউনলোড (Excel/CSV)
+            PDF ডাউনলোড
           </button>
           
           <button 
@@ -606,9 +678,29 @@ export default function AdminDollarExpenses(): React.JSX.Element {
 
         {/* Ledger Table */}
         <div className="overflow-x-auto border border-gray-100 rounded-2xl">
+          <div className="bg-gray-50 px-4 py-2 text-xs font-bold text-gray-500 flex items-center justify-between border-b border-gray-100">
+            <span>মোট লেনদেন: {filteredTransactions.length} টি {selectedIds.length > 0 && `(নির্বাচিত: ${selectedIds.length} টি)`}</span>
+            {selectedIds.length > 0 && (
+              <button 
+                onClick={() => setSelectedIds([])}
+                className="text-rose-600 hover:underline text-[11px] font-bold cursor-pointer"
+              >
+                সিলেকশন বাতিল করুন
+              </button>
+            )}
+          </div>
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[#F8F9FD] border-b border-gray-100 text-[10px] text-[#5E6A83] font-black uppercase tracking-widest">
+                <th className="py-3 px-3 w-10 text-center">
+                  <input 
+                    type="checkbox"
+                    checked={isAllSelected}
+                    onChange={toggleSelectAll}
+                    className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                    title="সব সিলেক্ট করুন"
+                  />
+                </th>
                 <th className="py-3 px-4">তারিখ (Date)</th>
                 <th className="py-3 px-4">লেনদেনের ধরন</th>
                 <th className="py-3 px-4 text-right">ডলারের পরিমাণ (USD)</th>
@@ -620,7 +712,7 @@ export default function AdminDollarExpenses(): React.JSX.Element {
             <tbody className="divide-y divide-gray-50 text-xs">
               {filteredTransactions.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-gray-400 font-bold italic">
+                  <td colSpan={7} className="py-12 text-center text-gray-400 font-bold italic">
                     কোনো ডলার লেনদেনের রেকর্ড পাওয়া যায়নি।
                   </td>
                 </tr>
@@ -633,9 +725,18 @@ export default function AdminDollarExpenses(): React.JSX.Element {
                     year: 'numeric'
                   });
                   const isBuy = t.type === 'buy';
+                  const isSelected = selectedIds.includes(t.id);
 
                   return (
-                    <tr key={t.id} className="hover:bg-gray-50/40 transition-colors">
+                    <tr key={t.id} className={`hover:bg-gray-50/40 transition-colors ${isSelected ? 'bg-indigo-50/30' : ''}`}>
+                      <td className="py-3 px-3 text-center">
+                        <input 
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectOne(t.id)}
+                          className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                        />
+                      </td>
                       <td className="py-3 px-4 font-bold text-gray-700">{formattedDate}</td>
                       <td className="py-3 px-4">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
@@ -651,7 +752,7 @@ export default function AdminDollarExpenses(): React.JSX.Element {
                         {isBuy ? '+' : '-'}${t.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
                       <td className="py-3 px-4 font-bold text-gray-700">
-                        {isBuy ? (t.notes?.slice(0, 20) || 'ডলার ক্রয়') : (t.purpose || 'ফেসবুক অ্যাড')}
+                        {isBuy ? 'ডলার ক্রয়' : (t.purpose || 'ডলার খরচ')}
                       </td>
                       <td className="py-3 px-4 text-gray-400 font-medium max-w-[200px] truncate" title={t.notes}>
                         {t.notes || '—'}
@@ -800,6 +901,7 @@ export default function AdminDollarExpenses(): React.JSX.Element {
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 outline-none focus:border-indigo-400 transition-all"
                   >
                     <option value="Facebook Ads">ফেসবুক বিজ্ঞাপন (Facebook Ads)</option>
+                    <option value="ফেসবুক বুস্টিং">ফেসবুক বুস্টিং (Facebook Boosting)</option>
                     <option value="Google Ads">গুগল বিজ্ঞাপন (Google Ads)</option>
                     <option value="Shopify Subscription">শপিফাই সাবস্ক্রিপশন</option>
                     <option value="Server/Hosting">সার্ভার ও হোস্টিং বিল</option>

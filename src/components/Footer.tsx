@@ -4,7 +4,7 @@
  */
 
 import { Link } from 'react-router-dom';
-import { Facebook, Instagram, Phone, Mail } from 'lucide-react';
+import { Facebook, Instagram, Phone, Mail, MapPin } from 'lucide-react';
 import { useBranding } from '../contexts/BrandingContext';
 
 export default function Footer() {
@@ -62,7 +62,7 @@ export default function Footer() {
               <Instagram size={18} />
             </a>
             <a 
-              href="tel:+8801631496122" 
+              href="tel:+8801327772213" 
               className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-300 hover:text-white hover:bg-white/15 hover:border-white/30 transition-all cursor-pointer"
               aria-label="Call Us"
             >
@@ -141,6 +141,19 @@ export default function Footer() {
             </h4>
             
             <div className="space-y-4 text-xs font-medium">
+              {/* Address */}
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-300 shrink-0 mt-0.5">
+                  <MapPin size={16} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">ADDRESS</p>
+                  <p className="text-gray-200 font-semibold leading-snug">
+                    Ma Villa, House #11, Road #3, Block F, Section #1, Mirpur, Dhaka-1216
+                  </p>
+                </div>
+              </div>
+
               {/* Email */}
               <div className="flex items-start gap-3">
                 <div className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-300 shrink-0 mt-0.5">
@@ -161,10 +174,9 @@ export default function Footer() {
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">CALL US</p>
-                  <div className="text-gray-200 font-bold space-y-0.5">
-                    <p>+8801631496122</p>
-                    <p>+8801623-766036</p>
-                  </div>
+                  <a href="tel:+8801327772213" className="text-gray-200 hover:text-white font-bold transition-colors block">
+                    +8801327772213
+                  </a>
                 </div>
               </div>
             </div>

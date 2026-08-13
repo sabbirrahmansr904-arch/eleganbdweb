@@ -413,13 +413,6 @@ export default function AdminFinance(): React.JSX.Element {
           </button>
 
           <button
-            onClick={() => handleExportReport('csv')}
-            className="px-5 py-2.5 bg-[#0b0f19] hover:bg-slate-900 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-sm cursor-pointer"
-          >
-            <Download className="w-4 h-4 text-orange-400" />
-            <span>CSV রিপোর্ট</span>
-          </button>
-          <button
             onClick={() => handleExportReport('pdf')}
             className="px-5 py-2.5 bg-[#0b0f19] hover:bg-slate-900 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-sm cursor-pointer"
           >
