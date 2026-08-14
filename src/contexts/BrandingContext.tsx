@@ -1021,10 +1021,16 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (faviconLinks.length > 0) {
         faviconLinks.forEach(link => {
           link.setAttribute('href', fullFaviconUrl);
+          if (fullFaviconUrl.startsWith('data:image/svg') || fullFaviconUrl.endsWith('.svg')) {
+            link.setAttribute('type', 'image/svg+xml');
+          } else {
+            link.setAttribute('type', 'image/png');
+          }
         });
       } else {
         const link = document.createElement('link');
         link.rel = 'icon';
+        link.type = 'image/png';
         link.href = fullFaviconUrl;
         document.head.appendChild(link);
       }

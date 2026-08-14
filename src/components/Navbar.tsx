@@ -85,7 +85,7 @@ export default function Navbar() {
       )}
       <nav
         className={cn(
-          'sticky top-0 left-0 w-full z-50 bg-black border-b border-white/10 transition-all duration-300'
+          'sticky top-0 left-0 w-full z-50 bg-white border-b border-gray-200/80 shadow-xs transition-all duration-300'
         )}
       >
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-[55px] md:h-[68px] flex items-center justify-between gap-2 md:gap-6">
@@ -94,9 +94,9 @@ export default function Navbar() {
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setIsOpen(true)}
-              className="lg:hidden p-2 text-white hover:text-gray-300 transition-colors cursor-pointer"
+              className="lg:hidden p-2 text-gray-800 hover:text-black transition-colors cursor-pointer"
             >
-              <Menu size={22} strokeWidth={1.5} />
+              <Menu size={22} strokeWidth={1.8} />
             </button>
 
             <Link to="/" className="flex items-center group gap-1.5 md:gap-2">
@@ -111,17 +111,17 @@ export default function Navbar() {
                   E
                 </div>
               )}
-              <span className="font-black text-base md:text-lg uppercase tracking-tighter text-white whitespace-nowrap">
+              <span className="font-black text-base md:text-lg uppercase tracking-tighter text-black whitespace-nowrap">
                 Elegan BD
               </span>
             </Link>
           </div>
 
-          {/* Center: Desktop Menu Items (Screenshot Layout) */}
-          <div className="hidden lg:flex items-center gap-5 xl:gap-7 text-[12px] font-bold uppercase tracking-wider text-white/90">
+          {/* Center: Desktop Menu Items */}
+          <div className="hidden lg:flex items-center gap-5 xl:gap-7 text-[12px] font-bold uppercase tracking-wider text-gray-800">
             <Link 
               to="/" 
-              className="hover:text-blue-400 transition-colors whitespace-nowrap"
+              className="hover:text-blue-600 transition-colors whitespace-nowrap"
             >
               Home
             </Link>
@@ -134,7 +134,7 @@ export default function Navbar() {
             >
               <button 
                 onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
-                className="flex items-center gap-1 hover:text-blue-400 transition-colors whitespace-nowrap cursor-pointer"
+                className="flex items-center gap-1 hover:text-blue-600 transition-colors whitespace-nowrap cursor-pointer text-gray-800"
               >
                 <span>Categories</span>
                 <ChevronDown size={14} className={cn("transition-transform duration-200", isCategoriesOpen && "rotate-180")} />
@@ -147,14 +147,14 @@ export default function Navbar() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 8 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute top-full left-0 w-52 bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl p-2 z-50 space-y-1 text-white/80"
+                    className="absolute top-full left-0 w-52 bg-white border border-gray-200 rounded-2xl shadow-xl p-2 z-50 space-y-1 text-gray-800"
                   >
                     <Link 
                       to="/category/all" 
                       onClick={() => setIsCategoriesOpen(false)}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-xs font-bold hover:text-white transition-colors"
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-gray-100 text-xs font-bold text-gray-900 hover:text-blue-600 transition-colors"
                     >
-                      <Layers size={14} className="text-blue-400" />
+                      <Layers size={14} className="text-blue-600" />
                       All Collection
                     </Link>
                     {Array.isArray(categories) && categories.map((cat) => (
@@ -162,7 +162,7 @@ export default function Navbar() {
                         key={cat.id}
                         to={`/category/${cat.name.toLowerCase().replace(/\s+/g, '-')}`}
                         onClick={() => setIsCategoriesOpen(false)}
-                        className="block px-3 py-2 rounded-xl hover:bg-white/10 text-xs font-bold hover:text-white transition-colors capitalize"
+                        className="block px-3 py-2 rounded-xl hover:bg-gray-100 text-xs font-bold text-gray-800 hover:text-blue-600 transition-colors capitalize"
                       >
                         {cat.name}
                       </Link>
@@ -174,33 +174,33 @@ export default function Navbar() {
 
             <Link 
               to="/category/all" 
-              className="hover:text-blue-400 transition-colors whitespace-nowrap"
+              className="hover:text-blue-600 transition-colors whitespace-nowrap"
             >
               Collections
             </Link>
 
             <Link 
               to="/track-order" 
-              className="flex items-center gap-1.5 hover:text-blue-400 transition-colors whitespace-nowrap"
+              className="flex items-center gap-1.5 hover:text-blue-600 transition-colors whitespace-nowrap"
             >
-              <Truck size={15} className="text-blue-400" />
+              <Truck size={15} className="text-blue-600" />
               Track Order
             </Link>
 
             <Link 
               to="/reviews" 
-              className="flex items-center gap-1.5 hover:text-blue-400 transition-colors whitespace-nowrap"
+              className="flex items-center gap-1.5 hover:text-blue-600 transition-colors whitespace-nowrap"
             >
-              <Star size={14} className="text-blue-400 fill-blue-400/30" />
+              <Star size={14} className="text-blue-600 fill-blue-600/20" />
               Reviews
             </Link>
           </div>
 
           {/* Right: Actions & Hotline */}
-          <div className="flex items-center gap-1.5 md:gap-3 text-white">
+          <div className="flex items-center gap-1.5 md:gap-3 text-gray-800">
             <button 
               onClick={() => setIsSearchOpen(true)}
-              className="p-2 text-white/80 hover:text-white transition-colors cursor-pointer"
+              className="p-2 text-gray-700 hover:text-black hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
               title="Search"
             >
               <Search size={20} strokeWidth={1.8} />
@@ -208,12 +208,12 @@ export default function Navbar() {
 
             <button 
               onClick={handleCartClick} 
-              className="relative p-2 text-white/80 hover:text-white transition-colors cursor-pointer"
+              className="relative p-2 text-gray-700 hover:text-black hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
               title="Bag"
             >
               <ShoppingBag size={20} strokeWidth={1.8} />
               {cartCount > 0 && (
-                <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-brand-gold text-black text-[9px] rounded-full flex items-center justify-center font-black">
+                <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-black text-white text-[9px] rounded-full flex items-center justify-center font-black">
                   {cartCount}
                 </span>
               )}
@@ -223,33 +223,33 @@ export default function Navbar() {
             {currentUser ? (
               <Link 
                 to={isAdmin ? "/admin" : "/dashboard"} 
-                className="p-2 text-white/80 hover:text-white transition-colors cursor-pointer" 
+                className="p-2 text-gray-700 hover:text-black hover:bg-gray-100 rounded-full transition-colors cursor-pointer" 
                 title={isAdmin ? "Admin Panel" : "My Account"}
               >
                 <User size={20} strokeWidth={1.8} />
               </Link>
             ) : customerUser ? (
-              <button onClick={logoutCustomer} className="p-2 text-rose-400 hover:text-rose-300 transition-colors cursor-pointer" title="Logout Session">
+              <button onClick={logoutCustomer} className="p-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-full transition-colors cursor-pointer" title="Logout Session">
                 <User size={20} strokeWidth={1.8} />
               </button>
             ) : (
-              <button onClick={() => setIsLoginOpen(true)} className="p-2 text-white/80 hover:text-white transition-colors cursor-pointer" title="Sign In">
+              <button onClick={() => setIsLoginOpen(true)} className="p-2 text-gray-700 hover:text-black hover:bg-gray-100 rounded-full transition-colors cursor-pointer" title="Sign In">
                 <User size={20} strokeWidth={1.8} />
               </button>
             )}
 
             {/* Vertical Divider */}
-            <div className="hidden md:block h-5 w-[1px] bg-white/20 my-auto ml-1 mr-1" />
+            <div className="hidden md:block h-5 w-[1px] bg-gray-200 my-auto ml-1 mr-1" />
 
             {/* Hotline 24/7 */}
             <a 
               href="tel:01327772213" 
-              className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-white group"
+              className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 border border-gray-200 hover:bg-gray-200/80 transition-all text-gray-900 group shadow-2xs"
             >
-              <Phone size={14} className="text-amber-400 group-hover:rotate-12 transition-transform" />
+              <Phone size={14} className="text-amber-500 group-hover:rotate-12 transition-transform" />
               <div className="flex flex-col text-left leading-tight">
-                <span className="text-[7.5px] font-black uppercase tracking-widest text-white/50">SUPPORT 24/7</span>
-                <span className="text-[10.5px] font-mono font-bold text-white tracking-wider">01327772213</span>
+                <span className="text-[7.5px] font-black uppercase tracking-widest text-gray-500">SUPPORT 24/7</span>
+                <span className="text-[10.5px] font-mono font-bold text-gray-900 tracking-wider">01327772213</span>
               </div>
             </a>
           </div>

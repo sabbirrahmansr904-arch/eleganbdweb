@@ -1736,10 +1736,37 @@ export default function AdminSettings() {
               <div className="space-y-8">
                 <div className="flex justify-between items-center border-b border-gray-100 pb-6">
                   <div>
-                    <h3 className="serif text-2xl text-black italic tracking-tighter uppercase font-black">Brandmark & Logo Management</h3>
-                    <p className="text-xs text-gray-500 mt-1">Upload a clean PNG/JPG or enter image URL to display your brand logo perfectly across the store navbar, header, invoices, and browser tabs.</p>
+                    <h3 className="serif text-2xl text-black italic tracking-tighter uppercase font-black">Brandmark, Favicon & Store Logo</h3>
+                    <p className="text-xs text-gray-500 mt-1">আপনার ডিভাইস (কম্পিউটার/মোবাইল) থেকে সরাসরি PNG/JPG লোগো আপলোড করুন। এটি অটোমেটিক <strong>ব্রাউজার ট্যাব আইকন (Favicon)</strong>, স্টোর হেডার, ফুটার, ইনভয়েস এবং অ্যাডমিন প্যানেলে সেট হয়ে যাবে।</p>
                   </div>
                   <ImageIcon size={22} className="text-brand-gold" />
+                </div>
+
+                {/* Browser Tab Live Preview Mockup matching User's view */}
+                <div className="p-5 bg-white border border-gray-200/80 rounded-2xl shadow-3xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase font-black tracking-widest text-gray-500">Live Browser Tab (Favicon) Preview</span>
+                    <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">Realtime Dynamic Favicon</span>
+                  </div>
+                  {/* Chrome tab visual mockup */}
+                  <div className="bg-[#e9eef6] dark:bg-slate-800 p-2.5 rounded-xl border border-gray-200/60">
+                    <div className="inline-flex items-center gap-2.5 bg-white dark:bg-slate-900 px-3.5 py-2 rounded-t-lg shadow-xs border-t border-x border-gray-200/80 max-w-sm">
+                      <div className="w-4 h-4 rounded-xs overflow-hidden flex items-center justify-center bg-black shrink-0 border border-gray-300">
+                        <img 
+                          src={tempLogo || '/logo.png'} 
+                          alt="Tab Favicon" 
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = '/logo.png';
+                          }}
+                        />
+                      </div>
+                      <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate max-w-[200px]">
+                        Elegan BD | Premium Clothing Brand...
+                      </span>
+                      <span className="text-gray-400 text-xs hover:text-gray-700 cursor-pointer ml-1 font-bold">×</span>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="p-8 border-2 border-dashed border-gray-200 rounded-3xl bg-[#F8F9FD] shadow-xs flex flex-col items-center justify-center text-center space-y-6">
@@ -1755,7 +1782,7 @@ export default function AdminSettings() {
                     <div className="absolute inset-0 bg-black/80 opacity-0 group-hover/inner:opacity-100 transition-all flex items-center justify-center backdrop-blur-xs">
                        <label className="text-white text-xs uppercase tracking-wider font-extrabold cursor-pointer flex flex-col items-center gap-2">
                           <Upload size={22} />
-                          <span>Upload New Picture</span>
+                          <span>Upload From Device</span>
                           <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
                        </label>
                     </div>
@@ -1788,10 +1815,10 @@ export default function AdminSettings() {
                     </div>
                   </div>
 
-                  <div className="flex gap-4 pt-2">
+                  <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
                     <label className="px-6 py-3 bg-black hover:bg-gray-800 text-white font-bold text-xs uppercase tracking-wider rounded-xl cursor-pointer transition-all shadow-md flex items-center gap-2">
                       <Upload size={16} />
-                      <span>Browse Image File</span>
+                      <span>Upload from Device (ডিভাইস থেকে লোগো আপলোড)</span>
                       <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
                     </label>
                     <button
