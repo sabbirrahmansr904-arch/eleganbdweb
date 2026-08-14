@@ -46,11 +46,34 @@ export function setQuotaExceededState(exceeded: boolean) {
 
 export function isQuotaError(error: unknown): boolean {
   if (!error) return false;
-  const msg = error instanceof Error ? error.message : String(error);
-  const matched = msg.includes('Quota limit exceeded') ||
-                  msg.includes('resource-exhausted') ||
-                  msg.includes('Free daily read units per project') ||
-                  msg.includes('quota metric');
+  
+  let str = '';
+  if (typeof error === 'string') {
+    str = error;
+  } else if (error instanceof Error) {
+    str = error.message + ' ' + (error.stack || '') + ' ' + ((error as any).code || '');
+  } else if (typeof error === 'object') {
+    try {
+      str = JSON.stringify(error) + ' ' + String(error) + ' ' + ((error as any)?.code || '') + ' ' + ((error as any)?.message || '');
+    } catch {
+      str = String(error);
+    }
+  } else {
+    str = String(error);
+  }
+
+  const lowerStr = str.toLowerCase();
+  const matched = lowerStr.includes('quota limit exceeded') ||
+                  lowerStr.includes('resource-exhausted') ||
+                  lowerStr.includes('resource_exhausted') ||
+                  lowerStr.includes('free daily read units') ||
+                  lowerStr.includes('quota metric') ||
+                  lowerStr.includes('quota exceeded') ||
+                  lowerStr.includes('exceeded free quota') ||
+                  lowerStr.includes('exceeded quota') ||
+                  (error as any)?.code === 'resource-exhausted' ||
+                  (error as any)?.code === 'RESOURCE_EXHAUSTED';
+
   if (matched) {
     setQuotaExceededState(true);
   }

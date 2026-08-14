@@ -14,7 +14,7 @@ import {
   query, 
   orderBy 
 } from 'firebase/firestore';
-import { handleFirestoreError, OperationType } from '../../lib/firestoreUtils';
+import { handleFirestoreError, OperationType, isQuotaError } from '../../lib/firestoreUtils';
 import { formatPrice } from '../../lib/utils';
 import { 
   Plus, 
@@ -294,7 +294,11 @@ export default function AdminDollarExpenses(): React.JSX.Element {
       setEditingTransaction(null);
     } catch (err) {
       handleFirestoreError(err, editingTransaction ? OperationType.UPDATE : OperationType.CREATE, 'dollar_transactions');
-      toast.error('সংরক্ষণ করতে সমস্যা হয়েছে!');
+      if (isQuotaError(err)) {
+        toast.error('Firestore কোটা পূর্ণ হয়ে গেছে! অনুগ্রহ করে পরে আবার চেষ্টা করুন।');
+      } else {
+        toast.error('সংরক্ষণ করতে সমস্যা হয়েছে!');
+      }
     }
   };
 
@@ -305,7 +309,11 @@ export default function AdminDollarExpenses(): React.JSX.Element {
       toast.success('লেনদেন সফলভাবে ডিলিট হয়েছে!');
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `dollar_transactions/${id}`);
-      toast.error('ডিলিট করতে সমস্যা হয়েছে!');
+      if (isQuotaError(err)) {
+        toast.error('Firestore কোটা পূর্ণ হয়ে গেছে! অনুগ্রহ করে পরে আবার চেষ্টা করুন।');
+      } else {
+        toast.error('ডিলিট করতে সমস্যা হয়েছে!');
+      }
     }
   };
 
