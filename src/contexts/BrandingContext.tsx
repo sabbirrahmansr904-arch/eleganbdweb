@@ -992,14 +992,15 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   useEffect(() => {
     const targetImage = heroBannerUrl || logoUrl || 'https://eleganbd.vercel.app/og-image.png';
-    const faviconImage = logoUrl || heroBannerUrl || '/logo.png';
+    const faviconImage = logoUrl || '/logo.png';
+    
     if (typeof document !== 'undefined') {
       const origin = window.location.origin;
-      const fullImageUrl = targetImage.startsWith('http') 
+      const fullImageUrl = (targetImage.startsWith('http') || targetImage.startsWith('data:'))
         ? targetImage 
         : `${origin}${targetImage.startsWith('/') ? '' : '/'}${targetImage}`;
 
-      const fullFaviconUrl = faviconImage.startsWith('http') 
+      const fullFaviconUrl = (faviconImage.startsWith('http') || faviconImage.startsWith('data:'))
         ? faviconImage 
         : `${origin}${faviconImage.startsWith('/') ? '' : '/'}${faviconImage}`;
 
@@ -1016,23 +1017,35 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         twitterImage.setAttribute('content', fullImageUrl);
       }
 
-      // Update favicon dynamically
-      const faviconLinks = document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]');
-      if (faviconLinks.length > 0) {
-        faviconLinks.forEach(link => {
-          link.setAttribute('href', fullFaviconUrl);
-          if (fullFaviconUrl.startsWith('data:image/svg') || fullFaviconUrl.endsWith('.svg')) {
-            link.setAttribute('type', 'image/svg+xml');
-          } else {
-            link.setAttribute('type', 'image/png');
-          }
-        });
-      } else {
-        const link = document.createElement('link');
-        link.rel = 'icon';
-        link.type = 'image/png';
-        link.href = fullFaviconUrl;
-        document.head.appendChild(link);
+      // Force instant browser tab favicon update by removing and recreating link elements
+      try {
+        const oldLinks = document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]');
+        oldLinks.forEach(el => el.parentNode?.removeChild(el));
+
+        const isSvg = fullFaviconUrl.startsWith('data:image/svg') || fullFaviconUrl.endsWith('.svg');
+        const mimeType = isSvg ? 'image/svg+xml' : 'image/png';
+
+        // 1. Standard icon
+        const linkIcon = document.createElement('link');
+        linkIcon.rel = 'icon';
+        linkIcon.type = mimeType;
+        linkIcon.href = fullFaviconUrl;
+        document.head.appendChild(linkIcon);
+
+        // 2. Shortcut icon (essential for Chrome/Windows tab update)
+        const linkShortcut = document.createElement('link');
+        linkShortcut.rel = 'shortcut icon';
+        linkShortcut.type = mimeType;
+        linkShortcut.href = fullFaviconUrl;
+        document.head.appendChild(linkShortcut);
+
+        // 3. Apple touch icon
+        const linkApple = document.createElement('link');
+        linkApple.rel = 'apple-touch-icon';
+        linkApple.href = fullFaviconUrl;
+        document.head.appendChild(linkApple);
+      } catch (err) {
+        console.warn('Favicon update error:', err);
       }
     }
   }, [heroBannerUrl, logoUrl]);

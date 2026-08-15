@@ -154,9 +154,9 @@ service cloud.firestore {
     }
 
     match /inventory_transactions/{transactionId} {
-      allow read, list: if isAdmin();
-      allow create: if isAdmin() && isValidId(transactionId) && isValidStockTransaction(incoming());
-      allow update, delete: if false;
+      allow read, list: if isSignedIn() || isAdmin();
+      allow create: if isValidId(transactionId) && isValidStockTransaction(incoming());
+      allow update, delete: if isAdmin();
     }
 
     function isValidCategory(data) {

@@ -100,17 +100,14 @@ export default function Navbar() {
             </button>
 
             <Link to="/" className="flex items-center group gap-1.5 md:gap-2">
-              {logoUrl ? (
-                <img 
-                  src={logoUrl} 
-                  alt="Elegan BD" 
-                  className="h-11 md:h-14 w-auto object-contain transition-transform group-hover:scale-105" 
-                />
-              ) : (
-                <div className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-brand-gold text-black flex items-center justify-center font-black text-[10px] md:text-xs">
-                  E
-                </div>
-              )}
+              <img 
+                src={logoUrl || '/logo.png'} 
+                alt="Elegan BD" 
+                className="h-9 md:h-12 w-auto max-w-[150px] object-contain transition-transform group-hover:scale-105" 
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none';
+                }}
+              />
               <span className="font-black text-base md:text-lg uppercase tracking-tighter text-black whitespace-nowrap">
                 Elegan BD
               </span>

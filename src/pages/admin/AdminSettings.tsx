@@ -172,11 +172,24 @@ export default function AdminSettings() {
 
   const [tempLogo, setTempLogo] = useState(logoUrl);
   const [tempHeroBanner, setTempHeroBanner] = useState(heroBannerUrl);
+  const [tempSizeChart, setTempSizeChart] = useState(sizeChartUrl);
+
+  useEffect(() => {
+    if (logoUrl) setTempLogo(logoUrl);
+  }, [logoUrl]);
+
+  useEffect(() => {
+    if (heroBannerUrl) setTempHeroBanner(heroBannerUrl);
+  }, [heroBannerUrl]);
+
+  useEffect(() => {
+    if (sizeChartUrl) setTempSizeChart(sizeChartUrl);
+  }, [sizeChartUrl]);
+
   const [deleteConfirm, setDeleteConfirm] = useState<{
     setter: (url: string) => void;
     name: string;
   } | null>(null);
-  const [tempSizeChart, setTempSizeChart] = useState(sizeChartUrl);
   const allCategories = Array.from(new Set(products.map(p => p.category)));
 
   // Admin Access management states
