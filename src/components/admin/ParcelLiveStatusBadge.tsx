@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Truck, RefreshCw, AlertCircle, CheckCircle2, Clock, PackageCheck, Send } from 'lucide-react';
+import { Truck, RefreshCw, AlertCircle, Clock, PackageCheck, Send } from 'lucide-react';
 import { Order } from '../../types';
+import { useOrders } from '../../contexts/OrderContext';
+import { isDeliveredOrSuccess } from '../../utils/orderUtils';
+import toast from 'react-hot-toast';
 
 interface ParcelLiveStatusBadgeProps {
   order: Order;
@@ -8,6 +11,7 @@ interface ParcelLiveStatusBadgeProps {
 }
 
 export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ order, showDetails = false }) => {
+  const { updateOrder, updateOrderStatus } = useOrders();
   const trackingId = (order as any).pathaoConsignmentId || (order as any).trackingCode || order.trackingId || (order as any).steadfastConsignmentId;
   const isSteadfast = (order.courier || '').toLowerCase().includes('steadfast');
 
@@ -31,6 +35,43 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
       const data = await res.json();
       if (res.ok && data.success && data.status) {
         setStatus(data.status);
+
+        const lower = (data.status || '').toLowerCase();
+        // If parcel is delivered/completed by courier, automatically update order status to SUCCESS / Delivered
+        if (lower.includes('deliver') || lower.includes('success') || lower === 'delivery_complete') {
+          if (!isDeliveredOrSuccess(order.status)) {
+            try {
+              if (updateOrder) {
+                await updateOrder(order.id, {
+                  ...order,
+                  status: 'Delivered',
+                  courierStatus: data.status,
+                  deliveredAt: Date.now()
+                });
+              } else if (updateOrderStatus) {
+                await updateOrderStatus(order.id, 'Delivered');
+              }
+              const shortId = order.invoiceNo || order.id.slice(-6);
+              toast.success(`অর্ডার #${shortId} পার্সেল ডেলিভার্ড হওয়ায় স্ট্যাটাস অটো SUCCESS করা হয়েছে!`);
+            } catch (err) {
+              console.warn("Could not auto-update delivered order status:", err);
+            }
+          }
+        } else if (lower.includes('return') || lower.includes('cancel') || lower === 'partial_delivery_return') {
+          if (order.status !== 'Returned' && order.status !== 'Cancelled' && !isDeliveredOrSuccess(order.status)) {
+            try {
+              if (updateOrder) {
+                await updateOrder(order.id, {
+                  ...order,
+                  status: 'Returned',
+                  courierStatus: data.status
+                });
+              }
+            } catch (err) {
+              console.warn("Could not auto-update returned status:", err);
+            }
+          }
+        }
       } else {
         setError(true);
       }
@@ -52,43 +93,49 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
     return null;
   }
 
+  const cleanLabel = (s: string) => {
+    if (!s) return '';
+    return s.replace(/_/g, ' ').replace(/-/g, ' ').trim();
+  };
+
   // Format Status badge style
   const getStatusColor = (s: string) => {
     const lower = s.toLowerCase();
-    if (lower.includes('deliver')) {
-      return { bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: PackageCheck, label: s };
+    const label = cleanLabel(s);
+    if (lower.includes('deliver') || lower.includes('success')) {
+      return { bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: PackageCheck, label };
     }
     if (lower.includes('pickup') || lower.includes('waiting') || lower.includes('assign')) {
-      return { bg: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock, label: s };
+      return { bg: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock, label };
     }
-    if (lower.includes('transit') || lower.includes('way') || lower.includes('hub')) {
-      return { bg: 'bg-blue-50 text-blue-700 border-blue-200', icon: Send, label: s };
+    if (lower.includes('transit') || lower.includes('way') || lower.includes('hub') || lower.includes('sort')) {
+      return { bg: 'bg-blue-50 text-blue-700 border-blue-200', icon: Send, label };
     }
     if (lower.includes('return') || lower.includes('cancel')) {
-      return { bg: 'bg-rose-50 text-rose-700 border-rose-200', icon: AlertCircle, label: s };
+      return { bg: 'bg-rose-50 text-rose-700 border-rose-200', icon: AlertCircle, label };
     }
-    return { bg: 'bg-indigo-50 text-indigo-700 border-indigo-200', icon: Truck, label: s };
+    return { bg: 'bg-indigo-50 text-indigo-700 border-indigo-200', icon: Truck, label };
   };
 
   const statusInfo = status ? getStatusColor(status) : null;
   const Icon = statusInfo ? statusInfo.icon : Truck;
 
   return (
-    <div className="inline-flex items-center gap-1.5" title={`Consignment ID: ${trackingId}`}>
+    <div className="inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap" title={`Consignment ID: ${trackingId}`}>
       {loading ? (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-black rounded-full bg-slate-100 text-slate-500 border border-slate-200 animate-pulse">
-          <RefreshCw size={10} className="animate-spin text-indigo-600" />
-          <span className="uppercase tracking-wider">{isSteadfast ? 'SF' : 'Pathao'} Live...</span>
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-black rounded-full bg-slate-100 text-slate-500 border border-slate-200 animate-pulse whitespace-nowrap shrink-0">
+          <RefreshCw size={10} className="animate-spin text-indigo-600 shrink-0" />
+          <span className="uppercase tracking-wider whitespace-nowrap">{isSteadfast ? 'SF' : 'Pathao'} Live...</span>
         </span>
       ) : statusInfo ? (
-        <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-black rounded-full border shadow-2xs transition-all ${statusInfo.bg}`}>
-          <Icon size={11} className="stroke-[2.5]" />
-          <span className="uppercase tracking-wider">
+        <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-black rounded-full border shadow-2xs transition-all whitespace-nowrap shrink-0 ${statusInfo.bg}`}>
+          <Icon size={11} className="stroke-[2.5] shrink-0" />
+          <span className="uppercase tracking-wider whitespace-nowrap">
             {isSteadfast ? 'SF' : 'Pathao'}: {statusInfo.label}
           </span>
           <button 
             onClick={(e) => { e.stopPropagation(); fetchLiveStatus(); }}
-            className="ml-0.5 opacity-60 hover:opacity-100 transition-opacity cursor-pointer"
+            className="ml-0.5 opacity-60 hover:opacity-100 transition-opacity cursor-pointer shrink-0"
             title="Refresh Live Status"
           >
             <RefreshCw size={9} />
@@ -97,20 +144,21 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
       ) : error ? (
         <button 
           onClick={(e) => { e.stopPropagation(); fetchLiveStatus(); }}
-          className="inline-flex items-center gap-1 px-2 py-0.5 text-[9.5px] font-bold rounded-full bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100 cursor-pointer"
+          className="inline-flex items-center gap-1 px-2 py-0.5 text-[9.5px] font-bold rounded-full bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100 cursor-pointer whitespace-nowrap shrink-0"
           title="Click to fetch live Pathao status"
         >
-          <Truck size={10} className="text-slate-400" />
-          <span>{isSteadfast ? 'SF' : 'Pathao'}: #{String(trackingId).slice(-6)}</span>
-          <RefreshCw size={9} className="text-slate-400" />
+          <Truck size={10} className="text-slate-400 shrink-0" />
+          <span className="whitespace-nowrap">{isSteadfast ? 'SF' : 'Pathao'}: #{String(trackingId).slice(-6)}</span>
+          <RefreshCw size={9} className="text-slate-400 shrink-0" />
         </button>
       ) : null}
 
       {showDetails && trackingId && (
-        <span className="text-[10px] text-slate-400 font-mono font-bold">
+        <span className="text-[10px] text-slate-400 font-mono font-bold whitespace-nowrap shrink-0">
           #{trackingId}
         </span>
       )}
     </div>
   );
 };
+

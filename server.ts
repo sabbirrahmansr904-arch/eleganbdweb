@@ -4,7 +4,7 @@ import { createServer as createViteServer } from "vite";
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, setDoc, getDoc, deleteDoc } from "firebase/firestore";
+import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, query, where, getDocs, updateDoc } from "firebase/firestore";
 import { createRequire } from "module";
 
 dotenv.config();
@@ -241,6 +241,128 @@ async function startServer() {
     }
   });
 
+  // Helper to authenticate with Pathao
+  let cachedPathaoToken: { token: string; expiresAt: number; apiBase: string } | null = null;
+  let cachedPathaoCities: any[] | null = null;
+  let cachedPathaoZones: Record<number, any[]> = {};
+
+  async function getPathaoAuth(customCreds?: any) {
+    let creds = customCreds;
+    if (!creds || !creds.clientId) {
+      try {
+        const pathaoRef = doc(db, 'config', 'pathao');
+        const pathaoSnap = await getDoc(pathaoRef);
+        if (pathaoSnap.exists()) {
+          creds = pathaoSnap.data();
+        }
+      } catch (e) {
+        console.warn("Could not load Pathao creds from Firestore", e);
+      }
+    }
+
+    if (!creds || !creds.clientId || !creds.clientSecret || !creds.username || !creds.password) {
+      throw new Error("Pathao API credentials missing in Admin Settings");
+    }
+
+    let apiBase = (creds.baseUrl || 'https://api-hermes.pathao.com').replace(/\/$/, '');
+    if (apiBase.includes('courier-api.pathao.com')) {
+      apiBase = 'https://api-hermes.pathao.com';
+    }
+
+    const now = Date.now();
+    if (cachedPathaoToken && cachedPathaoToken.expiresAt > now + 60000 && !customCreds) {
+      return { token: cachedPathaoToken.token, apiBase, creds };
+    }
+
+    const tokenRes = await fetch(`${apiBase}/aladdin/api/v1/issue-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({
+        client_id: creds.clientId,
+        client_secret: creds.clientSecret,
+        username: creds.username,
+        password: creds.password,
+        grant_type: 'password'
+      })
+    });
+
+    const tokenData: any = await tokenRes.json();
+    if (!tokenRes.ok || !tokenData.access_token) {
+      const tokenErr = tokenData.message || tokenData.error || "Pathao Authentication Failed";
+      throw new Error(`Pathao Auth Failed: ${tokenErr}`);
+    }
+
+    const expiresIn = (tokenData.expires_in || 3600) * 1000;
+    if (!customCreds) {
+      cachedPathaoToken = {
+        token: tokenData.access_token,
+        expiresAt: now + expiresIn,
+        apiBase
+      };
+    }
+
+    return { token: tokenData.access_token, apiBase, creds };
+  }
+
+  // API route to get Pathao city list
+  app.get("/api/pathao/cities", async (req, res) => {
+    try {
+      if (cachedPathaoCities && cachedPathaoCities.length > 0) {
+        return res.json({ success: true, data: cachedPathaoCities });
+      }
+
+      const { token, apiBase } = await getPathaoAuth();
+      const response = await fetch(`${apiBase}/aladdin/api/v1/countries/1/city-list`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      const data: any = await response.json();
+      if (response.ok && data.data) {
+        const cities = data.data.data || data.data;
+        cachedPathaoCities = cities;
+        return res.json({ success: true, data: cities });
+      } else {
+        return res.status(400).json({ success: false, error: data.message || "Failed to fetch Pathao cities" });
+      }
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message || "Error connecting to Pathao" });
+    }
+  });
+
+  // API route to get Pathao zones for a city
+  app.get("/api/pathao/zones", async (req, res) => {
+    try {
+      const cityId = Number(req.query.cityId || req.query.city_id);
+      if (!cityId) {
+        return res.status(400).json({ success: false, error: "cityId is required" });
+      }
+
+      if (cachedPathaoZones[cityId]) {
+        return res.json({ success: true, data: cachedPathaoZones[cityId] });
+      }
+
+      const { token, apiBase } = await getPathaoAuth();
+      const response = await fetch(`${apiBase}/aladdin/api/v1/cities/${cityId}/zone-list`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      const data: any = await response.json();
+      if (response.ok && data.data) {
+        const zones = data.data.data || data.data;
+        cachedPathaoZones[cityId] = zones;
+        return res.json({ success: true, data: zones });
+      } else {
+        return res.status(400).json({ success: false, error: data.message || "Failed to fetch Pathao zones" });
+      }
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message || "Error connecting to Pathao" });
+    }
+  });
+
   // API route to test Pathao OAuth connection
   app.post("/api/pathao/test-connection", async (req, res) => {
     const { clientId, clientSecret, username, password, baseUrl } = req.body;
@@ -287,49 +409,12 @@ async function startServer() {
       return res.status(400).json({ success: false, error: "Order details are missing" });
     }
 
-    let creds = credentials;
-    if (!creds || !creds.clientId) {
-      try {
-        const pathaoRef = doc(db, 'config', 'pathao');
-        const pathaoSnap = await getDoc(pathaoRef);
-        if (pathaoSnap.exists()) {
-          creds = pathaoSnap.data();
-        }
-      } catch (e) {
-        console.warn("Could not load Pathao creds from Firestore", e);
-      }
-    }
-
-    if (!creds || !creds.clientId || !creds.clientSecret || !creds.username || !creds.password || !creds.storeId) {
-      return res.status(400).json({ success: false, error: "Pathao API credentials or Store ID missing in Admin Settings" });
-    }
-
-    let apiBase = (creds.baseUrl || 'https://api-hermes.pathao.com').replace(/\/$/, '');
-    if (apiBase.includes('courier-api.pathao.com')) {
-      apiBase = 'https://api-hermes.pathao.com';
-    }
-
     try {
-      // Step 1: Issue OAuth token
-      const tokenRes = await fetch(`${apiBase}/aladdin/api/v1/issue-token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({
-          client_id: creds.clientId,
-          client_secret: creds.clientSecret,
-          username: creds.username,
-          password: creds.password,
-          grant_type: 'password'
-        })
-      });
+      const { token: accessToken, apiBase, creds } = await getPathaoAuth(credentials);
 
-      const tokenData: any = await tokenRes.json();
-      if (!tokenRes.ok || !tokenData.access_token) {
-        const tokenErr = tokenData.message || tokenData.error || "Pathao Authentication Failed";
-        return res.status(400).json({ success: false, error: `Pathao Auth Failed: ${tokenErr}` });
+      if (!creds.storeId) {
+        return res.status(400).json({ success: false, error: "Pathao Store ID is missing in Admin Settings" });
       }
-
-      const accessToken = tokenData.access_token;
 
       // Step 2: Format phone number (must be 11 digits starting with 01)
       let phone = (order.phone || '').replace(/[^0-9]/g, '');
@@ -339,7 +424,70 @@ async function startServer() {
       // Format recipient address (must be at least 10 characters)
       let address = `${order.address || ''}${order.thana ? `, ${order.thana}` : ''}${order.city ? `, ${order.city}` : ''}`.trim();
       if (address.length < 10) {
-        address = (address + ', Dhaka, Bangladesh').trim();
+        address = (address + ', Bangladesh').trim();
+      }
+
+      // Resolve City ID & Zone ID
+      let finalCityId = Number(order.cityId);
+      let finalZoneId = Number(order.zoneId);
+
+      // If cityId or zoneId is not numeric or 0, attempt auto-resolution from Pathao API
+      if (!finalCityId || !finalZoneId || isNaN(finalCityId) || isNaN(finalZoneId)) {
+        try {
+          // Fetch cities if needed
+          let cities = cachedPathaoCities;
+          if (!cities || cities.length === 0) {
+            const cityRes = await fetch(`${apiBase}/aladdin/api/v1/countries/1/city-list`, {
+              headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
+            });
+            const cData: any = await cityRes.json();
+            cities = cData?.data?.data || cData?.data || [];
+            cachedPathaoCities = cities;
+          }
+
+          const targetCityName = (order.city || '').trim().toLowerCase();
+          const matchedCity = (cities || []).find((c: any) => 
+            c.city_name?.toLowerCase() === targetCityName ||
+            c.city_name?.toLowerCase().includes(targetCityName) ||
+            targetCityName.includes(c.city_name?.toLowerCase())
+          );
+
+          if (matchedCity) {
+            finalCityId = matchedCity.city_id;
+          } else {
+            finalCityId = Number(creds.defaultCityId || 1);
+          }
+
+          // Fetch zones for matched city
+          let zones = cachedPathaoZones[finalCityId];
+          if (!zones || zones.length === 0) {
+            const zoneRes = await fetch(`${apiBase}/aladdin/api/v1/cities/${finalCityId}/zone-list`, {
+              headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
+            });
+            const zData: any = await zoneRes.json();
+            zones = zData?.data?.data || zData?.data || [];
+            cachedPathaoZones[finalCityId] = zones;
+          }
+
+          const targetZoneName = (order.thana || order.zone || '').trim().toLowerCase();
+          const matchedZone = (zones || []).find((z: any) => 
+            z.zone_name?.toLowerCase() === targetZoneName ||
+            z.zone_name?.toLowerCase().includes(targetZoneName) ||
+            targetZoneName.includes(z.zone_name?.toLowerCase())
+          );
+
+          if (matchedZone) {
+            finalZoneId = matchedZone.zone_id;
+          } else if (zones && zones.length > 0) {
+            finalZoneId = zones[0].zone_id;
+          } else {
+            finalZoneId = Number(creds.defaultZoneId || 1);
+          }
+        } catch (resolveErr) {
+          console.warn("Pathao location resolution fallback:", resolveErr);
+          if (!finalCityId) finalCityId = Number(creds.defaultCityId || 1);
+          if (!finalZoneId) finalZoneId = Number(creds.defaultZoneId || 1);
+        }
       }
 
       const itemsDesc = (order.items || []).map((i: any) => `${i.name}${i.selectedSize ? ` (${i.selectedSize})` : ''} x${i.quantity || 1}`).join(', ');
@@ -351,8 +499,8 @@ async function startServer() {
         recipient_name: order.customerName || 'Customer',
         recipient_phone: phone,
         recipient_address: address,
-        recipient_city: Number(order.cityId || creds.defaultCityId || 1),
-        recipient_zone: Number(order.zoneId || creds.defaultZoneId || 1),
+        recipient_city: finalCityId || 1,
+        recipient_zone: finalZoneId || 1,
         delivery_type: Number(order.delivery_type || 48),
         item_type: 2,
         special_instruction: (order.orderNote !== undefined && order.orderNote !== null) ? order.orderNote : 'Handle with care',
@@ -494,6 +642,80 @@ async function startServer() {
     } catch (error: any) {
       console.error("Pathao track order error:", error);
       return res.status(500).json({ success: false, error: error.message || "Failed to communicate with Pathao API" });
+    }
+  });
+
+  // Webhook for Pathao / Courier Realtime Delivery Callbacks
+  app.post(["/api/pathao/webhook", "/api/courier/webhook"], async (req, res) => {
+    try {
+      const payload = req.body || {};
+      const consignmentId = payload.consignment_id || payload.consignmentId || payload.data?.consignment_id || payload.tracking_code || payload.trackingCode;
+      const merchantOrderId = payload.merchant_order_id || payload.order_id || payload.data?.merchant_order_id;
+      const status = payload.order_status || payload.status || payload.event || payload.data?.order_status || payload.delivery_status;
+
+      if (!consignmentId && !merchantOrderId) {
+        return res.status(200).json({ received: true, note: "No identifier found in webhook payload" });
+      }
+
+      const statusLower = (status || '').toLowerCase();
+      let newOrderStatus: string | null = null;
+      if (statusLower.includes('deliver') || statusLower.includes('success') || statusLower === 'delivery_complete') {
+        newOrderStatus = 'Delivered';
+      } else if (statusLower.includes('cancel') || statusLower.includes('return')) {
+        newOrderStatus = 'Returned';
+      }
+
+      // Query order by consignment_id or id
+      const ordersRef = collection(db, 'orders');
+      let targetOrderDocId: string | null = null;
+
+      if (consignmentId) {
+        const q = query(ordersRef, where('pathaoConsignmentId', '==', consignmentId));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          targetOrderDocId = snap.docs[0].id;
+        } else {
+          const q2 = query(ordersRef, where('trackingId', '==', consignmentId));
+          const snap2 = await getDocs(q2);
+          if (!snap2.empty) {
+            targetOrderDocId = snap2.docs[0].id;
+          }
+        }
+      }
+
+      if (!targetOrderDocId && merchantOrderId) {
+        const cleanId = String(merchantOrderId).replace(/^ORD-?/i, '');
+        const directDoc = await getDoc(doc(db, 'orders', merchantOrderId));
+        if (directDoc.exists()) {
+          targetOrderDocId = directDoc.id;
+        } else {
+          const q3 = query(ordersRef, where('invoiceNo', '==', Number(cleanId) || cleanId));
+          const snap3 = await getDocs(q3);
+          if (!snap3.empty) {
+            targetOrderDocId = snap3.docs[0].id;
+          }
+        }
+      }
+
+      if (targetOrderDocId) {
+        const updatePayload: any = {
+          courierStatus: status,
+          updatedAt: Date.now()
+        };
+        if (newOrderStatus) {
+          updatePayload.status = newOrderStatus;
+          if (newOrderStatus === 'Delivered') {
+            updatePayload.deliveredAt = Date.now();
+          }
+        }
+        await updateDoc(doc(db, 'orders', targetOrderDocId), updatePayload);
+        return res.status(200).json({ success: true, updated: targetOrderDocId, status: newOrderStatus || status });
+      }
+
+      return res.status(200).json({ received: true, note: "Order matched none in database" });
+    } catch (err: any) {
+      console.error("Webhook processing error:", err);
+      return res.status(200).json({ error: err.message });
     }
   });
 

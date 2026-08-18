@@ -53,6 +53,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Order, CartItem } from '../../types';
 import { useNavigate } from 'react-router-dom';
 import { DISTRICT_THANAS } from '../../data/locations';
+import { parseCustomerAddress } from '../../utils/addressParser';
 import { Html5Qrcode } from 'html5-qrcode';
 
 const formatOrderDate = (dateStr: string) => {
@@ -137,13 +138,14 @@ export default function AdminOrders(): React.JSX.Element {
   // Pathao Booking Modal States
   const [pathaoBookingOrder, setPathaoBookingOrder] = useState<Order | null>(null);
   const [pathaoPickupStore, setPathaoPickupStore] = useState('Elegan BD — Ma Villa, House #11, Road #3, Block F, Section #1, Mirpur, Dhaka-1216');
-  const [pathaoCity, setPathaoCity] = useState('Dhaka'); // Default to Dhaka
+  const [pathaoCity, setPathaoCity] = useState('');
   const [pathaoZone, setPathaoZone] = useState('');
   const [pathaoArea, setPathaoArea] = useState('');
   const [pathaoWeight, setPathaoWeight] = useState('0.5');
   const [pathaoDeliveryType, setPathaoDeliveryType] = useState('48'); // 48: Normal, 12 or 24: Express
   const [pathaoSpecialInstruction, setPathaoSpecialInstruction] = useState('');
   const [pathaoSuccessResult, setPathaoSuccessResult] = useState<{ success: boolean; consignment_id?: string; sms_text?: string } | null>(null);
+  const [pathaoDetectedAddressInfo, setPathaoDetectedAddressInfo] = useState<{ districtBangla?: string; isAutoDetected?: boolean }>({});
 
   // Steadfast Booking Modal States
   const [steadfastBookingOrder, setSteadfastBookingOrder] = useState<Order | null>(null);
@@ -701,52 +703,59 @@ export default function AdminOrders(): React.JSX.Element {
 
   const handleSyncPathao = async () => {
     const ordersToSync = orders.filter(o => 
-      (o.pathaoConsignmentId || o.trackingId) && 
-      (o.courier?.toLowerCase() === 'pathao' || o.partner?.toLowerCase() === 'pathao' || !o.courier)
+      (o.pathaoConsignmentId || o.trackingId || (o as any).steadfastConsignmentId) && 
+      !isDeliveredOrSuccess(o.status)
     );
 
     if (ordersToSync.length === 0) {
-      toast.info("No Pathao orders found to sync.");
+      toast.info("No active parcels found to sync.");
       return;
     }
 
-    const toastId = toast.loading(`Syncing ${ordersToSync.length} Pathao parcels...`);
+    const toastId = toast.loading(`Syncing ${ordersToSync.length} courier parcels...`);
     let updatedCount = 0;
+    let deliveredCount = 0;
 
     try {
       for (const ord of ordersToSync) {
-        const consignmentId = ord.pathaoConsignmentId || ord.trackingId;
+        const isSteadfast = (ord.courier || '').toLowerCase().includes('steadfast');
+        const consignmentId = (ord as any).pathaoConsignmentId || (ord as any).steadfastConsignmentId || ord.trackingId || (ord as any).trackingCode;
         if (!consignmentId) continue;
 
         try {
-          const res = await fetch('/api/pathao/track-order', {
+          const endpoint = isSteadfast ? '/api/steadfast/track-order' : '/api/pathao/track-order';
+          const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ consignmentId })
+            body: JSON.stringify({ consignmentId, trackingCode: consignmentId })
           });
           const data = await res.json();
-          if (res.ok && data.success) {
+          if (res.ok && data.success && data.status) {
             const rawStatus = (data.status || '').toLowerCase();
             let newStatus: Order['status'] = ord.status;
 
-            if (rawStatus.includes('deliver') || rawStatus.includes('success') || rawStatus === 'delivered') {
+            if (rawStatus.includes('deliver') || rawStatus.includes('success') || rawStatus === 'delivered' || rawStatus === 'delivery_complete') {
               newStatus = 'Delivered';
+              deliveredCount++;
             } else if (rawStatus.includes('cancel') || rawStatus.includes('return')) {
               newStatus = 'Returned';
             } else if (rawStatus.includes('in_transit') || rawStatus.includes('pickup') || rawStatus.includes('shipped')) {
               newStatus = 'Shipped';
             }
 
-            const pathaoFee = data.delivery_fee > 0 ? data.delivery_fee : (ord.courierCharge || 120);
-            const payout = Math.max(0, (ord.total || 0) - pathaoFee);
+            const courierFee = (data.delivery_fee && data.delivery_fee > 0) ? data.delivery_fee : (ord.courierCharge || 120);
+            const payout = Math.max(0, (ord.total || 0) - courierFee);
 
             await updateOrder(ord.id, {
+              ...ord,
               status: newStatus,
+              courierStatus: data.status,
               trackingId: consignmentId,
               trackingCode: consignmentId,
-              pathaoConsignmentId: consignmentId,
-              courierCharge: pathaoFee,
-              courierPayoutAmount: payout
+              pathaoConsignmentId: !isSteadfast ? consignmentId : ord.pathaoConsignmentId,
+              courierCharge: courierFee,
+              courierPayoutAmount: payout,
+              ...(newStatus === 'Delivered' ? { deliveredAt: Date.now() } : {})
             });
             updatedCount++;
           }
@@ -755,7 +764,11 @@ export default function AdminOrders(): React.JSX.Element {
         }
       }
 
-      toast.success(`Synced ${updatedCount} Pathao parcels live!`, { id: toastId });
+      if (deliveredCount > 0) {
+        toast.success(`Synced ${updatedCount} parcels! ${deliveredCount} parcels are Delivered (marked as SUCCESS).`, { id: toastId });
+      } else {
+        toast.success(`Synced ${updatedCount} parcels live!`, { id: toastId });
+      }
     } catch (e: any) {
       toast.error(`Sync failed: ${e.message}`, { id: toastId });
     }
@@ -830,29 +843,21 @@ export default function AdminOrders(): React.JSX.Element {
 
   const handleBookPathao = async () => {
     if (!pathaoBookingOrder) return;
-    setBookingToPathao(true);
     
-    const PATHAO_CITY_MAP: Record<string, number> = {
-      'Dhaka': 1,
-      'Chittagong': 2,
-      'Sylhet': 3,
-      'Khulna': 4,
-      'Rajshahi': 5,
-      'Barisal': 6,
-      'Rangpur': 7,
-      'Mymensingh': 8
-    };
+    if (!pathaoCity) {
+      toast.error("অনুগ্রহ করে জেলা/সিটি সিলেক্ট করুন");
+      return;
+    }
 
-    const cityIdNum = PATHAO_CITY_MAP[pathaoCity] || 1;
+    setBookingToPathao(true);
 
     // Build the custom order object to send to the backend
     const updatedOrder = {
       ...pathaoBookingOrder,
       city: pathaoCity,
       thana: pathaoZone,
-      cityId: cityIdNum,
-      zoneId: Number(pathaoZone) || 1,
-      areaId: Number(pathaoArea) || 1,
+      zone: pathaoZone,
+      areaId: Number(pathaoArea) || undefined,
       orderNote: pathaoSpecialInstruction,
       item_weight: Number(pathaoWeight) || 0.5,
       delivery_type: Number(pathaoDeliveryType) || 48
@@ -1962,8 +1967,8 @@ export default function AdminOrders(): React.JSX.Element {
                       </td>
 
                       {/* Status Dropdown Pill */}
-                      <td className="py-4 px-4 relative" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1.5">
+                      <td className="py-4 px-4 relative whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-1.5 flex-nowrap whitespace-nowrap">
                           <button 
                             onClick={() => {
                               if (isDeliveredOrSuccess(order.status)) {
@@ -1973,12 +1978,12 @@ export default function AdminOrders(): React.JSX.Element {
                               setActiveStatusDropdownOrderId(activeStatusDropdownOrderId === order.id ? null : order.id);
                             }}
                             className={cn(
-                              "inline-flex items-center justify-between gap-1.5 px-3 py-1.5 text-[10px] font-extrabold rounded-full border cursor-pointer select-none transition-all shadow-3xs",
+                              "inline-flex items-center justify-between gap-1.5 px-3 py-1.5 text-[10px] font-extrabold rounded-full border cursor-pointer select-none transition-all shadow-3xs shrink-0 whitespace-nowrap",
                               getStatusBadge(order.status).class
                             )}
                           >
-                            <span className="uppercase tracking-wider">{normalizeStatus(order.status)}</span>
-                            <ChevronDown size={11} className="stroke-[2.5]" />
+                            <span className="uppercase tracking-wider whitespace-nowrap">{normalizeStatus(order.status)}</span>
+                            <ChevronDown size={11} className="stroke-[2.5] shrink-0" />
                           </button>
 
                           <ParcelLiveStatusBadge order={order} />
@@ -2287,65 +2292,15 @@ export default function AdminOrders(): React.JSX.Element {
                                   return;
                                 }
                                 
-                                // Determine district/city key
-                                const cityTrim = (order.city || '').trim();
-                                let matchedDistrictKey = 'Dhaka';
-
-                                if (cityTrim) {
-                                  const directMatch = Object.keys(DISTRICT_THANAS).find(d => d.toLowerCase() === cityTrim.toLowerCase());
-                                  if (directMatch) {
-                                    matchedDistrictKey = directMatch;
-                                  } else {
-                                    const partialMatch = Object.keys(DISTRICT_THANAS).find(d => d.toLowerCase().includes(cityTrim.toLowerCase()) || cityTrim.toLowerCase().includes(d.toLowerCase()));
-                                    if (partialMatch) {
-                                      matchedDistrictKey = partialMatch;
-                                    }
-                                  }
-                                }
-
-                                if (matchedDistrictKey === 'Dhaka' && cityTrim.toLowerCase() !== 'dhaka') {
-                                  const addressLower = ((order.address || '') + ' ' + (order.thana || '') + ' ' + (order.city || '')).toLowerCase();
-                                  for (const key of Object.keys(DISTRICT_THANAS)) {
-                                    if (addressLower.includes(key.toLowerCase())) {
-                                      matchedDistrictKey = key;
-                                      break;
-                                    }
-                                  }
-                                }
-
-                                // Match best thana/zone name
-                                let matchedZone = '';
-                                const thanasForDistrict = DISTRICT_THANAS[matchedDistrictKey] || [];
-                                const sortedThanas = [...thanasForDistrict].sort((a, b) => b.length - a.length);
-
-                                if (order.thana) {
-                                  const thanaTrim = order.thana.trim();
-                                  const directThana = sortedThanas.find(t => t.toLowerCase() === thanaTrim.toLowerCase());
-                                  if (directThana) {
-                                    matchedZone = directThana;
-                                  } else {
-                                    const partialThana = sortedThanas.find(t => thanaTrim.toLowerCase().includes(t.toLowerCase()) || t.toLowerCase().includes(thanaTrim.toLowerCase()));
-                                    if (partialThana) {
-                                      matchedZone = partialThana;
-                                    } else {
-                                      matchedZone = order.thana;
-                                    }
-                                  }
-                                }
-
-                                if (!matchedZone) {
-                                  const addressLower = ((order.address || '')).toLowerCase();
-                                  const foundInAddr = sortedThanas.find(t => addressLower.includes(t.toLowerCase()));
-                                  if (foundInAddr) {
-                                    matchedZone = foundInAddr;
-                                  } else if (thanasForDistrict.length > 0) {
-                                    matchedZone = thanasForDistrict[0];
-                                  }
-                                }
+                                const parsedLoc = parseCustomerAddress(order.address, order.city, order.thana);
 
                                 setPathaoBookingOrder(order);
-                                setPathaoCity(matchedDistrictKey);
-                                setPathaoZone(matchedZone || (thanasForDistrict[0] || ''));
+                                setPathaoCity(parsedLoc.city || '');
+                                setPathaoZone(parsedLoc.zone || '');
+                                setPathaoDetectedAddressInfo({
+                                  districtBangla: parsedLoc.districtBangla,
+                                  isAutoDetected: parsedLoc.isAutoDetected
+                                });
                                 setPathaoArea('');
                                 setPathaoWeight('0.5');
                                 setPathaoDeliveryType('48');
@@ -4853,7 +4808,15 @@ export default function AdminOrders(): React.JSX.Element {
                   <>
                     {/* Recipient Box */}
                     <div className="bg-[#E2E8F2] border border-white/90 rounded-[20px] p-5 space-y-3 shadow-[inset_2px_2px_5px_rgba(160,175,200,0.25),inset_-2px_-2px_5px_rgba(255,255,255,0.9)]">
-                      <p className="text-[9px] font-extrabold text-slate-400 tracking-widest uppercase">Recipient</p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[9px] font-extrabold text-slate-400 tracking-widest uppercase">Recipient</p>
+                        {pathaoDetectedAddressInfo?.isAutoDetected && pathaoCity && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100/80 text-emerald-800 border border-emerald-300/60 rounded-full text-[10px] font-bold">
+                            <CheckCircle2 size={11} className="text-emerald-600" />
+                            ঠিকানা থেকে ম্যাচ করা হয়েছে
+                          </span>
+                        )}
+                      </div>
                       <div className="space-y-2.5">
                         <div className="flex items-center gap-2.5 text-slate-800">
                           <User size={15} className="text-slate-400 shrink-0" />
@@ -4865,7 +4828,7 @@ export default function AdminOrders(): React.JSX.Element {
                         </div>
                         <div className="flex items-start gap-2.5 text-slate-500 leading-relaxed">
                           <MapPin size={15} className="text-slate-400 shrink-0 mt-0.5" />
-                          <span className="text-xs font-medium">{pathaoBookingOrder.address}, {pathaoBookingOrder.city}</span>
+                          <span className="text-xs font-medium">{pathaoBookingOrder.address}{pathaoBookingOrder.city ? `, ${pathaoBookingOrder.city}` : ''}</span>
                         </div>
                       </div>
                       
@@ -4892,17 +4855,17 @@ export default function AdminOrders(): React.JSX.Element {
                     {/* Location Selection Grid */}
                     <div className="grid grid-cols-3 gap-3">
                       <div className="space-y-1.5">
-                        <label className="text-[9px] font-extrabold text-slate-500 tracking-widest uppercase ml-1">City</label>
+                        <label className="text-[9px] font-extrabold text-slate-500 tracking-widest uppercase ml-1">City / District</label>
                         <select
                           value={pathaoCity}
                           onChange={(e) => {
                             const newCity = e.target.value;
                             setPathaoCity(newCity);
-                            const thanas = DISTRICT_THANAS[newCity] || [];
-                            setPathaoZone(thanas[0] || '');
+                            setPathaoZone('');
                           }}
                           className="w-full bg-[#E2E8F0]/50 border border-slate-200/50 hover:border-slate-300 rounded-[14px] px-3 py-3.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 focus:bg-[#F8F9FD] transition-all cursor-pointer"
                         >
+                          <option value="">Select City / District</option>
                           {Object.keys(DISTRICT_THANAS).map(district => (
                             <option key={district} value={district}>{district}</option>
                           ))}
@@ -4910,7 +4873,7 @@ export default function AdminOrders(): React.JSX.Element {
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-[9px] font-extrabold text-slate-500 tracking-widest uppercase ml-1">Zone</label>
+                        <label className="text-[9px] font-extrabold text-slate-500 tracking-widest uppercase ml-1">Zone / Thana</label>
                         <select
                           value={pathaoZone}
                           onChange={(e) => setPathaoZone(e.target.value)}
