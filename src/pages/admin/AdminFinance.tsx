@@ -26,10 +26,16 @@ import {
   Filter,
   Download,
   Eye,
-  FileText
+  FileText,
+  Check,
+  Clock,
+  AlertCircle,
+  Printer,
+  Upload
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { BankLogoBadge, getAutoBankLogo } from '../../utils/bankLogos';
 
 export default function AdminFinance(): React.JSX.Element {
   const {
@@ -41,6 +47,7 @@ export default function AdminFinance(): React.JSX.Element {
     deleteBankAccount,
     addBankTransaction,
     updateBankTransaction,
+    toggleTransactionStatus,
     deleteBankTransaction
   } = useFinance();
 
@@ -59,11 +66,15 @@ export default function AdminFinance(): React.JSX.Element {
   const [searchQuery, setSearchQuery] = useState('');
   const [accountFilter, setAccountFilter] = useState('ALL');
   const [typeFilter, setTypeFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'paid' | 'unpaid'>('ALL');
   const [timeframeFilter, setTimeframeFilter] = useState('this_month');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Selection state for transactions (Checkbox select & PDF download)
+  const [selectedTxIds, setSelectedTxIds] = useState<string[]>([]);
 
   // Modals visibility states
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
@@ -71,10 +82,12 @@ export default function AdminFinance(): React.JSX.Element {
   const [showEditTxModal, setShowEditTxModal] = useState(false);
   const [showViewTxModal, setShowViewTxModal] = useState(false);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printTargetList, setPrintTargetList] = useState<any[]>([]);
   const [txToDelete, setTxToDelete] = useState<any>(null);
   const [selectedTx, setSelectedTx] = useState<any>(null);
 
-  // New Transaction Form state
+  // New Transaction Form state (Defaults to UNPAID)
   const [txForm, setTxForm] = useState({
     accountId: '',
     type: 'deposit' as 'deposit' | 'withdraw' | 'transfer',
@@ -89,7 +102,8 @@ export default function AdminFinance(): React.JSX.Element {
     })(),
     reference: '',
     notes: '',
-    attachment: ''
+    attachment: '',
+    status: 'unpaid' as 'unpaid' | 'paid'
   });
   const [isSubmittingTx, setIsSubmittingTx] = useState(false);
 
@@ -125,7 +139,8 @@ export default function AdminFinance(): React.JSX.Element {
     amount: '',
     date: '',
     reference: '',
-    notes: ''
+    notes: '',
+    status: 'unpaid' as 'unpaid' | 'paid'
   });
 
   // Handle Add Account Submit
@@ -196,7 +211,8 @@ export default function AdminFinance(): React.JSX.Element {
       amount: String(tx.amount),
       date: new Date(tx.date).toISOString().split('T')[0],
       reference: tx.reference || '',
-      notes: tx.notes || ''
+      notes: tx.notes || '',
+      status: (tx.status as any) || 'paid'
     });
     setShowEditTxModal(true);
   };
@@ -210,7 +226,8 @@ export default function AdminFinance(): React.JSX.Element {
       amount: parseFloat(editTxForm.amount) || 0,
       date: new Date(editTxForm.date).getTime(),
       reference: editTxForm.reference,
-      notes: editTxForm.notes
+      notes: editTxForm.notes,
+      status: editTxForm.status
     });
     setShowEditTxModal(false);
   };
@@ -233,7 +250,8 @@ export default function AdminFinance(): React.JSX.Element {
         date: new Date(txForm.date).getTime(),
         reference: txForm.reference || (txForm.type === 'deposit' ? 'Income / Deposit' : txForm.type === 'withdraw' ? 'Expense / Withdraw' : 'Account Transfer'),
         notes: txForm.notes,
-        attachment: txForm.attachment
+        attachment: txForm.attachment,
+        status: txForm.status || 'unpaid' // Default is UNPAID as requested
       }, txForm.targetAccountId);
 
       setTxForm({
@@ -244,9 +262,10 @@ export default function AdminFinance(): React.JSX.Element {
         date: new Date().toISOString().split('T')[0],
         reference: '',
         notes: '',
-        attachment: ''
+        attachment: '',
+        status: 'unpaid'
       });
-      toast.success('লেনদেন সফলভাবে সংরক্ষণ করা হয়েছে!');
+      toast.success(txForm.status === 'unpaid' ? 'নতুন লেনদেন (UNPAID অবস্থায়) সংরক্ষণ করা হয়েছে!' : 'নতুন লেনদেন সফলভাবে সংরক্ষণ করা হয়েছে!');
     } catch (err) {
       console.error(err);
       toast.error('লেনদেন সংরক্ষণ করতে সমস্যা হয়েছে।');
@@ -265,7 +284,8 @@ export default function AdminFinance(): React.JSX.Element {
       date: new Date().toISOString().split('T')[0],
       reference: '',
       notes: '',
-      attachment: ''
+      attachment: '',
+      status: 'unpaid'
     });
   };
 
@@ -277,6 +297,11 @@ export default function AdminFinance(): React.JSX.Element {
         if (typeFilter === 'income' && tx.type !== 'deposit') return false;
         if (typeFilter === 'expense' && tx.type !== 'withdraw') return false;
         if (typeFilter === 'transfer' && tx.type !== 'transfer') return false;
+      }
+      if (statusFilter !== 'ALL') {
+        const isTxUnpaid = tx.status === 'unpaid';
+        if (statusFilter === 'unpaid' && !isTxUnpaid) return false;
+        if (statusFilter === 'paid' && isTxUnpaid) return false;
       }
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -293,7 +318,7 @@ export default function AdminFinance(): React.JSX.Element {
       setCurrentPage(1);
     }
     return filtered;
-  }, [bankTransactions, accountFilter, typeFilter, searchQuery, bankAccounts, currentPage, itemsPerPage]);
+  }, [bankTransactions, accountFilter, typeFilter, statusFilter, searchQuery, bankAccounts, currentPage, itemsPerPage]);
 
   const paginatedTransactions = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -305,13 +330,23 @@ export default function AdminFinance(): React.JSX.Element {
   // Summary calculations
   const totalIncome = useMemo(() => {
     return bankTransactions
-      .filter(tx => tx.type === 'deposit')
+      .filter(tx => tx.type === 'deposit' && tx.status !== 'unpaid')
       .reduce((sum, tx) => sum + tx.amount, 0);
   }, [bankTransactions]);
 
   const totalExpense = useMemo(() => {
     return bankTransactions
-      .filter(tx => tx.type === 'withdraw')
+      .filter(tx => tx.type === 'withdraw' && tx.status !== 'unpaid')
+      .reduce((sum, tx) => sum + tx.amount, 0);
+  }, [bankTransactions]);
+
+  const unpaidCount = useMemo(() => {
+    return bankTransactions.filter(tx => tx.status === 'unpaid').length;
+  }, [bankTransactions]);
+
+  const unpaidTotalAmount = useMemo(() => {
+    return bankTransactions
+      .filter(tx => tx.status === 'unpaid')
       .reduce((sum, tx) => sum + tx.amount, 0);
   }, [bankTransactions]);
 
@@ -329,18 +364,76 @@ export default function AdminFinance(): React.JSX.Element {
     }));
   }, [bankAccounts]);
 
-  // Export Report handler
-  const handleExportReport = (format: 'pdf' | 'csv') => {
+  // Selection helpers
+  const isAllFilteredSelected = useMemo(() => {
+    return filteredTransactions.length > 0 && filteredTransactions.every(tx => selectedTxIds.includes(tx.id));
+  }, [filteredTransactions, selectedTxIds]);
+
+  const isSomeFilteredSelected = useMemo(() => {
+    return filteredTransactions.some(tx => selectedTxIds.includes(tx.id)) && !isAllFilteredSelected;
+  }, [filteredTransactions, selectedTxIds, isAllFilteredSelected]);
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedTxIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllFiltered = () => {
+    if (isAllFilteredSelected) {
+      const filteredIds = new Set(filteredTransactions.map(t => t.id));
+      setSelectedTxIds(prev => prev.filter(id => !filteredIds.has(id)));
+    } else {
+      const filteredIds = filteredTransactions.map(t => t.id);
+      setSelectedTxIds(prev => Array.from(new Set([...prev, ...filteredIds])));
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedTxIds([]);
+  };
+
+  const handleBulkStatusChange = async (targetStatus: 'paid' | 'unpaid') => {
+    if (selectedTxIds.length === 0) return;
+    try {
+      for (const id of selectedTxIds) {
+        const tx = bankTransactions.find(t => t.id === id);
+        if (tx && tx.status !== targetStatus) {
+          await toggleTransactionStatus(id, tx.status);
+        }
+      }
+      toast.success(`${selectedTxIds.length} টি লেনদেন ${targetStatus === 'paid' ? 'Paid' : 'Unpaid'} করা হয়েছে!`);
+    } catch (err) {
+      console.error(err);
+      toast.error('স্ট্যাটাস আপডেট করতে সমস্যা হয়েছে।');
+    }
+  };
+
+  // Export Report handler (Supports selected transactions or full list)
+  const handleExportReport = (format: 'pdf' | 'csv', onlySelected: boolean = false) => {
+    let targetList = filteredTransactions;
+    if (onlySelected && selectedTxIds.length > 0) {
+      targetList = bankTransactions.filter(tx => selectedTxIds.includes(tx.id));
+    } else if (selectedTxIds.length > 0) {
+      targetList = bankTransactions.filter(tx => selectedTxIds.includes(tx.id));
+    }
+
+    if (targetList.length === 0) {
+      toast.error('ডাউনলোড করার মতো কোনো লেনদেন পাওয়া যায়নি।');
+      return;
+    }
+
     if (format === 'csv') {
-      const headers = ['Date', 'Account', 'Type', 'Reference', 'Notes', 'Amount'];
-      const rows = filteredTransactions.map(tx => {
+      const headers = ['Date', 'Account', 'Type', 'Reference', 'Notes', 'Status', 'Amount'];
+      const rows = targetList.map(tx => {
         const acc = bankAccounts.find(a => a.id === tx.accountId);
         return [
-          new Date(tx.date).toLocaleDateString(),
+          new Date(tx.date).toLocaleDateString('en-GB'),
           acc?.bankName || '',
           tx.type,
           tx.reference || '',
           tx.notes || '',
+          tx.status || 'paid',
           tx.amount
         ];
       });
@@ -348,34 +441,81 @@ export default function AdminFinance(): React.JSX.Element {
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement('a');
       link.setAttribute('href', encodedUri);
-      link.setAttribute('download', 'finance_report.csv');
+      link.setAttribute('download', selectedTxIds.length > 0 && onlySelected ? 'selected_finance_report.csv' : 'finance_report.csv');
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast.success('CSV রিপোর্ট ডাউনলোড সফল হয়েছে!');
+      toast.success(`${targetList.length} টি লেনদেনের CSV রিপোর্ট ডাউনলোড সফল হয়েছে!`);
     } else if (format === 'pdf') {
-        const doc = new jsPDF();
-        doc.text('Finance Report', 14, 15);
-        autoTable(doc, {
-            head: [['Date', 'Account', 'Type', 'Reference', 'Notes', 'Amount']],
-            body: filteredTransactions.map(tx => {
-                const acc = bankAccounts.find(a => a.id === tx.accountId);
-                return [
-                  new Date(tx.date).toLocaleDateString(),
-                  acc?.bankName || '',
-                  tx.type,
-                  tx.reference || '',
-                  tx.notes || '',
-                  tx.amount
-                ];
-            }),
-            startY: 20,
-        });
-        doc.save('finance_report.pdf');
-        toast.success('PDF রিপোর্ট ডাউনলোড সফল হয়েছে!');
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+      // Clean Standard Title & Header
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.setTextColor(30, 41, 59);
+      doc.text('ELEGAN BD - FINANCE STATEMENT & LEDGER', 14, 16);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      doc.text(`Generated: ${dateStr}  |  Total Entries: ${targetList.length}${selectedTxIds.length > 0 && onlySelected ? ' (Filtered Selection)' : ''}`, 14, 22);
+
+      // Financial Metrics Summary for the report
+      const inc = targetList.filter(t => t.type === 'deposit' && t.status !== 'unpaid').reduce((s, t) => s + t.amount, 0);
+      const exp = targetList.filter(t => t.type === 'withdraw' && t.status !== 'unpaid').reduce((s, t) => s + t.amount, 0);
+      const unp = targetList.filter(t => t.status === 'unpaid').reduce((s, t) => s + t.amount, 0);
+
+      // Summary KPI Badge Strip
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(14, 26, 182, 9, 2, 2, 'F');
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(5, 150, 105);
+      doc.text(`Total Income: BDT ${inc.toLocaleString()}`, 18, 32);
+      doc.setTextColor(225, 29, 72);
+      doc.text(`Total Expense: BDT ${exp.toLocaleString()}`, 80, 32);
+      doc.setTextColor(217, 119, 6);
+      doc.text(`Unpaid / Pending: BDT ${unp.toLocaleString()}`, 140, 32);
+
+      autoTable(doc, {
+        head: [['#', 'Date', 'Account', 'Type', 'Reference', 'Notes / Description', 'Status', 'Amount (BDT)']],
+        body: targetList.map((tx, idx) => {
+          const acc = bankAccounts.find(a => a.id === tx.accountId);
+          return [
+            String(idx + 1),
+            new Date(tx.date).toLocaleDateString('en-GB'),
+            acc?.bankName || 'Wallet/Bank',
+            tx.type === 'deposit' ? 'INCOME' : tx.type === 'withdraw' ? 'EXPENSE' : 'TRANSFER',
+            tx.reference || '-',
+            tx.notes || '-',
+            (tx.status || 'paid').toUpperCase(),
+            (tx.type === 'withdraw' ? '-' : '+') + tx.amount.toLocaleString()
+          ];
+        }),
+        startY: 38,
+        styles: { fontSize: 8, cellPadding: 2.5, font: 'helvetica' },
+        headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        columnStyles: {
+          0: { cellWidth: 8, halign: 'center' },
+          1: { cellWidth: 22 },
+          2: { cellWidth: 32 },
+          3: { cellWidth: 20 },
+          4: { cellWidth: 26 },
+          5: { cellWidth: 'auto' },
+          6: { cellWidth: 18, halign: 'center' },
+          7: { cellWidth: 26, halign: 'right', fontStyle: 'bold' }
+        }
+      });
+
+      const filename = selectedTxIds.length > 0 && onlySelected ? `Finance_Selected_${Date.now()}.pdf` : `Finance_Report_${Date.now()}.pdf`;
+      doc.save(filename);
+      toast.success(`${targetList.length} টি লেনদেনের PDF রিপোর্ট সফলভাবে সেভ হয়েছে!`);
     } else {
-      window.print();
-      toast.success('প্রিন্ট প্রিভিউ ওপেন হয়েছে!');
+      // Open Print & Perfect Bangla PDF Statement Preview Modal
+      setPrintTargetList(targetList);
+      setShowPrintModal(true);
     }
   };
 
@@ -413,11 +553,20 @@ export default function AdminFinance(): React.JSX.Element {
           </button>
 
           <button
+            onClick={() => handleExportReport('print')}
+            className="px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-2xs cursor-pointer"
+            title="বাংলা ফন্ট সহ স্পষ্ট প্রিভিউ এবং PDF সেভ করুন"
+          >
+            <Printer className="w-4 h-4 text-indigo-600" />
+            <span>প্রিন্ট ও PDF প্রিভিউ</span>
+          </button>
+
+          <button
             onClick={() => handleExportReport('pdf')}
             className="px-5 py-2.5 bg-[#0b0f19] hover:bg-slate-900 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-sm cursor-pointer"
           >
             <Download className="w-4 h-4 text-red-400" />
-            <span>PDF রিপোর্ট</span>
+            <span>PDF ডাউনলোড</span>
           </button>
         </div>
       </div>
@@ -426,7 +575,7 @@ export default function AdminFinance(): React.JSX.Element {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
         
         {/* Left 3 Accounts Cards */}
-        <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-5">
           {bankAccounts.length === 0 ? (
             <div className="col-span-3 bg-white p-8 text-center rounded-[24px] border border-gray-100 text-xs text-gray-400">
               কোনো ব্যাংক অ্যাকাউন্ট বা ওয়ালেট পাওয়া যায়নি। উপরে "+ নতুন অ্যাকাউন্ট" বাটনে ক্লিক করে অ্যাকাউন্ট যোগ করুন।
@@ -435,28 +584,24 @@ export default function AdminFinance(): React.JSX.Element {
             bankAccounts.map((acc) => {
               const isBkash = acc.bankName.toLowerCase().includes('bkash');
               const isNagad = acc.bankName.toLowerCase().includes('nagad');
+              const isRocket = acc.bankName.toLowerCase().includes('rocket');
               const isSelected = accountFilter === acc.id;
 
               return (
                 <div 
                   key={acc.id} 
                   onClick={() => setAccountFilter(isSelected ? 'ALL' : acc.id)}
-                  className={`bg-white border rounded-[20px] p-4 pb-5 space-y-3 shadow-2xs transition-all cursor-pointer relative overflow-hidden group ${
-                    isSelected ? 'border-indigo-600 ring-4 ring-indigo-50' : 'border-gray-100 hover:border-indigo-200'
+                  className={`bg-white border rounded-[26px] p-5 sm:p-6 min-h-[265px] flex flex-col justify-between shadow-2xs hover:shadow-md transition-all cursor-pointer relative overflow-hidden group ${
+                    isSelected ? 'border-indigo-600 ring-4 ring-indigo-50 shadow-md' : 'border-gray-150 hover:border-indigo-250'
                   } ${
-                    isBkash ? 'border-pink-100/60' : isNagad ? 'border-orange-100/60' : 'border-emerald-100/60'
+                    isBkash ? 'hover:border-pink-300' : isNagad ? 'hover:border-orange-300' : isRocket ? 'hover:border-purple-300' : 'hover:border-emerald-300'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-white shadow-2xs overflow-hidden bg-white border border-gray-100 ${
-                      !acc.logoUrl && (isBkash ? 'bg-pink-600 text-white' : isNagad ? 'bg-orange-500 text-white' : 'bg-emerald-600 text-white')
-                    }`}>
-                      {acc.logoUrl ? (
-                        <img src={acc.logoUrl} alt={acc.bankName} className="w-full h-full object-contain p-1" />
-                      ) : (
-                        isBkash ? <Wallet className="w-4 h-4 text-white" /> : isNagad ? <CreditCard className="w-4 h-4 text-white" /> : <Building2 className="w-4 h-4 text-white" />
-                      )}
-                    </div>
+                  {/* Top Bar: Account Type Badge & Edit/Delete Action Icons */}
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-gray-50 border border-gray-150 text-gray-600">
+                      {acc.accountType || 'ব্যক্তিগত'}
+                    </span>
 
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
@@ -464,7 +609,7 @@ export default function AdminFinance(): React.JSX.Element {
                           e.stopPropagation();
                           handleEditAccountClick(acc);
                         }}
-                        className="p-1.5 text-gray-400 hover:text-indigo-600 bg-gray-50 rounded-lg transition-colors"
+                        className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 bg-gray-50 rounded-lg transition-colors cursor-pointer"
                         title="এডিট অ্যাকাউন্ট"
                       >
                         <Pencil className="w-3.5 h-3.5" />
@@ -476,7 +621,7 @@ export default function AdminFinance(): React.JSX.Element {
                             deleteBankAccount(acc.id);
                           }
                         }}
-                        className="p-1.5 text-gray-400 hover:text-rose-600 bg-gray-50 rounded-lg transition-colors"
+                        className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 bg-gray-50 rounded-lg transition-colors cursor-pointer"
                         title="মুছে ফেলুন"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -484,23 +629,43 @@ export default function AdminFinance(): React.JSX.Element {
                     </div>
                   </div>
 
-                  <div>
-                    <h3 className="text-sm font-black text-gray-900 leading-tight">{acc.bankName}</h3>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">{acc.accountType || 'ব্যক্তিগত'} • {acc.accountNumber}</p>
+                  {/* Middle Center Section: Logo, Bank Name, and Account Number Perfectly Centered */}
+                  <div className="flex flex-col items-center justify-center text-center my-3 py-1">
+                    <div className="relative mb-3">
+                      <BankLogoBadge 
+                        bankName={acc.bankName} 
+                        logoUrl={acc.logoUrl} 
+                        size="xl" 
+                        className="shadow-sm ring-4 ring-gray-50 group-hover:scale-105 transition-transform" 
+                      />
+                    </div>
+
+                    <h3 className="text-base sm:text-lg font-black text-gray-900 tracking-tight text-center leading-tight">
+                      {acc.bankName}
+                    </h3>
+                    <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-1 text-center">
+                      {acc.accountNumber}
+                    </p>
+                    {acc.branch && (
+                      <span className="text-[10px] text-indigo-600 font-bold mt-0.5">
+                        {acc.branch}
+                      </span>
+                    )}
                   </div>
 
-                  <div className="pt-2.5 border-t border-gray-100/80 flex items-center justify-between">
+                  {/* Bottom Balance Bar */}
+                  <div className="pt-3.5 border-t border-gray-100 flex items-center justify-between w-full">
                     <div>
                       <span className="text-[9.5px] text-gray-400 font-bold uppercase tracking-widest block">ব্যালেন্স</span>
-                      <span className={`text-lg font-black tracking-tight mt-0.5 block ${
-                        isBkash ? 'text-pink-600' : isNagad ? 'text-orange-600' : 'text-emerald-600'
+                      <span className={`text-xl font-black tracking-tight mt-0.5 block ${
+                        isBkash ? 'text-pink-600' : isNagad ? 'text-orange-600' : isRocket ? 'text-purple-600' : 'text-emerald-600'
                       }`}>{formatPrice(acc.balance || 0)}</span>
                     </div>
 
-                    <div className={`w-7 h-7 rounded-full border flex items-center justify-center bg-gray-50/20 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all duration-300 ${
-                      isBkash ? 'border-pink-100 text-pink-500' : isNagad ? 'border-orange-100 text-orange-500' : 'border-emerald-100 text-emerald-500'
+                    <div className={`w-8 h-8 rounded-full border flex items-center justify-center bg-gray-50/60 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all duration-300 ${
+                      isBkash ? 'border-pink-100 text-pink-500' : isNagad ? 'border-orange-100 text-orange-500' : isRocket ? 'border-purple-100 text-purple-500' : 'border-emerald-100 text-emerald-500'
                     }`}>
-                      <ArrowUpRight className="w-3.5 h-3.5" />
+                      <ArrowUpRight className="w-4 h-4" />
                     </div>
                   </div>
                 </div>
@@ -527,18 +692,29 @@ export default function AdminFinance(): React.JSX.Element {
 
           <div className="space-y-2.5">
             <div className="flex items-center justify-between bg-emerald-50/45 p-3 rounded-xl border border-emerald-100/50">
-              <span className="text-xs font-bold text-emerald-800">মোট ইনকাম</span>
+              <span className="text-xs font-bold text-emerald-800">মোট ইনকাম (Paid)</span>
               <span className="text-sm font-black text-emerald-700">{formatPrice(totalIncome)}</span>
             </div>
 
             <div className="flex items-center justify-between bg-rose-50/45 p-3 rounded-xl border border-rose-100/50">
-              <span className="text-xs font-bold text-rose-800">মোট খরচ</span>
+              <span className="text-xs font-bold text-rose-800">মোট খরচ (Paid)</span>
               <span className="text-sm font-black text-rose-700">{formatPrice(totalExpense)}</span>
             </div>
 
             <div className="flex items-center justify-between bg-indigo-50/45 p-3 rounded-xl border border-indigo-100/50">
               <span className="text-xs font-bold text-indigo-900">নিট ব্যালেন্স</span>
               <span className="text-sm font-black text-indigo-700">{formatPrice(netBalance)}</span>
+            </div>
+
+            <div className="flex items-center justify-between bg-amber-50/70 p-3 rounded-xl border border-amber-200">
+              <div className="flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-amber-600" />
+                <span className="text-xs font-bold text-amber-900">বকেয়া (Unpaid)</span>
+              </div>
+              <div className="text-right">
+                <span className="text-xs font-black text-amber-700 block">{unpaidCount} টি লেনদেন</span>
+                <span className="text-[10px] text-amber-600 font-bold">{formatPrice(unpaidTotalAmount)}</span>
+              </div>
             </div>
 
             <div className="flex items-center justify-between bg-gray-50/60 p-3 rounded-xl border border-gray-150">
@@ -552,7 +728,7 @@ export default function AdminFinance(): React.JSX.Element {
 
       {/* Filter Section matching reference screenshot */}
       <div className="bg-white border border-gray-100 rounded-[24px] p-4 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-3">
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 w-full md:w-auto flex-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 w-full md:w-auto flex-1">
           {/* Date range picker */}
           <div className="flex items-center gap-2 bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-2.5">
             <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
@@ -588,6 +764,17 @@ export default function AdminFinance(): React.JSX.Element {
             <option value="transfer">ট্রান্সফার (Transfer)</option>
           </select>
 
+          {/* Status Filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-bold text-gray-700 focus:outline-none cursor-pointer"
+          >
+            <option value="ALL">সব স্ট্যাটাস (পেইড ও আনপেইড)</option>
+            <option value="unpaid">⏳ আনপেইড (Unpaid / বকেয়া)</option>
+            <option value="paid">✓ পেইড (Paid / পরিশোধিত)</option>
+          </select>
+
           {/* Search keyword */}
           <div className="flex items-center gap-2 bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-2.5">
             <Search className="w-4 h-4 text-gray-400 shrink-0" />
@@ -603,7 +790,7 @@ export default function AdminFinance(): React.JSX.Element {
 
         <button
           onClick={() => toast.success('ফিল্টার সফলভাবে প্রয়োগ করা হয়েছে!')}
-          className="px-6 py-2.5 bg-[#4f46e5] hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-2 cursor-pointer w-full md:w-auto justify-center"
+          className="px-6 py-2.5 bg-[#4f46e5] hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-2 cursor-pointer w-full md:w-auto justify-center shrink-0"
         >
           <Filter className="w-4 h-4" />
           <span>ফিল্টার প্রয়োগ করুন</span>
@@ -615,17 +802,23 @@ export default function AdminFinance(): React.JSX.Element {
         
         {/* Left 2 Cols: New Transaction Entry Form */}
         <div id="new-tx-form" className="lg:col-span-2 bg-white border border-gray-100 rounded-[24px] p-6 space-y-6 shadow-2xs">
-          <div className="border-b border-gray-50 pb-3">
-            <h3 className="text-base font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
-              <PlusCircle className="w-4 h-4 text-[#4f46e5]" />
-              নতুন লেনদেন এন্ট্রি করুন
-            </h3>
-            <p className="text-xs text-gray-400 mt-0.5 font-medium">ম্যানুয়ালি নতুন আয়, খরচ, ডিপোজিট অথবা ট্রান্সফার এন্ট্রি করুন</p>
+          <div className="border-b border-gray-50 pb-3 flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h3 className="text-base font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                <PlusCircle className="w-4 h-4 text-[#4f46e5]" />
+                নতুন লেনদেন এন্ট্রি করুন
+              </h3>
+              <p className="text-xs text-gray-400 mt-0.5 font-medium">ম্যানুয়ালি নতুন আয়, খরচ, ডিপোজিট অথবা ট্রান্সফার এন্ট্রি করুন (ডিফল্ট আনপেইড)</p>
+            </div>
+            <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl">
+              <Clock className="w-3.5 h-3.5 text-amber-600" />
+              <span className="text-[11px] font-bold text-amber-800">নতুন এন্ট্রি প্রথমে <strong>Unpaid</strong> থাকবে</span>
+            </div>
           </div>
 
           <form onSubmit={handleTxSubmit} className="space-y-6">
-            {/* COMPACT ROW OF INPUTS - matching reference screenshot layout */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {/* COMPACT ROW OF INPUTS */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
               
               {/* Account select */}
               <div className="space-y-1.5">
@@ -684,12 +877,25 @@ export default function AdminFinance(): React.JSX.Element {
                 />
               </div>
 
+              {/* Payment Status (Unpaid vs Paid) */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">স্ট্যাটাস *</label>
+                <select
+                  value={txForm.status}
+                  onChange={(e) => setTxForm({ ...txForm, status: e.target.value as 'unpaid' | 'paid' })}
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-3 text-xs font-black text-gray-700 focus:border-indigo-300 focus:outline-none cursor-pointer"
+                >
+                  <option value="unpaid">⏳ Unpaid (বকেয়া/অনিষ্পন্ন)</option>
+                  <option value="paid">✓ Paid (পরিশোধিত)</option>
+                </select>
+              </div>
+
               {/* Notes */}
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">বিবরণ (ঐচ্ছিক)</label>
                 <input
                   type="text"
-                  placeholder="বিবরণ লিখুন (ঐচ্ছিক)"
+                  placeholder="বিবরণ লিখুন"
                   value={txForm.notes}
                   onChange={(e) => setTxForm({ ...txForm, notes: e.target.value })}
                   className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-3 text-xs font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
@@ -839,15 +1045,18 @@ export default function AdminFinance(): React.JSX.Element {
                 const mockTime = times[idx] || "২ ঘণ্টা আগে";
 
                 return (
-                  <div key={tx.id} className="flex items-start justify-between p-3.5 rounded-xl bg-[#F8F9FD] border border-gray-100">
-                    <div className="space-y-0.5">
-                      <span className={`text-[10px] font-black uppercase tracking-wider ${isDeposit ? 'text-emerald-600' : isTransfer ? 'text-indigo-600' : 'text-rose-600'}`}>
-                        {isDeposit ? 'ইনকাম এন্ট্রি করা হয়েছে' : isTransfer ? 'ট্রান্সফার সম্পন্ন' : 'খরচ এন্ট্রি করা হয়েছে'}
-                      </span>
-                      <p className="text-xs font-black text-gray-800">{acc?.bankName || 'Wallet Account'}</p>
-                      <span className="text-[9px] text-gray-400 font-bold">{mockTime}</span>
+                  <div key={tx.id} className="flex items-center justify-between p-3 rounded-xl bg-[#F8F9FD] border border-gray-100 gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <BankLogoBadge bankName={acc?.bankName || ''} logoUrl={acc?.logoUrl} size="sm" />
+                      <div className="space-y-0.5 min-w-0">
+                        <span className={`text-[10px] font-black uppercase tracking-wider block truncate ${isDeposit ? 'text-emerald-600' : isTransfer ? 'text-indigo-600' : 'text-rose-600'}`}>
+                          {isDeposit ? 'ইনকাম এন্ট্রি' : isTransfer ? 'ট্রান্সফার' : 'খরচ এন্ট্রি'}
+                        </span>
+                        <p className="text-xs font-black text-gray-800 truncate">{acc?.bankName || 'Wallet Account'}</p>
+                        <span className="text-[9px] text-gray-400 font-bold block">{mockTime}</span>
+                      </div>
                     </div>
-                    <span className={`text-xs font-black ${isDeposit ? 'text-emerald-600' : isTransfer ? 'text-indigo-600' : 'text-rose-600'}`}>
+                    <span className={`text-xs font-black whitespace-nowrap ${isDeposit ? 'text-emerald-600' : isTransfer ? 'text-indigo-600' : 'text-rose-600'}`}>
                       {isDeposit ? '+' : isTransfer ? '' : '-'}{formatPrice(tx.amount)}
                     </span>
                   </div>
@@ -867,16 +1076,125 @@ export default function AdminFinance(): React.JSX.Element {
 
       </div>
 
+      {/* Floating Bulk Action Bar when transactions are selected */}
+      {selectedTxIds.length > 0 && (
+        <div className="bg-slate-900 text-white rounded-2xl p-4 md:p-5 shadow-xl border border-indigo-500/40 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-3 sticky top-4 z-40">
+          <div className="flex items-center gap-3">
+            <span className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-xs">
+              {selectedTxIds.length}
+            </span>
+            <div>
+              <h4 className="text-sm font-black text-white flex items-center gap-2">
+                <span>{selectedTxIds.length} টি লেনদেন সিলেক্ট করা হয়েছে</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-indigo-500/30 text-indigo-300 font-mono">
+                  {selectedTxIds.length === filteredTransactions.length ? 'সব সিলেক্টেড' : 'কাস্টম সিলেকশন'}
+                </span>
+              </h4>
+              <p className="text-xs text-slate-300 font-medium">সিলেক্টেড লেনদেনের PDF ডাউনলোড করুন অথবা স্ট্যাটাস পরিবর্তন করুন</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 flex-wrap w-full md:w-auto justify-end">
+            <button
+              onClick={() => handleExportReport('print', true)}
+              className="px-3.5 py-2.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-500/40 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              title="বাংলা ফন্ট সহ স্পষ্ট প্রিভিউ এবং PDF সেভ করুন"
+            >
+              <Printer className="w-3.5 h-3.5 text-indigo-300" />
+              <span>প্রিন্ট ও প্রিভিউ</span>
+            </button>
+
+            <button
+              onClick={() => handleExportReport('pdf', true)}
+              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-sm cursor-pointer active:scale-95"
+            >
+              <Download className="w-4 h-4 text-emerald-300" />
+              <span>সিলেক্টেড PDF ({selectedTxIds.length})</span>
+            </button>
+
+            <button
+              onClick={() => handleExportReport('csv', true)}
+              className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>CSV</span>
+            </button>
+
+            <button
+              onClick={() => handleBulkStatusChange('paid')}
+              className="px-3 py-2.5 bg-emerald-600/90 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              title="সব সিলেক্টেড পেইড করুন"
+            >
+              <Check className="w-3.5 h-3.5" />
+              <span>সব Paid করুন</span>
+            </button>
+
+            <button
+              onClick={() => handleBulkStatusChange('unpaid')}
+              className="px-3 py-2.5 bg-amber-600/90 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              title="সব সিলেক্টেড আনপেইড করুন"
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>Unpaid</span>
+            </button>
+
+            <button
+              onClick={handleClearSelection}
+              className="p-2.5 bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white rounded-xl transition-all cursor-pointer"
+              title="সিলেকশন ক্লিয়ার করুন"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Transaction Table ("লেনদেন তালিকা") */}
       <div className="bg-white border border-gray-100 rounded-[24px] p-6 space-y-5 shadow-2xs">
-        <div className="flex items-center justify-between border-b border-gray-50 pb-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-gray-50 pb-4">
           <div>
-            <h3 className="text-base font-black text-gray-900 uppercase tracking-wider">লেনদেন তালিকা</h3>
-            <p className="text-xs text-gray-400 mt-0.5 font-medium">সকল ব্যাংক ও ওয়ালেট লেনদেনের বিস্তারিত হিস্ট্রি</p>
+            <h3 className="text-base font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
+              <span>লেনদেন তালিকা</span>
+              {selectedTxIds.length > 0 && (
+                <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full lowercase">
+                  ({selectedTxIds.length} টি সিলেক্টেড)
+                </span>
+              )}
+            </h3>
+            <p className="text-xs text-gray-400 mt-0.5 font-medium">নির্দিষ্ট লেনদেনগুলো চেকবক্সে টিক দিয়ে সিলেক্ট করে PDF ডাউনলোড করুন</p>
           </div>
-          <span className="text-xs font-black text-indigo-600 bg-indigo-50 px-3.5 py-1.5 rounded-full">
-            মোট {filteredTransactions.length} টি ফলাফল
-          </span>
+
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <button
+              onClick={handleSelectAllFiltered}
+              className="px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <input
+                type="checkbox"
+                checked={isAllFilteredSelected}
+                ref={el => {
+                  if (el) el.indeterminate = isSomeFilteredSelected;
+                }}
+                onChange={handleSelectAllFiltered}
+                className="w-3.5 h-3.5 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer pointer-events-none"
+              />
+              <span>{isAllFilteredSelected ? 'সিলেকশন বাতিল' : 'সব সিলেক্ট করুন'}</span>
+            </button>
+
+            {selectedTxIds.length > 0 && (
+              <button
+                onClick={() => handleExportReport('pdf', true)}
+                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>সিলেক্টেড PDF ({selectedTxIds.length})</span>
+              </button>
+            )}
+
+            <span className="text-xs font-black text-indigo-600 bg-indigo-50 px-3.5 py-1.5 rounded-full">
+              মোট {filteredTransactions.length} টি ফলাফল
+            </span>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -886,14 +1204,27 @@ export default function AdminFinance(): React.JSX.Element {
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-gray-50/50 text-gray-400 border-b border-gray-100 uppercase tracking-widest font-black text-[9px]">
-                  <th className="py-4 px-5">তারিখ</th>
-                  <th className="py-4 px-5">হিসাব</th>
-                  <th className="py-4 px-5">ধরন</th>
-                  <th className="py-4 px-5">বিবরণ</th>
-                  <th className="py-4 px-5 text-right">পরিমাণ (৳)</th>
-                  <th className="py-4 px-5 text-right">ব্যালেন্স (৳)</th>
-                  <th className="py-4 px-5 text-center">প্রমাণপত্র</th>
-                  <th className="py-4 px-5 text-center">অ্যাকশন</th>
+                  <th className="py-4 px-3 text-center w-12">
+                    <input
+                      type="checkbox"
+                      checked={isAllFilteredSelected}
+                      ref={el => {
+                        if (el) el.indeterminate = isSomeFilteredSelected;
+                      }}
+                      onChange={handleSelectAllFiltered}
+                      className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      title="সবগুলো সিলেক্ট বা আন-সিলেক্ট করুন"
+                    />
+                  </th>
+                  <th className="py-4 px-4">তারিখ</th>
+                  <th className="py-4 px-4">হিসাব</th>
+                  <th className="py-4 px-4">ধরন</th>
+                  <th className="py-4 px-4">বিবরণ</th>
+                  <th className="py-4 px-4 text-right">পরিমাণ (৳)</th>
+                  <th className="py-4 px-4 text-right">ব্যালেন্স (৳)</th>
+                  <th className="py-4 px-4 text-center">স্ট্যাটাস</th>
+                  <th className="py-4 px-4 text-center">প্রমাণপত্র</th>
+                  <th className="py-4 px-4 text-center">অ্যাকশন</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 font-bold text-gray-700">
@@ -901,45 +1232,105 @@ export default function AdminFinance(): React.JSX.Element {
                   const acc = bankAccounts.find(a => a.id === tx.accountId);
                   const isDeposit = tx.type === 'deposit';
                   const isTransfer = tx.type === 'transfer';
+                  const isUnpaid = tx.status === 'unpaid';
+                  const isSelected = selectedTxIds.includes(tx.id);
                   
                   // Color bullet mappings for accounts
                   const isBkash = acc?.bankName.toLowerCase().includes('bkash');
                   const isNagad = acc?.bankName.toLowerCase().includes('nagad');
 
                   return (
-                    <tr key={tx.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="py-4 px-5 text-gray-400 text-[11px] font-mono">
+                    <tr 
+                      key={tx.id} 
+                      className={`transition-colors ${
+                        isSelected 
+                          ? 'bg-indigo-50/60 border-l-4 border-l-indigo-600' 
+                          : isUnpaid 
+                            ? 'bg-amber-50/20 hover:bg-amber-50/40' 
+                            : 'hover:bg-gray-50/50'
+                      }`}
+                    >
+                      {/* Checkbox column */}
+                      <td className="py-4 px-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleToggleSelect(tx.id)}
+                          className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        />
+                      </td>
+
+                      <td className="py-4 px-4 text-gray-400 text-[11px] font-mono whitespace-nowrap">
                         {new Date(tx.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                       </td>
-                      <td className="py-4 px-5">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full shrink-0 ${
-                            isBkash ? 'bg-pink-500' : isNagad ? 'bg-orange-500' : 'bg-emerald-500'
-                          }`}></span>
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-2.5">
+                          <BankLogoBadge bankName={acc?.bankName || 'Unknown'} logoUrl={acc?.logoUrl} size="sm" />
                           <div>
                             <span className="text-gray-950 font-black block leading-tight">{acc?.bankName || 'Unknown'}</span>
                             <span className="text-[10px] text-gray-400 font-bold uppercase mt-0.5 block">{acc?.accountName}</span>
                           </div>
                         </div>
                       </td>
-                      <td className="py-4 px-5">
+                      <td className="py-4 px-4 whitespace-nowrap">
                         <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase inline-flex items-center gap-1 ${
                           isDeposit ? 'bg-emerald-50 text-emerald-600 border border-emerald-100/60' : isTransfer ? 'bg-indigo-50 text-indigo-600 border border-indigo-100/60' : 'bg-rose-50 text-rose-600 border border-rose-100/60'
                         }`}>
                           {isDeposit ? '↑ ইনকাম' : isTransfer ? '⇄ ট্রান্সফার' : '↓ খরচ'}
                         </span>
                       </td>
-                      <td className="py-4 px-5 text-gray-600 max-w-xs truncate">
+                      <td className="py-4 px-4 text-gray-600 max-w-xs truncate">
                         {tx.reference && <span className="font-mono text-[10px] bg-gray-150 border border-gray-200 px-1.5 py-0.5 rounded-md mr-1.5 text-gray-700">{tx.reference}</span>}
                         <span>{tx.notes || '-'}</span>
                       </td>
-                      <td className={`py-4 px-5 text-right font-black text-sm ${isDeposit ? 'text-emerald-600' : isTransfer ? 'text-indigo-600' : 'text-rose-600'}`}>
+                      <td className={`py-4 px-4 text-right font-black text-sm whitespace-nowrap ${isDeposit ? 'text-emerald-600' : isTransfer ? 'text-indigo-600' : 'text-rose-600'}`}>
                         {isDeposit ? '+' : isTransfer ? '' : '-'}{formatPrice(tx.amount)}
                       </td>
-                      <td className="py-4 px-5 text-right font-black text-gray-950 text-xs">
+                      <td className="py-4 px-4 text-right font-black text-gray-950 text-xs whitespace-nowrap">
                         {formatPrice(acc?.balance || 0)}
                       </td>
-                      <td className="py-4 px-5 text-center">
+                      
+                      {/* Status column with quick toggle button */}
+                      <td className="py-4 px-4 text-center whitespace-nowrap">
+                        {isUnpaid ? (
+                          <div className="inline-flex items-center gap-1.5">
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200 shadow-2xs">
+                              <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+                              <span>Unpaid</span>
+                            </span>
+                            <button
+                              onClick={async () => {
+                                await toggleTransactionStatus(tx.id, tx.status);
+                                toast.success('লেনদেন Paid হিসেবে আপডেট করা হয়েছে!');
+                              }}
+                              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-[10px] font-black transition-all shadow-2xs cursor-pointer inline-flex items-center gap-1"
+                              title="ক্লিক করে পেইড (Paid) করুন"
+                            >
+                              <Check className="w-3 h-3 stroke-[3]" />
+                              <span>Paid করুন</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-1.5">
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                              <Check className="w-3 h-3 stroke-[3] text-emerald-600 shrink-0" />
+                              <span>Paid</span>
+                            </span>
+                            <button
+                              onClick={async () => {
+                                await toggleTransactionStatus(tx.id, tx.status);
+                                toast('লেনদেন Unpaid এ পরিবর্তন করা হয়েছে', { icon: '⏳' });
+                              }}
+                              className="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
+                              title="ক্লিক করে Unpaid এ পরিবর্তন করুন"
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="py-4 px-4 text-center">
                         <button 
                           onClick={() => toast('সংযুক্ত রশিদ লোড করা হচ্ছে...', { icon: 'ℹ️' })}
                           className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gray-100 text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 transition-colors cursor-pointer" 
@@ -948,7 +1339,7 @@ export default function AdminFinance(): React.JSX.Element {
                           <FileText className="w-4 h-4" />
                         </button>
                       </td>
-                      <td className="py-4 px-5 text-center">
+                      <td className="py-4 px-4 text-center whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={() => {
@@ -1044,69 +1435,69 @@ export default function AdminFinance(): React.JSX.Element {
             </div>
 
             <form onSubmit={handleAddAccountSubmit} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">ব্যাংক বা ওয়ালেটের নাম *</label>
-                <div className="flex gap-2">
-                  <input 
-                    required
-                    type="text" 
-                    placeholder="উদা: bKash Personal, Sonali Bank"
-                    value={accountForm.bankName} 
-                    onChange={(e) => setAccountForm({ ...accountForm, bankName: e.target.value })}
-                    className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setAccountForm({
-                      ...accountForm,
-                      bankName: 'bKash Personal',
-                      accountName: 'Official bKash Wallet',
-                      logoUrl: 'https://www.logo.wine/a/logo/BKash/BKash-Logo.wine.svg'
-                    })}
-                    className="px-3 py-2 bg-pink-50 hover:bg-pink-100 text-pink-600 border border-pink-200 rounded-xl text-[10px] font-black shrink-0 transition-all cursor-pointer flex items-center gap-1"
-                    title="অফিশিয়াল বিকাশ লোগো এবং নাম সেট করুন"
-                  >
-                    <span>বিকাশ প্রিসেট</span>
-                  </button>
+              {/* Device Image Upload Zone & Instant Preview */}
+              <div className="space-y-2 bg-gradient-to-br from-indigo-50/50 to-slate-50 p-3.5 rounded-2xl border border-indigo-100/80">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                    <Upload className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>ডিভাইস থেকে লোগো / আইকন আপলোড</span>
+                  </label>
+                  <span className="text-[9.5px] text-indigo-600 font-bold">মোবাইল বা পিসি</span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="shrink-0 flex items-center justify-center">
+                    <BankLogoBadge bankName={accountForm.bankName} logoUrl={accountForm.logoUrl} size="md" className="ring-2 ring-white shadow-sm" />
+                  </div>
+
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <label className="px-3.5 py-2 bg-[#4f46e5] hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-sm cursor-pointer active:scale-95">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>ছবি সিলেক্ট করুন</span>
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setAccountForm({ ...accountForm, logoUrl: reader.result as string });
+                                toast.success('ডিভাইস থেকে লোগো সফলভাবে লোড হয়েছে!');
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+
+                      {accountForm.logoUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setAccountForm({ ...accountForm, logoUrl: '' })}
+                          className="px-2.5 py-2 bg-white hover:bg-rose-50 text-gray-600 hover:text-rose-600 border border-gray-200 hover:border-rose-200 rounded-xl text-[11px] font-bold transition-all cursor-pointer"
+                        >
+                          রিমুভ
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-gray-500 font-medium leading-tight">PNG, JPG বা SVG ছবি সিলেক্ট করুন</p>
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">অ্যাকাউন্টের লোগো বা ছবি (লোগো URL অথবা ডিভাইস থেকে আপলোড)</label>
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="url" 
-                    placeholder="https://... অথবা ডিভাইস থেকে সিলেক্ট করুন"
-                    value={accountForm.logoUrl} 
-                    onChange={(e) => setAccountForm({ ...accountForm, logoUrl: e.target.value })}
-                    className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
-                  />
-                  <label className="px-3 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-black shrink-0 cursor-pointer transition-all flex items-center gap-1">
-                    <span>ফাইল</span>
-                    <input 
-                      type="file" 
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setAccountForm({ ...accountForm, logoUrl: reader.result as string });
-                            toast.success('লোগো ছবি সফলভাবে লোড হয়েছে!');
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
-                  </label>
-                </div>
-                {accountForm.logoUrl && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <img src={accountForm.logoUrl} alt="Logo preview" className="w-8 h-8 rounded-lg object-contain border bg-white p-0.5" />
-                    <span className="text-[10px] text-emerald-600 font-bold">লোগো প্রিভিউ যুক্ত হয়েছে</span>
-                  </div>
-                )}
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">ব্যাংক বা ওয়ালেটের নাম *</label>
+                <input 
+                  required
+                  type="text" 
+                  placeholder="উদা: bKash Personal, Sonali Bank"
+                  value={accountForm.bankName} 
+                  onChange={(e) => setAccountForm({ ...accountForm, bankName: e.target.value })}
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
+                />
               </div>
 
               <div className="space-y-1">
@@ -1179,68 +1570,68 @@ export default function AdminFinance(): React.JSX.Element {
             </div>
 
             <form onSubmit={handleEditAccountSubmit} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">ব্যাংক বা ওয়ালেটের নাম *</label>
-                <div className="flex gap-2">
-                  <input 
-                    required
-                    type="text" 
-                    value={editAccountForm.bankName} 
-                    onChange={(e) => setEditAccountForm({ ...editAccountForm, bankName: e.target.value })}
-                    className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setEditAccountForm({
-                      ...editAccountForm,
-                      bankName: 'bKash Personal',
-                      accountName: 'Official bKash Wallet',
-                      logoUrl: 'https://www.logo.wine/a/logo/BKash/BKash-Logo.wine.svg'
-                    })}
-                    className="px-3 py-2 bg-pink-50 hover:bg-pink-100 text-pink-600 border border-pink-200 rounded-xl text-[10px] font-black shrink-0 transition-all cursor-pointer flex items-center gap-1"
-                    title="অফিশিয়াল বিকাশ লোগো এবং নাম সেট করুন"
-                  >
-                    <span>বিকাশ প্রিসেট</span>
-                  </button>
+              {/* Device Image Upload Zone & Instant Preview */}
+              <div className="space-y-2 bg-gradient-to-br from-indigo-50/50 to-slate-50 p-3.5 rounded-2xl border border-indigo-100/80">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                    <Upload className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>ডিভাইস থেকে লোগো / আইকন পরিবর্তন</span>
+                  </label>
+                  <span className="text-[9.5px] text-indigo-600 font-bold">মোবাইল বা পিসি</span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="shrink-0 flex items-center justify-center">
+                    <BankLogoBadge bankName={editAccountForm.bankName} logoUrl={editAccountForm.logoUrl} size="md" className="ring-2 ring-white shadow-sm" />
+                  </div>
+
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <label className="px-3.5 py-2 bg-[#4f46e5] hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-sm cursor-pointer active:scale-95">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>নতুন ছবি সিলেক্ট</span>
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setEditAccountForm({ ...editAccountForm, logoUrl: reader.result as string });
+                                toast.success('লোগো ছবি সফলভাবে আপডেট হয়েছে!');
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+
+                      {editAccountForm.logoUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setEditAccountForm({ ...editAccountForm, logoUrl: '' })}
+                          className="px-2.5 py-2 bg-white hover:bg-rose-50 text-gray-600 hover:text-rose-600 border border-gray-200 hover:border-rose-200 rounded-xl text-[11px] font-bold transition-all cursor-pointer"
+                        >
+                          রিমুভ
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-gray-500 font-medium leading-tight">PNG, JPG বা SVG ছবি সিলেক্ট করুন</p>
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">অ্যাকাউন্টের লোগো বা ছবি (লোগো URL অথবা ডিভাইস থেকে আপলোড)</label>
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="url" 
-                    placeholder="https://... অথবা ডিভাইস থেকে সিলেক্ট করুন"
-                    value={editAccountForm.logoUrl} 
-                    onChange={(e) => setEditAccountForm({ ...editAccountForm, logoUrl: e.target.value })}
-                    className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
-                  />
-                  <label className="px-3 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-black shrink-0 cursor-pointer transition-all flex items-center gap-1">
-                    <span>ফাইল</span>
-                    <input 
-                      type="file" 
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setEditAccountForm({ ...editAccountForm, logoUrl: reader.result as string });
-                            toast.success('লোগো ছবি সফলভাবে আপডেট হয়েছে!');
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
-                  </label>
-                </div>
-                {editAccountForm.logoUrl && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <img src={editAccountForm.logoUrl} alt="Logo preview" className="w-8 h-8 rounded-lg object-contain border bg-white p-0.5" />
-                    <span className="text-[10px] text-emerald-600 font-bold">লোগো প্রিভিউ যুক্ত হয়েছে</span>
-                  </div>
-                )}
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">ব্যাংক বা ওয়ালেটের নাম *</label>
+                <input 
+                  required
+                  type="text" 
+                  value={editAccountForm.bankName} 
+                  onChange={(e) => setEditAccountForm({ ...editAccountForm, bankName: e.target.value })}
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
+                />
               </div>
 
               <div className="space-y-1">
@@ -1351,6 +1742,18 @@ export default function AdminFinance(): React.JSX.Element {
               </div>
 
               <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">পেমেন্ট স্ট্যাটাস *</label>
+                <select 
+                  value={editTxForm.status}
+                  onChange={(e) => setEditTxForm({ ...editTxForm, status: e.target.value as 'unpaid' | 'paid' })}
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:outline-none"
+                >
+                  <option value="unpaid">⏳ Unpaid (বকেয়া/অনিষ্পন্ন)</option>
+                  <option value="paid">✓ Paid (পরিশোধিত)</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">রেফারেন্স</label>
                 <input 
                   type="text"
@@ -1387,13 +1790,36 @@ export default function AdminFinance(): React.JSX.Element {
                 <span className="text-gray-400">তারিখ:</span>
                 <span className="font-black text-gray-900">{new Date(selectedTx.date).toLocaleString()}</span>
               </div>
-              <div className="flex justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
                 <span className="text-gray-400">হিসাব:</span>
-                <span className="font-black text-gray-900">{bankAccounts.find(a => a.id === selectedTx.accountId)?.bankName}</span>
+                <div className="flex items-center gap-2">
+                  <BankLogoBadge bankName={bankAccounts.find(a => a.id === selectedTx.accountId)?.bankName || ''} logoUrl={bankAccounts.find(a => a.id === selectedTx.accountId)?.logoUrl} size="sm" />
+                  <span className="font-black text-gray-900">{bankAccounts.find(a => a.id === selectedTx.accountId)?.bankName}</span>
+                </div>
               </div>
               <div className="flex justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
                 <span className="text-gray-400">ধরন:</span>
                 <span className="font-black text-gray-900 uppercase">{selectedTx.type}</span>
+              </div>
+              <div className="flex justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                <span className="text-gray-400">স্ট্যাটাস:</span>
+                <div className="flex items-center gap-2">
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase inline-flex items-center gap-1 ${
+                    selectedTx.status === 'unpaid' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                  }`}>
+                    {selectedTx.status === 'unpaid' ? '⏳ Unpaid' : '✓ Paid'}
+                  </span>
+                  <button
+                    onClick={async () => {
+                      await toggleTransactionStatus(selectedTx.id, selectedTx.status);
+                      setSelectedTx({ ...selectedTx, status: selectedTx.status === 'unpaid' ? 'paid' : 'unpaid' });
+                      toast.success('স্ট্যাটাস আপডেট হয়েছে');
+                    }}
+                    className="text-[10px] text-indigo-600 hover:underline cursor-pointer font-bold"
+                  >
+                    (পরিবর্তন করুন)
+                  </button>
+                </div>
               </div>
               <div className="flex justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
                 <span className="text-gray-400">পরিমাণ:</span>
@@ -1418,6 +1844,205 @@ export default function AdminFinance(): React.JSX.Element {
           </div>
         </div>
       )}
+
+      {/* 6. Print & Perfect Bangla PDF Statement Preview Modal */}
+      {showPrintModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[200] flex items-center justify-center p-2 sm:p-6 overflow-y-auto">
+          <div className="bg-slate-100 rounded-[28px] max-w-4xl w-full border border-slate-300 shadow-2xl overflow-hidden my-auto flex flex-col max-h-[95vh]">
+            
+            {/* Modal Control Bar (Excluded from print) */}
+            <div className="no-print bg-slate-900 text-white p-4 px-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold">
+                  <Printer className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white">আর্থিক লেনদেন স্টেটমেন্ট ও PDF প্রিভিউ</h3>
+                  <p className="text-xs text-slate-400 font-medium">বাংলা ও ইংরেজি সব লেখা সম্পূর্ণ স্পষ্ট ও সুন্দরভাবে প্রিন্ট অথবা PDF হিসেবে সেভ করুন</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => window.print()}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-sm cursor-pointer active:scale-95"
+                  title="ব্রাউজার থেকে সরাসরি PDF হিসেবে সেভ করুন"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>PDF প্রিন্ট / সেভ করুন</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    handleExportReport('pdf', printTargetList.length === selectedTxIds.length && selectedTxIds.length > 0);
+                  }}
+                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                  title="সরাসরি PDF ফাইল ডাউনলোড করুন"
+                >
+                  <Download className="w-4 h-4 text-emerald-400" />
+                  <span>PDF ফাইল ডাউনলোড</span>
+                </button>
+
+                <button
+                  onClick={() => setShowPrintModal(false)}
+                  className="p-2 bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white rounded-xl transition-all cursor-pointer ml-1"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Scrollable Printable Statement Sheet */}
+            <div className="p-4 sm:p-8 overflow-y-auto bg-slate-200/60 flex justify-center">
+              <div className="printable-sheet bg-white p-6 sm:p-10 rounded-2xl shadow-md border border-slate-200 max-w-3xl w-full text-slate-800 space-y-6">
+                
+                {/* Statement Header */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b-2 border-indigo-600 pb-5">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="w-8 h-8 rounded-lg bg-indigo-600 text-white font-black text-sm flex items-center justify-center">৳</span>
+                      <h2 className="text-xl font-black text-slate-900 tracking-tight">ELEGAN BD</h2>
+                    </div>
+                    <p className="text-xs font-bold text-indigo-700 uppercase tracking-wider">আর্থিক বিবরণী ও লেজার স্টেটমেন্ট (Finance & Settlement)</p>
+                    <p className="text-[11px] text-slate-500 font-medium">অফিশিয়াল হিসাব ও লেনদেন সংক্রান্ত বিস্তারিত প্রতিবেদন</p>
+                  </div>
+
+                  <div className="text-left sm:text-right space-y-1 text-xs">
+                    <p className="font-bold text-slate-900">
+                      <span className="text-slate-400">তারিখ: </span>
+                      {new Date().toLocaleDateString('bn-BD', { day: '2-digit', month: 'long', year: 'numeric' })}
+                    </p>
+                    <p className="text-slate-500 text-[11px]">
+                      <span className="text-slate-400">সময়: </span>
+                      {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    <p className="text-[11px] font-bold text-indigo-600">
+                      মোট রেকর্ড: {printTargetList.length} টি
+                    </p>
+                  </div>
+                </div>
+
+                {/* Financial Summary KPI Cards */}
+                {(() => {
+                  const inc = printTargetList.filter(t => t.type === 'deposit' && t.status !== 'unpaid').reduce((s, t) => s + t.amount, 0);
+                  const exp = printTargetList.filter(t => t.type === 'withdraw' && t.status !== 'unpaid').reduce((s, t) => s + t.amount, 0);
+                  const unp = printTargetList.filter(t => t.status === 'unpaid').reduce((s, t) => s + t.amount, 0);
+                  const net = inc - exp;
+
+                  return (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+                        <p className="text-[10px] font-bold text-emerald-800 uppercase">মোট ইনকাম (Paid)</p>
+                        <p className="text-sm font-black text-emerald-700 mt-0.5">{formatPrice(inc)}</p>
+                      </div>
+
+                      <div className="p-3 bg-rose-50 rounded-xl border border-rose-200">
+                        <p className="text-[10px] font-bold text-rose-800 uppercase">মোট খরচ (Paid)</p>
+                        <p className="text-sm font-black text-rose-700 mt-0.5">{formatPrice(exp)}</p>
+                      </div>
+
+                      <div className="p-3 bg-amber-50 rounded-xl border border-amber-200">
+                        <p className="text-[10px] font-bold text-amber-800 uppercase">বকেয়া / Unpaid</p>
+                        <p className="text-sm font-black text-amber-700 mt-0.5">{formatPrice(unp)}</p>
+                      </div>
+
+                      <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-200">
+                        <p className="text-[10px] font-bold text-indigo-800 uppercase">নিট ব্যালেন্স</p>
+                        <p className={`text-sm font-black mt-0.5 ${net >= 0 ? 'text-indigo-700' : 'text-rose-700'}`}>
+                          {formatPrice(net)}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Detailed Table */}
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="bg-indigo-600 text-white font-bold text-[11px]">
+                        <th className="py-2.5 px-3 text-center w-8">#</th>
+                        <th className="py-2.5 px-3">তারিখ</th>
+                        <th className="py-2.5 px-3">হিসাব</th>
+                        <th className="py-2.5 px-3">ধরন</th>
+                        <th className="py-2.5 px-3">রেফারেন্স</th>
+                        <th className="py-2.5 px-3">বিবরণ / নোট</th>
+                        <th className="py-2.5 px-3 text-center">স্ট্যাটাস</th>
+                        <th className="py-2.5 px-3 text-right">পরিমাণ</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {printTargetList.map((tx, idx) => {
+                        const acc = bankAccounts.find(a => a.id === tx.accountId);
+                        const isIncome = tx.type === 'deposit';
+                        const isTransfer = tx.type === 'transfer';
+                        const isPaid = tx.status !== 'unpaid';
+
+                        return (
+                          <tr key={tx.id || idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'}>
+                            <td className="py-2 px-3 text-center text-slate-400 font-mono text-[10px]">
+                              {idx + 1}
+                            </td>
+                            <td className="py-2 px-3 whitespace-nowrap font-medium text-slate-700 text-[11px]">
+                              {new Date(tx.date).toLocaleDateString('en-GB')}
+                            </td>
+                            <td className="py-2 px-3 font-bold text-slate-900 text-[11px]">
+                              {acc?.bankName || 'Unknown'}
+                            </td>
+                            <td className="py-2 px-3">
+                              <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                                isIncome ? 'bg-emerald-100 text-emerald-800' :
+                                isTransfer ? 'bg-indigo-100 text-indigo-800' :
+                                'bg-rose-100 text-rose-800'
+                              }`}>
+                                {isIncome ? 'ইনকাম' : isTransfer ? 'ট্রান্সফার' : 'খরচ'}
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 font-mono text-[10px] text-slate-600">
+                              {tx.reference || '-'}
+                            </td>
+                            <td className="py-2 px-3 text-slate-600 text-[11px] max-w-[200px] truncate">
+                              {tx.notes || '-'}
+                            </td>
+                            <td className="py-2 px-3 text-center">
+                              <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                isPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                              }`}>
+                                {isPaid ? 'PAID' : 'UNPAID'}
+                              </span>
+                            </td>
+                            <td className={`py-2 px-3 text-right font-black text-xs ${
+                              isIncome ? 'text-emerald-700' : isTransfer ? 'text-indigo-700' : 'text-rose-700'
+                            }`}>
+                              {isIncome ? '+' : isTransfer ? '' : '-'}{formatPrice(tx.amount)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Statement Signatures & Verification footer */}
+                <div className="pt-8 border-t border-slate-200 flex justify-between items-end text-[10px] text-slate-400">
+                  <div>
+                    <p className="font-bold text-slate-600">ELEGAN BD Management System</p>
+                    <p>এই স্টেটমেন্টটি সিস্টেম জেনারেটেড এবং যথাযথ আর্থিক তথ্যের ভিত্তিতে প্রস্তুতকৃত।</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="w-32 border-b border-slate-300 mb-1"></div>
+                    <p className="font-bold text-slate-600">অনুমোদিত স্বাক্ষর</p>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+
 
       {/* 5. Delete Transaction Confirmation Modal */}
       {showDeleteConfirmModal && txToDelete && (
@@ -1499,8 +2124,6 @@ export default function AdminFinance(): React.JSX.Element {
           </div>
         </div>
       )}
-
-
 
     </div>
   );

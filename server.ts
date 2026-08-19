@@ -278,21 +278,21 @@ async function startServer() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify({
-        client_id: creds.clientId,
-        client_secret: creds.clientSecret,
-        username: creds.username,
-        password: creds.password,
+        client_id: String(creds.clientId).trim(),
+        client_secret: String(creds.clientSecret).trim(),
+        username: String(creds.username).trim(),
+        password: String(creds.password).trim(),
         grant_type: 'password'
       })
     });
 
     const tokenData: any = await tokenRes.json();
     if (!tokenRes.ok || !tokenData.access_token) {
-      const tokenErr = tokenData.message || tokenData.error || "Pathao Authentication Failed";
+      const tokenErr = tokenData.message || tokenData.error || (tokenData.errors ? JSON.stringify(tokenData.errors) : "Pathao Authentication Failed");
       throw new Error(`Pathao Auth Failed: ${tokenErr}`);
     }
 
-    const expiresIn = (tokenData.expires_in || 3600) * 1000;
+    const expiresIn = (tokenData.expires_in || 2592000) * 1000;
     if (!customCreds) {
       cachedPathaoToken = {
         token: tokenData.access_token,
@@ -302,6 +302,121 @@ async function startServer() {
     }
 
     return { token: tokenData.access_token, apiBase, creds };
+  }
+
+  async function trackPathaoInternal(rawId: string) {
+    const cleanId = String(rawId || '').replace(/^#/, '').trim();
+    if (!cleanId) throw new Error("Consignment ID is missing");
+
+    const { token, apiBase } = await getPathaoAuth();
+
+    // Endpoints to try
+    const endpoints = [
+      `${apiBase}/aladdin/api/v1/orders/${encodeURIComponent(cleanId)}/info`,
+      `${apiBase}/aladdin/api/v1/orders/${encodeURIComponent(cleanId)}/track`,
+      `${apiBase}/aladdin/api/v1/orders/${encodeURIComponent(cleanId)}`,
+      `${apiBase}/aladdin/api/v1/merchant/orders/${encodeURIComponent(cleanId)}/info`,
+      `${apiBase}/aladdin/api/v1/orders/info?consignment_id=${encodeURIComponent(cleanId)}`
+    ];
+
+    let lastError = "Failed to fetch Pathao status";
+    for (const ep of endpoints) {
+      try {
+        const res = await fetch(ep, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        });
+        const data: any = await res.json();
+        if (res.ok && data) {
+          const info = data.data || data;
+          const statusStr = info.order_status || info.delivery_status || info.status || info.order_status_slug || data.order_status || data.delivery_status;
+          if (statusStr) {
+            return {
+              success: true,
+              status: statusStr,
+              consignment_id: cleanId,
+              delivery_fee: Number(info.delivery_fee || info.delivery_charge || info.fee || 0),
+              amount_to_collect: Number(info.amount_to_collect || info.collectable_amount || info.order_amount || 0),
+              courier: 'Pathao',
+              data: info
+            };
+          }
+        } else if (data && data.message) {
+          lastError = data.message;
+        }
+      } catch (e: any) {
+        lastError = e.message;
+      }
+    }
+
+    throw new Error(lastError);
+  }
+
+  async function trackSteadfastInternal(rawId: string) {
+    const cleanId = String(rawId || '').replace(/^#/, '').trim();
+    if (!cleanId) throw new Error("Tracking Code is missing");
+
+    let creds: any = null;
+    try {
+      const sfRef = doc(db, 'config', 'steadfast');
+      const sfSnap = await getDoc(sfRef);
+      if (sfSnap.exists()) {
+        creds = sfSnap.data();
+      }
+    } catch (e) {
+      console.warn("Could not load Steadfast credentials from Firestore", e);
+    }
+
+    if (!creds || !creds.apiKey || !creds.secretKey) {
+      throw new Error("Steadfast API credentials missing in Admin Settings");
+    }
+
+    const apiKey = String(creds.apiKey).trim();
+    const secretKey = String(creds.secretKey).trim();
+
+    const urlsToTry = [
+      `https://cpanel.steadfast.com.bd/api/v1/status_by_trackingcode/${encodeURIComponent(cleanId)}`,
+      `https://cpanel.steadfast.com.bd/api/v1/status_by_cid/${encodeURIComponent(cleanId)}`,
+      `https://cpanel.steadfast.com.bd/api/v1/status_by_invoice/${encodeURIComponent(cleanId)}`
+    ];
+
+    let lastError = "Steadfast Status Fetch Failed";
+    for (const url of urlsToTry) {
+      try {
+        const resSf = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Api-Key': apiKey,
+            'Secret-Key': secretKey,
+            'Content-Type': 'application/json'
+          }
+        });
+        const dataSf: any = await resSf.json();
+        if (resSf.ok && (dataSf.status === 200 || dataSf.delivery_status)) {
+          const st = dataSf.delivery_status || dataSf.status || (dataSf.order && dataSf.order.status);
+          if (st && st !== 404 && st !== '404') {
+            return {
+              success: true,
+              status: st,
+              consignment_id: cleanId,
+              tracking_code: cleanId,
+              courier: 'Steadfast',
+              data: dataSf
+            };
+          }
+        } else if (dataSf && dataSf.message) {
+          lastError = dataSf.message;
+        }
+      } catch (e: any) {
+        lastError = e.message;
+      }
+    }
+
+    throw new Error(lastError);
   }
 
   // API route to get Pathao city list
@@ -547,101 +662,63 @@ async function startServer() {
 
   // API route to track order in Pathao Courier
   app.post("/api/pathao/track-order", async (req, res) => {
-    const { consignmentId } = req.body;
+    const consignmentId = req.body.consignmentId || req.body.trackingCode || req.body.trackingId;
 
     if (!consignmentId) {
       return res.status(400).json({ success: false, error: "Consignment ID is missing" });
     }
 
-    let creds: any = null;
     try {
-      const pathaoRef = doc(db, 'config', 'pathao');
-      const pathaoSnap = await getDoc(pathaoRef);
-      if (pathaoSnap.exists()) {
-        creds = pathaoSnap.data();
-      }
-    } catch (e) {
-      console.warn("Could not load Pathao creds from Firestore", e);
-    }
-
-    if (!creds || !creds.clientId || !creds.clientSecret || !creds.username || !creds.password) {
-      return res.status(400).json({ success: false, error: "Pathao API credentials missing in Admin Settings" });
-    }
-
-    let apiBase = (creds.baseUrl || 'https://api-hermes.pathao.com').replace(/\/$/, '');
-    if (apiBase.includes('courier-api.pathao.com')) {
-      apiBase = 'https://api-hermes.pathao.com';
-    }
-
-    try {
-      // Step 1: Issue OAuth token
-      const tokenRes = await fetch(`${apiBase}/aladdin/api/v1/issue-token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({
-          client_id: creds.clientId,
-          client_secret: creds.clientSecret,
-          username: creds.username,
-          password: creds.password,
-          grant_type: 'password'
-        })
-      });
-
-      const tokenData: any = await tokenRes.json();
-      if (!tokenRes.ok || !tokenData.access_token) {
-        const tokenErr = tokenData.message || tokenData.error || "Pathao Authentication Failed";
-        return res.status(400).json({ success: false, error: `Pathao Auth Failed: ${tokenErr}` });
-      }
-
-      const accessToken = tokenData.access_token;
-
-      // Step 2: Try fetching order info by consignment_id
-      let trackRes = await fetch(`${apiBase}/aladdin/api/v1/orders/${consignmentId}/info`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
-      });
-
-      let trackData: any = await trackRes.json();
-
-      if (!trackRes.ok || !trackData.data) {
-        // Fallback endpoint
-        trackRes = await fetch(`${apiBase}/aladdin/api/v1/orders/info?consignment_id=${consignmentId}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          }
-        });
-        trackData = await trackRes.json();
-      }
-
-      if (trackRes.ok && trackData.data) {
-        const info = trackData.data;
-        const statusStr = info.order_status || info.delivery_status || info.status || info.order_status_slug || "Booked";
-        const deliveryFee = Number(info.delivery_fee || info.delivery_charge || info.fee || 0);
-        const amountToCollect = Number(info.amount_to_collect || info.collectable_amount || info.order_amount || 0);
-        return res.json({
-          success: true,
-          status: statusStr,
-          consignment_id: consignmentId,
-          delivery_fee: deliveryFee,
-          amount_to_collect: amountToCollect,
-          data: info
-        });
-      } else {
+      const result = await trackPathaoInternal(consignmentId);
+      return res.json(result);
+    } catch (pathaoErr: any) {
+      // Fallback: Check if this tracking code exists in Steadfast (e.g. #G32UWC)
+      try {
+        const sfResult = await trackSteadfastInternal(consignmentId);
+        return res.json(sfResult);
+      } catch (sfErr) {
+        console.warn("Pathao track error:", pathaoErr.message);
         return res.status(400).json({
           success: false,
-          error: trackData.message || "Failed to fetch Pathao parcel status"
+          error: pathaoErr.message || "Failed to fetch Pathao parcel status"
         });
       }
-    } catch (error: any) {
-      console.error("Pathao track order error:", error);
-      return res.status(500).json({ success: false, error: error.message || "Failed to communicate with Pathao API" });
+    }
+  });
+
+  // Unified API route to track order across Couriers (Pathao / Steadfast)
+  app.post("/api/courier/track-order", async (req, res) => {
+    const identifier = req.body.consignmentId || req.body.trackingCode || req.body.trackingId || req.body.invoiceId;
+    const preferredCourier = (req.body.courier || '').toLowerCase();
+
+    if (!identifier) {
+      return res.status(400).json({ success: false, error: "Consignment ID / Tracking Code is missing" });
+    }
+
+    if (preferredCourier.includes('steadfast')) {
+      try {
+        const res1 = await trackSteadfastInternal(identifier);
+        return res.json(res1);
+      } catch (e1: any) {
+        try {
+          const res2 = await trackPathaoInternal(identifier);
+          return res.json(res2);
+        } catch (e2: any) {
+          return res.status(400).json({ success: false, error: e1.message || e2.message });
+        }
+      }
+    } else {
+      try {
+        const res1 = await trackPathaoInternal(identifier);
+        return res.json(res1);
+      } catch (e1: any) {
+        try {
+          const res2 = await trackSteadfastInternal(identifier);
+          return res.json(res2);
+        } catch (e2: any) {
+          return res.status(400).json({ success: false, error: e1.message || e2.message });
+        }
+      }
     }
   });
 
@@ -828,57 +905,27 @@ async function startServer() {
 
   // API route to track order in Steadfast Courier
   app.post("/api/steadfast/track-order", async (req, res) => {
-    const { consignmentId, trackingCode, invoiceId } = req.body;
+    const identifier = req.body.consignmentId || req.body.trackingCode || req.body.trackingId || req.body.invoiceId;
 
-    let creds: any = null;
-    try {
-      const sfRef = doc(db, 'config', 'steadfast');
-      const sfSnap = await getDoc(sfRef);
-      if (sfSnap.exists()) {
-        creds = sfSnap.data();
-      }
-    } catch (e) {
-      console.warn("Could not load Steadfast credentials from Firestore", e);
-    }
-
-    if (!creds || !creds.apiKey || !creds.secretKey) {
-      return res.status(400).json({ success: false, error: "Steadfast API credentials missing in Admin Settings" });
+    if (!identifier) {
+      return res.status(400).json({ success: false, error: "Tracking ID is missing" });
     }
 
     try {
-      let url = '';
-      if (consignmentId) {
-        url = `https://cpanel.steadfast.com.bd/api/v1/status_by_cid/${consignmentId}`;
-      } else if (trackingCode) {
-        url = `https://cpanel.steadfast.com.bd/api/v1/status_by_trackingcode/${trackingCode}`;
-      } else if (invoiceId) {
-        url = `https://cpanel.steadfast.com.bd/api/v1/status_by_invoice/${invoiceId}`;
-      } else {
-        return res.status(400).json({ success: false, error: "Missing consignmentId or trackingCode" });
-      }
-
-      const resSf = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Api-Key': creds.apiKey,
-          'Secret-Key': creds.secretKey,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      const dataSf: any = await resSf.json();
-      if (resSf.ok && (dataSf.status === 200 || dataSf.delivery_status)) {
-        return res.json({
-          success: true,
-          status: dataSf.delivery_status || dataSf.status,
-          data: dataSf
+      const result = await trackSteadfastInternal(identifier);
+      return res.json(result);
+    } catch (sfErr: any) {
+      // Fallback: Check if this consignment ID exists in Pathao
+      try {
+        const pathaoResult = await trackPathaoInternal(identifier);
+        return res.json(pathaoResult);
+      } catch (pathaoErr) {
+        console.warn("Steadfast track error:", sfErr.message);
+        return res.status(400).json({
+          success: false,
+          error: sfErr.message || "Failed to get Steadfast status"
         });
-      } else {
-        return res.status(400).json({ success: false, error: dataSf.message || "Steadfast Status Fetch Failed" });
       }
-    } catch (error: any) {
-      console.error("Steadfast track order error:", error);
-      return res.status(500).json({ success: false, error: error.message || "Failed to get Steadfast status" });
     }
   });
 

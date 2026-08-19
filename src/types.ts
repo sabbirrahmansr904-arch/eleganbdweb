@@ -186,11 +186,14 @@ export interface BankAccount {
 export interface BankTransaction {
   id: string;
   accountId: string;
+  targetAccountId?: string;
   type: 'deposit' | 'withdraw' | 'transfer';
   amount: number;
   date: number;
   reference?: string;
   notes?: string;
+  attachment?: string;
+  status?: 'unpaid' | 'paid';
 }
 
 export interface PathaoPayout {

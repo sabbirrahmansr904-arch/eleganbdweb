@@ -312,6 +312,31 @@ div[class*="fixed"][class*="inset-0"] textarea:focus {
     inset 2px 2px 4px 0px rgba(160, 175, 200, 0.2),
     inset -2px -2px 4px 0px rgba(255, 255, 255, 0.9),
     -3px -3px 8px 0px rgba(255, 255, 255, 0.9),
-    3px 3px 8px 0px rgba(165, 180, 205, 0.25) !important;
+    3px 3px 8px 0px rgba(165, 200, 205, 0.25) !important;
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .printable-sheet, .printable-sheet * {
+    visibility: visible;
+  }
+  .printable-sheet {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+
 

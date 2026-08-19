@@ -352,15 +352,10 @@ export default function AdminLayout() {
                className="fixed inset-y-0 left-0 w-72 bg-[#EAEFF5] z-[70] lg:hidden flex flex-col shadow-2xl border-r border-[#DCE4EE]"
             >
               <div className="h-20 flex items-center justify-between px-6 border-b border-[#DCE4EE] bg-[#EAEFF5] text-black">
-                <Link to="/" onClick={() => setIsMobileOpen(false)} className="shrink-0 flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-2xl bg-[#E01E22] flex items-center justify-center text-white font-sans text-xl font-bold shrink-0 shadow-md">
-                    E
-                  </div>
-                  <div className="flex flex-col text-left">
-                    <span className="font-bold tracking-tight text-sm text-gray-900 leading-none">
-                      Elegan BD
-                    </span>
-                  </div>
+                <Link to="/" onClick={() => setIsMobileOpen(false)} className="shrink-0 flex items-center min-w-0">
+                  <span className="font-black tracking-tight text-xl sm:text-2xl text-gray-900 leading-none">
+                    Elegan BD
+                  </span>
                 </Link>
                 <button onClick={() => setIsMobileOpen(false)} className="text-gray-400 hover:text-black p-2 transition-colors">
                   <X size={20} />
@@ -451,31 +446,17 @@ export default function AdminLayout() {
         )}
       >
         <div className="h-20 flex items-center justify-between px-6 border-b border-[#DCE4EE] overflow-hidden bg-[#EAEFF5] shrink-0">
-          <Link to="/" className="shrink-0 flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-[#E01E22] flex items-center justify-center text-white font-sans text-xl font-bold shrink-0 shadow-md">
-              E
-            </div>
-            {isSidebarOpen && (
-              <div className="flex flex-col text-left">
-                <span className="font-bold tracking-tight text-sm text-gray-900 leading-none">
-                  Elegan BD
-                </span>
-              </div>
+          <Link to="/" className="shrink-0 flex items-center min-w-0">
+            {isSidebarOpen ? (
+              <span className="font-black tracking-tight text-xl sm:text-2xl text-gray-900 leading-none">
+                Elegan BD
+              </span>
+            ) : (
+              <span className="font-black tracking-tight text-xl text-gray-900 leading-none mx-auto">
+                E
+              </span>
             )}
           </Link>
-          
-          {isSidebarOpen && (
-            <div className="relative shrink-0 flex items-center">
-              <Link to="/admin/settings?tab=Notifications" className="relative inline-block group" title="Notification Settings">
-                <Bell size={18} className="text-gray-400 hover:text-black transition-colors cursor-pointer" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1.5 -right-2 bg-red-500 text-[8px] font-bold text-white px-1 py-0.25 rounded-full leading-none scale-90">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </Link>
-            </div>
-          )}
         </div>
 
         <nav className="flex-1 py-4 px-3.5 space-y-3 overflow-y-auto no-scrollbar bg-[#EAEFF5]">

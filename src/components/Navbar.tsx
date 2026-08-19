@@ -278,24 +278,24 @@ export default function Navbar() {
                 animate={{ x: 0 }}
                 exit={{ x: "-100%" }}
                 transition={{ type: "spring", damping: 26, stiffness: 260 }}
-                className="fixed top-0 left-0 bottom-0 w-[85%] max-w-[340px] h-full bg-[#0a0a0a] text-white z-[70] shadow-2xl border-r border-white/10 flex flex-col justify-between overflow-hidden"
+                className="fixed top-0 left-0 bottom-0 w-[85%] max-w-[340px] h-full bg-white text-gray-900 z-[70] shadow-2xl border-r border-gray-200 flex flex-col justify-between overflow-hidden"
               >
                 {/* Drawer Header */}
-                <div className="p-5 border-b border-white/10 bg-black/60 backdrop-blur-sm shrink-0">
+                <div className="p-5 border-b border-gray-100 bg-white shrink-0">
                   <div className="flex items-center justify-between mb-4">
                     <Link to="/" onClick={() => setIsOpen(false)} className="flex items-center gap-2 group">
                       {logoUrl ? (
-                        <img src={logoUrl} alt="Logo" className="h-12 w-auto object-contain" />
+                        <img src={logoUrl} alt="Logo" className="h-10 w-auto object-contain" />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-brand-gold text-black flex items-center justify-center font-black text-sm">
+                        <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-black text-sm">
                           E
                         </div>
                       )}
                       <div>
-                        <span className="font-black text-lg uppercase tracking-tighter text-white block leading-none">
+                        <span className="font-black text-lg uppercase tracking-tighter text-black block leading-none">
                           Elegan BD
                         </span>
-                        <span className="text-[9px] font-bold tracking-widest text-white/40 uppercase block mt-0.5">
+                        <span className="text-[9px] font-bold tracking-widest text-gray-500 uppercase block mt-0.5">
                           Exclusive Fashion
                         </span>
                       </div>
@@ -303,7 +303,7 @@ export default function Navbar() {
 
                     <button 
                       onClick={() => setIsOpen(false)} 
-                      className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+                      className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center transition-colors cursor-pointer"
                       title="Close Menu"
                     >
                       <X size={18} />
@@ -316,15 +316,15 @@ export default function Navbar() {
                       setIsOpen(false);
                       setIsSearchOpen(true);
                     }}
-                    className="w-full bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl px-3.5 py-2.5 flex items-center gap-3 text-xs text-white/50 transition-all cursor-pointer group text-left"
+                    className="w-full bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-3.5 py-2.5 flex items-center gap-3 text-xs text-gray-500 transition-all cursor-pointer group text-left"
                   >
-                    <Search size={16} className="text-white/40 group-hover:text-white transition-colors" />
+                    <Search size={16} className="text-gray-400 group-hover:text-gray-800 transition-colors" />
                     <span className="truncate">Search products, collections...</span>
                   </button>
                 </div>
 
                 {/* Drawer Main Scrollable Area */}
-                <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6 no-scrollbar">
+                <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6 no-scrollbar bg-white">
                   
                   {/* Quick Shortcuts Bar */}
                   <div className="grid grid-cols-3 gap-2">
@@ -333,56 +333,56 @@ export default function Navbar() {
                         setIsOpen(false);
                         handleCartClick();
                       }}
-                      className="flex flex-col items-center justify-center p-2.5 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 transition-all cursor-pointer group"
+                      className="flex flex-col items-center justify-center p-2.5 bg-gray-50 hover:bg-gray-100 rounded-2xl border border-gray-200/80 transition-all cursor-pointer group"
                     >
-                      <div className="relative mb-1 text-amber-400 group-hover:scale-110 transition-transform">
+                      <div className="relative mb-1 text-amber-500 group-hover:scale-110 transition-transform">
                         <ShoppingBag size={18} />
                         {cartCount > 0 && (
-                          <span className="absolute -top-1.5 -right-2 bg-white text-black text-[8px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center">
+                          <span className="absolute -top-1.5 -right-2 bg-black text-white text-[8px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center">
                             {cartCount}
                           </span>
                         )}
                       </div>
-                      <span className="text-[9.5px] font-extrabold uppercase tracking-wider text-white/80">Bag</span>
+                      <span className="text-[9.5px] font-extrabold uppercase tracking-wider text-gray-900">Bag</span>
                     </button>
 
                     <Link
                       to="/track-order"
                       onClick={() => setIsOpen(false)}
-                      className="flex flex-col items-center justify-center p-2.5 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 transition-all cursor-pointer group"
+                      className="flex flex-col items-center justify-center p-2.5 bg-gray-50 hover:bg-gray-100 rounded-2xl border border-gray-200/80 transition-all cursor-pointer group"
                     >
-                      <Truck size={18} className="mb-1 text-blue-400 group-hover:scale-110 transition-transform" />
-                      <span className="text-[9.5px] font-extrabold uppercase tracking-wider text-white/80">Track</span>
+                      <Truck size={18} className="mb-1 text-blue-600 group-hover:scale-110 transition-transform" />
+                      <span className="text-[9.5px] font-extrabold uppercase tracking-wider text-gray-900">Track</span>
                     </Link>
 
                     <Link
                       to="/contact"
                       onClick={() => setIsOpen(false)}
-                      className="flex flex-col items-center justify-center p-2.5 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 transition-all cursor-pointer group"
+                      className="flex flex-col items-center justify-center p-2.5 bg-gray-50 hover:bg-gray-100 rounded-2xl border border-gray-200/80 transition-all cursor-pointer group"
                     >
-                      <MessageCircle size={18} className="mb-1 text-emerald-400 group-hover:scale-110 transition-transform" />
-                      <span className="text-[9.5px] font-extrabold uppercase tracking-wider text-white/80">Help</span>
+                      <MessageCircle size={18} className="mb-1 text-emerald-600 group-hover:scale-110 transition-transform" />
+                      <span className="text-[9.5px] font-extrabold uppercase tracking-wider text-gray-900">Help</span>
                     </Link>
                   </div>
 
                   {/* Categories Section */}
                   <div>
                     <div className="flex items-center justify-between mb-2 px-1">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Categories & Collections</span>
-                      <Layers size={12} className="text-white/30" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Categories & Collections</span>
+                      <Layers size={12} className="text-gray-400" />
                     </div>
 
                     <div className="space-y-1">
                       <Link 
                         to="/category/all"
                         onClick={() => setIsOpen(false)}
-                        className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold uppercase tracking-wider text-white transition-all group"
+                        className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-xs font-black uppercase tracking-wider text-gray-900 transition-all group"
                       >
                         <span className="flex items-center gap-2.5">
-                          <Layers size={14} className="text-amber-400" />
+                          <Layers size={14} className="text-amber-500" />
                           ALL COLLECTION
                         </span>
-                        <ChevronRight size={14} className="text-white/30 group-hover:text-white transition-colors" />
+                        <ChevronRight size={14} className="text-gray-400 group-hover:text-black transition-colors" />
                       </Link>
 
                       {Array.isArray(categories) && categories.map((cat) => (
@@ -390,23 +390,23 @@ export default function Navbar() {
                           key={cat.id}
                           to={`/category/${cat.name.toLowerCase().replace(/\s+/g, '-')}`}
                           onClick={() => setIsOpen(false)}
-                          className="flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-white/5 text-xs font-bold uppercase tracking-wider text-white/80 hover:text-white transition-all group"
+                          className="flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-gray-50 text-xs font-bold uppercase tracking-wider text-gray-900 hover:text-blue-600 transition-all group"
                         >
                           <span>{cat.name}</span>
-                          <ChevronRight size={14} className="text-white/20 group-hover:text-white transition-colors" />
+                          <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-700 transition-colors" />
                         </Link>
                       ))}
 
                       <Link
                         to="/category/new-arrivals"
                         onClick={() => setIsOpen(false)}
-                        className="flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-white/5 text-xs font-bold uppercase tracking-wider text-white/80 hover:text-white transition-all group"
+                        className="flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-gray-50 text-xs font-bold uppercase tracking-wider text-gray-900 hover:text-blue-600 transition-all group"
                       >
-                        <span className="flex items-center gap-2 text-amber-300">
+                        <span className="flex items-center gap-2 text-amber-600 font-extrabold">
                           <Sparkles size={14} />
                           NEW ARRIVALS
                         </span>
-                        <span className="px-1.5 py-0.5 text-[8px] font-black bg-amber-400/20 text-amber-300 rounded uppercase border border-amber-400/30">
+                        <span className="px-1.5 py-0.5 text-[8px] font-black bg-amber-100 text-amber-800 rounded uppercase border border-amber-300">
                           NEW
                         </span>
                       </Link>
@@ -416,43 +416,43 @@ export default function Navbar() {
                   {/* Navigation Links */}
                   <div>
                     <div className="flex items-center justify-between mb-2 px-1">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Quick Links</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Quick Links</span>
                     </div>
 
                     <div className="space-y-1">
                       <Link
                         to="/"
                         onClick={() => setIsOpen(false)}
-                        className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-white/5 text-xs font-bold uppercase tracking-wider text-white/80 hover:text-white transition-all"
+                        className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-gray-50 text-xs font-bold uppercase tracking-wider text-gray-900 hover:text-blue-600 transition-all"
                       >
-                        <Home size={15} className="text-white/50" />
+                        <Home size={15} className="text-gray-500" />
                         Home Page
                       </Link>
 
                       <Link
                         to="/reviews"
                         onClick={() => setIsOpen(false)}
-                        className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-white/5 text-xs font-bold uppercase tracking-wider text-white/80 hover:text-white transition-all"
+                        className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-gray-50 text-xs font-bold uppercase tracking-wider text-gray-900 hover:text-blue-600 transition-all"
                       >
-                        <Star size={15} className="text-blue-400 fill-blue-400/20" />
+                        <Star size={15} className="text-blue-600 fill-blue-600/20" />
                         Customer Reviews
                       </Link>
 
                       <Link
                         to="/about"
                         onClick={() => setIsOpen(false)}
-                        className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-white/5 text-xs font-bold uppercase tracking-wider text-white/80 hover:text-white transition-all"
+                        className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-gray-50 text-xs font-bold uppercase tracking-wider text-gray-900 hover:text-blue-600 transition-all"
                       >
-                        <Shield size={15} className="text-white/50" />
+                        <Shield size={15} className="text-gray-500" />
                         About Us
                       </Link>
 
                       <Link
                         to="/contact"
                         onClick={() => setIsOpen(false)}
-                        className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-white/5 text-xs font-bold uppercase tracking-wider text-white/80 hover:text-white transition-all"
+                        className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-gray-50 text-xs font-bold uppercase tracking-wider text-gray-900 hover:text-blue-600 transition-all"
                       >
-                        <PhoneCall size={15} className="text-white/50" />
+                        <PhoneCall size={15} className="text-gray-500" />
                         Contact & Support
                       </Link>
 
@@ -460,7 +460,7 @@ export default function Navbar() {
                         <Link
                           to="/admin"
                           onClick={() => setIsOpen(false)}
-                          className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs font-black uppercase tracking-wider text-amber-300 transition-all mt-2"
+                          className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs font-black uppercase tracking-wider text-amber-900 transition-all mt-2"
                         >
                           <span className="flex items-center gap-2.5">
                             <User size={15} />
@@ -477,16 +477,16 @@ export default function Navbar() {
                 </div>
 
                 {/* Drawer Footer & Account Section */}
-                <div className="p-4 border-t border-white/10 bg-black/80 shrink-0 space-y-3">
+                <div className="p-4 border-t border-gray-200 bg-gray-50 shrink-0 space-y-3">
                   {currentUser ? (
-                    <div className="p-3 bg-white/5 rounded-2xl border border-white/10 space-y-2">
+                    <div className="p-3 bg-white rounded-2xl border border-gray-200 shadow-xs space-y-2">
                       <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-full bg-amber-400 text-black font-black flex items-center justify-center text-xs">
                           {currentUser.email ? currentUser.email.slice(0, 2).toUpperCase() : 'AD'}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 block">System Administrator</span>
-                          <span className="text-[11px] font-mono font-bold text-white truncate block">{currentUser.email}</span>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 block">System Administrator</span>
+                          <span className="text-[11px] font-mono font-bold text-gray-900 truncate block">{currentUser.email}</span>
                         </div>
                       </div>
                       <button
@@ -494,20 +494,20 @@ export default function Navbar() {
                           signOut();
                           setIsOpen(false);
                         }}
-                        className="w-full py-2 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold text-xs uppercase tracking-wider rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer border border-rose-500/30"
+                        className="w-full py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs uppercase tracking-wider rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer border border-rose-200"
                       >
                         <LogOut size={14} /> Sign Out Admin
                       </button>
                     </div>
                   ) : customerUser ? (
-                    <div className="p-3 bg-white/5 rounded-2xl border border-white/10 space-y-2">
+                    <div className="p-3 bg-white rounded-2xl border border-gray-200 shadow-xs space-y-2">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-blue-500 text-white font-black flex items-center justify-center text-xs">
+                        <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-black flex items-center justify-center text-xs">
                           <User size={16} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <span className="text-[9px] font-black uppercase tracking-wider text-emerald-400 block">Verified Client</span>
-                          <span className="text-[11px] font-mono font-bold text-white truncate block">{customerUser.email}</span>
+                          <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600 block">Verified Client</span>
+                          <span className="text-[11px] font-mono font-bold text-gray-900 truncate block">{customerUser.email}</span>
                         </div>
                       </div>
                       <button
@@ -515,7 +515,7 @@ export default function Navbar() {
                           logoutCustomer();
                           setIsOpen(false);
                         }}
-                        className="w-full py-2 bg-white/10 hover:bg-white/20 text-rose-300 font-bold text-xs uppercase tracking-wider rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                        className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-rose-600 font-bold text-xs uppercase tracking-wider rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer"
                       >
                         <LogOut size={14} /> Logout Session
                       </button>
@@ -526,13 +526,13 @@ export default function Navbar() {
                         signInWithGoogle();
                         setIsOpen(false);
                       }}
-                      className="w-full py-2.5 bg-white text-black hover:bg-gray-200 font-extrabold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+                      className="w-full py-2.5 bg-black text-white hover:bg-gray-800 font-extrabold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
                     >
                       <User size={16} /> Login / Register
                     </button>
                   )}
 
-                  <div className="pt-1 flex items-center justify-between text-[9px] text-white/40 uppercase tracking-wider font-bold">
+                  <div className="pt-1 flex items-center justify-between text-[9px] text-gray-400 uppercase tracking-wider font-bold">
                     <span>© Elegan BD</span>
                     <span>Exclusive Fashion</span>
                   </div>

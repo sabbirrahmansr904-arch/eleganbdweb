@@ -26,6 +26,7 @@ export interface BankTransaction {
   reference: string;
   notes?: string;
   attachment?: string;
+  status?: 'unpaid' | 'paid';
 }
 
 interface FinanceContextType {
@@ -37,6 +38,7 @@ interface FinanceContextType {
   deleteBankAccount: (id: string) => Promise<void>;
   addBankTransaction: (tx: Omit<BankTransaction, 'id'>, targetAccountId?: string) => Promise<void>;
   updateBankTransaction: (id: string, updatedTx: Partial<BankTransaction>) => Promise<void>;
+  toggleTransactionStatus: (id: string, currentStatus?: 'unpaid' | 'paid') => Promise<void>;
   deleteBankTransaction: (id: string) => Promise<void>;
 }
 
@@ -69,6 +71,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     for (const acc of accounts) {
       let currentBalance = acc.initialBalance || 0;
       transactions.forEach(tx => {
+        // Unpaid transactions are pending/unsettled and do not alter settled account balance
+        if (tx.status === 'unpaid') return;
+
         if (tx.accountId === acc.id) {
           if (tx.type === 'deposit') {
             currentBalance += tx.amount;
@@ -117,8 +122,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const addBankTransaction = async (tx: Omit<BankTransaction, 'id'>, targetAccountId?: string) => {
     try {
-      await addDoc(collection(db, 'bank_transactions'), { ...tx, targetAccountId: targetAccountId || tx.targetAccountId || null, date: Date.now() });
-      await recalculateBalances(bankAccounts, [...bankTransactions, { ...tx, targetAccountId: targetAccountId || tx.targetAccountId || null, date: Date.now(), id: 'temp' } as BankTransaction]);
+      const newTx = {
+        ...tx,
+        status: tx.status || 'unpaid', // Defaults to unpaid as requested
+        targetAccountId: targetAccountId || tx.targetAccountId || null,
+        date: tx.date || Date.now()
+      };
+      await addDoc(collection(db, 'bank_transactions'), newTx);
+      await recalculateBalances(bankAccounts, [
+        ...bankTransactions,
+        { ...newTx, id: 'temp' } as BankTransaction
+      ]);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'bank_transactions');
     }
@@ -129,6 +143,21 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       await updateDoc(doc(db, 'bank_transactions', id), updatedFields);
       await recalculateBalances(bankAccounts, bankTransactions.map(tx => tx.id === id ? { ...tx, ...updatedFields } : tx));
       toast.success('লেনদেন আপডেট করা হয়েছে!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `bank_transactions/${id}`);
+    }
+  };
+
+  const toggleTransactionStatus = async (id: string, currentStatus?: 'unpaid' | 'paid') => {
+    try {
+      const nextStatus = currentStatus === 'paid' ? 'unpaid' : 'paid';
+      await updateDoc(doc(db, 'bank_transactions', id), { status: nextStatus });
+      await recalculateBalances(bankAccounts, bankTransactions.map(tx => tx.id === id ? { ...tx, status: nextStatus } : tx));
+      if (nextStatus === 'paid') {
+        toast.success('লেনদেনটি PAID (পরিশোধিত) করা হয়েছে!');
+      } else {
+        toast.success('লেনদেনটি UNPAID (বকেয়া) করা হয়েছে!');
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `bank_transactions/${id}`);
     }
@@ -154,6 +183,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       deleteBankAccount,
       addBankTransaction,
       updateBankTransaction,
+      toggleTransactionStatus,
       deleteBankTransaction
     }}>
       {children}

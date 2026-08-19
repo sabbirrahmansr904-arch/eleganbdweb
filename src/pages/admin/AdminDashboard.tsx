@@ -961,8 +961,16 @@ export default function AdminDashboard(): React.JSX.Element {
     return orders?.length || 0;
   }, [orders]);
 
+  const dynamicTotalProductsSoldUnits = useMemo(() => {
+    if (orders && orders.length > 0) {
+      const activeOrders = orders.filter(o => o.status !== 'Cancelled' && o.status !== 'PICK UP CANCEL');
+      return activeOrders.reduce((sum, o) => sum + (o.items ? o.items.reduce((s, it) => s + (it.quantity || 1), 0) : 0), 0);
+    }
+    return 0;
+  }, [orders]);
+
   const dynamicTotalRevenueAmount = useMemo(() => {
-    // 100% accurate total revenue from active orders
+    // 100% accurate total revenue/product sales from active orders
     return dynamicTotalSalesAmount;
   }, [dynamicTotalSalesAmount]);
 
@@ -1290,7 +1298,7 @@ export default function AdminDashboard(): React.JSX.Element {
           </div>
         </div>
 
-        {/* CARD 3: Total Revenue */}
+        {/* CARD 3: Total Product Sale */}
         <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:shadow-xs transition-all">
           <div>
             <div className="flex items-center justify-between">
@@ -1299,7 +1307,7 @@ export default function AdminDashboard(): React.JSX.Element {
                   <TrendingUp className="w-5 h-5" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-gray-400">Total Revenue</span>
+                  <span className="text-xs font-bold text-gray-400">Total Product Sale</span>
                 </div>
               </div>
               <button className="text-gray-400 hover:text-gray-900 p-1 rounded-lg hover:bg-gray-50 transition-colors">
@@ -1311,6 +1319,9 @@ export default function AdminDashboard(): React.JSX.Element {
               <h3 className="text-2xl font-black text-gray-900 tracking-tight">
                 {formatPrice(dynamicTotalRevenueAmount, currency, rate)}
               </h3>
+              <p className="text-[11px] font-black text-orange-600/90 mt-1">
+                {dynamicTotalProductsSoldUnits.toLocaleString()} Pcs Sold (মোট পণ্য বিক্রি)
+              </p>
             </div>
           </div>
 

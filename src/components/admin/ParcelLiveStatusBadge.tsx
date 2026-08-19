@@ -12,29 +12,37 @@ interface ParcelLiveStatusBadgeProps {
 
 export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ order, showDetails = false }) => {
   const { updateOrder, updateOrderStatus } = useOrders();
-  const trackingId = (order as any).pathaoConsignmentId || (order as any).trackingCode || order.trackingId || (order as any).steadfastConsignmentId;
-  const isSteadfast = (order.courier || '').toLowerCase().includes('steadfast');
+  const rawTrackingId = (order as any).pathaoConsignmentId || (order as any).trackingCode || order.trackingId || (order as any).steadfastConsignmentId;
+  const cleanTrackingId = String(rawTrackingId || '').replace(/^#/, '').trim();
 
+  const isSteadfastInitial = Boolean((order as any).steadfastConsignmentId) || (order.courier || '').toLowerCase().includes('steadfast');
+  const [courierName, setCourierName] = useState<string>(isSteadfastInitial ? 'SF' : 'Pathao');
   const [status, setStatus] = useState<string | null>((order as any).courierStatus || null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<boolean>(false);
 
   const fetchLiveStatus = async () => {
-    if (!trackingId) return;
+    if (!cleanTrackingId) return;
     setLoading(true);
     setError(false);
 
     try {
-      const endpoint = isSteadfast ? '/api/steadfast/track-order' : '/api/pathao/track-order';
-      const res = await fetch(endpoint, {
+      const res = await fetch('/api/courier/track-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ consignmentId: trackingId, trackingCode: trackingId })
+        body: JSON.stringify({ 
+          consignmentId: cleanTrackingId, 
+          trackingCode: cleanTrackingId,
+          courier: order.courier || (isSteadfastInitial ? 'steadfast' : 'pathao')
+        })
       });
 
       const data = await res.json();
       if (res.ok && data.success && data.status) {
         setStatus(data.status);
+        if (data.courier) {
+          setCourierName(data.courier === 'Steadfast' ? 'SF' : 'Pathao');
+        }
 
         const lower = (data.status || '').toLowerCase();
         // If parcel is delivered/completed by courier, automatically update order status to SUCCESS / Delivered
@@ -84,12 +92,12 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
   };
 
   useEffect(() => {
-    if (trackingId && !status) {
+    if (cleanTrackingId && !status) {
       fetchLiveStatus();
     }
-  }, [trackingId]);
+  }, [cleanTrackingId]);
 
-  if (!trackingId) {
+  if (!cleanTrackingId) {
     return null;
   }
 
@@ -105,10 +113,10 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
     if (lower.includes('deliver') || lower.includes('success')) {
       return { bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: PackageCheck, label };
     }
-    if (lower.includes('pickup') || lower.includes('waiting') || lower.includes('assign')) {
+    if (lower.includes('pickup') || lower.includes('waiting') || lower.includes('assign') || lower.includes('hold')) {
       return { bg: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock, label };
     }
-    if (lower.includes('transit') || lower.includes('way') || lower.includes('hub') || lower.includes('sort')) {
+    if (lower.includes('transit') || lower.includes('way') || lower.includes('hub') || lower.includes('sort') || lower.includes('pending') || lower.includes('ship')) {
       return { bg: 'bg-blue-50 text-blue-700 border-blue-200', icon: Send, label };
     }
     if (lower.includes('return') || lower.includes('cancel')) {
@@ -121,17 +129,17 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
   const Icon = statusInfo ? statusInfo.icon : Truck;
 
   return (
-    <div className="inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap" title={`Consignment ID: ${trackingId}`}>
+    <div className="inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap" title={`Consignment ID: ${cleanTrackingId}`}>
       {loading ? (
         <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-black rounded-full bg-slate-100 text-slate-500 border border-slate-200 animate-pulse whitespace-nowrap shrink-0">
           <RefreshCw size={10} className="animate-spin text-indigo-600 shrink-0" />
-          <span className="uppercase tracking-wider whitespace-nowrap">{isSteadfast ? 'SF' : 'Pathao'} Live...</span>
+          <span className="uppercase tracking-wider whitespace-nowrap">{courierName} Live...</span>
         </span>
       ) : statusInfo ? (
-        <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-black rounded-full border shadow-2xs transition-all whitespace-nowrap shrink-0 ${statusInfo.bg}`}>
+        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black rounded-full border shadow-2xs transition-all whitespace-nowrap shrink-0 ${statusInfo.bg}`}>
           <Icon size={11} className="stroke-[2.5] shrink-0" />
           <span className="uppercase tracking-wider whitespace-nowrap">
-            {isSteadfast ? 'SF' : 'Pathao'}: {statusInfo.label}
+            {courierName}: {statusInfo.label}
           </span>
           <button 
             onClick={(e) => { e.stopPropagation(); fetchLiveStatus(); }}
@@ -141,24 +149,25 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
             <RefreshCw size={9} />
           </button>
         </span>
-      ) : error ? (
+      ) : (
         <button 
           onClick={(e) => { e.stopPropagation(); fetchLiveStatus(); }}
-          className="inline-flex items-center gap-1 px-2 py-0.5 text-[9.5px] font-bold rounded-full bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100 cursor-pointer whitespace-nowrap shrink-0"
-          title="Click to fetch live Pathao status"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[9.5px] font-bold rounded-full bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 cursor-pointer shadow-3xs whitespace-nowrap shrink-0 transition-colors"
+          title={`Click to fetch live ${courierName} status`}
         >
           <Truck size={10} className="text-slate-400 shrink-0" />
-          <span className="whitespace-nowrap">{isSteadfast ? 'SF' : 'Pathao'}: #{String(trackingId).slice(-6)}</span>
-          <RefreshCw size={9} className="text-slate-400 shrink-0" />
+          <span className="whitespace-nowrap font-mono">{courierName}: #{cleanTrackingId.slice(-6)}</span>
+          <RefreshCw size={9} className={`text-slate-400 shrink-0 ${loading ? 'animate-spin' : ''}`} />
         </button>
-      ) : null}
+      )}
 
-      {showDetails && trackingId && (
+      {showDetails && cleanTrackingId && (
         <span className="text-[10px] text-slate-400 font-mono font-bold whitespace-nowrap shrink-0">
-          #{trackingId}
+          #{cleanTrackingId}
         </span>
       )}
     </div>
   );
 };
+
 

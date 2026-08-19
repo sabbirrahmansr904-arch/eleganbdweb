@@ -620,136 +620,6 @@ const Home = () => {
         </section>
       )}
 
-      {/* FABRIC & PREMIUM QUALITY SHOWCASE SECTION */}
-      <section className="max-w-7xl mx-auto w-full px-4 pb-16">
-        <div className="bg-gradient-to-br from-slate-900 via-gray-900 to-blue-950 text-white rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden border border-slate-800">
-          <div className="text-center max-w-2xl mx-auto mb-8">
-            <div className="inline-flex items-center gap-1.5 bg-blue-500/20 text-blue-400 px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-widest border border-blue-500/30 mb-3">
-              <Sparkles size={14} />
-              <span>FABRIC & MATERIAL EXCELLENCE</span>
-            </div>
-            <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white">
-              কেন Elegan BD-র কাপড় সবচেয়ে আলাদা?
-            </h2>
-            <p className="text-xs md:text-sm text-slate-300 font-medium mt-2 leading-relaxed">
-              উন্নত সুতা, নিখুঁত স্টিচিং এবং দীর্ঘস্থায়ী রঙের নিশ্চয়তায় তৈরি প্রতিটি প্রোডাক্ট
-            </p>
-
-            {/* Tab Switcher */}
-            <div className="flex justify-center gap-2 mt-6">
-              <button
-                onClick={() => setActiveFabricTab('pants')}
-                className={cn(
-                  "px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer",
-                  activeFabricTab === 'pants' 
-                    ? "bg-blue-600 text-white shadow-lg" 
-                    : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                )}
-              >
-                ফর্মাল প্যান্ট ফেব্রিক
-              </button>
-              <button
-                onClick={() => setActiveFabricTab('shirts')}
-                className={cn(
-                  "px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer",
-                  activeFabricTab === 'shirts' 
-                    ? "bg-blue-600 text-white shadow-lg" 
-                    : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                )}
-              >
-                অক্সফোর্ড ও কটন শার্ট ফেব্রিক
-              </button>
-            </div>
-          </div>
-
-          {activeFabricTab === 'pants' ? (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
-                  🧵
-                </div>
-                <h3 className="font-extrabold text-sm text-white uppercase mb-1">Export Woven Cotton স্ট্রেচ</h3>
-                <p className="text-xs text-slate-300 font-medium leading-relaxed">
-                  উন্নত Export Woven Cotton কাপড়ে ৩% স্প্যানডেক্স মিক্সড যা আপনাকে বসা বা হাঁটার সময় সর্বোচ্চ আরাম দেয়।
-                </p>
-              </div>
-
-              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
-                  🎨
-                </div>
-                <h3 className="font-extrabold text-sm text-white uppercase mb-1">১০০% কালার ফাস্টনেস</h3>
-                <p className="text-xs text-slate-300 font-medium leading-relaxed">
-                  পছন্দের রঙ কখনো উঠবে না বা ফেইড হবে না। বারবার ধোয়ার পরও নতুনের মতো উজ্জ্বল থাকবে।
-                </p>
-              </div>
-
-              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
-                  ✂️
-                </div>
-                <h3 className="font-extrabold text-sm text-white uppercase mb-1">প্রিমিয়াম পকেট ও চেইন</h3>
-                <p className="text-xs text-slate-300 font-medium leading-relaxed">
-                  অরিজিনাল YKK চেইন ও শক্ত কটন পকেটিং কাপড় যা দৈনন্দিন ব্যবহারের জন্য টেকসই।
-                </p>
-              </div>
-
-              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
-                  🛡️
-                </div>
-                <h3 className="font-extrabold text-sm text-white uppercase mb-1">প্রি-শ্রাঙ্ক ফেব্রিক</h3>
-                <p className="text-xs text-slate-300 font-medium leading-relaxed">
-                  ধোয়ার পর প্যান্ট ছোট বা খাটো হয়ে যাওয়ার কোনো চান্স নেই। মেজারমেন্ট থাকবে ১০০% পারফেক্ট।
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
-                  👔
-                </div>
-                <h3 className="font-extrabold text-sm text-white uppercase mb-1">১০০% কটন অক্সফোর্ড</h3>
-                <p className="text-xs text-slate-300 font-medium leading-relaxed">
-                  নরম ও আরামদায়ক ১০০% পিওর কটন ফেব্রিক, যা সারাদিনের ব্যবহারে কোনো গরম বা অস্বস্তি তৈরি করে না।
-                </p>
-              </div>
-
-              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
-                  ✨
-                </div>
-                <h3 className="font-extrabold text-sm text-white uppercase mb-1">সহজ আয়রন ও রিনকেল ফ্রি</h3>
-                <p className="text-xs text-slate-300 font-medium leading-relaxed">
-                  দ্রুত কুঁচকে যায় না, হালকা প্রেস করলেই তৈরি হয়ে যায় নিখুঁত প্রফেশনাল ভাইব।
-                </p>
-              </div>
-
-              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
-                  🪡
-                </div>
-                <h3 className="font-extrabold text-sm text-white uppercase mb-1">ডাবল স্টিচিং ফিনিশিং</h3>
-                <p className="text-xs text-slate-300 font-medium leading-relaxed">
-                  উন্নত সেলাই ও কলার পেস্টিং যা শার্টের কলারকে রাখে সবসময় সোজা ও গর্জিয়াস।
-                </p>
-              </div>
-
-              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
-                  💎
-                </div>
-                <h3 className="font-extrabold text-sm text-white uppercase mb-1">প্রিমিয়াম মেটাল বাটন</h3>
-                <p className="text-xs text-slate-300 font-medium leading-relaxed">
-                  মজবুত বাটন ও নিখুঁত বাটনহোল যা দীর্ঘদিন ব্যবহারের পরও খুলে বা আলগা হয় না।
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-
       {/* ALL COLLECTIONS - MAIN PRODUCT SECTION SHOWING FORMAL PANTS FIRST, THEN FORMAL SHIRTS */}
       <section className="max-w-7xl mx-auto w-full px-4 pb-16">
         {/* Section Header: ALL COLLECTIONS (CENTERED & BLUE) */}
@@ -1144,7 +1014,135 @@ const Home = () => {
         </div>
       </section>
 
+      {/* FABRIC & PREMIUM QUALITY SHOWCASE SECTION - PLACED DIRECTLY ABOVE FOOTER */}
+      <section className="max-w-7xl mx-auto w-full px-4 pb-16">
+        <div className="bg-gradient-to-br from-slate-900 via-gray-900 to-blue-950 text-white rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden border border-slate-800">
+          <div className="text-center max-w-2xl mx-auto mb-8">
+            <div className="inline-flex items-center gap-1.5 bg-blue-500/20 text-blue-400 px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-widest border border-blue-500/30 mb-3">
+              <Sparkles size={14} />
+              <span>FABRIC & MATERIAL EXCELLENCE</span>
+            </div>
+            <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white">
+              কেন ELEGAN BD-র কাপড় সবচেয়ে আলাদা?
+            </h2>
+            <p className="text-xs md:text-sm text-slate-300 font-medium mt-2 leading-relaxed">
+              উন্নত সুতা, নিখুঁত স্টিচিং এবং দীর্ঘস্থায়ী রঙের নিশ্চয়তায় তৈরি প্রতিটি প্রোডাক্ট
+            </p>
 
+            {/* Tab Switcher */}
+            <div className="flex justify-center gap-2 mt-6">
+              <button
+                onClick={() => setActiveFabricTab('pants')}
+                className={cn(
+                  "px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer",
+                  activeFabricTab === 'pants' 
+                    ? "bg-blue-600 text-white shadow-lg" 
+                    : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                )}
+              >
+                ফর্মাল প্যান্ট ফেব্রিক
+              </button>
+              <button
+                onClick={() => setActiveFabricTab('shirts')}
+                className={cn(
+                  "px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer",
+                  activeFabricTab === 'shirts' 
+                    ? "bg-blue-600 text-white shadow-lg" 
+                    : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                )}
+              >
+                অক্সফোর্ড ও কটন শার্ট ফেব্রিক
+              </button>
+            </div>
+          </div>
+
+          {activeFabricTab === 'pants' ? (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
+                  🧵
+                </div>
+                <h3 className="font-extrabold text-sm text-white uppercase mb-1">Export Woven Cotton স্ট্রেচ</h3>
+                <p className="text-xs text-slate-300 font-medium leading-relaxed">
+                  উন্নত Export Woven Cotton কাপড়ে ৩% স্প্যানডেক্স মিক্সড যা আপনাকে বসা বা হাঁটার সময় সর্বোচ্চ আরাম দেয়।
+                </p>
+              </div>
+
+              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
+                  🎨
+                </div>
+                <h3 className="font-extrabold text-sm text-white uppercase mb-1">১০০% কালার ফাস্টনেস</h3>
+                <p className="text-xs text-slate-300 font-medium leading-relaxed">
+                  পছন্দের রঙ কখনো উঠবে না বা ফেইড হবে না। বারবার ধোয়ার পরও নতুনের মতো উজ্জ্বল থাকবে।
+                </p>
+              </div>
+
+              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
+                  ✂️
+                </div>
+                <h3 className="font-extrabold text-sm text-white uppercase mb-1">প্রিমিয়াম পকেট ও চেইন</h3>
+                <p className="text-xs text-slate-300 font-medium leading-relaxed">
+                  অরিজিনাল YKK চেইন ও শক্ত কটন পকেটিং কাপড় যা দৈনন্দিন ব্যবহারের জন্য টেকসই।
+                </p>
+              </div>
+
+              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
+                  🛡️
+                </div>
+                <h3 className="font-extrabold text-sm text-white uppercase mb-1">প্রি-শ্রাঙ্ক ফেব্রিক</h3>
+                <p className="text-xs text-slate-300 font-medium leading-relaxed">
+                  ধোয়ার পর প্যান্ট ছোট বা খাটো হয়ে যাওয়ার কোনো চান্স নেই। মেজারমেন্ট থাকবে ১০০% পারফেক্ট।
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
+                  👔
+                </div>
+                <h3 className="font-extrabold text-sm text-white uppercase mb-1">১০০% কটন অক্সফোর্ড</h3>
+                <p className="text-xs text-slate-300 font-medium leading-relaxed">
+                  নরম ও আরামদায়ক ১০০% পিওর কটন ফেব্রিক, যা সারাদিনের ব্যবহারে কোনো গরম বা অস্বস্তি তৈরি করে না।
+                </p>
+              </div>
+
+              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
+                  ✨
+                </div>
+                <h3 className="font-extrabold text-sm text-white uppercase mb-1">সহজ আয়রন ও রিনকেল ফ্রি</h3>
+                <p className="text-xs text-slate-300 font-medium leading-relaxed">
+                  দ্রুত কুঁচকে যায় না, হালকা প্রেস করলেই তৈরি হয়ে যায় নিখুঁত প্রফেশনাল ভাইব।
+                </p>
+              </div>
+
+              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
+                  🪡
+                </div>
+                <h3 className="font-extrabold text-sm text-white uppercase mb-1">ডাবল স্টিচিং ফিনিশিং</h3>
+                <p className="text-xs text-slate-300 font-medium leading-relaxed">
+                  উন্নত সেলাই ও কলার পেস্টিং যা শার্টের কলারকে রাখে সবসময় সোজা ও গর্জিয়াস।
+                </p>
+              </div>
+
+              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
+                  💎
+                </div>
+                <h3 className="font-extrabold text-sm text-white uppercase mb-1">প্রিমিয়াম মেটাল বাটন</h3>
+                <p className="text-xs text-slate-300 font-medium leading-relaxed">
+                  মজবুত বাটন ও নিখুঁত বাটনহোল যা দীর্ঘদিন ব্যবহারের পরও খুলে বা আলগা হয় না।
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* FLOATING WHATSAPP WHOLESALE BUTTON */}
       <div className="fixed bottom-6 right-6 z-50 flex items-center">

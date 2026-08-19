@@ -718,16 +718,20 @@ export default function AdminOrders(): React.JSX.Element {
 
     try {
       for (const ord of ordersToSync) {
-        const isSteadfast = (ord.courier || '').toLowerCase().includes('steadfast');
-        const consignmentId = (ord as any).pathaoConsignmentId || (ord as any).steadfastConsignmentId || ord.trackingId || (ord as any).trackingCode;
+        const isSteadfast = Boolean((ord as any).steadfastConsignmentId) || (ord.courier || '').toLowerCase().includes('steadfast');
+        const rawId = (ord as any).pathaoConsignmentId || (ord as any).steadfastConsignmentId || ord.trackingId || (ord as any).trackingCode;
+        const consignmentId = String(rawId || '').replace(/^#/, '').trim();
         if (!consignmentId) continue;
 
         try {
-          const endpoint = isSteadfast ? '/api/steadfast/track-order' : '/api/pathao/track-order';
-          const res = await fetch(endpoint, {
+          const res = await fetch('/api/courier/track-order', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ consignmentId, trackingCode: consignmentId })
+            body: JSON.stringify({ 
+              consignmentId, 
+              trackingCode: consignmentId,
+              courier: ord.courier || (isSteadfast ? 'steadfast' : 'pathao')
+            })
           });
           const data = await res.json();
           if (res.ok && data.success && data.status) {
@@ -752,7 +756,8 @@ export default function AdminOrders(): React.JSX.Element {
               courierStatus: data.status,
               trackingId: consignmentId,
               trackingCode: consignmentId,
-              pathaoConsignmentId: !isSteadfast ? consignmentId : ord.pathaoConsignmentId,
+              pathaoConsignmentId: data.courier !== 'Steadfast' ? consignmentId : ord.pathaoConsignmentId,
+              steadfastConsignmentId: data.courier === 'Steadfast' ? consignmentId : (ord as any).steadfastConsignmentId,
               courierCharge: courierFee,
               courierPayoutAmount: payout,
               ...(newStatus === 'Delivered' ? { deliveredAt: Date.now() } : {})
