@@ -88,7 +88,7 @@ export default function Navbar() {
           'sticky top-0 left-0 w-full z-50 bg-white border-b border-gray-200/80 shadow-xs transition-all duration-300'
         )}
       >
-        <div className="max-w-7xl mx-auto px-4 md:px-6 h-[55px] md:h-[68px] flex items-center justify-between gap-2 md:gap-6">
+        <div className="max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 h-[55px] md:h-[68px] flex items-center justify-between gap-2 md:gap-6">
           
           {/* Left: Mobile Menu Toggle & Logo */}
           <div className="flex items-center gap-3">

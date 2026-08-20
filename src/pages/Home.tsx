@@ -407,7 +407,7 @@ const Home = () => {
       </section>
 
       {/* TOP FEATURE BADGES BAR */}
-      <section className="max-w-7xl mx-auto w-full px-4 pb-8">
+      <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-6 sm:pb-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-blue-50/60 p-4 sm:p-5 rounded-2xl border border-blue-100/80">
           <div className="flex items-center gap-3 p-2">
             <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
@@ -453,7 +453,7 @@ const Home = () => {
 
       {/* FLASH SALE / OFFER BANNER */}
       {showCountdownBanner && (
-        <section className="max-w-7xl mx-auto w-full px-4 pb-6">
+        <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-6">
           <div className="bg-gradient-to-r from-blue-950 via-indigo-900 to-blue-950 rounded-2xl py-4 sm:py-5 px-5 sm:px-8 text-white shadow-[0_0_30px_rgba(245,158,11,0.5)] relative overflow-hidden border-2 border-amber-400 animate-pulse">
             {/* Background Glow FX */}
             <div className="absolute -left-10 -top-10 w-48 h-48 bg-amber-400/25 rounded-full blur-3xl pointer-events-none" />
@@ -497,7 +497,7 @@ const Home = () => {
 
       {/* SHOP BY CATEGORY SECTION */}
       {displayCategories.length > 0 && (
-        <section className="max-w-7xl mx-auto w-full px-3 sm:px-4 pb-12">
+        <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-10 sm:pb-12">
           {/* Section Header: SHOP BY CATEGORY with Scroll Controls */}
           <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-6 px-1">
             <h2 className="text-sm sm:text-base md:text-xl font-extrabold uppercase text-blue-600 tracking-wide">
@@ -537,7 +537,7 @@ const Home = () => {
                   <Link
                     key={cat.id || cat.slug}
                     to={`/category/${cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-')}`}
-                    className="shrink-0 w-[160px] sm:w-[210px] md:w-[240px] group/card relative rounded-2xl overflow-hidden aspect-3/4 bg-gray-900 border border-gray-200/80 shadow-xs hover:shadow-xl hover:border-blue-500 transition-all duration-300 block snap-start"
+                    className="shrink-0 w-[170px] sm:w-[220px] md:w-[260px] lg:w-[280px] group/card relative rounded-2xl overflow-hidden aspect-3/4 bg-gray-900 border border-gray-200/80 shadow-xs hover:shadow-xl hover:border-blue-500 transition-all duration-300 block snap-start"
                   >
                     <img 
                       src={catImg} 
@@ -565,7 +565,7 @@ const Home = () => {
 
       {/* NEW ARRIVAL PRODUCTS SECTION */}
       {newArrivalProducts.length > 0 && (
-        <section className="max-w-7xl mx-auto w-full px-3 sm:px-4 pb-10">
+        <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-10">
           {/* Section Header: NEW ARRIVAL PRODUCTS */}
           <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4 px-1">
             <h2 className="text-sm sm:text-base md:text-xl font-extrabold uppercase text-blue-600 tracking-wide">
@@ -606,11 +606,11 @@ const Home = () => {
               onMouseLeave={() => setIsHoveredNewArrival(false)}
               onTouchStart={() => setIsHoveredNewArrival(true)}
               onTouchEnd={() => setIsHoveredNewArrival(false)}
-              className="flex gap-2.5 sm:gap-4 overflow-x-auto pb-3 scroll-smooth snap-x snap-mandatory no-scrollbar"
+              className="flex gap-3 sm:gap-4 overflow-x-auto pb-3 scroll-smooth snap-x snap-mandatory no-scrollbar"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {newArrivalProducts.map((product) => (
-                <div key={`newarrival-${product.id}`} className="w-[160px] sm:w-[210px] md:w-[230px] flex-shrink-0 snap-start">
+                <div key={`newarrival-${product.id}`} className="w-[calc(50%-6px)] sm:w-[calc(50%-8px)] md:w-[calc(33.333%-11px)] lg:w-[calc(25%-12px)] flex-shrink-0 snap-start">
                   <ProductCard product={product} badgeText="NEW" />
                 </div>
               ))}
@@ -620,7 +620,7 @@ const Home = () => {
       )}
 
       {/* ALL COLLECTIONS - MAIN PRODUCT SECTION SHOWING FORMAL PANTS FIRST, THEN FORMAL SHIRTS */}
-      <section className="max-w-7xl mx-auto w-full px-4 pb-16">
+      <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
         {/* Section Header: ALL COLLECTIONS (CENTERED & BLUE) */}
         <div className="relative flex items-center justify-center border-b border-gray-100 pb-4 mb-8">
           <h2 className="text-xl md:text-2xl font-black uppercase text-blue-600 tracking-tight text-center">
@@ -646,7 +646,7 @@ const Home = () => {
             <p className="text-sm font-bold text-gray-500">No products available at the moment.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-5 md:gap-6">
             {sortedProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
@@ -656,7 +656,7 @@ const Home = () => {
 
       {/* SUB-HERO BANNER - BELOW ALL PRODUCTS */}
       {subHeroBannerUrl && (
-        <section className="max-w-7xl mx-auto w-full px-4 pb-16">
+        <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
           <Link 
             to="/category/all" 
             className="group block relative rounded-2xl sm:rounded-3xl overflow-hidden bg-gray-100 shadow-sm border border-gray-100/80 transition-all hover:shadow-md"
@@ -673,7 +673,7 @@ const Home = () => {
 
       {/* BEST SELLING PRODUCTS SECTION */}
       {bestSellingProducts.length > 0 && (
-        <section className="max-w-7xl mx-auto w-full px-3 sm:px-4 pb-16">
+        <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
           {/* Section Header: BEST SELLING PRODUCTS */}
           <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4 px-1">
             <h2 className="text-sm sm:text-base md:text-xl font-extrabold uppercase text-blue-600 tracking-wide">
@@ -714,11 +714,11 @@ const Home = () => {
               onMouseLeave={() => setIsHoveredBestSelling(false)}
               onTouchStart={() => setIsHoveredBestSelling(true)}
               onTouchEnd={() => setIsHoveredBestSelling(false)}
-              className="flex gap-2.5 sm:gap-4 overflow-x-auto pb-3 scroll-smooth snap-x snap-mandatory no-scrollbar"
+              className="flex gap-3 sm:gap-4 overflow-x-auto pb-3 scroll-smooth snap-x snap-mandatory no-scrollbar"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {bestSellingProducts.map((product) => (
-                <div key={`bestseller-${product.id}`} className="w-[160px] sm:w-[210px] md:w-[230px] flex-shrink-0 snap-start">
+                <div key={`bestseller-${product.id}`} className="w-[calc(50%-6px)] sm:w-[calc(50%-8px)] md:w-[calc(33.333%-11px)] lg:w-[calc(25%-12px)] flex-shrink-0 snap-start">
                   <ProductCard product={product} badgeText="Best Selling" />
                 </div>
               ))}
@@ -730,7 +730,7 @@ const Home = () => {
 
 
       {/* WHY CHOOSE ELEGAN BD SECTION */}
-      <section className="max-w-7xl mx-auto w-full px-4 pb-16">
+      <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
         <div className="relative flex flex-col items-center justify-center border-b border-gray-100 pb-6 mb-8 text-center">
           <h2 className="text-xl md:text-2xl font-black uppercase text-blue-600 tracking-tight text-center">
             Why Choose Elegan BD
@@ -798,7 +798,7 @@ const Home = () => {
         </div>
 
         {/* 4 FEATURE PICTURES GRID (4 PER ROW ON DESKTOP, FILLING SIDE SPACES) */}
-        <div className="mt-8 w-full max-w-[1440px] mx-auto">
+        <div className="mt-8 w-full mx-auto">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 w-full">
             {[
               { id: '1', url: whyChooseImg1, defaultUrl: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=800&q=80' },
@@ -832,7 +832,7 @@ const Home = () => {
       </section>
 
       {/* 3-STEP EASY ORDERING & INSPECTION PROCESS */}
-      <section className="max-w-7xl mx-auto w-full px-4 pb-16">
+      <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
         <div className="bg-blue-50/50 border border-blue-100 rounded-3xl p-6 md:p-10">
           <div className="text-center max-w-2xl mx-auto mb-8">
             <span className="text-xs font-black uppercase text-blue-600 tracking-wider">EASY ORDER PROCESS</span>
@@ -879,7 +879,7 @@ const Home = () => {
       </section>
 
       {/* NUMBERS / STATS SECTION */}
-      <section className="max-w-7xl mx-auto w-full px-4 pb-16">
+      <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
         <div className="bg-white rounded-3xl p-6 md:p-10 text-blue-600 shadow-lg border border-blue-100">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center divide-y md:divide-y-0 md:divide-x divide-blue-100">
             
@@ -979,7 +979,7 @@ const Home = () => {
       </section>
 
       {/* FABRIC & PREMIUM QUALITY SHOWCASE SECTION - PLACED DIRECTLY ABOVE FOOTER */}
-      <section className="max-w-7xl mx-auto w-full px-4 pb-16">
+      <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
         <div className="bg-gradient-to-br from-slate-900 via-gray-900 to-blue-950 text-white rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden border border-slate-800">
           <div className="text-center max-w-2xl mx-auto mb-8">
             <div className="inline-flex items-center gap-1.5 bg-blue-500/20 text-blue-400 px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-widest border border-blue-500/30 mb-3">

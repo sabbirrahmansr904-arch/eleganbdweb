@@ -12,7 +12,7 @@ export default function Footer() {
 
   return (
     <footer className="bg-[#111215] text-white pt-10 pb-8 px-4 sm:px-6 md:px-8 border-t border-white/10">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="max-w-[1560px] mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         
         {/* Box 1: Brand & Tagline */}
         <div className="bg-[#18191e] border border-white/10 rounded-2xl p-6 flex flex-col justify-between space-y-5 shadow-sm hover:border-white/20 transition-all">
@@ -186,7 +186,7 @@ export default function Footer() {
       </div>
 
       {/* Copyright */}
-      <div className="max-w-7xl mx-auto mt-8 pt-6 border-t border-white/10 text-center">
+      <div className="max-w-[1560px] mx-auto mt-8 pt-6 border-t border-white/10 text-center">
         <p className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.15em] text-gray-400">
           © 2026 ELEGAN BD LIMITED. ALL RIGHTS RESERVED.
         </p>

@@ -60,8 +60,8 @@ const ProductList = () => {
   const categoryTitle = category ? category.replace(/-/g, ' ').toUpperCase() : 'ALL PRODUCTS';
 
   return (
-    <div className="pt-2 md:pt-4 pb-20 px-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="pt-2 md:pt-4 pb-20 px-3 sm:px-6 lg:px-8">
+      <div className="max-w-[1560px] mx-auto">
         {/* Breadcrumbs & Header */}
         <div className="mb-4 text-center">
           <nav className="flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest text-gray-400 mb-2">

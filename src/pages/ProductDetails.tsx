@@ -222,7 +222,7 @@ const ProductDetails = () => {
 
   return (
     <div className="pt-4 md:pt-8 pb-24 bg-white min-h-screen">
-      <div className="max-w-7xl mx-auto px-6">
+      <div className="max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumbs */}
         <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-gray-400 mb-4 md:mb-6">
           <Link to="/" className="hover:text-black transition-colors">Home</Link>
