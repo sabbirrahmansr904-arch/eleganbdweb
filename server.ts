@@ -288,6 +288,7 @@ async function startServer() {
 
     const tokenData: any = await tokenRes.json();
     if (!tokenRes.ok || !tokenData.access_token) {
+      cachedPathaoToken = null;
       const tokenErr = tokenData.message || tokenData.error || (tokenData.errors ? JSON.stringify(tokenData.errors) : "Pathao Authentication Failed");
       throw new Error(`Pathao Auth Failed: ${tokenErr}`);
     }
@@ -308,7 +309,16 @@ async function startServer() {
     const cleanId = String(rawId || '').replace(/^#/, '').trim();
     if (!cleanId) throw new Error("Consignment ID is missing");
 
-    const { token, apiBase } = await getPathaoAuth();
+    let authInfo: any;
+    try {
+      authInfo = await getPathaoAuth();
+    } catch (authErr: any) {
+      // If auth failed, try clearing cache and retrying once
+      cachedPathaoToken = null;
+      authInfo = await getPathaoAuth();
+    }
+
+    const { token, apiBase } = authInfo;
 
     // Endpoints to try
     const endpoints = [
@@ -316,7 +326,10 @@ async function startServer() {
       `${apiBase}/aladdin/api/v1/orders/${encodeURIComponent(cleanId)}/track`,
       `${apiBase}/aladdin/api/v1/orders/${encodeURIComponent(cleanId)}`,
       `${apiBase}/aladdin/api/v1/merchant/orders/${encodeURIComponent(cleanId)}/info`,
-      `${apiBase}/aladdin/api/v1/orders/info?consignment_id=${encodeURIComponent(cleanId)}`
+      `${apiBase}/aladdin/api/v1/merchant/orders/${encodeURIComponent(cleanId)}`,
+      `${apiBase}/aladdin/api/v1/orders/info?consignment_id=${encodeURIComponent(cleanId)}`,
+      `${apiBase}/aladdin/api/v1/user/orders?consignment_id=${encodeURIComponent(cleanId)}`,
+      `${apiBase}/aladdin/api/v1/orders?consignment_id=${encodeURIComponent(cleanId)}`
     ];
 
     let lastError = "Failed to fetch Pathao status";
@@ -330,10 +343,19 @@ async function startServer() {
             'Accept': 'application/json'
           }
         });
+
+        if (res.status === 401) {
+          cachedPathaoToken = null;
+        }
+
         const data: any = await res.json();
         if (res.ok && data) {
-          const info = data.data || data;
-          const statusStr = info.order_status || info.delivery_status || info.status || info.order_status_slug || data.order_status || data.delivery_status;
+          let info = data.data || data;
+          if (Array.isArray(info)) {
+            info = info[0] || {};
+          }
+
+          const statusStr = info.order_status || info.delivery_status || info.status || info.order_status_slug || data.order_status || data.delivery_status || data.status;
           if (statusStr) {
             return {
               success: true,
@@ -396,7 +418,7 @@ async function startServer() {
           }
         });
         const dataSf: any = await resSf.json();
-        if (resSf.ok && (dataSf.status === 200 || dataSf.delivery_status)) {
+        if (resSf.ok && (dataSf.status === 200 || dataSf.delivery_status || dataSf.order)) {
           const st = dataSf.delivery_status || dataSf.status || (dataSf.order && dataSf.order.status);
           if (st && st !== 404 && st !== '404') {
             return {

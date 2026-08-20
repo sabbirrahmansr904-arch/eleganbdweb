@@ -97,17 +97,17 @@ const ProductCard = React.memo(({ product, onAddToCart, loading = "eager", badge
 
   return (
     <div
-      className="group relative bg-white rounded-2xl border border-gray-100/90 shadow-2xs hover:shadow-md transition-all duration-300 p-3 sm:p-4 flex flex-col justify-between h-full"
+      className="group relative bg-white rounded-2xl border border-gray-100/90 shadow-2xs hover:shadow-md transition-all duration-300 p-2.5 sm:p-3 flex flex-col justify-between h-full"
     >
       <div>
-        {/* Product Image Container */}
-        <Link to={`/product/${product.id}`} className="block relative aspect-[4/5] w-full rounded-xl overflow-hidden bg-[#f8f9fa] group/img">
+        {/* Product Image Container - Enlarged & High Visibility */}
+        <Link to={`/product/${product.id}`} className="block relative aspect-[3/4] w-full rounded-xl sm:rounded-2xl overflow-hidden bg-[#f4f6f8] group/img shadow-2xs">
           {product.images && product.images.length > 0 && product.images[0] ? (
             <img
               src={product.images[0]}
               alt={product.name}
               className={cn(
-                "w-full h-full transition-transform duration-500 ease-out group-hover/img:scale-105 object-contain",
+                "w-full h-full transition-transform duration-500 ease-out group-hover/img:scale-105 object-cover object-top",
                 product.stock === 0 && "grayscale"
               )}
               referrerPolicy="no-referrer"

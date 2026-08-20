@@ -44,8 +44,65 @@ export default function TrackOrder() {
   const [searched, setSearched] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  // Live courier status state
+  const [liveCourierStatus, setLiveCourierStatus] = useState<string | null>(null);
+  const [liveCourierName, setLiveCourierName] = useState<string>('Pathao');
+  const [liveCourierLoading, setLiveCourierLoading] = useState<boolean>(false);
+  const [liveTrackingId, setLiveTrackingId] = useState<string>('');
+
   // Get ID from query parameter if present
   const queryId = searchParams.get('id') || searchParams.get('orderId') || '';
+
+  const fetchLiveCourier = async (targetOrder: Order) => {
+    const rawId = (targetOrder as any).pathaoConsignmentId || targetOrder.trackingId || (targetOrder as any).trackingCode || (targetOrder as any).steadfastConsignmentId;
+    const cleanId = String(rawId || '').replace(/^#/, '').trim();
+    if (!cleanId) {
+      setLiveCourierStatus(null);
+      setLiveTrackingId('');
+      return;
+    }
+
+    setLiveTrackingId(cleanId);
+    setLiveCourierLoading(true);
+    const isSteadfast = Boolean((targetOrder as any).steadfastConsignmentId) || (targetOrder.courier || '').toLowerCase().includes('steadfast');
+    setLiveCourierName(isSteadfast ? 'Steadfast' : 'Pathao');
+
+    try {
+      const res = await fetch('/api/courier/track-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          consignmentId: cleanId,
+          trackingCode: cleanId,
+          courier: targetOrder.courier || (isSteadfast ? 'steadfast' : 'pathao')
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.status) {
+        setLiveCourierStatus(data.status);
+        if (data.courier) {
+          setLiveCourierName(data.courier);
+        }
+      } else {
+        // Fall back to order.courierStatus if available in Firestore
+        setLiveCourierStatus((targetOrder as any).courierStatus || null);
+      }
+    } catch (e) {
+      setLiveCourierStatus((targetOrder as any).courierStatus || null);
+    } finally {
+      setLiveCourierLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (order) {
+      setLiveCourierStatus((order as any).courierStatus || null);
+      fetchLiveCourier(order);
+    } else {
+      setLiveCourierStatus(null);
+      setLiveTrackingId('');
+    }
+  }, [order]);
 
   useEffect(() => {
     if (queryId) {
@@ -470,6 +527,63 @@ export default function TrackOrder() {
                 )}
 
               </div>
+
+              {/* Live Courier Dispatch & Tracking Info */}
+              {(liveTrackingId || (order as any).pathaoConsignmentId || (order as any).trackingCode || order.trackingId || (order as any).steadfastConsignmentId) && (
+                <div className="bg-slate-900 text-white rounded-[2rem] p-6 sm:p-7 border border-slate-800 shadow-md relative overflow-hidden">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-10">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center text-white shrink-0">
+                        <Truck size={24} className="text-amber-400" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-400/10 px-2.5 py-0.5 rounded-full border border-amber-400/20">
+                            Live Courier Dispatch
+                          </span>
+                          <span className="text-xs font-mono font-bold text-slate-300">
+                            {liveCourierName} Courier
+                          </span>
+                        </div>
+                        <p className="text-sm sm:text-base font-black text-white uppercase tracking-tight mt-1 flex items-center gap-2">
+                          <span className="text-slate-400 font-medium">Tracking ID:</span>
+                          <span className="font-mono text-amber-300 font-bold">#{liveTrackingId || (order as any).pathaoConsignmentId || order.trackingId}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Status Pill & Refresh */}
+                    <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                      {liveCourierLoading ? (
+                        <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/10 border border-white/10 text-xs font-black uppercase tracking-wider text-slate-200 animate-pulse">
+                          <RefreshCw size={14} className="animate-spin text-amber-400" />
+                          <span>Syncing Status...</span>
+                        </div>
+                      ) : liveCourierStatus ? (
+                        <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-black uppercase tracking-wider">
+                          <CheckCircle2 size={15} className="text-emerald-400 shrink-0" />
+                          <span>{liveCourierStatus.replace(/_/g, ' ')}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/10 border border-white/10 text-xs font-black uppercase tracking-wider text-slate-300">
+                          <Clock size={14} className="text-amber-400" />
+                          <span>Dispatched via {liveCourierName}</span>
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => fetchLiveCourier(order)}
+                        disabled={liveCourierLoading}
+                        className="p-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 text-slate-300 hover:text-white transition-all cursor-pointer shrink-0"
+                        title="Refresh Live Status"
+                      >
+                        <RefreshCw size={14} className={liveCourierLoading ? 'animate-spin text-amber-400' : ''} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Shipping Address and client metadata block - Black text */}
               <div className="bg-white rounded-[2rem] p-6 sm:p-8 border border-gray-100 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6">

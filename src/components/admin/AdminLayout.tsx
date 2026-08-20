@@ -353,7 +353,7 @@ export default function AdminLayout() {
             >
               <div className="h-20 flex items-center justify-between px-6 border-b border-[#DCE4EE] bg-[#EAEFF5] text-black">
                 <Link to="/" onClick={() => setIsMobileOpen(false)} className="shrink-0 flex items-center min-w-0">
-                  <span className="font-black tracking-tight text-xl sm:text-2xl text-gray-900 leading-none">
+                  <span className="font-black tracking-tight text-xl sm:text-2xl text-blue-600 leading-none">
                     Elegan BD
                   </span>
                 </Link>
@@ -448,11 +448,11 @@ export default function AdminLayout() {
         <div className="h-20 flex items-center justify-between px-6 border-b border-[#DCE4EE] overflow-hidden bg-[#EAEFF5] shrink-0">
           <Link to="/" className="shrink-0 flex items-center min-w-0">
             {isSidebarOpen ? (
-              <span className="font-black tracking-tight text-xl sm:text-2xl text-gray-900 leading-none">
+              <span className="font-black tracking-tight text-xl sm:text-2xl text-blue-600 leading-none">
                 Elegan BD
               </span>
             ) : (
-              <span className="font-black tracking-tight text-xl text-gray-900 leading-none mx-auto">
+              <span className="font-black tracking-tight text-xl text-blue-600 leading-none mx-auto">
                 E
               </span>
             )}

@@ -44,6 +44,43 @@ interface FinanceContextType {
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
+export const sortBankAccounts = (accounts: BankAccount[]): BankAccount[] => {
+  const getRank = (acc: BankAccount): number => {
+    const name = (acc.bankName || '').toLowerCase();
+    const accName = (acc.accountName || '').toLowerCase();
+    const accType = (acc.accountType || '').toLowerCase();
+    
+    // 1st: Cash
+    if (name.includes('cash') || accName.includes('cash') || accType.includes('cash') || name.includes('ক্যাশ') || accName.includes('ক্যাশ')) {
+      return 1;
+    }
+    // 2nd: Sonali Bank
+    if (name.includes('sonali') || accName.includes('sonali') || name.includes('সোনালী') || accName.includes('সোনালী')) {
+      return 2;
+    }
+    // 3rd: bKash
+    if (name.includes('bkash') || accName.includes('bkash') || name.includes('বিকাশ') || accName.includes('বিকাশ')) {
+      return 3;
+    }
+    // 4th: Nagad
+    if (name.includes('nagad') || accName.includes('nagad') || name.includes('নগদ') || accName.includes('নগদ')) {
+      return 4;
+    }
+    // 5th: Rocket
+    if (name.includes('rocket') || accName.includes('rocket') || name.includes('রকেট')) {
+      return 5;
+    }
+    return 10;
+  };
+
+  return [...accounts].sort((a, b) => {
+    const rankA = getRank(a);
+    const rankB = getRank(b);
+    if (rankA !== rankB) return rankA - rankB;
+    return (a.bankName || '').localeCompare(b.bankName || '');
+  });
+};
+
 export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([]);
@@ -52,7 +89,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     const unsubAccounts = onSnapshot(collection(db, 'bank_accounts'), (snapshot) => {
       const accounts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as BankAccount));
-      setBankAccounts(accounts);
+      setBankAccounts(sortBankAccounts(accounts));
     }, (error) => handleFirestoreError(error, OperationType.GET, 'bank_accounts'));
 
     const unsubTransactions = onSnapshot(query(collection(db, 'bank_transactions'), orderBy('date', 'desc')), (snapshot) => {

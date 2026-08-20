@@ -555,12 +555,13 @@ Wash Care:
 
             <div className="space-y-4">
               <label className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-400 block">Cover Photo (Main)</label>
-              <div className="relative aspect-[4/3.5] bg-[#f2f5fa] rounded-2xl overflow-hidden border border-gray-100 group transition-all">
+              <div className="relative aspect-[3/4] max-w-md mx-auto w-full bg-[#f2f5fa] rounded-2xl overflow-hidden border border-gray-200 group transition-all shadow-xs">
                 {uploadedImages[coverImageIndex] ? (
                   <>
                     <img 
                       src={uploadedImages[coverImageIndex]} 
-                      className="w-full h-full object-contain bg-[#F8F9FD] p-1" 
+                      alt="Cover Preview"
+                      className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-102" 
                       referrerPolicy="no-referrer" 
                     />
                     <button 
@@ -571,22 +572,23 @@ Wash Care:
                         setUploadedImages(newImgs);
                         setCoverImageIndex(0);
                       }}
-                      className="absolute top-4 right-4 bg-[#F8F9FD]/80 backdrop-blur-md text-gray-500 p-2 rounded-lg hover:bg-[#F8F9FD] transition-all shadow-sm"
+                      className="absolute top-3 right-3 bg-white/90 backdrop-blur-md text-gray-700 hover:text-red-600 p-2 rounded-xl hover:bg-white transition-all shadow-md z-10"
+                      title="Remove Photo"
                     >
                       <X size={16} />
                     </button>
                   </>
                 ) : (
-                  <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-all text-center p-8">
+                  <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50/40 transition-all text-center p-8">
                     <div className="relative mb-6">
                        <div className="absolute inset-0 bg-[#F8F9FD] opacity-40 blur-2xl rounded-full" />
-                       <div className="relative w-24 h-24 bg-[#F8F9FD] rounded-2xl shadow-xl flex items-center justify-center text-blue-200">
+                       <div className="relative w-24 h-24 bg-white rounded-2xl shadow-xl flex items-center justify-center text-blue-500 border border-blue-100">
                          <Upload size={32} className="stroke-[1.5]" />
                        </div>
                     </div>
-                    <span className="text-[10px] font-black text-blue-400/80 uppercase tracking-[0.15em] mb-1">Select Main Thumbnail</span>
-                    <span className="text-[8px] font-medium text-gray-300 uppercase tracking-widest">Product Image Coming Soon</span>
-                    <span className="text-[8px] font-medium text-gray-300 italic mt-0.5">Premium Quality & Style</span>
+                    <span className="text-[11px] font-black text-blue-600 uppercase tracking-[0.15em] mb-1">Select Main Thumbnail</span>
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Portrait Ratio (3:4) Recommended</span>
+                    <span className="text-[8px] font-medium text-gray-300 italic mt-1">High Quality Edge-to-Edge Fit</span>
                     <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange(uploadedImages.length, e)} />
                   </label>
                 )}
@@ -596,7 +598,7 @@ Wash Care:
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <label className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-400 block">Gallery Images</label>
-                <label className="text-[9px] font-black text-red-400 uppercase tracking-widest flex items-center gap-1 cursor-pointer hover:text-red-500">
+                <label className="text-[9px] font-black text-red-500 hover:text-red-600 uppercase tracking-widest flex items-center gap-1 cursor-pointer bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors">
                   <Plus size={12} /> Add More
                   <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange(uploadedImages.length, e)} />
                 </label>
@@ -605,8 +607,8 @@ Wash Care:
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {uploadedImages.map((img, i) => (
                   i !== coverImageIndex && (
-                    <div key={i} className="relative aspect-square bg-gray-50 rounded-xl overflow-hidden border border-gray-100 group">
-                      <img src={img} className="w-full h-full object-contain bg-[#F8F9FD] p-1" />
+                    <div key={i} className="relative aspect-[3/4] bg-gray-50 rounded-xl overflow-hidden border border-gray-200 group shadow-xs">
+                      <img src={img} alt="" className="w-full h-full object-cover object-top" />
                       <button 
                         type="button"
                         onClick={() => {
@@ -616,7 +618,8 @@ Wash Care:
                           if (coverImageIndex === i) setCoverImageIndex(0);
                           else if (coverImageIndex > i) setCoverImageIndex(coverImageIndex - 1);
                         }}
-                        className="absolute top-2 right-2 bg-[#F8F9FD]/80 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                        className="absolute top-2 right-2 bg-white/90 text-gray-700 hover:text-red-600 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-md"
+                        title="Remove Image"
                       >
                         <X size={12} />
                       </button>
@@ -624,8 +627,8 @@ Wash Care:
                   )
                 ))}
                 {uploadedImages.length <= 1 && (
-                  <div className="col-span-full h-28 bg-[#F8F9FD] border-2 border-dashed border-gray-100 rounded-2xl flex items-center justify-center">
-                    <span className="text-[9px] font-black text-gray-300 uppercase tracking-[0.2em]">No Additional Gallery Images</span>
+                  <div className="col-span-full h-28 bg-[#F8F9FD] border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center">
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">No Additional Gallery Images</span>
                   </div>
                 )}
               </div>

@@ -40,11 +40,25 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
       const data = await res.json();
       if (res.ok && data.success && data.status) {
         setStatus(data.status);
-        if (data.courier) {
-          setCourierName(data.courier === 'Steadfast' ? 'SF' : 'Pathao');
-        }
+        const resolvedCourier = data.courier === 'Steadfast' ? 'SF' : 'Pathao';
+        setCourierName(resolvedCourier);
 
         const lower = (data.status || '').toLowerCase();
+        
+        // Save live courierStatus to Firestore order record
+        if (updateOrder) {
+          try {
+            await updateOrder(order.id, {
+              ...order,
+              courierStatus: data.status,
+              courier: data.courier || order.courier || 'Pathao',
+              ...(data.delivery_fee ? { courierCharge: data.delivery_fee } : {})
+            });
+          } catch (e) {
+            console.warn("Could not sync courier status into order:", e);
+          }
+        }
+
         // If parcel is delivered/completed by courier, automatically update order status to SUCCESS / Delivered
         if (lower.includes('deliver') || lower.includes('success') || lower === 'delivery_complete') {
           if (!isDeliveredOrSuccess(order.status)) {
@@ -83,7 +97,7 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
       } else {
         setError(true);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error fetching live parcel status:", err);
       setError(true);
     } finally {

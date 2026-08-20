@@ -5,7 +5,7 @@
 import React, { useState, useMemo } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { useFinance } from '../../contexts/FinanceContext';
+import { useFinance, sortBankAccounts } from '../../contexts/FinanceContext';
 import { useOrders } from '../../contexts/OrderContext';
 import { formatPrice } from '../../lib/utils';
 import { 
@@ -571,17 +571,17 @@ export default function AdminFinance(): React.JSX.Element {
         </div>
       </div>
 
-      {/* Top 3 Account Balance Cards + Summary Card Grid matching reference screenshot */}
+      {/* Top 4 Account Balance Cards + Summary Card Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
         
-        {/* Left 3 Accounts Cards */}
-        <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-5">
+        {/* Left Accounts Cards (1st: Cash, 2nd: Sonali Bank, 3rd: bKash, 4th: Nagad) */}
+        <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
           {bankAccounts.length === 0 ? (
-            <div className="col-span-3 bg-white p-8 text-center rounded-[24px] border border-gray-100 text-xs text-gray-400">
+            <div className="col-span-full bg-white p-8 text-center rounded-[24px] border border-gray-100 text-xs text-gray-400">
               কোনো ব্যাংক অ্যাকাউন্ট বা ওয়ালেট পাওয়া যায়নি। উপরে "+ নতুন অ্যাকাউন্ট" বাটনে ক্লিক করে অ্যাকাউন্ট যোগ করুন।
             </div>
           ) : (
-            bankAccounts.map((acc) => {
+            sortBankAccounts(bankAccounts).map((acc) => {
               const isBkash = acc.bankName.toLowerCase().includes('bkash');
               const isNagad = acc.bankName.toLowerCase().includes('nagad');
               const isRocket = acc.bankName.toLowerCase().includes('rocket');

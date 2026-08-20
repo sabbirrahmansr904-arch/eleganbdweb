@@ -26,7 +26,6 @@ const Home = () => {
     shirtBannerUrl,
     pantBannerUrl,
     subHeroBannerUrl,
-    ceoPhotoUrl,
     showCountdownBanner,
     comboOfferTitle,
     comboOfferSubTitle,
@@ -879,41 +878,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* FOUNDER / CEO COMMITMENT MESSAGE CARD */}
-      <section className="max-w-7xl mx-auto w-full px-4 pb-16">
-        <div className="bg-gradient-to-r from-gray-900 via-slate-900 to-slate-800 rounded-3xl p-6 sm:p-10 text-white shadow-xl relative overflow-hidden border border-slate-700">
-          <div className="flex flex-col md:flex-row items-center gap-6 md:gap-10">
-            <div className="w-28 sm:w-36 aspect-[3/4] rounded-2xl overflow-hidden border-2 border-amber-400 shrink-0 shadow-xl bg-slate-800">
-              <img 
-                src={ceoPhotoUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&q=80"} 
-                alt="Elegan BD CEO" 
-                className="w-full h-full object-cover object-center"
-                referrerPolicy="no-referrer"
-              />
-            </div>
-
-            <div className="flex-1 text-center md:text-left">
-              <div className="inline-flex items-center gap-1.5 bg-amber-400/20 text-amber-300 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-400/30 mb-2">
-                OUR BRAND COMMITMENT
-              </div>
-              <h3 className="text-xl sm:text-2xl font-black text-white uppercase">
-                "আপনার সন্তুষ্টিই আমাদের সবচেয়ে বড় অর্জন।"
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-300 font-medium mt-3 leading-relaxed italic">
-                — প্রতিটি পণ্য আমরা যত্নের সাথে নির্বাচন ও মান যাচাই করে আপনার হাতে পৌঁছে দিই, যেন প্রতিবার কেনাকাটার অভিজ্ঞতা হয় নির্ভরযোগ্য ও আনন্দদায়ক। আমাদের প্রতিটি পোশাকে রয়েছে প্রিমিয়াম কোয়ালিটি, নিখুঁত ফিটিং এবং দীর্ঘস্থায়ী আরাম। আপনার প্রতিদিনের লুককে আরও পরিপাটি ও আত্মবিশ্বাসী করে তোলাই আমাদের লক্ষ্য।
-              </p>
-              <div className="mt-4 flex items-center justify-center md:justify-start gap-3">
-                <span className="font-extrabold text-sm text-amber-400 uppercase tracking-wider">— মোঃ সাব্বির রহমান</span>
-                <span className="text-slate-500">•</span>
-                <span className="text-xs text-slate-400 font-bold uppercase">Founder & CEO . Elegan BD</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-
-
       {/* NUMBERS / STATS SECTION */}
       <section className="max-w-7xl mx-auto w-full px-4 pb-16">
         <div className="bg-white rounded-3xl p-6 md:p-10 text-blue-600 shadow-lg border border-blue-100">
@@ -925,7 +889,7 @@ const Home = () => {
                 <Users className="w-6 h-6 text-blue-600" />
               </div>
               <span className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-blue-600">
-                7k+
+                5000+
               </span>
               <span className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-blue-600 mt-1">
                 Happy Customers
@@ -938,7 +902,7 @@ const Home = () => {
                 <ShoppingBag className="w-6 h-6 text-blue-600" />
               </div>
               <span className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-blue-600">
-                19k+
+                10000+
               </span>
               <span className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-blue-600 mt-1">
                 Orders Delivered
