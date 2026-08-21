@@ -77,7 +77,7 @@ const ProductList = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 mt-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5 md:gap-4 mt-6">
           {loading ? (
             Array(8).fill(0).map((_, i) => (
               <div key={i} className="aspect-[3/4] bg-gray-100 animate-pulse rounded-sm" />

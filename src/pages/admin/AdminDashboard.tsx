@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProducts } from '../../contexts/ProductContext';
@@ -58,21 +58,23 @@ export default function AdminDashboard(): React.JSX.Element {
     updatedAt: number;
   }>>([]);
 
-  // Real-time listener for active admins
+  // Fetch Active Admins
   useEffect(() => {
-    const unsubPerms = onSnapshot(collection(db, 'admin_permissions'), (permsSnap) => {
-      const permsMap = new Map<string, any>();
-      permsSnap.forEach(docSnap => {
-        const data = docSnap.data();
-        const email = (data.email || docSnap.id).toLowerCase().trim();
-        permsMap.set(email, {
-          email,
-          department: data.department || 'SALES EXECUTIVE DEPARTMENT',
-          permissions: data.permissions || []
+    async function fetchAdminData() {
+      try {
+        const permsSnap = await getDocs(collection(db, 'admin_permissions'));
+        const permsMap = new Map<string, any>();
+        permsSnap.forEach(docSnap => {
+          const data = docSnap.data();
+          const email = (data.email || docSnap.id).toLowerCase().trim();
+          permsMap.set(email, {
+            email,
+            department: data.department || 'SALES EXECUTIVE DEPARTMENT',
+            permissions: data.permissions || []
+          });
         });
-      });
 
-      const unsubAdmins = onSnapshot(collection(db, 'admins'), (adminsSnap) => {
+        const adminsSnap = await getDocs(collection(db, 'admins'));
         const adminMap = new Map<string, any>();
 
         // Default baseline admins
@@ -155,12 +157,11 @@ export default function AdminDashboard(): React.JSX.Element {
         });
 
         setActiveAdmins(sortedList);
-      }, (err) => console.warn('[AdminDashboard] Admins listener notice:', err));
-
-      return () => unsubAdmins();
-    }, (err) => console.warn('[AdminDashboard] Perms listener notice:', err));
-
-    return () => unsubPerms();
+      } catch (err) {
+        console.warn('[AdminDashboard] Admin data fetch error:', err);
+      }
+    }
+    fetchAdminData();
   }, [currentUser]);
 
   // Real-time Stock alert tracker

@@ -1,10 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Product } from '../types';
 import { PRODUCTS as INITIAL_PRODUCTS } from '../constants';
 import { db } from '../lib/firebase';
-import { collection, onSnapshot, doc, setDoc, deleteDoc, writeBatch, getDocs, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, getDoc, getDocs } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
-import { handleFirestoreError, OperationType, isQuotaError } from '../lib/firestoreUtils';
+import { handleFirestoreError, OperationType, isQuotaError, isFirestoreQuotaExceeded } from '../lib/firestoreUtils';
 
 interface ProductContextType {
   products: Product[];
@@ -14,6 +14,7 @@ interface ProductContextType {
   loading: boolean;
   offerProductIds: string[];
   updateOfferProducts: (ids: string[]) => Promise<void>;
+  refreshProducts: () => Promise<void>;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
@@ -28,50 +29,42 @@ const deduplicateProducts = (list: Product[]): Product[] => {
   });
 };
 
+const normalizeProductCategory = (p: Product): Product => {
+  let category = p.category || '';
+  const lowerCategory = category.toLowerCase().trim();
+  if (lowerCategory === 'formal shirt' || lowerCategory === 'formal-shirt' || lowerCategory === 'premium formal shirt' || lowerCategory === 'premium-formal-shirt') {
+    category = 'Formal Shirt';
+  } else if (lowerCategory === 'drop shoulder t-shirt' || lowerCategory === 'drop-shoulder-t-shirt' || lowerCategory === 'panjabi' || lowerCategory === 'polo t-shirt' || lowerCategory === 'polo-t-shirt' || lowerCategory === 'polo t shirt') {
+    category = 'Polo T-shirt';
+  } else if (lowerCategory === 'casual shirt' || lowerCategory === 'casual-shirt' || lowerCategory === 'woman palazzo' || lowerCategory === 'formal pant' || lowerCategory === 'formal-pant') {
+    category = 'Formal Pant';
+  } else if (lowerCategory === 'premium shirt' || lowerCategory === 'premium-shirt') {
+    category = 'Premium Shirt';
+  }
+  return {
+    ...p,
+    category,
+    stock: p.stock || 0,
+    images: p.images || [],
+    sizes: p.sizes || [],
+    sizeStock: p.sizeStock || {}
+  };
+};
+
 export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [products, setProducts] = useState<Product[]>(() => {
-    // Optimistically load from localStorage or constants so the UI doesn't blink
     try {
       const locallySaved = localStorage.getItem('eleganbd_products');
       if (locallySaved !== null) {
-        let parsed = JSON.parse(locallySaved);
-        if (Array.isArray(parsed)) {
-          // Normalize categories
-          parsed = parsed.map(p => {
-             let category = p.category || '';
-             const lowerCategory = category.toLowerCase().trim();
-             if (lowerCategory === 'formal shirt' || lowerCategory === 'formal-shirt' || lowerCategory === 'premium formal shirt' || lowerCategory === 'premium-formal-shirt') {
-               category = 'Formal Shirt';
-             } else if (lowerCategory === 'drop shoulder t-shirt' || lowerCategory === 'drop-shoulder-t-shirt' || lowerCategory === 'panjabi') {
-               category = 'Polo T-shirt';
-             } else if (lowerCategory === 'polo t-shirt' || lowerCategory === 'polo-t-shirt' || lowerCategory === 'polo t shirt' || lowerCategory === 'polo t-shirt') {
-               category = 'Polo T-shirt';
-             } else if (lowerCategory === 'casual shirt' || lowerCategory === 'casual-shirt' || lowerCategory === 'woman palazzo' || lowerCategory === 'formal pant' || lowerCategory === 'formal-pant') {
-               if (lowerCategory === 'casual shirt' || lowerCategory === 'casual-shirt') {
-                 category = 'Formal Pant';
-               } else {
-                 category = 'Formal Pant';
-               }
-             } else if (lowerCategory === 'premium shirt' || lowerCategory === 'premium-shirt') {
-               category = 'Premium Shirt';
-             }
-             
-             return {
-               ...p,
-               id: p.id || Math.random().toString(36).substr(2, 9),
-               category,
-               stock: p.stock || 0,
-               images: p.images || [],
-               sizes: p.sizes || [],
-               sizeStock: p.sizeStock || {}
-             };
-          });
-          return deduplicateProducts(parsed);
+        const parsed = JSON.parse(locallySaved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return deduplicateProducts(parsed.map(normalizeProductCategory));
         }
       }
-    } catch(e) {}
+    } catch (e) {}
     return INITIAL_PRODUCTS;
   });
+
   const [loading, setLoading] = useState(false);
   const [offerProductIds, setOfferProductIds] = useState<string[]>(() => {
     try {
@@ -83,136 +76,141 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
   });
   const { isAdmin } = useAuth();
 
-  useEffect(() => {
-    const fetchOffers = async () => {
-      try {
-        const snap = await getDoc(doc(db, 'config', 'offers'));
-        if (snap.exists()) {
-          const ids = snap.data().productIds || [];
-          setOfferProductIds(ids);
-          localStorage.setItem('eleganbd_offers', JSON.stringify(ids));
-        }
-      } catch (err) {
-        if (isQuotaError(err)) {
-          console.warn("Failed to fetch offers config due to Firestore quota limit reached. Using cached offers.");
-        } else {
-          console.error("Failed to fetch offers config:", err);
+  const refreshProducts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const cached = localStorage.getItem('eleganbd_products');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setProducts(deduplicateProducts(parsed.map(normalizeProductCategory)));
         }
       }
-    };
-    fetchOffers();
+    } catch (e) {}
+    setLoading(false);
   }, []);
 
   useEffect(() => {
-    setLoading(true);
-    const productsCol = collection(db, 'products');
+    if (isFirestoreQuotaExceeded) {
+      setLoading(false);
+      return;
+    }
 
-    const unsubscribe = onSnapshot(productsCol, (snapshot) => {
+    // 1. Real-time offers listener
+    const unsubOffers = onSnapshot(doc(db, 'config', 'offers'), (snap) => {
+      if (snap.exists()) {
+        const ids = snap.data().productIds || [];
+        setOfferProductIds(ids);
+        try {
+          localStorage.setItem('eleganbd_offers', JSON.stringify(ids));
+        } catch {}
+      }
+    }, (err) => {
+      if (!isQuotaError(err)) {
+        console.warn('[ProductContext] Offers listener notice:', err);
+      }
+    });
+
+    // 2. Real-time products listener (Firestore is primary real-time database)
+    const productsCol = collection(db, 'products');
+    getDocs(productsCol).then((snapshot) => {
       const prodData: Product[] = [];
-      snapshot.forEach(doc => {
-        const data = doc.data() as Product;
+      snapshot.forEach(docSnap => {
         prodData.push({
-          ...data,
-          id: doc.id,
-          stock: data.stock || 0,
-          images: data.images || [],
-          sizes: data.sizes || [],
-          sizeStock: data.sizeStock || {}
+          ...(docSnap.data() as Product),
+          id: docSnap.id
         });
       });
 
-      const normalizedData = prodData.map(p => {
-         let category = p.category || '';
-         const lowerCategory = category.toLowerCase().trim();
-         if (lowerCategory === 'formal shirt' || lowerCategory === 'formal-shirt' || lowerCategory === 'premium formal shirt' || lowerCategory === 'premium-formal-shirt') {
-           category = 'Formal Shirt';
-         } else if (lowerCategory === 'drop shoulder t-shirt' || lowerCategory === 'drop-shoulder-t-shirt' || lowerCategory === 'panjabi') {
-           category = 'Polo T-shirt';
-         } else if (lowerCategory === 'polo t-shirt' || lowerCategory === 'polo-t-shirt' || lowerCategory === 'polo t shirt' || lowerCategory === 'polo t-shirt') {
-           category = 'Polo T-shirt';
-         } else if (lowerCategory === 'casual shirt' || lowerCategory === 'casual-shirt' || lowerCategory === 'woman palazzo' || lowerCategory === 'formal pant' || lowerCategory === 'formal-pant') {
-           if (lowerCategory === 'casual shirt' || lowerCategory === 'casual-shirt') {
-             category = 'Formal Pant';
-           } else {
-             category = 'Formal Pant';
-           }
-         } else if (lowerCategory === 'premium shirt' || lowerCategory === 'premium-shirt') {
-           category = 'Premium Shirt';
-         }
-         return { ...p, category };
-      });
-
-      const uniqueData = deduplicateProducts(normalizedData);
-      setProducts(uniqueData);
-      localStorage.setItem('eleganbd_products', JSON.stringify(uniqueData));
-      localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
+      if (prodData.length > 0) {
+        const normalized = deduplicateProducts(prodData.map(normalizeProductCategory));
+        setProducts(normalized);
+        try {
+          localStorage.setItem('eleganbd_products', JSON.stringify(normalized));
+          localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
+        } catch (e) {}
+      }
       setLoading(false);
-    }, (err: any) => {
-      handleFirestoreError(err, OperationType.GET, 'products');
+    }).catch((err) => {
+      if (!isQuotaError(err)) {
+        handleFirestoreError(err, OperationType.GET, 'products');
+      }
+      // If Firestore has temporary quota or network pause, keep local cache
       setLoading(false);
     });
 
-    return () => unsubscribe();
-  }, [isAdmin]);
+    return () => {
+      unsubOffers();
+    };
+  }, []);
 
   const addProduct = async (product: Product) => {
+    const productWithTimestamps = {
+      ...product,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+
+    // 1. Save to Firestore
     try {
       const docRef = doc(db, 'products', product.id);
-      const productWithTimestamps = {
-        ...product,
-        createdAt: Date.now(),
-        updatedAt: Date.now()
-      };
       await setDoc(docRef, productWithTimestamps);
-      
-      setProducts(prev => {
-        const next = deduplicateProducts([productWithTimestamps, ...prev]);
-        try {
-          localStorage.setItem('eleganbd_products', JSON.stringify(next));
-        } catch (e) {}
-        return next;
-      });
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `products/${product.id}`);
     }
+
+    // 2. Optimistic local state & cache update
+    setProducts(prev => {
+      const next = deduplicateProducts([productWithTimestamps, ...prev]);
+      try {
+        localStorage.setItem('eleganbd_products', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
   };
 
   const updateProduct = async (updatedProduct: Product) => {
+    const updatedData = {
+      ...updatedProduct,
+      updatedAt: Date.now()
+    };
+
+    // 1. Update in Firestore
     try {
       const docRef = doc(db, 'products', updatedProduct.id);
-      const updatedData = {
-        ...updatedProduct,
-        updatedAt: Date.now()
-      };
       await setDoc(docRef, updatedData, { merge: true });
-      
-      setProducts(prev => {
-        const next = prev.map(p => p.id === updatedProduct.id ? { ...p, ...updatedData } : p);
-        const uniqueNext = deduplicateProducts(next);
-        try {
-          localStorage.setItem('eleganbd_products', JSON.stringify(uniqueNext));
-        } catch (e) {}
-        return uniqueNext;
-      });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `products/${updatedProduct.id}`);
     }
+
+    // 2. Optimistic local state update
+    setProducts(prev => {
+      const next = prev.map(p => p.id === updatedProduct.id ? { ...p, ...updatedData } : p);
+      const uniqueNext = deduplicateProducts(next);
+      try {
+        localStorage.setItem('eleganbd_products', JSON.stringify(uniqueNext));
+      } catch (e) {}
+      return uniqueNext;
+    });
   };
 
   const deleteProduct = async (id: string) => {
+    // 1. Delete in Firestore
     try {
       await deleteDoc(doc(db, 'products', id));
-      setProducts(prev => {
-        const next = prev.filter(p => p.id !== id);
-        const uniqueNext = deduplicateProducts(next);
-        try {
-          localStorage.setItem('eleganbd_products', JSON.stringify(uniqueNext));
-        } catch (e) {}
-        return uniqueNext;
-      });
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `products/${id}`);
     }
+
+    // 2. Optimistic local state update
+    setProducts(prev => {
+      const next = prev.filter(p => p.id !== id);
+      const uniqueNext = deduplicateProducts(next);
+      try {
+        localStorage.setItem('eleganbd_products', JSON.stringify(uniqueNext));
+      } catch (e) {}
+      return uniqueNext;
+    });
   };
 
   const updateOfferProducts = async (ids: string[]) => {
@@ -227,7 +225,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   return (
-    <ProductContext.Provider value={{ products, addProduct, updateProduct, deleteProduct, loading, offerProductIds, updateOfferProducts }}>
+    <ProductContext.Provider value={{ products, addProduct, updateProduct, deleteProduct, loading, offerProductIds, updateOfferProducts, refreshProducts }}>
       {children}
     </ProductContext.Provider>
   );

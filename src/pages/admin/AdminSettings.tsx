@@ -40,6 +40,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import BannerSettings from '../../components/admin/settings/BannerSettings';
 import CategorySettings from '../../components/admin/settings/CategorySettings';
 import NotificationSettings from '../../components/admin/settings/NotificationSettings';
+
 import { useBranding } from '../../contexts/BrandingContext';
 import { useProducts } from '../../contexts/ProductContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -87,7 +88,7 @@ export default function AdminSettings() {
     setShowShowcase
   } = useBranding();
   const { products, offerProductIds = [], updateOfferProducts, updateProduct } = useProducts();
-  const { currentUser, isSuperAdmin } = useAuth();
+  const { currentUser, isSuperAdmin, permissions = [] } = useAuth();
   const { orders } = useOrders();
 
   const [activeTab, setActiveTab ] = useState('General');
@@ -203,24 +204,34 @@ export default function AdminSettings() {
   const [editingTargetEmail, setEditingTargetEmail] = useState('');
   const [isSavingDirectAccess, setIsSavingDirectAccess] = useState(false);
 
-  const departmentsList = [
-    { id: 'CEO & Founder', name: 'CEO & Founder', desc: 'ফুল সিস্টেম এক্সেস ও সর্বোচ্চ নিয়ন্ত্রণ', defaultPerms: ['dashboard', 'customers', 'orders', 'exchanges', 'products', 'issues', 'masterTable', 'finance', 'settings'] },
-    { id: 'Sales Executive Department', name: 'Sales Executive Department', desc: 'অর্ডার নেওয়া, ড্যাশবোর্ড দেখা ও কাস্টমার ম্যানেজমেন্ট', defaultPerms: ['dashboard', 'orders', 'customers', 'exchanges'] },
-    { id: 'Delivery / Logistics Department', name: 'Delivery / Logistics Department', desc: 'অর্ডার প্রসেসিং, লেবেল প্রিন্ট, এক্সচেঞ্জ ও পাথাও কুরিয়ার', defaultPerms: ['orders', 'exchanges', 'masterTable', 'settings'] },
-    { id: 'Management / Admin Department', name: 'Management / Admin Department', desc: 'সম্পূর্ণ স্টোর অপারেশন, প্রোডাক্ট ইনভেন্টরি ও হিসাব-নিকাশ', defaultPerms: ['dashboard', 'orders', 'products', 'customers', 'issues', 'masterTable', 'finance', 'settings'] },
-    { id: 'Customer Support Department', name: 'Customer Support Department', desc: 'কাস্টমার কমপ্লেন, অর্ডার ইস্যু সমাধান ও সাইজ এক্সচেঞ্জ', defaultPerms: ['dashboard', 'orders', 'issues', 'exchanges'] }
-  ];
-
   const availableModules = [
     { id: 'dashboard', name: 'Dashboard', banglaName: 'ড্যাশবোর্ড', desc: 'ওভারভিউ, চার্ট ও সেলস সামারি' },
+    { id: 'customer-profiler', name: 'Customer Profiler', banglaName: 'কাস্টমার প্রোফাইলার', desc: 'গ্রাহক প্রোফাইল ও বিস্তারিত তথ্য' },
     { id: 'orders', name: 'Orders', banglaName: 'অর্ডারসমূহ', desc: 'অর্ডার লিস্ট, স্ট্যাটাস আপডেট ও কাস্টমার ডিটেইলস' },
-    { id: 'issues', name: 'Order Issues', banglaName: 'অর্ডার ইস্যু', desc: 'কাস্টমার কমপ্লেন, প্রবলেম রিপোর্ট ও সমাধান' },
     { id: 'exchanges', name: 'Exchanges', banglaName: 'রিটার্ন ও এক্সচেঞ্জ', desc: 'সাইজ এক্সচেঞ্জ ও রিটার্ন রিকোয়েস্ট ম্যানেজমেন্ট' },
-    { id: 'products', name: 'Products & Inventory', banglaName: 'প্রোডাক্ট ও স্টক', desc: 'প্রোডাক্ট অ্যাড, এডিট, ক্যাটালগ ও স্টক আপডেট' },
-    { id: 'customers', name: 'Customers & Profiler', banglaName: 'কাস্টমার ডিরেক্টরি', desc: 'কাস্টমার প্রোফাইল ও পারচেজ হিস্ট্রি' },
-    { id: 'masterTable', name: 'Master Table', banglaName: 'মাস্কেল টেবিল', desc: 'বাল্ক স্ক্যানিং, লেবেল প্রিন্ট ও দ্রুত প্রসেসিং' },
-    { id: 'finance', name: 'Finance & Accounts', banglaName: 'হিসাব-নিকাশ', desc: 'ব্যাংক ট্রানজেকশন, অ্যাকাউন্ট ও খরচ' },
-    { id: 'settings', name: 'Settings & Courier', banglaName: 'সেটিংস ও পাথাও', desc: 'স্টোর সেটিংস, পেমেন্ট ও পাথাও কুরিয়ার' },
+    { id: 'categories', name: 'Categories', banglaName: 'ক্যাটাগরি', desc: 'প্রোডাক্ট ক্যাটাগরি ম্যানেজমেন্ট' },
+    { id: 'products', name: 'Products', banglaName: 'প্রোডাক্টস', desc: 'প্রোডাক্ট অ্যাড, এডিট ও ক্যাটালগ' },
+    { id: 'issues', name: 'Issues', banglaName: 'অর্ডার ইস্যু', desc: 'কাস্টমার কমপ্লেন, প্রবলেম রিপোর্ট ও সমাধান' },
+    { id: 'master-table', name: 'Master Table', banglaName: 'মাস্টার টেবিল', desc: 'বাল্ক স্ক্যানিং, লেবেল প্রিন্ট ও দ্রুত প্রসেসিং' },
+    { id: 'inventory-log', name: 'Inventory Log', banglaName: 'ইনভেন্টরি লগ', desc: 'স্টক ইন/আউট ও স্টক হিস্ট্রি' },
+    { id: 'finance', name: 'Finance', banglaName: 'ফাইন্যান্স', desc: 'ব্যাংক ট্রানজেকশন, অ্যাকাউন্ট ও হিসাব' },
+    { id: 'dollar-expense', name: 'Dollar Expense', banglaName: 'ডলার এক্সপেন্স', desc: 'ডলার হিসাব ও খরচ ট্র্যাকিং' },
+    { id: 'settings', name: 'Settings', banglaName: 'সেটিংস', desc: 'জেনারেল স্টোর সেটিংস' },
+    { id: 'branding', name: 'Branding', banglaName: 'ব্র্যান্ডিং', desc: 'লোগো, নাম ও থিম সেটিংস' },
+    { id: 'banners', name: 'Banners', banglaName: 'ব্যানার্স', desc: 'হিরো ব্যানার ও স্লাইডার ম্যানেজমেন্ট' },
+    { id: 'offers', name: 'Offers Settings', banglaName: 'অফার সেটিংস', desc: 'ডিসকাউন্ট ও অফার কনফিগারেশন' },
+    { id: 'notifications', name: 'Notifications', banglaName: 'নোটিফিকেশনস', desc: 'এসএমএস ও নোটিফিকেশন সেটিংস' },
+    { id: 'pathao', name: 'Pathao Courier', banglaName: 'পাঠাও কুরিয়ার', desc: 'পাঠাও ডেলিভারি ও এপিআই সেটিংস' },
+    { id: 'payments', name: 'Pay Method', banglaName: 'পেমেন্ট মেথড', desc: 'বিকাশ, নগদ, কার্ড ও ক্যাশ অন ডেলিভারি' },
+    { id: 'admin-access', name: 'Admin Access', banglaName: 'অ্যাডমিন এক্সেস', desc: 'অ্যাডমিন রোল, পারমিশন ও নতুন এডমিন যোগ' },
+  ];
+
+  const departmentsList = [
+    { id: 'CEO & Founder', name: 'CEO & Founder', desc: 'ফুল সিস্টেম এক্সেস ও সর্বোচ্চ নিয়ন্ত্রণ', defaultPerms: availableModules.map(m => m.id) },
+    { id: 'Sales Executive Department', name: 'Sales Executive Department', desc: 'অর্ডার নেওয়া, ড্যাশবোর্ড দেখা ও কাস্টমার ম্যানেজমেন্ট', defaultPerms: ['dashboard', 'customer-profiler', 'orders', 'exchanges', 'products', 'issues'] },
+    { id: 'Delivery / Logistics Department', name: 'Delivery / Logistics Department', desc: 'অর্ডার প্রসেসিং, লেবেল প্রিন্ট, এক্সচেঞ্জ ও পাথাও কুরিয়ার', defaultPerms: ['orders', 'exchanges', 'master-table', 'inventory-log', 'pathao'] },
+    { id: 'Management / Admin Department', name: 'Management / Admin Department', desc: 'সম্পূর্ণ স্টোর অপারেশন, প্রোডাক্ট ইনভেন্টরি ও হিসাব-নিকাশ', defaultPerms: ['dashboard', 'customer-profiler', 'orders', 'exchanges', 'categories', 'products', 'issues', 'master-table', 'inventory-log', 'finance', 'dollar-expense', 'settings', 'pathao', 'payments'] },
+    { id: 'Customer Support Department', name: 'Customer Support Department', desc: 'কাস্টমার কমপ্লেন, অর্ডার ইস্যু সমাধান ও সাইজ এক্সচেঞ্জ', defaultPerms: ['dashboard', 'orders', 'exchanges', 'issues', 'customer-profiler'] }
   ];
   const [loadingAdmins, setLoadingAdmins] = useState(false);
   const [isSavingCode, setIsSavingCode] = useState(false);
@@ -2077,6 +2088,8 @@ export default function AdminSettings() {
           {activeTab === 'Categories' && (
             <CategorySettings />
           )}
+
+
           
           {activeTab === 'Admin Access' && isSuperAdmin && (
             <div className="space-y-10 max-w-4xl relative z-10 font-sans">

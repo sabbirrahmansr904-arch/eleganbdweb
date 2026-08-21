@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { db } from '../lib/firebase';
 import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
-import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
+import { handleFirestoreError, OperationType, isFirestoreQuotaExceeded, isQuotaError } from '../lib/firestoreUtils';
 
 export interface BankAccount {
   id: string;
@@ -82,26 +82,64 @@ export const sortBankAccounts = (accounts: BankAccount[]): BankAccount[] => {
 };
 
 export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
-  const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(() => {
+    try {
+      const cached = localStorage.getItem('eleganbd_bank_accounts');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [];
+  });
+  const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>(() => {
+    try {
+      const cached = localStorage.getItem('eleganbd_bank_transactions');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [];
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubAccounts = onSnapshot(collection(db, 'bank_accounts'), (snapshot) => {
-      const accounts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as BankAccount));
-      setBankAccounts(sortBankAccounts(accounts));
-    }, (error) => handleFirestoreError(error, OperationType.GET, 'bank_accounts'));
-
-    const unsubTransactions = onSnapshot(query(collection(db, 'bank_transactions'), orderBy('date', 'desc')), (snapshot) => {
-      const transactions = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as BankTransaction));
-      setBankTransactions(transactions);
+    if (isFirestoreQuotaExceeded) {
       setLoading(false);
-    }, (error) => handleFirestoreError(error, OperationType.GET, 'bank_transactions'));
+      return;
+    }
 
-    return () => {
-      unsubAccounts();
-      unsubTransactions();
-    };
+    try {
+      const unsubAccounts = onSnapshot(collection(db, 'bank_accounts'), (snapshot) => {
+        const accounts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as BankAccount));
+        const sorted = sortBankAccounts(accounts);
+        setBankAccounts(sorted);
+        try {
+          localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(sorted));
+        } catch {}
+      }, (error) => {
+        if (!isQuotaError(error)) {
+          handleFirestoreError(error, OperationType.GET, 'bank_accounts');
+        }
+        setLoading(false);
+      });
+
+      const unsubTransactions = onSnapshot(query(collection(db, 'bank_transactions'), orderBy('date', 'desc')), (snapshot) => {
+        const transactions = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as BankTransaction));
+        setBankTransactions(transactions);
+        try {
+          localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(transactions));
+        } catch {}
+        setLoading(false);
+      }, (error) => {
+        if (!isQuotaError(error)) {
+          handleFirestoreError(error, OperationType.GET, 'bank_transactions');
+        }
+        setLoading(false);
+      });
+
+      return () => {
+        unsubAccounts();
+        unsubTransactions();
+      };
+    } catch {
+      setLoading(false);
+    }
   }, []);
 
   const recalculateBalances = async (accounts: BankAccount[], transactions: BankTransaction[]) => {

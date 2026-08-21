@@ -19,6 +19,7 @@ import { useCurrency } from '../../contexts/CurrencyContext';
 import toast from 'react-hot-toast';
 import { db } from '../../lib/firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { isFirestoreQuotaExceeded, isQuotaError } from '../../lib/firestoreUtils';
 
 export default function AdminCustomers() {
   const { currency, rate } = useCurrency();
@@ -27,20 +28,31 @@ export default function AdminCustomers() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(collection(db, 'customers'), orderBy('lastOrderDate', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const customersData: any[] = [];
-      snapshot.forEach(doc => {
-        customersData.push({ id: doc.id, ...doc.data() });
-      });
-      setCustomers(customersData);
+    if (isFirestoreQuotaExceeded) {
       setLoading(false);
-    }, (error) => {
-      console.error("Error fetching customers:", error);
-      setLoading(false);
-    });
+      return;
+    }
 
-    return () => unsubscribe();
+    try {
+      const q = query(collection(db, 'customers'), orderBy('lastOrderDate', 'desc'));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const customersData: any[] = [];
+        snapshot.forEach(doc => {
+          customersData.push({ id: doc.id, ...doc.data() });
+        });
+        setCustomers(customersData);
+        setLoading(false);
+      }, (error) => {
+        if (!isQuotaError(error)) {
+          console.warn("Notice fetching customers:", error);
+        }
+        setLoading(false);
+      });
+
+      return () => unsubscribe();
+    } catch (e) {
+      setLoading(false);
+    }
   }, []);
 
   const filteredCustomers = customers.filter(customer => 

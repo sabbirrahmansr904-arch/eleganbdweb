@@ -7,6 +7,7 @@ import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, query, where, getDocs, updateDoc } from "firebase/firestore";
 import { createRequire } from "module";
 
+
 dotenv.config();
 
 const require = createRequire(import.meta.url);
@@ -51,6 +52,8 @@ async function startServer() {
   };
 
   app.use(express.json({ limit: '10mb' }));
+
+
 
   // Custom error handler for JSON body parser (including payload too large)
   app.use((err: any, req: any, res: any, next: any) => {

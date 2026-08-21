@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Category } from '../types';
 import { db } from '../lib/firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs } from 'firebase/firestore';
-import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
+import { handleFirestoreError, OperationType, isFirestoreQuotaExceeded, isQuotaError } from '../lib/firestoreUtils';
 
 interface CategoryContextType {
   categories: Category[];
@@ -50,8 +50,6 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const categoriesCol = collection(db, 'categories');
-    
     // Initial load from cache to avoid flicker
     const cached = localStorage.getItem('eleganbd_categories');
     if (cached) {
@@ -64,38 +62,52 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       } catch (e) {
         localStorage.removeItem('eleganbd_categories');
       }
+    } else {
+      setCategories(sortCategories(DEFAULT_CATEGORIES));
     }
 
-    const unsubscribe = onSnapshot(categoriesCol, (snapshot) => {
-      const rawData: Category[] = [];
-      snapshot.forEach(doc => {
-        rawData.push({ ...doc.data() as Category, id: doc.id });
+    if (isFirestoreQuotaExceeded) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const categoriesCol = collection(db, 'categories');
+      const unsubscribe = onSnapshot(categoriesCol, (snapshot) => {
+        const rawData: Category[] = [];
+        snapshot.forEach(doc => {
+          rawData.push({ ...doc.data() as Category, id: doc.id });
+        });
+
+        // Ensure unique categories by id
+        const uniqueMap = new Map<string, Category>();
+        rawData.forEach(cat => {
+          if (cat.id) uniqueMap.set(cat.id, cat);
+        });
+        const data = Array.from(uniqueMap.values());
+
+        if (data.length > 0) {
+          const sortedData = sortCategories(data);
+          setCategories(sortedData);
+          localStorage.setItem('eleganbd_categories', JSON.stringify(sortedData));
+        } else if (!cached) {
+          setCategories(sortCategories(DEFAULT_CATEGORIES));
+        }
+        setLoading(false);
+      }, (error) => {
+        if (!isQuotaError(error)) {
+          handleFirestoreError(error, OperationType.GET, 'categories');
+        }
+        if (!cached) {
+          setCategories(sortCategories(DEFAULT_CATEGORIES));
+        }
+        setLoading(false);
       });
 
-      // Ensure unique categories by id
-      const uniqueMap = new Map<string, Category>();
-      rawData.forEach(cat => {
-        if (cat.id) uniqueMap.set(cat.id, cat);
-      });
-      const data = Array.from(uniqueMap.values());
-
-      if (data.length > 0) {
-        const sortedData = sortCategories(data);
-        setCategories(sortedData);
-        localStorage.setItem('eleganbd_categories', JSON.stringify(sortedData));
-      } else if (!cached) {
-        setCategories(sortCategories(DEFAULT_CATEGORIES));
-      }
+      return () => unsubscribe();
+    } catch (err) {
       setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'categories');
-      if (!cached) {
-        setCategories(sortCategories(DEFAULT_CATEGORIES));
-      }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+    }
   }, []);
 
   const addCategory = async (category: Category) => {

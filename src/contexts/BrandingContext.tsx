@@ -6,6 +6,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { isFirestoreQuotaExceeded, isQuotaError } from '../lib/firestoreUtils';
 import toast from 'react-hot-toast';
 
 interface BrandingContextType {
@@ -551,42 +552,71 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   });
 
   useEffect(() => {
-    const fetchBranding = async () => {
-      try {
-        // 1. Fetch Branding Config
-        const brandingRef = doc(db, 'config', 'branding');
-        const brandingSnap = await getDoc(brandingRef);
-        if (brandingSnap.exists()) {
-          const data = brandingSnap.data();
-          if (data.logoUrl) setLogoUrlState(cleanUrl(data.logoUrl));
-          if (data.sizeChartUrl) setSizeChartUrlState(cleanUrl(data.sizeChartUrl));
-          if (data.ceoPhotoUrl) setCeoPhotoUrlState(data.ceoPhotoUrl);
-          if (data.showShowcase !== undefined) setShowShowcaseState(data.showShowcase);
-          
-          if (data.showAnnouncementBar !== undefined) setShowAnnouncementBarState(data.showAnnouncementBar);
-          if (data.announcementMessage !== undefined) setAnnouncementMessageState(data.announcementMessage);
-          if (data.showCountdownBanner !== undefined) setShowCountdownBannerState(data.showCountdownBanner);
-          if (data.comboOfferTitle !== undefined) setComboOfferTitleState(data.comboOfferTitle);
-          if (data.comboOfferSubTitle !== undefined) setComboOfferSubTitleState(data.comboOfferSubTitle);
-          if (data.comboOfferDiscount !== undefined) setComboOfferDiscountState(data.comboOfferDiscount);
-          if (data.comboOfferHours !== undefined) setComboOfferHoursState(Number(data.comboOfferHours));
-          if (data.comboOfferMinutes !== undefined) setComboOfferMinutesState(Number(data.comboOfferMinutes));
-          if (data.comboOfferSeconds !== undefined) setComboOfferSecondsState(Number(data.comboOfferSeconds));
-          if (data.showHeroBanner !== undefined) setShowHeroBannerState(data.showHeroBanner);
-          if (data.facebookUrl !== undefined) setFacebookUrlState(data.facebookUrl);
-          if (data.instagramUrl !== undefined) setInstagramUrlState(data.instagramUrl);
-          if (data.youtubeUrl !== undefined) setYoutubeUrlState(data.youtubeUrl);
-          if (data.tiktokUrl !== undefined) setTiktokUrlState(data.tiktokUrl);
-          if (data.shippingInsideDhaka !== undefined) setShippingInsideDhakaState(Number(data.shippingInsideDhaka));
-          if (data.shippingOutsideDhaka !== undefined) setShippingOutsideDhakaState(Number(data.shippingOutsideDhaka));
-          if (data.shippingFreeAfter !== undefined) setShippingFreeAfterState(Number(data.shippingFreeAfter));
-          if (data.primaryDeliveryDistrict !== undefined) setPrimaryDeliveryDistrictState(data.primaryDeliveryDistrict);
-          if (data.aboutText !== undefined) setAboutTextState(data.aboutText);
+    // 1. Fetch Branding Config
+    async function fetchBranding() {
+        try {
+            const brandingSnap = await getDoc(doc(db, 'config', 'branding'));
+            if (brandingSnap.exists()) {
+                const data = brandingSnap.data();
+                if (data.logoUrl) setLogoUrlState(cleanUrl(data.logoUrl));
+                if (data.sizeChartUrl) setSizeChartUrlState(cleanUrl(data.sizeChartUrl));
+                if (data.ceoPhotoUrl) setCeoPhotoUrlState(data.ceoPhotoUrl);
+                if (data.showShowcase !== undefined) setShowShowcaseState(data.showShowcase);
+                
+                if (data.showAnnouncementBar !== undefined) setShowAnnouncementBarState(data.showAnnouncementBar);
+                if (data.announcementMessage !== undefined) setAnnouncementMessageState(data.announcementMessage);
+                if (data.showCountdownBanner !== undefined) setShowCountdownBannerState(data.showCountdownBanner);
+                if (data.comboOfferTitle !== undefined) setComboOfferTitleState(data.comboOfferTitle);
+                if (data.comboOfferSubTitle !== undefined) setComboOfferSubTitleState(data.comboOfferSubTitle);
+                if (data.comboOfferDiscount !== undefined) setComboOfferDiscountState(data.comboOfferDiscount);
+                if (data.comboOfferHours !== undefined) setComboOfferHoursState(Number(data.comboOfferHours));
+                if (data.comboOfferMinutes !== undefined) setComboOfferMinutesState(Number(data.comboOfferMinutes));
+                if (data.comboOfferSeconds !== undefined) setComboOfferSecondsState(Number(data.comboOfferSeconds));
+                if (data.showHeroBanner !== undefined) setShowHeroBannerState(data.showHeroBanner);
+                if (data.facebookUrl !== undefined) setFacebookUrlState(data.facebookUrl);
+                if (data.instagramUrl !== undefined) setInstagramUrlState(data.instagramUrl);
+                if (data.youtubeUrl !== undefined) setYoutubeUrlState(data.youtubeUrl);
+                if (data.tiktokUrl !== undefined) setTiktokUrlState(data.tiktokUrl);
+                if (data.shippingInsideDhaka !== undefined) setShippingInsideDhakaState(Number(data.shippingInsideDhaka));
+                if (data.shippingOutsideDhaka !== undefined) setShippingOutsideDhakaState(Number(data.shippingOutsideDhaka));
+                if (data.shippingFreeAfter !== undefined) setShippingFreeAfterState(Number(data.shippingFreeAfter));
+                if (data.primaryDeliveryDistrict !== undefined) setPrimaryDeliveryDistrictState(data.primaryDeliveryDistrict);
+                if (data.aboutText !== undefined) setAboutTextState(data.aboutText);
 
-          const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
-          localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, ...data }));
+                try {
+                const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
+                localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, ...data }));
+                } catch {}
+            }
+        } catch (err) {
+            if (!isQuotaError(err)) {
+                console.warn('[BrandingContext] Branding fetch notice:', err);
+            }
         }
+    }
+    fetchBranding();
 
+    // 2. Fetch Category Images
+    async function fetchCategories() {
+        try {
+            const catSnap = await getDoc(doc(db, 'config', 'categories'));
+            if (catSnap.exists()) {
+                const images = catSnap.data().images || {};
+                setCategoryImagesState(images);
+                try {
+                    localStorage.setItem('eleganbd_category_images_map', JSON.stringify(images));
+                } catch {}
+            }
+        } catch (err) {
+            if (!isQuotaError(err)) {
+                console.warn('[BrandingContext] Categories config notice:', err);
+            }
+        }
+    }
+    fetchCategories();
+
+    const fetchOtherConfigs = async () => {
+      try {
         // 2. Fetch Banners
         const bannerKeys = ['hero', 'hero_2', 'hero_3', 'sub_hero', 'collections', 'feature', 'polo', 'combo_offer'];
         for (const key of bannerKeys) {
@@ -595,7 +625,9 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 const url = cleanUrl(snap.data().url);
                 const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
                 const cacheKey = key === 'sub_hero' ? 'subHeroBannerUrl' : key === 'hero_2' ? 'heroBanner2Url' : key === 'hero_3' ? 'heroBanner3Url' : `${key}BannerUrl`;
-                localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, [cacheKey]: url }));
+                try {
+                  localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, [cacheKey]: url }));
+                } catch {}
                 if (key === 'hero') setHeroBannerUrlState(url);
                 if (key === 'hero_2') setHeroBanner2UrlState(url);
                 if (key === 'hero_3') setHeroBanner3UrlState(url);
@@ -607,16 +639,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             }
         }
 
-        // 3. Fetch Category Images
-        const catRef = doc(db, 'config', 'categories');
-        const catSnap = await getDoc(catRef);
-        if (catSnap.exists()) {
-          const images = catSnap.data().images || {};
-          setCategoryImagesState(images);
-          localStorage.setItem('eleganbd_category_images_map', JSON.stringify(images));
-        }
-
-        // 4. Fetch Why Choose Grid Images & Text (from separate documents, fallback to single document)
+        // 4. Fetch Why Choose Grid Images & Text
         for (let i = 1; i <= 5; i++) {
           try {
             const itemRef = doc(db, 'config', `why_choose_${i}`);
@@ -640,41 +663,19 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               }
             }
           } catch (e) {
-            console.warn(`Failed to fetch why_choose_${i}`, e);
+            if (!isQuotaError(e)) {
+              console.warn(`Failed to fetch why_choose_${i}`, e);
+            }
           }
         }
-
-        const whyChooseRef = doc(db, 'config', 'why_choose');
-        try {
-          const whyChooseSnap = await getDoc(whyChooseRef);
-          if (whyChooseSnap.exists()) {
-            const data = whyChooseSnap.data();
-            if (data.img1) setWhyChooseImg1State(prev => prev || data.img1);
-            if (data.img2) setWhyChooseImg2State(prev => prev || data.img2);
-            if (data.img3) setWhyChooseImg3State(prev => prev || data.img3);
-            if (data.img4) setWhyChooseImg4State(prev => prev || data.img4);
-            if (data.img5) setWhyChooseImg5State(prev => prev || data.img5);
-            if (data.text1 !== undefined) setWhyChooseText1State(prev => prev || data.text1);
-            if (data.text2 !== undefined) setWhyChooseText2State(prev => prev || data.text2);
-            if (data.text3 !== undefined) setWhyChooseText3State(prev => prev || data.text3);
-            if (data.text4 !== undefined) setWhyChooseText4State(prev => prev || data.text4);
-            if (data.text5 !== undefined) setWhyChooseText5State(prev => prev || data.text5);
-
-            localStorage.setItem('eleganbd_why_choose', JSON.stringify(data));
-          }
-        } catch (e) {
-          console.warn("Single why_choose fetch skipped", e);
-        }
-      } catch (err: any) {
-        if (err?.message?.includes('Quota limit exceeded') || err?.message?.includes('resource-exhausted')) {
-          console.warn("Branding sync using local cache (Firestore daily quota limit reached)");
-        } else {
-          console.error("Branding sync error:", err);
+      } catch (err) {
+        if (!isQuotaError(err)) {
+          console.warn('[BrandingContext] Config fetch notice:', err);
         }
       }
     };
-
-    fetchBranding();
+    
+    fetchOtherConfigs();
   }, []);
 
   const updateFirestore = async (path: string, data: any) => {

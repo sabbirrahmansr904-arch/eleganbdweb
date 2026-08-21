@@ -1,16 +1,11 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { Order } from '../types';
-import { db, auth } from '../lib/firebase';
-import { collection, doc, setDoc, getDoc, deleteDoc, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { collection, doc, setDoc, deleteDoc, query, where, orderBy, onSnapshot, getDocs } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { useProducts } from './ProductContext';
 import { useInventory } from './InventoryContext';
-import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
+import { handleFirestoreError, OperationType, isQuotaError, isFirestoreQuotaExceeded } from '../lib/firestoreUtils';
 import { isDeliveredOrSuccess } from '../utils/orderUtils';
 
 interface OrderContextType {
@@ -22,6 +17,7 @@ interface OrderContextType {
   getNextOrderId: () => string;
   loading: boolean;
   lastOrder?: Order | null;
+  refreshOrders: () => Promise<void>;
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -49,128 +45,83 @@ export const generateNextOrderId = (orders: Order[]): string => {
 };
 
 export function OrderProvider({ children }: { children: React.ReactNode }) {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [lastOrder, setLastOrder] = useState<Order | null>(null);
-  const { currentUser, isAdmin } = useAuth();
-  const { products, updateProduct } = useProducts();
-  const { addTransaction } = useInventory();
-  const isInitialLoad = useRef(true);
-
-  useEffect(() => {
-    // Load from localStorage cache immediately
+  const [orders, setOrders] = useState<Order[]>(() => {
     try {
       const cached = localStorage.getItem('eleganbd_all_orders');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setOrders(parsed);
-          setLoading(false);
+          return parsed;
         }
       }
-    } catch (e) {
-      console.warn("Failed to load cached orders");
+    } catch (e) {}
+    return [];
+  });
+  const [loading, setLoading] = useState(false);
+  const [lastOrder, setLastOrder] = useState<Order | null>(null);
+  const { currentUser, isAdmin } = useAuth();
+  const { products, updateProduct } = useProducts();
+  const { addTransaction } = useInventory();
+  const refreshOrders = useCallback(async () => {
+    setLoading(true);
+    try {
+      const cached = localStorage.getItem('eleganbd_all_orders');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          setOrders(parsed);
+        }
+      }
+    } catch (e) {}
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (isFirestoreQuotaExceeded) {
+      setLoading(false);
+      return;
     }
 
+    // 1. Real-time orders listener (Firestore is primary real-time stream)
     setLoading(true);
     let q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
     if (!isAdmin && currentUser) {
       q = query(collection(db, 'orders'), where('customerId', '==', currentUser.uid));
     }
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    getDocs(q).then((snapshot) => {
       const ordersData: Order[] = [];
-      snapshot.forEach(doc => {
-        ordersData.push({ id: doc.id, ...doc.data() } as Order);
+      snapshot.forEach(docSnap => {
+        ordersData.push({ id: docSnap.id, ...docSnap.data() } as Order);
       });
 
-      // Notification for Admin when a new order arrives
-      if (!isInitialLoad.current && isAdmin && snapshot.docChanges().some(change => change.type === 'added')) {
-        const newOrder = ordersData[0];
-        if (newOrder) {
-          setLastOrder(newOrder);
-          // Native Browser Notification
-          if ("Notification" in window && Notification.permission === "granted") {
-            new Notification("New Order Received!", {
-              body: `Order #${newOrder.id.slice(-6)} from ${newOrder.customerName || 'Customer'}`,
-              icon: '/vite.svg'
-            });
+      if (ordersData.length > 0) {
+        setOrders(ordersData);
+        try {
+          localStorage.setItem('eleganbd_all_orders', JSON.stringify(ordersData));
+          if (currentUser) {
+            localStorage.setItem(`eleganbd_orders_${currentUser.uid}`, JSON.stringify(ordersData));
           }
-        }
+        } catch (e) {}
       }
-
-      // Auto-assign / migrate sequential Invoice No starting from 2670000
-      if (isAdmin && ordersData.length > 0) {
-        const assignedInvoices = ordersData
-          .map(o => {
-            if (typeof o.invoiceNo === 'number' && o.invoiceNo >= 2670000) return o.invoiceNo;
-            if (o.id && /^\d{7,}$/.test(o.id)) {
-              const num = parseInt(o.id, 10);
-              if (!isNaN(num) && num >= 2670000) return num;
-            }
-            return null;
-          })
-          .filter((v): v is number => v !== null);
-        
-        let highestInvoice = assignedInvoices.length > 0 ? Math.max(...assignedInvoices) : 2669999;
-        
-        // Filter orders missing valid invoiceNo >= 2670000, sorted chronologically by creation date (oldest first)
-        const missing = ordersData
-          .filter(o => {
-            const validInvoice = typeof o.invoiceNo === 'number' && o.invoiceNo >= 2670000;
-            const validId = o.id && /^\d{7,}$/.test(o.id) && parseInt(o.id, 10) >= 2670000;
-            return !validInvoice && !validId;
-          })
-          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-          
-        if (missing.length > 0) {
-          console.log(`[OrderContext] Auto-assigning sequential invoice numbers starting at ${highestInvoice + 1} to ${missing.length} orders...`);
-          Promise.all(missing.map(async (order) => {
-            highestInvoice++;
-            const assignedNo = highestInvoice;
-            order.invoiceNo = assignedNo; // update in memory
-            try {
-              await setDoc(doc(db, 'orders', order.id), { invoiceNo: assignedNo }, { merge: true });
-            } catch (err) {
-              console.error(`[OrderContext] Error assigning invoiceNo to ${order.id}:`, err);
-            }
-          })).catch(err => console.error("[OrderContext] Migration error:", err));
-        }
-      }
-
-      setOrders(ordersData);
       setLoading(false);
-      isInitialLoad.current = false;
-
-      try {
-        localStorage.setItem('eleganbd_all_orders', JSON.stringify(ordersData));
-        if (currentUser) {
-          localStorage.setItem(`eleganbd_orders_${currentUser.uid}`, JSON.stringify(ordersData));
-        }
-      } catch (e) {
-        console.warn("Storage quota exceeded, skipping orders cache");
+    }).catch((error) => {
+      if (!isQuotaError(error)) {
+        handleFirestoreError(error, OperationType.GET, 'orders');
       }
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'orders');
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {};
   }, [currentUser, isAdmin]);
 
   const removeUndefined = (obj: any): any => {
-    if (obj === null || typeof obj !== 'object') {
-      return obj;
-    }
-    if (Array.isArray(obj)) {
-      return obj.map(removeUndefined);
-    }
+    if (obj === null || typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) return obj.map(removeUndefined);
     const cleaned: any = {};
     for (const key of Object.keys(obj)) {
       const val = obj[key];
-      if (val !== undefined) {
-        cleaned[key] = removeUndefined(val);
-      }
+      if (val !== undefined) cleaned[key] = removeUndefined(val);
     }
     return cleaned;
   };
@@ -184,14 +135,12 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
   const restoreOrderStock = async (order: Order) => {
     try {
-      console.log(`[OrderContext] Restoring stock for order: ${order.id}`);
       for (const item of order.items) {
         const product = products.find(p => p.id === item.id);
         if (product) {
           const updatedSizeStock = { ...(product.sizeStock || {}) };
           const currentSizeStock = updatedSizeStock[item.selectedSize] || 0;
           updatedSizeStock[item.selectedSize] = currentSizeStock + item.quantity;
-          
           const updatedTotalStock = (product.stock || 0) + item.quantity;
           
           await updateProduct({
@@ -200,7 +149,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             stock: updatedTotalStock
           });
 
-          // Log transaction for each item as proof of "Stock In"
           await addTransaction({
             type: 'in',
             sku: product.sku || product.id,
@@ -220,14 +168,12 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
   const deductOrderStock = async (order: Order) => {
     try {
-      console.log(`[OrderContext] Re-deducting stock for order: ${order.id}`);
       for (const item of order.items) {
         const product = products.find(p => p.id === item.id);
         if (product) {
           const updatedSizeStock = { ...(product.sizeStock || {}) };
           const currentSizeStock = updatedSizeStock[item.selectedSize] || 0;
           updatedSizeStock[item.selectedSize] = Math.max(0, currentSizeStock - item.quantity);
-          
           const updatedTotalStock = Math.max(0, (product.stock || 0) - item.quantity);
           
           await updateProduct({
@@ -236,7 +182,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             stock: updatedTotalStock
           });
 
-          // Log transaction for each item as proof of "Stock Out"
           await addTransaction({
             type: 'out',
             sku: product.sku || product.id,
@@ -259,10 +204,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     const isNewRestored = newStatus === 'Cancelled' || newStatus === 'Returned';
 
     if (!isOldRestored && isNewRestored) {
-      // Order is now cancelled/returned -> restore stock
       await restoreOrderStock(order);
     } else if (isOldRestored && !isNewRestored) {
-      // Order is re-activated from cancelled/returned -> deduct stock
       await deductOrderStock(order);
     }
   };
@@ -277,64 +220,26 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         await handleStatusChangeStock(order, status);
       }
       const updatedData = { status, updatedAt: Date.now() };
-      const cleaned = removeUndefined(updatedData);
-      await setDoc(doc(db, 'orders', id), cleaned, { merge: true });
 
-      const updatedOrder = { ...(orders.find(o => o.id === id) || {}), ...updatedData } as Order;
-      await syncCustomerForOrder(updatedOrder, orders);
+      // 1. Update in Firestore
+      try {
+        const cleaned = removeUndefined(updatedData);
+        await setDoc(doc(db, 'orders', id), cleaned, { merge: true });
+      } catch (e) {
+        console.warn('[OrderContext] Firestore update status fallback:', e);
+      }
+
+      // 2. Optimistic local state update (Zero refetch)
+      setOrders(prev => {
+        const next = prev.map(o => o.id === id ? { ...o, status, updatedAt: Date.now() } : o);
+        try {
+          localStorage.setItem('eleganbd_all_orders', JSON.stringify(next));
+        } catch {}
+        return next;
+      });
     } catch (error: any) {
       console.error("Error updating order status:", error);
       throw error;
-    }
-  };
-
-  const syncCustomerForOrder = async (order: Order, allOrdersList: Order[]) => {
-    if (!order.phone) return;
-    try {
-      const phoneTrimmed = order.phone.trim();
-      const customerRef = doc(db, 'customers', phoneTrimmed);
-      
-      const customerOrders = allOrdersList.filter(o => o.phone && o.phone.trim() === phoneTrimmed);
-      if (!customerOrders.some(o => o.id === order.id)) {
-        customerOrders.push(order);
-      }
-
-      if (customerOrders.length === 0) {
-        // If no orders remain for this phone, we can update totals to 0 or leave/delete
-        await setDoc(customerRef, {
-          phone: phoneTrimmed,
-          totalOrders: 0,
-          totalSpent: 0,
-          deliveredOrders: 0,
-          cancelledOrders: 0,
-          exchanges: 0,
-        }, { merge: true });
-        return;
-      }
-
-      const totalOrders = customerOrders.length;
-      const totalSpent = customerOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-      const deliveredOrders = customerOrders.filter(o => (o.status || '').toLowerCase() === 'delivered').length;
-      const cancelledOrders = customerOrders.filter(o => (o.status || '').toLowerCase() === 'cancelled').length;
-      const exchanges = customerOrders.filter(o => (o.status || '').toLowerCase() === 'returned' || (o.status || '').toLowerCase() === 'exchange').length;
-
-      const latestOrder = customerOrders.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())[0];
-
-      await setDoc(customerRef, {
-        name: order.customerName || latestOrder?.customerName || 'Valued Customer',
-        email: order.email || latestOrder?.email || '',
-        phone: phoneTrimmed,
-        address: order.address || latestOrder?.address || '',
-        city: order.city || latestOrder?.city || '',
-        totalOrders,
-        totalSpent,
-        deliveredOrders,
-        cancelledOrders,
-        exchanges,
-        lastOrderDate: latestOrder?.createdAt || new Date().toISOString()
-      }, { merge: true });
-    } catch (err) {
-      console.error("Error syncing customer for order:", err);
     }
   };
 
@@ -347,12 +252,23 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         }
       }
       const updatedData = { ...data, updatedAt: Date.now() };
-      const cleaned = removeUndefined(updatedData);
-      await setDoc(doc(db, 'orders', id), cleaned, { merge: true });
 
-      const updatedOrder = { ...(orders.find(o => o.id === id) || {}), ...updatedData } as Order;
-      const combinedOrders = orders.map(o => o.id === id ? updatedOrder : o);
-      await syncCustomerForOrder(updatedOrder, combinedOrders);
+      // 1. Update in Firestore
+      try {
+        const cleaned = removeUndefined(updatedData);
+        await setDoc(doc(db, 'orders', id), cleaned, { merge: true });
+      } catch (e) {
+        console.warn('[OrderContext] Firestore update order fallback:', e);
+      }
+
+      // 2. Optimistic local state update
+      setOrders(prev => {
+        const next = prev.map(o => o.id === id ? { ...o, ...updatedData } : o);
+        try {
+          localStorage.setItem('eleganbd_all_orders', JSON.stringify(next));
+        } catch {}
+        return next;
+      });
     } catch (error: any) {
       console.error("Error updating order:", error);
       throw error;
@@ -360,35 +276,34 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteOrder = async (id: string) => {
-    if (!id) {
-      console.error('deleteOrder called without an ID');
-      return;
-    }
-    console.log(`[OrderContext] START: Attempting to delete order: ${id}`);
+    if (!id) return;
     try {
       const order = orders.find(o => o.id === id);
       if (order) {
         const s = (order.status || '').toString().trim().toLowerCase();
         const isAlreadyRestored = s === 'cancelled' || s === 'canceled' || s === 'returned' || s === 'return';
         if (!isAlreadyRestored) {
-          // If order was in any status other than cancelled/returned, restore its items to stock on deletion
           await restoreOrderStock(order);
         }
       }
-      const orderRef = doc(db, 'orders', id);
-      await deleteDoc(orderRef);
-      console.log(`[OrderContext] SUCCESS: Deleted order document: ${id}`);
-      
-      const remainingOrders = orders.filter(o => o.id !== id);
-      // Optimistic update
-      setOrders(prev => prev.filter(order => order.id !== id));
 
-      if (order && order.phone) {
-        await syncCustomerForOrder(order, remainingOrders);
+      // 1. Delete in Firestore
+      try {
+        await deleteDoc(doc(db, 'orders', id));
+      } catch (e) {
+        console.warn('[OrderContext] Firestore delete order fallback:', e);
       }
+
+      // 2. Optimistic update
+      setOrders(prev => {
+        const next = prev.filter(o => o.id !== id);
+        try {
+          localStorage.setItem('eleganbd_all_orders', JSON.stringify(next));
+        } catch {}
+        return next;
+      });
     } catch (error) {
       console.error(`[OrderContext] ERROR: Deleting order ${id}:`, error);
-      handleFirestoreError(error, OperationType.DELETE, `orders/${id}`);
       throw error;
     }
   };
@@ -415,12 +330,11 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       const maxInvoice = existingInvoices.length > 0 ? Math.max(...existingInvoices) : 2669999;
       const nextInvoiceNo = maxInvoice + 1;
 
-      // Assign serial order ID starting from 2670000 if not already assigned
       const finalOrderId = (order.id && /^\d{7,}$/.test(order.id))
         ? order.id
         : generateNextOrderId(orders);
 
-      const newOrder = {
+      const newOrder: Order = {
         ...order,
         id: finalOrderId,
         invoiceNo: nextInvoiceNo,
@@ -428,20 +342,35 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         createdAt: order.createdAt || new Date().toISOString(),
         updatedAt: Date.now()
       };
-      const cleaned = removeUndefined(newOrder);
-      await setDoc(doc(db, 'orders', finalOrderId), cleaned);
 
-      const combinedOrders = [newOrder, ...orders];
-      await syncCustomerForOrder(newOrder, combinedOrders);
+      // 1. Save to Firestore
+      try {
+        const cleaned = removeUndefined(newOrder);
+        await setDoc(doc(db, 'orders', finalOrderId), cleaned);
+      } catch (e) {
+        console.warn('[OrderContext] Firestore order save:', e);
+      }
 
-      // Automatically reduce stock and log inventory transactions
+      // 2. Optimistic State Update: add ONLY new order to memory (NO full refetch!)
+      setOrders(prev => {
+        const next = [newOrder, ...prev];
+        try {
+          localStorage.setItem('eleganbd_all_orders', JSON.stringify(next));
+          if (currentUser) {
+            localStorage.setItem(`eleganbd_orders_${currentUser.uid}`, JSON.stringify(next));
+          }
+        } catch {}
+        return next;
+      });
+      setLastOrder(newOrder);
+
+      // 3. Stock management
       for (const item of order.items) {
         const product = products.find(p => p.id === item.id);
         if (product) {
           const updatedSizeStock = { ...(product.sizeStock || {}) };
           const currentSizeStock = updatedSizeStock[item.selectedSize] || 0;
           updatedSizeStock[item.selectedSize] = Math.max(0, currentSizeStock - item.quantity);
-          
           const updatedTotalStock = Math.max(0, (product.stock || 0) - item.quantity);
           
           await updateProduct({
@@ -450,7 +379,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             stock: updatedTotalStock
           });
 
-          // Log transaction for each item as proof of "Stock Out"
           await addTransaction({
             type: 'out',
             sku: product.sku || product.id,
@@ -464,26 +392,21 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Automatically send Gmail notification if the order was placed via the website
+      // 5. Email trigger
       if (newOrder.invoiceBy && newOrder.invoiceBy.toLowerCase().includes('website')) {
         fetch('/api/send-order-email', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ orderDetails: newOrder }),
-        })
-        .then(response => response.json())
-        .then(data => console.log('[OrderContext] Email notification status:', data))
-        .catch(error => console.error('[OrderContext] Error sending email notification:', error));
+        }).catch(err => console.error('[OrderContext] Email notification error:', err));
       }
     } catch(e) {
-      handleFirestoreError(e, OperationType.CREATE, `orders/${order.id}`);
+      console.error('[OrderContext] Add order error:', e);
     }
   };
 
   return (
-    <OrderContext.Provider value={{ orders, updateOrderStatus, updateOrder, deleteOrder, addOrder, getNextOrderId, loading, lastOrder }}>
+    <OrderContext.Provider value={{ orders, updateOrderStatus, updateOrder, deleteOrder, addOrder, getNextOrderId, loading, lastOrder, refreshOrders }}>
       {children}
     </OrderContext.Provider>
   );
@@ -496,4 +419,3 @@ export function useOrders() {
   }
   return context;
 }
-

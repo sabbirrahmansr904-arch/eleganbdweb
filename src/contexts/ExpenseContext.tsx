@@ -4,7 +4,7 @@ import { collection, onSnapshot, doc, addDoc, deleteDoc } from 'firebase/firesto
 import { Expense } from '../types';
 import toast from 'react-hot-toast';
 import { useAuth } from './AuthContext';
-import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
+import { handleFirestoreError, OperationType, isFirestoreQuotaExceeded, isQuotaError } from '../lib/firestoreUtils';
 
 interface ExpenseContextType {
   expenses: Expense[];
@@ -16,7 +16,13 @@ interface ExpenseContextType {
 const ExpenseContext = createContext<ExpenseContextType | undefined>(undefined);
 
 export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>(() => {
+    try {
+      const cached = localStorage.getItem('eleganbd_expenses');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [];
+  });
   const [loading, setLoading] = useState(true);
   const { isAdmin } = useAuth();
 
@@ -27,23 +33,49 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    const unsub = onSnapshot(collection(db, 'expenses'), (snapshot) => {
-      const list: Expense[] = [];
-      snapshot.forEach(doc => {
-        list.push({ ...doc.data() as Expense, id: doc.id });
-      });
-      list.sort((a, b) => b.date - a.date);
-      setExpenses(list);
+    if (isFirestoreQuotaExceeded) {
       setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'expenses');
-      setLoading(false);
-    });
+      return;
+    }
 
-    return () => unsub();
+    try {
+      const unsub = onSnapshot(collection(db, 'expenses'), (snapshot) => {
+        const list: Expense[] = [];
+        snapshot.forEach(doc => {
+          list.push({ ...doc.data() as Expense, id: doc.id });
+        });
+        list.sort((a, b) => b.date - a.date);
+        setExpenses(list);
+        try {
+          localStorage.setItem('eleganbd_expenses', JSON.stringify(list));
+        } catch {}
+        setLoading(false);
+      }, (error) => {
+        if (!isQuotaError(error)) {
+          handleFirestoreError(error, OperationType.GET, 'expenses');
+        }
+        setLoading(false);
+      });
+
+      return () => unsub();
+    } catch {
+      setLoading(false);
+    }
   }, [isAdmin]);
 
   const addExpense = async (expense: Omit<Expense, 'id'>) => {
+    const tempId = `exp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const newExp = { ...expense, id: tempId };
+    
+    // Optimistic update
+    setExpenses(prev => {
+      const next = [newExp, ...prev];
+      try {
+        localStorage.setItem('eleganbd_expenses', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+
     try {
       await addDoc(collection(db, 'expenses'), expense);
       toast.success('খরচ যোগ করা হয়েছে!');
@@ -58,6 +90,16 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       toast.error('রেকর্ড আইডি পাওয়া যায়নি!');
       return;
     }
+
+    // Optimistic update
+    setExpenses(prev => {
+      const next = prev.filter(e => e.id !== id);
+      try {
+        localStorage.setItem('eleganbd_expenses', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+
     try {
       await deleteDoc(doc(db, 'expenses', id));
       toast.success('ডলার ক্রয়ের রেকর্ড সফলভাবে মুছে ফেলা হয়েছে!');

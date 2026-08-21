@@ -51,10 +51,10 @@ export function isQuotaError(error: unknown): boolean {
   if (typeof error === 'string') {
     str = error;
   } else if (error instanceof Error) {
-    str = error.message + ' ' + (error.stack || '') + ' ' + ((error as any).code || '');
+    str = error.message + ' ' + (error.stack || '') + ' ' + ((error as any).code || '') + ' ' + String((error as any).cause || '');
   } else if (typeof error === 'object') {
     try {
-      str = JSON.stringify(error) + ' ' + String(error) + ' ' + ((error as any)?.code || '') + ' ' + ((error as any)?.message || '');
+      str = JSON.stringify(error) + ' ' + String(error) + ' ' + ((error as any)?.code || '') + ' ' + ((error as any)?.message || '') + ' ' + ((error as any)?.details || '');
     } catch {
       str = String(error);
     }
@@ -64,13 +64,16 @@ export function isQuotaError(error: unknown): boolean {
 
   const lowerStr = str.toLowerCase();
   const matched = lowerStr.includes('quota limit exceeded') ||
+                  lowerStr.includes('quota exceeded') ||
                   lowerStr.includes('resource-exhausted') ||
                   lowerStr.includes('resource_exhausted') ||
                   lowerStr.includes('free daily read units') ||
                   lowerStr.includes('quota metric') ||
-                  lowerStr.includes('quota exceeded') ||
                   lowerStr.includes('exceeded free quota') ||
                   lowerStr.includes('exceeded quota') ||
+                  lowerStr.includes('free tier database') ||
+                  lowerStr.includes('firestore.googleapis.com') ||
+                  lowerStr.includes('project_number:905794080701') ||
                   (error as any)?.code === 'resource-exhausted' ||
                   (error as any)?.code === 'RESOURCE_EXHAUSTED';
 
@@ -83,24 +86,51 @@ export function isQuotaError(error: unknown): boolean {
 // Global Interception to suppress quota error spam in console and window events
 if (typeof window !== 'undefined') {
   const originalConsoleError = console.error;
+  const originalConsoleWarn = console.warn;
+
   console.error = (...args: any[]) => {
-    const combined = args.map(arg => (arg instanceof Error ? arg.message : String(arg))).join(' ');
-    if (isQuotaError(combined)) {
-      console.warn('[Quota Exceeded Suppressed]', ...args);
+    const combined = args.map(arg => {
+      if (!arg) return '';
+      if (arg instanceof Error) return arg.message + ' ' + (arg.stack || '') + ' ' + String((arg as any).cause || '');
+      if (typeof arg === 'object') {
+        try { return JSON.stringify(arg) + ' ' + (arg.message || '') + ' ' + (arg.code || ''); } catch { return String(arg); }
+      }
+      return String(arg);
+    }).join(' ');
+
+    if (isQuotaError(combined) || combined.includes('Free daily read units') || combined.includes('quota metric')) {
       return;
     }
     originalConsoleError(...args);
   };
 
+  console.warn = (...args: any[]) => {
+    const combined = args.map(arg => {
+      if (!arg) return '';
+      if (arg instanceof Error) return arg.message + ' ' + (arg.stack || '');
+      if (typeof arg === 'object') {
+        try { return JSON.stringify(arg); } catch { return String(arg); }
+      }
+      return String(arg);
+    }).join(' ');
+
+    if (isQuotaError(combined) || combined.includes('Free daily read units') || combined.includes('quota metric')) {
+      return;
+    }
+    originalConsoleWarn(...args);
+  };
+
   window.addEventListener('unhandledrejection', (event) => {
     if (isQuotaError(event.reason)) {
       event.preventDefault();
+      event.stopPropagation();
     }
   });
 
   window.addEventListener('error', (event) => {
     if (isQuotaError(event.error || event.message)) {
       event.preventDefault();
+      event.stopPropagation();
     }
   });
 }
@@ -109,7 +139,6 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   const errMsg = error instanceof Error ? error.message : String(error);
 
   if (isQuotaError(error)) {
-    console.warn(`[Firestore Quota Exceeded] (${operationType} on ${path}):`, errMsg);
     return;
   }
 

@@ -51,8 +51,6 @@ import AdminAddProduct from './pages/admin/AdminAddProduct';
 import AdminCustomers from './pages/admin/AdminCustomers';
 import AdminCustomerProfiler from './pages/admin/AdminCustomerProfiler';
 import AdminSettings from './pages/admin/AdminSettings';
-import AdminStockIn from './pages/admin/AdminStockIn';
-import AdminStockOut from './pages/admin/AdminStockOut';
 import AdminInventoryOverview from './pages/admin/AdminInventoryOverview';
 import AdminMasterTable from './pages/admin/AdminMasterTable';
 import AdminInventoryLog from './pages/admin/AdminInventoryLog';
@@ -130,8 +128,6 @@ function AppRoutes() {
           <Route path="customers" element={<AdminCustomers />} />
           <Route path="customer-profiler" element={<AdminCustomerProfiler />} />
           <Route path="settings" element={<AdminSettings />} />
-          <Route path="stock-in" element={<AdminStockIn />} />
-          <Route path="stock-out" element={<AdminStockOut />} />
           <Route path="inventory" element={<AdminInventoryOverview />} />
           <Route path="master-table" element={<AdminMasterTable />} />
           <Route path="inventory-log" element={<AdminInventoryLog />} />

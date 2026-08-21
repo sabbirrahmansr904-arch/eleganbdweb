@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { StockTransaction } from '../types';
 import { db } from '../lib/firebase';
 import { collection, onSnapshot, doc, setDoc, query, orderBy, limit, deleteDoc } from 'firebase/firestore';
-import { handleFirestoreError, OperationType, isQuotaError } from '../lib/firestoreUtils';
+import { handleFirestoreError, OperationType, isQuotaError, isFirestoreQuotaExceeded } from '../lib/firestoreUtils';
 import { useAuth } from './AuthContext';
 
 interface InventoryContextType {
@@ -35,6 +35,11 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => {
     // We listen to real-time inventory transactions for admins and logged-in users
     if (authLoading) return;
+
+    if (isFirestoreQuotaExceeded) {
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     const transCol = collection(db, 'inventory_transactions');

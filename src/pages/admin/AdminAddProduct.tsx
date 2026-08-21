@@ -201,6 +201,9 @@ export default function AdminAddProduct() {
       images.unshift(cover);
     }
 
+    // Images are stored directly (compressed base64 or URLs)
+    let finalImages = [...images];
+
     const priceStr = formData.get('price') as string;
     const costStr = formData.get('cost') as string;
     const regularPriceStr = formData.get('regularPrice') as string;
@@ -235,7 +238,7 @@ export default function AdminAddProduct() {
       stock: Object.values(sizeStock).reduce((a, b) => a + b, 0),
       sizeStock,
       description: (formData.get('description') as string) || '',
-      images,
+      images: finalImages,
       sizes: selectedSizes,
       newArrival: isNewArrival,
       featured: isBestSelling,

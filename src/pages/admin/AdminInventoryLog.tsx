@@ -174,23 +174,6 @@ export default function AdminInventoryLog() {
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
-          <button 
-            onClick={() => navigate('/admin/stock-in')}
-            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-sm active:scale-95"
-          >
-            <Plus size={16} />
-            <span>Stock In</span>
-          </button>
-          <button 
-            onClick={() => navigate('/admin/stock-out')}
-            className="flex items-center gap-2 px-4 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-sm active:scale-95"
-          >
-            <Minus size={16} />
-            <span>Stock Out</span>
-          </button>
-
-          <div className="h-8 w-px bg-gray-200 hidden md:block" />
-
           <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex flex-col items-end shadow-sm">
             <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-1">Total Stock In</span>
             <div className="flex items-center gap-2 text-emerald-600">

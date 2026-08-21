@@ -606,11 +606,11 @@ const Home = () => {
               onMouseLeave={() => setIsHoveredNewArrival(false)}
               onTouchStart={() => setIsHoveredNewArrival(true)}
               onTouchEnd={() => setIsHoveredNewArrival(false)}
-              className="flex gap-3 sm:gap-4 overflow-x-auto pb-3 scroll-smooth snap-x snap-mandatory no-scrollbar"
+              className="flex gap-2 sm:gap-3 overflow-x-auto pb-3 scroll-smooth snap-x snap-mandatory no-scrollbar"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {newArrivalProducts.map((product) => (
-                <div key={`newarrival-${product.id}`} className="w-[calc(50%-6px)] sm:w-[calc(50%-8px)] md:w-[calc(33.333%-11px)] lg:w-[calc(25%-12px)] flex-shrink-0 snap-start">
+                <div key={`newarrival-${product.id}`} className="w-[calc(50%-4px)] sm:w-[calc(50%-6px)] md:w-[calc(33.333%-8px)] lg:w-[calc(25%-9px)] flex-shrink-0 snap-start">
                   <ProductCard product={product} badgeText="NEW" />
                 </div>
               ))}
@@ -646,7 +646,7 @@ const Home = () => {
             <p className="text-sm font-bold text-gray-500">No products available at the moment.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-5 md:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5 md:gap-4">
             {sortedProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
@@ -714,11 +714,11 @@ const Home = () => {
               onMouseLeave={() => setIsHoveredBestSelling(false)}
               onTouchStart={() => setIsHoveredBestSelling(true)}
               onTouchEnd={() => setIsHoveredBestSelling(false)}
-              className="flex gap-3 sm:gap-4 overflow-x-auto pb-3 scroll-smooth snap-x snap-mandatory no-scrollbar"
+              className="flex gap-2 sm:gap-3 overflow-x-auto pb-3 scroll-smooth snap-x snap-mandatory no-scrollbar"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {bestSellingProducts.map((product) => (
-                <div key={`bestseller-${product.id}`} className="w-[calc(50%-6px)] sm:w-[calc(50%-8px)] md:w-[calc(33.333%-11px)] lg:w-[calc(25%-12px)] flex-shrink-0 snap-start">
+                <div key={`bestseller-${product.id}`} className="w-[calc(50%-4px)] sm:w-[calc(50%-6px)] md:w-[calc(33.333%-8px)] lg:w-[calc(25%-9px)] flex-shrink-0 snap-start">
                   <ProductCard product={product} badgeText="Best Selling" />
                 </div>
               ))}

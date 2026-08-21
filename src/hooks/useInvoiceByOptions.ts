@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { isFirestoreQuotaExceeded, isQuotaError } from '../lib/firestoreUtils';
 
 const DEFAULT_OPTIONS = ['Sabbir', 'Nasir', 'Shamiul', 'Office Sale'];
 
@@ -9,6 +10,12 @@ export function useInvoiceByOptions() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (isFirestoreQuotaExceeded) {
+      setOptions(DEFAULT_OPTIONS);
+      setLoading(false);
+      return;
+    }
+
     let unsub = () => {};
     try {
       const q = query(collection(db, 'invoice_by_options'));
@@ -27,12 +34,16 @@ export function useInvoiceByOptions() {
         setOptions(combined);
         setLoading(false);
       }, (err) => {
-        console.error("Firestore invoice_by_options snapshot error:", err);
+        if (!isQuotaError(err)) {
+          console.warn("Firestore invoice_by_options notice:", err);
+        }
         setOptions(DEFAULT_OPTIONS);
         setLoading(false);
       });
     } catch (e) {
-      console.error("Error setting up invoice_by_options listener:", e);
+      if (!isQuotaError(e)) {
+        console.warn("Error setting up invoice_by_options listener:", e);
+      }
       setOptions(DEFAULT_OPTIONS);
       setLoading(false);
     }
@@ -56,10 +67,13 @@ export function useInvoiceByOptions() {
       });
       return true;
     } catch (err) {
-      console.error("Failed to save new invoice_by option to Firestore:", err);
+      if (!isQuotaError(err)) {
+        console.warn("Failed to save new invoice_by option to Firestore:", err);
+      }
       return false;
     }
   };
 
   return { options, addOption, loading };
 }
+

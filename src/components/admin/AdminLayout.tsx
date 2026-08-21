@@ -26,8 +26,6 @@ import {
   Truck,
   User,
   Settings,
-  Download,
-  Upload,
   HelpCircle,
   MessageCircle,
   LogOut, 
@@ -46,7 +44,8 @@ import {
   RefreshCw,
   UserCheck,
   History,
-  Coins
+  Coins,
+  Database
 } from 'lucide-react';
 import { cn, formatPrice } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -219,7 +218,13 @@ export default function AdminLayout() {
     if (isSuperAdmin) return true;
     if (key === 'dashboard') return true;
     if (!permissions || permissions.length === 0) return false;
-    return permissions.includes(key) || permissions.includes('all');
+    if (permissions.includes('all') || permissions.includes(key)) return true;
+    if (key === 'customer-profiler' && permissions.includes('customers')) return true;
+    if (key === 'master-table' && permissions.includes('masterTable')) return true;
+    if (key === 'inventory-log' && permissions.includes('masterTable')) return true;
+    if (key === 'dollar-expense' && permissions.includes('finance')) return true;
+    if (['categories', 'branding', 'banners', 'offers', 'notifications', 'pathao', 'payments', 'admin-access'].includes(key) && permissions.includes('settings')) return true;
+    return false;
   };
 
   const getRequiredPermissionForPath = (path: string): string | null => {
@@ -229,18 +234,31 @@ export default function AdminLayout() {
       path.startsWith('/admin/products') ||
       path.startsWith('/admin/add-product') ||
       path.startsWith('/admin/edit-product') ||
-      path.startsWith('/admin/stock-in') ||
-      path.startsWith('/admin/stock-out') ||
       path.startsWith('/admin/inventory') ||
       path.startsWith('/admin/media') ||
       path.startsWith('/admin/fix-sizes')
     ) return 'products';
-    if (path.startsWith('/admin/customers') || path.startsWith('/admin/customer-profiler')) return 'customers';
+    if (path.startsWith('/admin/customers')) return 'customer-profiler';
+    if (path.startsWith('/admin/customer-profiler')) return 'customer-profiler';
     if (path.startsWith('/admin/exchanges')) return 'exchanges';
     if (path.startsWith('/admin/issues')) return 'issues';
-    if (path.startsWith('/admin/master-table') || path.startsWith('/admin/inventory-log')) return 'masterTable';
-    if (path.startsWith('/admin/finance') || path.startsWith('/admin/dollar-expenses')) return 'finance';
-    if (path.startsWith('/admin/settings')) return 'settings';
+    if (path.startsWith('/admin/master-table')) return 'master-table';
+    if (path.startsWith('/admin/inventory-log')) return 'inventory-log';
+    if (path.startsWith('/admin/finance')) return 'finance';
+    if (path.startsWith('/admin/dollar-expenses')) return 'dollar-expense';
+    if (path.startsWith('/admin/settings')) {
+      const searchParams = new URLSearchParams(location.search);
+      const tab = searchParams.get('tab');
+      if (tab === 'Categories') return 'categories';
+      if (tab === 'Branding') return 'branding';
+      if (tab === 'Banners') return 'banners';
+      if (tab === 'Offers') return 'offers';
+      if (tab === 'Notifications') return 'notifications';
+      if (tab === 'Courier') return 'pathao';
+      if (tab === 'Payments') return 'payments';
+      if (tab === 'Admin Access') return 'admin-access';
+      return 'settings';
+    }
     return null;
   };
 
@@ -252,41 +270,39 @@ export default function AdminLayout() {
       title: 'OVERVIEW',
       items: [
         { name: 'Dashboard', path: '/admin', icon: Home, perm: 'dashboard' },
-        { name: 'Customer Profiler', path: '/admin/customer-profiler', icon: UserCheck, perm: 'customers' },
+        { name: 'Customer Profiler', path: '/admin/customer-profiler', icon: UserCheck, perm: 'customer-profiler' },
         { name: 'Orders', path: '/admin/orders', icon: FileText, perm: 'orders' },
         { name: 'Exchanges', path: '/admin/exchanges', icon: RefreshCw, perm: 'exchanges' },
-        { name: 'Categories', path: '/admin/settings?tab=Categories', icon: Folder, perm: 'products' },
+        { name: 'Categories', path: '/admin/settings?tab=Categories', icon: Folder, perm: 'categories' },
         { name: 'Products', path: '/admin/products', icon: ShoppingBag, perm: 'products' },
-        { name: 'Stock In', path: '/admin/stock-in', icon: Download, perm: 'products' },
-        { name: 'Stock Out', path: '/admin/stock-out', icon: Upload, perm: 'products' },
         { name: 'Issues', path: '/admin/issues', icon: MessageCircle, perm: 'issues' },
-        { name: 'Master Table', path: '/admin/master-table', icon: Table, perm: 'masterTable' },
-        { name: 'Inventory Log', path: '/admin/inventory-log', icon: History, perm: 'masterTable' },
+        { name: 'Master Table', path: '/admin/master-table', icon: Table, perm: 'master-table' },
+        { name: 'Inventory Log', path: '/admin/inventory-log', icon: History, perm: 'inventory-log' },
         { name: 'Finance', path: '/admin/finance', icon: DollarSign, perm: 'finance' },
-        { name: 'Dollar Expense', path: '/admin/dollar-expenses', icon: Coins, perm: 'finance' },
+        { name: 'Dollar Expense', path: '/admin/dollar-expenses', icon: Coins, perm: 'dollar-expense' },
       ]
     },
     {
       title: 'SETTINGS',
       items: [
         { name: 'Settings', path: '/admin/settings', icon: Settings, perm: 'settings' },
-        { name: 'Branding', path: '/admin/settings?tab=Branding', icon: Palette, perm: 'settings' },
-        { name: 'Banners', path: '/admin/settings?tab=Banners', icon: Globe, perm: 'settings' },
-        { name: 'Offers Settings', path: '/admin/settings?tab=Offers', icon: Tag, perm: 'settings' },
-        { name: 'Notifications', path: '/admin/settings?tab=Notifications', icon: Bell, perm: 'settings' },
-        { name: 'Pathao Courier', path: '/admin/settings?tab=Courier', icon: Truck, perm: 'settings' },
+        { name: 'Branding', path: '/admin/settings?tab=Branding', icon: Palette, perm: 'branding' },
+        { name: 'Banners', path: '/admin/settings?tab=Banners', icon: Globe, perm: 'banners' },
+        { name: 'Offers Settings', path: '/admin/settings?tab=Offers', icon: Tag, perm: 'offers' },
+        { name: 'Notifications', path: '/admin/settings?tab=Notifications', icon: Bell, perm: 'notifications' },
+        { name: 'Pathao Courier', path: '/admin/settings?tab=Courier', icon: Truck, perm: 'pathao' },
       ]
     },
     {
       title: 'PAYMENTS',
       items: [
-        { name: 'Pay Method', path: '/admin/settings?tab=Payments', icon: CreditCard, perm: 'settings' },
+        { name: 'Pay Method', path: '/admin/settings?tab=Payments', icon: CreditCard, perm: 'payments' },
       ]
     },
     {
       title: 'ACCESS',
       items: [
-        ...(isSuperAdmin ? [{ name: 'Admin Access', path: '/admin/settings?tab=Admin Access', icon: Lock, perm: 'settings' }] : []),
+        { name: 'Admin Access', path: '/admin/settings?tab=Admin Access', icon: Lock, perm: 'admin-access' },
       ]
     }
   ];

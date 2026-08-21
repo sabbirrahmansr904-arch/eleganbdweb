@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Star, MessageSquare, Plus, Trash2, CheckCircle2, User, Filter, X, ThumbsUp, Sparkles, AlertCircle } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { isFirestoreQuotaExceeded, isQuotaError } from '../lib/firestoreUtils';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -112,31 +113,42 @@ export default function Reviews() {
 
   // Real-time Firestore query for reviews
   useEffect(() => {
-    const q = query(collection(db, 'reviews'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const items: ReviewItem[] = [];
-      snapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        items.push({
-          id: docSnap.id,
-          userName: data.userName || data.name || 'Anonymous',
-          userEmail: data.userEmail || '',
-          rating: Number(data.rating) || 5,
-          comment: data.comment || data.text || '',
-          productName: data.productName || data.product || 'General Store Review',
-          createdAt: data.createdAt || Date.now(),
-          isVerified: data.isVerified ?? true,
-          isAdmin: data.isAdmin ?? false,
-        });
-      });
-      setFirestoreReviews(items);
+    if (isFirestoreQuotaExceeded) {
       setLoading(false);
-    }, (err) => {
-      console.error("Reviews listener error:", err);
-      setLoading(false);
-    });
+      return;
+    }
 
-    return () => unsubscribe();
+    try {
+      const q = query(collection(db, 'reviews'), orderBy('createdAt', 'desc'));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const items: ReviewItem[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          items.push({
+            id: docSnap.id,
+            userName: data.userName || data.name || 'Anonymous',
+            userEmail: data.userEmail || '',
+            rating: Number(data.rating) || 5,
+            comment: data.comment || data.text || '',
+            productName: data.productName || data.product || 'General Store Review',
+            createdAt: data.createdAt || Date.now(),
+            isVerified: data.isVerified ?? true,
+            isAdmin: data.isAdmin ?? false,
+          });
+        });
+        setFirestoreReviews(items);
+        setLoading(false);
+      }, (err) => {
+        if (!isQuotaError(err)) {
+          console.warn("Reviews listener notice:", err);
+        }
+        setLoading(false);
+      });
+
+      return () => unsubscribe();
+    } catch {
+      setLoading(false);
+    }
   }, []);
 
   // Combine Firestore reviews with seed reviews if Firestore is small

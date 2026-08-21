@@ -849,19 +849,18 @@ export default function AdminOrders(): React.JSX.Element {
   const handleBookPathao = async () => {
     if (!pathaoBookingOrder) return;
     
-    if (!pathaoCity) {
-      toast.error("অনুগ্রহ করে জেলা/সিটি সিলেক্ট করুন");
-      return;
-    }
+    const parsedLoc = parseCustomerAddress(pathaoBookingOrder.address, pathaoBookingOrder.city, pathaoBookingOrder.thana);
+    const finalCity = pathaoCity || parsedLoc.city || pathaoBookingOrder.city || 'Dhaka';
+    const finalZone = pathaoZone || parsedLoc.zone || pathaoBookingOrder.thana || 'Central';
 
     setBookingToPathao(true);
 
     // Build the custom order object to send to the backend
     const updatedOrder = {
       ...pathaoBookingOrder,
-      city: pathaoCity,
-      thana: pathaoZone,
-      zone: pathaoZone,
+      city: finalCity,
+      thana: finalZone,
+      zone: finalZone,
       areaId: Number(pathaoArea) || undefined,
       orderNote: pathaoSpecialInstruction,
       item_weight: Number(pathaoWeight) || 0.5,
@@ -2300,8 +2299,8 @@ export default function AdminOrders(): React.JSX.Element {
                                 const parsedLoc = parseCustomerAddress(order.address, order.city, order.thana);
 
                                 setPathaoBookingOrder(order);
-                                setPathaoCity(parsedLoc.city || '');
-                                setPathaoZone(parsedLoc.zone || '');
+                                setPathaoCity(parsedLoc.city || order.city || 'Dhaka');
+                                setPathaoZone(parsedLoc.zone || order.thana || '');
                                 setPathaoDetectedAddressInfo({
                                   districtBangla: parsedLoc.districtBangla,
                                   isAutoDetected: parsedLoc.isAutoDetected
