@@ -152,19 +152,19 @@ const ProductCard = React.memo(({ product, onAddToCart, loading = "eager", badge
         </Link>
 
         {/* Info Area */}
-        <div className="p-2.5 sm:p-3 pb-0">
+        <div className="p-2.5 sm:p-3 pb-0 text-center">
           {/* Title */}
-          <h3 className="text-xs sm:text-sm md:text-base font-extrabold text-gray-900 line-clamp-2 uppercase tracking-tight hover:text-blue-600 transition-colors leading-snug min-h-[34px] sm:min-h-[42px]">
+          <h3 className="text-[11px] sm:text-xs md:text-sm font-extrabold text-gray-900 line-clamp-2 uppercase tracking-tight hover:text-blue-600 transition-colors leading-snug min-h-[30px] sm:min-h-[36px]">
             <Link to={`/product/${product.id}`}>{product.name}</Link>
           </h3>
 
           {/* Pricing */}
-          <div className="flex items-center gap-1.5 sm:gap-2 mt-1 sm:mt-1.5 flex-wrap">
-            <span className="text-sm sm:text-lg md:text-xl font-black text-blue-700">
+          <div className="flex items-center justify-center gap-1.5 sm:gap-2 mt-1 sm:mt-1.5 flex-wrap">
+            <span className="text-xs sm:text-sm md:text-base font-black text-blue-700">
               {formatPrice(product.price, currency, rate)}
             </span>
             {product.regularPrice && product.regularPrice > product.price && (
-              <span className="text-xs sm:text-sm text-gray-400 line-through font-medium">
+              <span className="text-[10px] sm:text-xs text-gray-400 line-through font-medium">
                 {formatPrice(product.regularPrice, currency, rate)}
               </span>
             )}

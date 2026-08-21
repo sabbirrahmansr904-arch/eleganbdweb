@@ -223,7 +223,7 @@ export default function AdminLayout() {
     if (key === 'master-table' && permissions.includes('masterTable')) return true;
     if (key === 'inventory-log' && permissions.includes('masterTable')) return true;
     if (key === 'dollar-expense' && permissions.includes('finance')) return true;
-    if (['categories', 'branding', 'banners', 'offers', 'notifications', 'pathao', 'payments', 'admin-access'].includes(key) && permissions.includes('settings')) return true;
+    if (['categories', 'branding', 'banners', 'notifications', 'pathao', 'payments', 'admin-access'].includes(key) && permissions.includes('settings')) return true;
     return false;
   };
 
@@ -252,7 +252,6 @@ export default function AdminLayout() {
       if (tab === 'Categories') return 'categories';
       if (tab === 'Branding') return 'branding';
       if (tab === 'Banners') return 'banners';
-      if (tab === 'Offers') return 'offers';
       if (tab === 'Notifications') return 'notifications';
       if (tab === 'Courier') return 'pathao';
       if (tab === 'Payments') return 'payments';
@@ -288,7 +287,6 @@ export default function AdminLayout() {
         { name: 'Settings', path: '/admin/settings', icon: Settings, perm: 'settings' },
         { name: 'Branding', path: '/admin/settings?tab=Branding', icon: Palette, perm: 'branding' },
         { name: 'Banners', path: '/admin/settings?tab=Banners', icon: Globe, perm: 'banners' },
-        { name: 'Offers Settings', path: '/admin/settings?tab=Offers', icon: Tag, perm: 'offers' },
         { name: 'Notifications', path: '/admin/settings?tab=Notifications', icon: Bell, perm: 'notifications' },
         { name: 'Pathao Courier', path: '/admin/settings?tab=Courier', icon: Truck, perm: 'pathao' },
       ]

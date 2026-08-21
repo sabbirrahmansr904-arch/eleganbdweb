@@ -219,7 +219,6 @@ export default function AdminSettings() {
     { id: 'settings', name: 'Settings', banglaName: 'সেটিংস', desc: 'জেনারেল স্টোর সেটিংস' },
     { id: 'branding', name: 'Branding', banglaName: 'ব্র্যান্ডিং', desc: 'লোগো, নাম ও থিম সেটিংস' },
     { id: 'banners', name: 'Banners', banglaName: 'ব্যানার্স', desc: 'হিরো ব্যানার ও স্লাইডার ম্যানেজমেন্ট' },
-    { id: 'offers', name: 'Offers Settings', banglaName: 'অফার সেটিংস', desc: 'ডিসকাউন্ট ও অফার কনফিগারেশন' },
     { id: 'notifications', name: 'Notifications', banglaName: 'নোটিফিকেশনস', desc: 'এসএমএস ও নোটিফিকেশন সেটিংস' },
     { id: 'pathao', name: 'Pathao Courier', banglaName: 'পাঠাও কুরিয়ার', desc: 'পাঠাও ডেলিভারি ও এপিআই সেটিংস' },
     { id: 'payments', name: 'Pay Method', banglaName: 'পেমেন্ট মেথড', desc: 'বিকাশ, নগদ, কার্ড ও ক্যাশ অন ডেলিভারি' },
@@ -3897,7 +3896,7 @@ export default function AdminSettings() {
             </div>
           )}
           
-          {activeTab !== 'General' && activeTab !== 'Banners' && activeTab !== 'Categories' && activeTab !== 'Notifications' && activeTab !== 'Branding' && activeTab !== 'Admin Access' && activeTab !== 'Payments' && activeTab !== 'Pixel & Analytics' && activeTab !== 'Coupons' && activeTab !== 'SMS' && activeTab !== 'Courier' && activeTab !== 'Pathao' && activeTab !== 'Offers' && (
+          {activeTab !== 'General' && activeTab !== 'Banners' && activeTab !== 'Categories' && activeTab !== 'Notifications' && activeTab !== 'Branding' && activeTab !== 'Admin Access' && activeTab !== 'Payments' && activeTab !== 'Pixel & Analytics' && activeTab !== 'Coupons' && activeTab !== 'SMS' && activeTab !== 'Courier' && activeTab !== 'Pathao' && (
              <div className="flex flex-col items-center justify-center py-32 text-center opacity-20 relative z-10 font-sans">
                 <Settings size={64} className="mb-6 animate-spin-slow text-brand-gold" />
                 <h3 className="serif text-3xl text-black italic tracking-tighter uppercase font-black">Under Construction</h3>

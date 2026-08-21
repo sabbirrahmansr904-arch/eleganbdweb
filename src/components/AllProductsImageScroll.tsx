@@ -117,16 +117,13 @@ export default function AllProductsImageScroll() {
                 </div>
 
                 {/* Info Footer */}
-                <div className="p-3.5 bg-white">
-                  <h4 className="text-xs font-extrabold text-gray-900 truncate group-hover/card:text-blue-600 transition-colors">
+                <div className="p-3 bg-white text-center">
+                  <h4 className="text-[11px] font-extrabold text-gray-900 truncate group-hover/card:text-blue-600 transition-colors">
                     {product.name}
                   </h4>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-sm font-black text-blue-700">
+                  <div className="flex items-center justify-center gap-1.5 mt-1.5">
+                    <span className="text-xs font-black text-blue-700">
                       {formatPrice(product.price)}
-                    </span>
-                    <span className="text-[10px] font-bold text-gray-600 bg-gray-100 hover:bg-blue-50 hover:text-blue-600 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors">
-                      <ShoppingBag size={11} /> View
                     </span>
                   </div>
                 </div>
