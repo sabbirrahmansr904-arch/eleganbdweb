@@ -123,21 +123,22 @@ service cloud.firestore {
 
     match /admins/{adminId} {
       allow read, list: if isSignedIn();
-      allow create: if isSignedIn() && (
-        adminId == request.auth.uid || 
-        isAdmin()
-      );
-      allow update, delete: if isSignedIn() && isAdmin();
+      allow create, update, delete: if isSignedIn();
     }
 
     match /admin_permissions/{docId} {
-      allow read, list: if isSignedIn() && isAdmin();
-      allow write: if isAdmin();
+      allow read, list: if isSignedIn();
+      allow write, delete: if isSignedIn();
     }
 
     match /admin_invites/{docId} {
-      allow read, list: if isSignedIn() && isAdmin();
-      allow write: if isAdmin();
+      allow read, list: if isSignedIn();
+      allow write, delete: if isSignedIn();
+    }
+
+    match /admin_profiles/{docId} {
+      allow read, list: if isSignedIn();
+      allow write, delete: if isSignedIn();
     }
 
     function isValidStockTransaction(data) {
@@ -271,6 +272,11 @@ service cloud.firestore {
       allow read, list: if true;
       allow create, update: if isSignedIn();
       allow delete: if isAdmin();
+    }
+
+    match /media/{mediaId} {
+      allow read, list: if true;
+      allow create, update, delete: if isSignedIn();
     }
   }
 }

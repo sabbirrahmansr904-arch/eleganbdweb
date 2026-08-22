@@ -45,7 +45,11 @@ import {
   UserCheck,
   History,
   Coins,
-  Database
+  Database,
+  FileSpreadsheet,
+  ChevronLeft,
+  ChevronRight,
+  Images
 } from 'lucide-react';
 import { cn, formatPrice } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -56,6 +60,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
+import { db } from '../../lib/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 export default function AdminLayout() {
   const { logoUrl } = useBranding();
@@ -73,8 +79,61 @@ export default function AdminLayout() {
   const dropdownRef = React.useRef<HTMLDivElement>(null);
   const profileRef = React.useRef<HTMLDivElement>(null);
 
-  const userInitials = (currentUser?.email ? currentUser.email.slice(0, 2) : 'AD').toUpperCase();
-  const activeDepartment = department || (isSuperAdmin ? 'CEO & Founder' : 'Sales Executive Department');
+  const [userProfile, setUserProfile] = useState<{ name?: string; photoURL?: string; position?: string; department?: string } | null>(null);
+
+  React.useEffect(() => {
+    if (!currentUser?.email) return;
+    const cleanEmail = currentUser.email.toLowerCase().trim();
+    const emailKey = cleanEmail.replace(/[^a-zA-Z0-9]/g, '_');
+    
+    // Check local storage first for instant render
+    try {
+      const local = localStorage.getItem('elegan_admin_profiles');
+      if (local) {
+        const list = JSON.parse(local);
+        const found = list.find((p: any) => p.email?.toLowerCase() === cleanEmail);
+        if (found) setUserProfile(found);
+      }
+    } catch (e) {}
+
+    // Realtime Firestore sync with admin_profiles
+    let unsubProfile: (() => void) | null = null;
+    let unsubPerms: (() => void) | null = null;
+
+    try {
+      const docRef = doc(db, 'admin_profiles', emailKey);
+      unsubProfile = onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+          setUserProfile(prev => ({ ...prev, ...(docSnap.data() as any) }));
+        }
+      });
+    } catch (e) {}
+
+    // Also listen to admin_permissions in case name or department was set there
+    try {
+      const permRef = doc(db, 'admin_permissions', cleanEmail);
+      unsubPerms = onSnapshot(permRef, (permSnap) => {
+        if (permSnap.exists()) {
+          const pData = permSnap.data();
+          setUserProfile(prev => ({
+            ...prev,
+            name: prev?.name || pData.name,
+            department: pData.department || prev?.department,
+            position: pData.position || prev?.position || (pData.department ? `${pData.department.split(' ')[0]} Officer` : undefined)
+          }));
+        }
+      });
+    } catch (e) {}
+
+    return () => {
+      if (unsubProfile) unsubProfile();
+      if (unsubPerms) unsubPerms();
+    };
+  }, [currentUser?.email]);
+
+  const userInitials = (userProfile?.name?.slice(0, 2) || currentUser?.email?.slice(0, 2) || 'AD').toUpperCase();
+  const activeDepartment = userProfile?.position || userProfile?.department || department || (isSuperAdmin ? 'CEO & Founder' : 'Sales Executive Department');
+  const userPhoto = userProfile?.photoURL || currentUser?.photoURL || '';
 
   const getDepartmentBadgeStyle = (dept: string) => {
     if (dept.includes('CEO') || dept.includes('Founder')) {
@@ -223,19 +282,26 @@ export default function AdminLayout() {
     if (key === 'master-table' && permissions.includes('masterTable')) return true;
     if (key === 'inventory-log' && permissions.includes('masterTable')) return true;
     if (key === 'dollar-expense' && permissions.includes('finance')) return true;
-    if (['categories', 'branding', 'banners', 'notifications', 'pathao', 'payments', 'admin-access'].includes(key) && permissions.includes('settings')) return true;
+    if (key === 'media' && (permissions.includes('media') || permissions.includes('products') || permissions.includes('settings'))) return true;
+    if (['categories', 'branding', 'banners', 'notifications', 'media', 'pathao', 'payments', 'admin-access'].includes(key) && permissions.includes('settings')) return true;
     return false;
   };
 
   const getRequiredPermissionForPath = (path: string): string | null => {
     if (path === '/admin' || path === '/admin/') return 'dashboard';
+    if (
+      path.startsWith('/admin/all-account') || 
+      path.startsWith('/admin/all-accounts') || 
+      path.startsWith('/admin/my-account') || 
+      path.startsWith('/admin/account')
+    ) return 'dashboard';
     if (path.startsWith('/admin/orders')) return 'orders';
+    if (path.startsWith('/admin/media')) return 'media';
     if (
       path.startsWith('/admin/products') ||
       path.startsWith('/admin/add-product') ||
       path.startsWith('/admin/edit-product') ||
       path.startsWith('/admin/inventory') ||
-      path.startsWith('/admin/media') ||
       path.startsWith('/admin/fix-sizes')
     ) return 'products';
     if (path.startsWith('/admin/customers')) return 'customer-profiler';
@@ -270,31 +336,44 @@ export default function AdminLayout() {
       items: [
         { name: 'Dashboard', path: '/admin', icon: Home, perm: 'dashboard' },
         { name: 'Customer Profiler', path: '/admin/customer-profiler', icon: UserCheck, perm: 'customer-profiler' },
-        { name: 'Orders', path: '/admin/orders', icon: FileText, perm: 'orders' },
-        { name: 'Exchanges', path: '/admin/exchanges', icon: RefreshCw, perm: 'exchanges' },
+        { name: 'My Account', path: '/admin/my-account', icon: User, perm: 'dashboard' },
+        { name: 'All Account', path: '/admin/all-accounts', icon: Users, perm: 'dashboard' },
         { name: 'Categories', path: '/admin/settings?tab=Categories', icon: Folder, perm: 'categories' },
-        { name: 'Products', path: '/admin/products', icon: ShoppingBag, perm: 'products' },
-        { name: 'Issues', path: '/admin/issues', icon: MessageCircle, perm: 'issues' },
-        { name: 'Master Table', path: '/admin/master-table', icon: Table, perm: 'master-table' },
-        { name: 'Inventory Log', path: '/admin/inventory-log', icon: History, perm: 'inventory-log' },
-        { name: 'Finance', path: '/admin/finance', icon: DollarSign, perm: 'finance' },
-        { name: 'Dollar Expense', path: '/admin/dollar-expenses', icon: Coins, perm: 'dollar-expense' },
       ]
     },
     {
-      title: 'SETTINGS',
+      title: 'ORDER MANAGEMENT',
+      items: [
+        { name: 'Orders', path: '/admin/orders', icon: FileText, perm: 'orders' },
+        { name: 'Exchanges', path: '/admin/exchanges', icon: RefreshCw, perm: 'exchanges' },
+        { name: 'Issues', path: '/admin/issues', icon: MessageCircle, perm: 'issues' },
+      ]
+    },
+    {
+      title: 'INVENTORY',
+      items: [
+        { name: 'Products', path: '/admin/products', icon: ShoppingBag, perm: 'products' },
+        { name: 'Master Table', path: '/admin/master-table', icon: Table, perm: 'master-table' },
+        { name: 'Inventory Log', path: '/admin/inventory-log', icon: History, perm: 'inventory-log' },
+      ]
+    },
+    {
+      title: 'ACCOUNTING',
+      items: [
+        { name: 'Finance', path: '/admin/finance', icon: DollarSign, perm: 'finance' },
+        { name: 'Transaction List', path: '/admin/transaction-list', icon: FileSpreadsheet, perm: 'finance' },
+        { name: 'Dollar Expense', path: '/admin/dollar-expenses', icon: Coins, perm: 'dollar-expense' },
+        { name: 'Pay Method', path: '/admin/settings?tab=Payments', icon: CreditCard, perm: 'payments' },
+      ]
+    },
+    {
+      title: 'SYSTEM',
       items: [
         { name: 'Settings', path: '/admin/settings', icon: Settings, perm: 'settings' },
         { name: 'Branding', path: '/admin/settings?tab=Branding', icon: Palette, perm: 'branding' },
         { name: 'Banners', path: '/admin/settings?tab=Banners', icon: Globe, perm: 'banners' },
         { name: 'Notifications', path: '/admin/settings?tab=Notifications', icon: Bell, perm: 'notifications' },
-        { name: 'Pathao Courier', path: '/admin/settings?tab=Courier', icon: Truck, perm: 'pathao' },
-      ]
-    },
-    {
-      title: 'PAYMENTS',
-      items: [
-        { name: 'Pay Method', path: '/admin/settings?tab=Payments', icon: CreditCard, perm: 'payments' },
+        { name: 'Media', path: '/admin/media', icon: Images, perm: 'media' },
       ]
     },
     {
@@ -311,12 +390,15 @@ export default function AdminLayout() {
   })).filter(group => group.items.length > 0);
 
   const getIsActive = (itemPath: string) => {
+    const currentTabVal = new URLSearchParams(location.search).get('tab');
     if (itemPath.includes('?')) {
       const [pathPart, queryPart] = itemPath.split('?');
       const params = new URLSearchParams(queryPart);
       const tabVal = params.get('tab');
-      const currentTabVal = new URLSearchParams(location.search).get('tab');
       return location.pathname === pathPart && tabVal === currentTabVal;
+    }
+    if (itemPath === '/admin/settings') {
+      return location.pathname === '/admin/settings' && !currentTabVal;
     }
     return location.pathname === itemPath || (itemPath !== '/admin' && itemPath !== '/' && location.pathname.startsWith(itemPath));
   };
@@ -365,15 +447,20 @@ export default function AdminLayout() {
                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                className="fixed inset-y-0 left-0 w-72 bg-[#EAEFF5] z-[70] lg:hidden flex flex-col shadow-2xl border-r border-[#DCE4EE]"
             >
-              <div className="h-20 flex items-center justify-between px-6 border-b border-[#DCE4EE] bg-[#EAEFF5] text-black">
-                <Link to="/" onClick={() => setIsMobileOpen(false)} className="shrink-0 flex items-center min-w-0">
-                  <span className="font-black tracking-tight text-xl sm:text-2xl text-blue-600 leading-none">
-                    Elegan BD
-                  </span>
-                </Link>
-                <button onClick={() => setIsMobileOpen(false)} className="text-gray-400 hover:text-black p-2 transition-colors">
-                  <X size={20} />
-                </button>
+              <div className="p-3 border-b border-[#DCE4EE] bg-[#EAEFF5]">
+                <div className="flex items-center justify-between p-2.5 bg-[#E6ECF4] rounded-2xl border border-white/90 shadow-[-4px_-4px_10px_rgba(255,255,255,0.95),4px_4px_12px_rgba(165,180,205,0.32)]">
+                  <Link to="/" onClick={() => setIsMobileOpen(false)} className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 flex items-center justify-center shrink-0">
+                      {logoUrl ? <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" /> : <span className="font-black text-slate-900 text-base">EB</span>}
+                    </div>
+                    <span className="font-black tracking-tight text-sm text-slate-900 truncate">
+                      Elegan Admin
+                    </span>
+                  </Link>
+                  <button onClick={() => setIsMobileOpen(false)} className="p-2 rounded-xl bg-[#E6ECF4] hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer">
+                    <X size={18} />
+                  </button>
+                </div>
               </div>
               <nav className="flex-1 py-4 px-4 space-y-4 overflow-y-auto no-scrollbar bg-[#EAEFF5]">
                 {menuGroups.map((group, gIdx) => (
@@ -455,22 +542,48 @@ export default function AdminLayout() {
       {/* Desktop Sidebar */}
       <aside 
         className={cn(
-          "hidden lg:flex flex-col bg-[#EAEFF5] border-r border-[#DCE4EE] transition-all duration-300 shrink-0 z-50",
+          "hidden lg:flex flex-col bg-[#EAEFF5] border-r border-[#DCE4EE] transition-all duration-300 shrink-0 z-50 sticky top-0 h-screen",
           isSidebarOpen ? "w-64" : "w-20"
         )}
       >
-        <div className="h-20 flex items-center justify-between px-6 border-b border-[#DCE4EE] overflow-hidden bg-[#EAEFF5] shrink-0">
-          <Link to="/" className="shrink-0 flex items-center min-w-0">
-            {isSidebarOpen ? (
-              <span className="font-black tracking-tight text-xl sm:text-2xl text-blue-600 leading-none">
-                Elegan BD
-              </span>
-            ) : (
-              <span className="font-black tracking-tight text-xl text-blue-600 leading-none mx-auto">
-                E
-              </span>
-            )}
-          </Link>
+        <div className="p-3 border-b border-[#DCE4EE] bg-[#EAEFF5] shrink-0 relative">
+          {isSidebarOpen ? (
+            <button 
+              onClick={toggleSidebar}
+              className="w-full flex items-center justify-between p-2.5 bg-[#E6ECF4] hover:bg-[#DEE5F0] rounded-2xl border border-white/90 shadow-[-4px_-4px_10px_rgba(255,255,255,0.95),4px_4px_12px_rgba(165,180,205,0.32)] transition-all cursor-pointer group text-left"
+              title="Click to collapse sidebar"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 flex items-center justify-center shrink-0">
+                  {logoUrl ? (
+                    <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                  ) : (
+                    <span className="font-black text-slate-900 text-base">EB</span>
+                  )}
+                </div>
+                <span className="font-black tracking-tight text-sm text-slate-900 truncate">
+                  Elegan Admin
+                </span>
+              </div>
+              <div className="w-6 h-6 rounded-full bg-[#E6ECF4] flex items-center justify-center text-slate-500 group-hover:text-slate-800 shadow-[-2px_-2px_5px_rgba(255,255,255,0.9),2px_2px_5px_rgba(165,180,205,0.25)] border border-white/80 shrink-0">
+                <ChevronLeft size={14} />
+              </div>
+            </button>
+          ) : (
+            <button 
+              onClick={toggleSidebar}
+              className="w-12 h-12 flex items-center justify-center bg-[#E6ECF4] hover:bg-[#DEE5F0] rounded-2xl border border-white/90 shadow-[-3px_-3px_8px_rgba(255,255,255,0.95),3px_3px_8px_rgba(165,180,205,0.3)] transition-all cursor-pointer mx-auto group"
+              title="Click to expand sidebar"
+            >
+              <div className="w-7 h-7 flex items-center justify-center">
+                {logoUrl ? (
+                  <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                ) : (
+                  <span className="font-black text-slate-900 text-sm">EB</span>
+                )}
+              </div>
+            </button>
+          )}
         </div>
 
         <nav className="flex-1 py-4 px-3.5 space-y-3 overflow-y-auto no-scrollbar bg-[#EAEFF5]">
@@ -523,21 +636,25 @@ export default function AdminLayout() {
         <div className="p-3 border-t border-[#DCE4EE] bg-[#EAEFF5] shrink-0">
           {isSidebarOpen ? (
             <div className="space-y-2">
-              <div className="flex items-center gap-2.5 p-2 bg-[#E6ECF4] rounded-2xl border border-white/90 shadow-[-4px_-4px_10px_rgba(255,255,255,0.95),4px_4px_12px_rgba(165,180,205,0.32)]">
-                {currentUser?.photoURL ? (
-                  <img src={currentUser.photoURL} alt="User Profile" className="w-9 h-9 rounded-full object-cover border border-white shrink-0 shadow-inner" />
+              <Link 
+                to="/admin/my-account"
+                className="flex items-center gap-2.5 p-2 bg-[#E6ECF4] hover:bg-[#DEE5F0] rounded-2xl border border-white/90 shadow-[-4px_-4px_10px_rgba(255,255,255,0.95),4px_4px_12px_rgba(165,180,205,0.32)] transition-all group"
+                title="Go to My Account Profile"
+              >
+                {userPhoto ? (
+                  <img src={userPhoto} alt="User Profile" className="w-9 h-9 rounded-full object-cover border border-white shrink-0 shadow-inner" />
                 ) : (
                   <div className="w-9 h-9 bg-[#1E293B] text-white rounded-full flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
                     {userInitials}
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-black text-gray-900 truncate" title={currentUser?.email || ''}>{currentUser?.email || 'Admin User'}</p>
+                  <p className="text-xs font-black text-gray-900 truncate" title={currentUser?.email || ''}>{userProfile?.name || currentUser?.email || 'Admin User'}</p>
                   <span className={`inline-block px-2 py-0.5 mt-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border truncate max-w-full ${getDepartmentBadgeStyle(activeDepartment)}`}>
                     {activeDepartment}
                   </span>
                 </div>
-              </div>
+              </Link>
               <div className="flex items-center gap-2 mt-2">
                 <Link 
                   to="/" 
@@ -560,9 +677,13 @@ export default function AdminLayout() {
               <button
                 onClick={() => setShowProfileDropdown(true)}
                 title={`${currentUser?.email} (${activeDepartment})`}
-                className="w-10 h-10 bg-[#1E293B] text-white rounded-full flex items-center justify-center font-black text-xs hover:scale-105 transition-all shadow-xs"
+                className="w-10 h-10 bg-[#1E293B] text-white rounded-full flex items-center justify-center font-black text-xs hover:scale-105 transition-all shadow-xs overflow-hidden"
               >
-                {userInitials}
+                {userPhoto ? (
+                  <img src={userPhoto} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  userInitials
+                )}
               </button>
               <button 
                 onClick={handleLogout}
@@ -618,14 +739,14 @@ export default function AdminLayout() {
               >
                 <div className="hidden sm:flex flex-col items-end text-right">
                   <span className="text-xs font-black text-gray-900 leading-tight truncate max-w-[160px]">
-                    {currentUser?.email ? currentUser.email.split('@')[0] : 'Admin User'}
+                    {userProfile?.name || (currentUser?.email ? currentUser.email.split('@')[0] : 'Admin User')}
                   </span>
                   <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border mt-0.5 ${getDepartmentBadgeStyle(activeDepartment)}`}>
                     {activeDepartment}
                   </span>
                 </div>
-                {currentUser?.photoURL ? (
-                  <img src={currentUser.photoURL} alt="Profile" className="w-9 h-9 rounded-full object-cover border-2 border-gray-200 shadow-2xs" />
+                {userPhoto ? (
+                  <img src={userPhoto} alt="Profile" className="w-9 h-9 rounded-full object-cover border-2 border-gray-200 shadow-2xs" />
                 ) : (
                   <div className="w-9.5 h-9.5 bg-black text-white rounded-full flex items-center justify-center font-black text-xs border-2 border-gray-100 shadow-2xs">
                     {userInitials}
@@ -643,8 +764,8 @@ export default function AdminLayout() {
                     className="absolute right-0 mt-3 w-80 sm:w-88 bg-[#F8F9FD] dark:bg-[#121824] rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-800 p-5 z-[100] text-left"
                   >
                     <div className="flex items-center gap-3.5 pb-4 border-b border-gray-100 dark:border-gray-800">
-                      {currentUser?.photoURL ? (
-                        <img src={currentUser.photoURL} alt="Profile" className="w-12 h-12 rounded-2xl object-cover border-2 border-gray-200 shrink-0" />
+                      {userPhoto ? (
+                        <img src={userPhoto} alt="Profile" className="w-12 h-12 rounded-2xl object-cover border-2 border-gray-200 shrink-0" />
                       ) : (
                         <div className="w-12 h-12 bg-black text-white rounded-2xl flex items-center justify-center font-black text-base shrink-0 shadow-md">
                           {userInitials}
@@ -652,8 +773,9 @@ export default function AdminLayout() {
                       )}
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-black text-gray-900 dark:text-white truncate" title={currentUser?.email || ''}>
-                          {currentUser?.email || 'Admin User'}
+                          {userProfile?.name || currentUser?.email || 'Admin User'}
                         </p>
+                        <p className="text-[11px] text-gray-500 truncate">{currentUser?.email}</p>
                         <div className="flex items-center gap-1.5 mt-1">
                           <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${getDepartmentBadgeStyle(activeDepartment)}`}>
                             {activeDepartment}
@@ -663,6 +785,25 @@ export default function AdminLayout() {
                     </div>
 
                     <div className="py-4 space-y-3.5">
+                      <div className="grid grid-cols-2 gap-2">
+                        <Link
+                          to="/admin/my-account"
+                          onClick={() => setShowProfileDropdown(false)}
+                          className="flex items-center gap-2 p-2.5 bg-white border border-gray-200 hover:border-blue-500 rounded-xl text-xs font-bold text-gray-800 hover:text-blue-600 transition-all shadow-2xs"
+                        >
+                          <User size={14} className="text-blue-600" />
+                          <span>My Account</span>
+                        </Link>
+                        <Link
+                          to="/admin/all-accounts"
+                          onClick={() => setShowProfileDropdown(false)}
+                          className="flex items-center gap-2 p-2.5 bg-white border border-gray-200 hover:border-blue-500 rounded-xl text-xs font-bold text-gray-800 hover:text-blue-600 transition-all shadow-2xs"
+                        >
+                          <Users size={14} className="text-blue-600" />
+                          <span>All Account</span>
+                        </Link>
+                      </div>
+
                       <div>
                         <p className="text-[10px] font-black uppercase text-gray-400 tracking-wider mb-1">
                           Account Role & Access

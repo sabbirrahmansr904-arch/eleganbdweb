@@ -48,10 +48,6 @@ const Home = () => {
 
   // FAQ Accordion state
   const [openFaq, setOpenFaq] = React.useState<number | null>(0);
-
-  // Newsletter subscription state
-  const [newsletterInput, setNewsletterInput] = React.useState('');
-  const [newsletterSubscribed, setNewsletterSubscribed] = React.useState(false);
   const [selectedWhyChooseIndex, setSelectedWhyChooseIndex] = React.useState(0);
 
   // Flash Sale Countdown Timer state
@@ -310,14 +306,6 @@ const Home = () => {
       a: 'জি, আমরা শোরুম, রিটেল শপ ও রিসেলারদের জন্য পাইকারি মূল্যে সর্বাধুনিক ফর্মাল প্যান্ট ও শার্ট দিয়ে থাকি। পাইকারি ক্যাটালগ ও প্রাইজ লিস্ট জানতে সরাসরি আমাদের হোয়াটসঅ্যাপে (+8801631496122) মেসেজ দিন।'
     }
   ];
-
-  const handleNewsletterSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newsletterInput.trim()) {
-      setNewsletterSubscribed(true);
-      setNewsletterInput('');
-    }
-  };
 
   return (
     <div className="flex flex-col min-h-screen bg-white">
@@ -1105,71 +1093,6 @@ const Home = () => {
                 </p>
               </div>
             </div>
-          )}
-        </div>
-      </section>
-
-      {/* FOLLOW @ELEGANBD INSTAGRAM GRID */}
-      <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
-        <div className="text-center max-w-2xl mx-auto mb-8">
-          <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight text-gray-900">
-            FOLLOW @ELEGANBD
-          </h2>
-          <p className="text-xs md:text-sm text-gray-600 font-medium mt-1">
-            Follow us for the latest styles, offers & inspiration.
-          </p>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
-          {[
-            whyChooseImg1 || 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=800&q=80',
-            whyChooseImg2 || 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80',
-            whyChooseImg3 || 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=800&q=80',
-            whyChooseImg4 || 'https://images.unsplash.com/photo-1620012253295-c15cc3e65df4?auto=format&fit=crop&w=800&q=80',
-            'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=800&q=80',
-            'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=800&q=80',
-          ].map((imgUrl, idx) => (
-            <div key={idx} className="aspect-[3/4] rounded-2xl overflow-hidden shadow-xs border border-gray-200 group bg-gray-100 relative">
-              <img 
-                src={imgUrl} 
-                alt={`Elegan BD Instagram ${idx + 1}`} 
-                className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
-                referrerPolicy="no-referrer"
-              />
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* STAY IN STYLE NEWSLETTER SECTION */}
-      <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
-        <div className="bg-[#f2f4f8] rounded-3xl p-8 md:p-12 text-center max-w-4xl mx-auto border border-gray-200/80 shadow-inner">
-          <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight text-gray-900 mb-2">
-            STAY IN STYLE
-          </h2>
-          <p className="text-xs md:text-sm text-gray-600 font-medium mb-6 max-w-md mx-auto">
-            Subscribe to receive exclusive offers, new arrivals and style updates.
-          </p>
-          {newsletterSubscribed ? (
-            <div className="bg-emerald-100 text-emerald-800 p-4 rounded-2xl text-xs font-bold inline-block">
-              ✓ ধন্যবাদ! সফলভাবে সাবস্ক্রাইব করা হয়েছে।
-            </div>
-          ) : (
-            <form onSubmit={handleNewsletterSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-              <input 
-                type="email" 
-                value={newsletterInput}
-                onChange={(e) => setNewsletterInput(e.target.value)}
-                placeholder="Enter your email address" 
-                required
-                className="flex-1 bg-white border border-gray-300 rounded-xl px-4 py-3 text-xs font-semibold text-gray-900 focus:outline-none focus:border-black shadow-xs"
-              />
-              <button 
-                type="submit"
-                className="bg-black text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-md cursor-pointer"
-              >
-                SUBSCRIBE
-              </button>
-            </form>
           )}
         </div>
       </section>

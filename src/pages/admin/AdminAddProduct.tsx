@@ -61,14 +61,12 @@ export default function AdminAddProduct() {
     const categoryToDelete = categories.find(c => c.name === selectedCategory);
     if (!categoryToDelete) return;
 
-    if (window.confirm(`Are you sure you want to delete the "${selectedCategory}" category? This will not delete products in this category but will reset their category label.`)) {
-      try {
-        await deleteCategory(categoryToDelete.id);
-        setSelectedCategory(categories.find(c => c.id !== categoryToDelete.id)?.name || 'UNCATEGORIZED');
-        toast.success('Category deleted successfully');
-      } catch (err) {
-        toast.error('Failed to delete category');
-      }
+    try {
+      await deleteCategory(categoryToDelete.id);
+      setSelectedCategory(categories.find(c => c.id !== categoryToDelete.id)?.name || 'UNCATEGORIZED');
+      toast.success('Category deleted successfully');
+    } catch (err) {
+      toast.error('Failed to delete category');
     }
   };
 

@@ -781,7 +781,6 @@ export default function AdminExchanges() {
               </button>
               <button 
                 onClick={async () => {
-                  if (!window.confirm(`Are you sure you want to PERMANENTLY DELETE ${selectedIds.length} highlighted exchange records?`)) return;
                   try {
                     const count = selectedIds.length;
                     toast.loading(`Deleting ${count} exchanges...`, { id: 'bulk-delete' });

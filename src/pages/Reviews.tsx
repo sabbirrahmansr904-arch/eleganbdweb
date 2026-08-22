@@ -209,7 +209,6 @@ export default function Reviews() {
 
   const handleDeleteReview = async (reviewId: string) => {
     if (!isAdmin) return;
-    if (!window.confirm('আপনি কি এই রিভিউটি মুছে ফেলতে চান? (Delete this review?)')) return;
 
     try {
       if (reviewId.startsWith('seed-')) {

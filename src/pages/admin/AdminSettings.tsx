@@ -877,15 +877,13 @@ export default function AdminSettings() {
   };
 
   const handleDeleteCoupon = async (id: string, code: string) => {
-    if (window.confirm(`Are you sure you want to delete coupon "${code}"?`)) {
-      try {
-        await deleteDoc(doc(db, 'coupons', id));
-        setCoupons(prev => prev.filter(c => c.id !== id));
-        toast.success(`Coupon "${code}" deleted successfully.`);
-      } catch (err) {
-        console.error("Error deleting coupon:", err);
-        toast.error("Failed to delete coupon.");
-      }
+    try {
+      await deleteDoc(doc(db, 'coupons', id));
+      setCoupons(prev => prev.filter(c => c.id !== id));
+      toast.success(`Coupon "${code}" deleted successfully.`);
+    } catch (err) {
+      console.error("Error deleting coupon:", err);
+      toast.error("Failed to delete coupon.");
     }
   };
 
@@ -1368,19 +1366,22 @@ export default function AdminSettings() {
 
   const handleRevokeAdmin = async (adminId: string, email?: string) => {
     const targetEmail = (email || adminId).toLowerCase().trim();
-    if (window.confirm(`আপনি কি নিশ্চিত যে '${targetEmail}' এর এডমিন এক্সেস বন্ধ (Revoke) করতে চান?`)) {
-      try {
-        if (adminId && !adminId.includes('@')) {
-          await deleteDoc(doc(db, 'admins', adminId)).catch(() => {});
-        }
-        await deleteDoc(doc(db, 'admin_permissions', targetEmail)).catch(() => {});
-        await deleteDoc(doc(db, 'admin_invites', targetEmail)).catch(() => {});
-
-        toast.success(`'${targetEmail}' এর এডমিন পারমিশন বাতিল করা হয়েছে।`);
-        setAdminList(prev => prev.filter(admin => admin.email?.toLowerCase() !== targetEmail && admin.id !== adminId));
-      } catch (err) {
-        toast.error("Failed to revoke admin credentials.");
+    if (targetEmail === 'eleganbd.ltd@gmail.com' || targetEmail === 'sabbirrahmansr904@gmail.com') {
+      toast.error('Primary Super Admin / CEO accounts cannot be removed!');
+      return;
+    }
+    try {
+      if (adminId && !adminId.includes('@')) {
+        await deleteDoc(doc(db, 'admins', adminId)).catch(() => {});
       }
+      await deleteDoc(doc(db, 'admin_permissions', targetEmail)).catch(() => {});
+      await deleteDoc(doc(db, 'admin_invites', targetEmail)).catch(() => {});
+      await deleteDoc(doc(db, 'admin_profiles', targetEmail.replace(/[^a-zA-Z0-9]/g, '_'))).catch(() => {});
+
+      toast.success(`'${targetEmail}' এর এডমিন পারমিশন বাতিল করা হয়েছে।`);
+      setAdminList(prev => prev.filter(admin => admin.email?.toLowerCase() !== targetEmail && admin.id !== adminId));
+    } catch (err) {
+      toast.error("Failed to revoke admin credentials.");
     }
   };
 

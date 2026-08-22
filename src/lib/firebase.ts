@@ -10,9 +10,9 @@ try {
 
 const app = initializeApp(firebaseConfig);
 
-// Configure Firestore with long-polling to work reliably inside sandboxed iframe environments
+// Configure Firestore with auto-detect long polling to work reliably in all environments
 export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
+  experimentalAutoDetectLongPolling: true,
 }, firebaseConfig.firestoreDatabaseId || '(default)');
 
 export const auth = getAuth(app);

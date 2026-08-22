@@ -60,7 +60,10 @@ import AdminMedia from './pages/admin/AdminMedia';
 import FixSizes from './pages/admin/FixSizes';
 import AdminExpenses from './pages/admin/AdminExpenses';
 import AdminFinance from './pages/admin/AdminFinance';
+import AdminTransactionList from './pages/admin/AdminTransactionList';
 import AdminDollarExpenses from './pages/admin/AdminDollarExpenses';
+import AdminAccounts from './pages/admin/AdminAccounts';
+import AdminMyAccount from './pages/admin/AdminMyAccount';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requireAdmin = true }: { children: React.ReactNode, requireAdmin?: boolean }) => {
@@ -127,6 +130,10 @@ function AppRoutes() {
           <Route path="edit-product/:id" element={<AdminAddProduct />} />
           <Route path="customers" element={<AdminCustomers />} />
           <Route path="customer-profiler" element={<AdminCustomerProfiler />} />
+          <Route path="all-accounts" element={<AdminAccounts />} />
+          <Route path="all-account" element={<AdminAccounts />} />
+          <Route path="my-account" element={<AdminMyAccount />} />
+          <Route path="account" element={<AdminMyAccount />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="inventory" element={<AdminInventoryOverview />} />
           <Route path="master-table" element={<AdminMasterTable />} />
@@ -137,6 +144,7 @@ function AppRoutes() {
           <Route path="fix-sizes" element={<FixSizes />} />
           <Route path="expenses" element={<AdminExpenses />} />
           <Route path="finance" element={<AdminFinance />} />
+          <Route path="transaction-list" element={<AdminTransactionList />} />
           <Route path="dollar-expenses" element={<AdminDollarExpenses />} />
         </Route>
 

@@ -406,9 +406,7 @@ export default function AdminExpenses(): React.JSX.Element {
                       <button 
                         type="button"
                         onClick={async () => {
-                          if (window.confirm('আপনি কি এই ডলার ক্রয়ের তথ্যটি মুছে ফেলতে চান?')) {
-                            await deleteExpense(ex.id);
-                          }
+                          await deleteExpense(ex.id);
                         }} 
                         className="text-gray-400 hover:text-rose-600 hover:bg-rose-50 p-2 rounded-xl transition-all cursor-pointer inline-flex items-center justify-center"
                         title="মুছে ফেলুন"

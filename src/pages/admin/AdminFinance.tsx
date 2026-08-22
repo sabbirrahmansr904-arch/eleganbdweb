@@ -617,9 +617,7 @@ export default function AdminFinance(): React.JSX.Element {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (window.confirm('এই অ্যাকাউন্টটি মুছে ফেলতে চান?')) {
-                            deleteBankAccount(acc.id);
-                          }
+                          deleteBankAccount(acc.id);
                         }}
                         className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 bg-gray-50 rounded-lg transition-colors cursor-pointer"
                         title="মুছে ফেলুন"
