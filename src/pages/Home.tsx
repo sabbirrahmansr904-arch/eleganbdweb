@@ -52,6 +52,7 @@ const Home = () => {
   // Newsletter subscription state
   const [newsletterInput, setNewsletterInput] = React.useState('');
   const [newsletterSubscribed, setNewsletterSubscribed] = React.useState(false);
+  const [selectedWhyChooseIndex, setSelectedWhyChooseIndex] = React.useState(0);
 
   // Flash Sale Countdown Timer state
   const [timeLeft, setTimeLeft] = React.useState({ 
@@ -797,25 +798,25 @@ const Home = () => {
           </div>
         </div>
 
-        {/* 4 FEATURE PICTURES GRID (4 PER ROW ON DESKTOP, FILLING SIDE SPACES) */}
-        <div className="mt-8 w-full mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 w-full">
+        {/* 4 FEATURE PICTURES SEAMLESS FULL-WIDTH GRID (NO GAPS, NO NUMBERS) */}
+        <div className="mt-8 w-full">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-0 w-full">
             {[
-              { id: '1', url: whyChooseImg1, defaultUrl: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=800&q=80' },
-              { id: '2', url: whyChooseImg2, defaultUrl: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80' },
-              { id: '3', url: whyChooseImg3, defaultUrl: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=800&q=80' },
-              { id: '4', url: whyChooseImg4, defaultUrl: 'https://images.unsplash.com/photo-1620012253295-c15cc3e65df4?auto=format&fit=crop&w=800&q=80' },
+              { id: '1', url: whyChooseImg1, defaultUrl: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=1200&q=80', label: 'Picture 1' },
+              { id: '2', url: whyChooseImg2, defaultUrl: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=1200&q=80', label: 'Picture 2' },
+              { id: '3', url: whyChooseImg3, defaultUrl: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1200&q=80', label: 'Picture 3' },
+              { id: '4', url: whyChooseImg4, defaultUrl: 'https://images.unsplash.com/photo-1620012253295-c15cc3e65df4?auto=format&fit=crop&w=1200&q=80', label: 'Picture 4' },
             ].map((item, idx) => {
               const displayUrl = item.url || item.defaultUrl;
               return (
                 <div 
                   key={item.id} 
-                  className="relative aspect-[3/4] w-full rounded-2xl md:rounded-3xl overflow-hidden shadow-xs border border-gray-200/80 group bg-gray-100"
+                  className="relative aspect-[3/4] w-full overflow-hidden bg-gray-100 group"
                 >
                   <img 
                     src={displayUrl} 
                     alt={`Elegan BD Feature ${idx + 1}`} 
-                    className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105 block"
+                    className="w-full h-full object-cover object-top transition-transform duration-700 ease-out group-hover:scale-105 block"
                     referrerPolicy="no-referrer"
                     onError={(e) => {
                       const target = e.currentTarget;
@@ -1104,6 +1105,71 @@ const Home = () => {
                 </p>
               </div>
             </div>
+          )}
+        </div>
+      </section>
+
+      {/* FOLLOW @ELEGANBD INSTAGRAM GRID */}
+      <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
+        <div className="text-center max-w-2xl mx-auto mb-8">
+          <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight text-gray-900">
+            FOLLOW @ELEGANBD
+          </h2>
+          <p className="text-xs md:text-sm text-gray-600 font-medium mt-1">
+            Follow us for the latest styles, offers & inspiration.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
+          {[
+            whyChooseImg1 || 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=800&q=80',
+            whyChooseImg2 || 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80',
+            whyChooseImg3 || 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=800&q=80',
+            whyChooseImg4 || 'https://images.unsplash.com/photo-1620012253295-c15cc3e65df4?auto=format&fit=crop&w=800&q=80',
+            'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=800&q=80',
+            'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=800&q=80',
+          ].map((imgUrl, idx) => (
+            <div key={idx} className="aspect-[3/4] rounded-2xl overflow-hidden shadow-xs border border-gray-200 group bg-gray-100 relative">
+              <img 
+                src={imgUrl} 
+                alt={`Elegan BD Instagram ${idx + 1}`} 
+                className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* STAY IN STYLE NEWSLETTER SECTION */}
+      <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
+        <div className="bg-[#f2f4f8] rounded-3xl p-8 md:p-12 text-center max-w-4xl mx-auto border border-gray-200/80 shadow-inner">
+          <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight text-gray-900 mb-2">
+            STAY IN STYLE
+          </h2>
+          <p className="text-xs md:text-sm text-gray-600 font-medium mb-6 max-w-md mx-auto">
+            Subscribe to receive exclusive offers, new arrivals and style updates.
+          </p>
+          {newsletterSubscribed ? (
+            <div className="bg-emerald-100 text-emerald-800 p-4 rounded-2xl text-xs font-bold inline-block">
+              ✓ ধন্যবাদ! সফলভাবে সাবস্ক্রাইব করা হয়েছে।
+            </div>
+          ) : (
+            <form onSubmit={handleNewsletterSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+              <input 
+                type="email" 
+                value={newsletterInput}
+                onChange={(e) => setNewsletterInput(e.target.value)}
+                placeholder="Enter your email address" 
+                required
+                className="flex-1 bg-white border border-gray-300 rounded-xl px-4 py-3 text-xs font-semibold text-gray-900 focus:outline-none focus:border-black shadow-xs"
+              />
+              <button 
+                type="submit"
+                className="bg-black text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-md cursor-pointer"
+              >
+                SUBSCRIBE
+              </button>
+            </form>
           )}
         </div>
       </section>
