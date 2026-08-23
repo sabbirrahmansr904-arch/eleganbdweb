@@ -275,13 +275,20 @@ export default function AdminLayout() {
 
   const isPermitted = (key: string) => {
     if (isSuperAdmin) return true;
-    if (key === 'dashboard') return true;
+    if (key === 'my-account') return true;
     if (!permissions || permissions.length === 0) return false;
-    if (permissions.includes('all') || permissions.includes(key)) return true;
-    if (key === 'customer-profiler' && permissions.includes('customers')) return true;
-    if (key === 'master-table' && permissions.includes('masterTable')) return true;
-    if (key === 'inventory-log' && permissions.includes('masterTable')) return true;
-    if (key === 'dollar-expense' && permissions.includes('finance')) return true;
+    if (permissions.includes('all')) return true;
+    if (permissions.includes(key)) return true;
+    if (key === 'dashboard' && permissions.includes('dashboard')) return true;
+    if (key === 'customer-profiler' && (permissions.includes('customers') || permissions.includes('customer-profiler'))) return true;
+    if (key === 'customers' && (permissions.includes('customers') || permissions.includes('customer-profiler'))) return true;
+    if (key === 'master-table' && (permissions.includes('masterTable') || permissions.includes('master-table'))) return true;
+    if (key === 'masterTable' && (permissions.includes('masterTable') || permissions.includes('master-table'))) return true;
+    if (key === 'inventory-log' && (permissions.includes('inventory-log') || permissions.includes('masterTable') || permissions.includes('master-table'))) return true;
+    if (key === 'dollar-expense' && (permissions.includes('dollar-expense') || permissions.includes('finance'))) return true;
+    if (key === 'transaction-list' && (permissions.includes('transaction-list') || permissions.includes('finance'))) return true;
+    if (key === 'admin-access' && (permissions.includes('admin-access') || permissions.includes('all-accounts') || permissions.includes('settings'))) return true;
+    if (key === 'all-accounts' && (permissions.includes('admin-access') || permissions.includes('all-accounts') || permissions.includes('settings'))) return true;
     if (key === 'media' && (permissions.includes('media') || permissions.includes('products') || permissions.includes('settings'))) return true;
     if (['categories', 'branding', 'banners', 'notifications', 'media', 'pathao', 'payments', 'admin-access'].includes(key) && permissions.includes('settings')) return true;
     return false;
@@ -289,12 +296,12 @@ export default function AdminLayout() {
 
   const getRequiredPermissionForPath = (path: string): string | null => {
     if (path === '/admin' || path === '/admin/') return 'dashboard';
+    if (path.startsWith('/admin/my-account')) return 'my-account';
     if (
       path.startsWith('/admin/all-account') || 
       path.startsWith('/admin/all-accounts') || 
-      path.startsWith('/admin/my-account') || 
       path.startsWith('/admin/account')
-    ) return 'dashboard';
+    ) return 'admin-access';
     if (path.startsWith('/admin/orders')) return 'orders';
     if (path.startsWith('/admin/media')) return 'media';
     if (
@@ -310,6 +317,7 @@ export default function AdminLayout() {
     if (path.startsWith('/admin/issues')) return 'issues';
     if (path.startsWith('/admin/master-table')) return 'master-table';
     if (path.startsWith('/admin/inventory-log')) return 'inventory-log';
+    if (path.startsWith('/admin/transaction-list')) return 'finance';
     if (path.startsWith('/admin/finance')) return 'finance';
     if (path.startsWith('/admin/dollar-expenses')) return 'dollar-expense';
     if (path.startsWith('/admin/settings')) {
@@ -336,8 +344,8 @@ export default function AdminLayout() {
       items: [
         { name: 'Dashboard', path: '/admin', icon: Home, perm: 'dashboard' },
         { name: 'Customer Profiler', path: '/admin/customer-profiler', icon: UserCheck, perm: 'customer-profiler' },
-        { name: 'My Account', path: '/admin/my-account', icon: User, perm: 'dashboard' },
-        { name: 'All Account', path: '/admin/all-accounts', icon: Users, perm: 'dashboard' },
+        { name: 'My Account', path: '/admin/my-account', icon: User, perm: 'my-account' },
+        { name: 'All Account', path: '/admin/all-accounts', icon: Users, perm: 'admin-access' },
         { name: 'Categories', path: '/admin/settings?tab=Categories', icon: Folder, perm: 'categories' },
       ]
     },
@@ -386,8 +394,21 @@ export default function AdminLayout() {
 
   const menuGroups = rawMenuGroups.map(group => ({
     title: group.title,
-    items: group.items.filter(item => isPermitted(item.perm || 'dashboard'))
+    items: group.items.filter(item => item.perm && isPermitted(item.perm))
   })).filter(group => group.items.length > 0);
+
+  // Auto-redirect if on root /admin without dashboard permission
+  React.useEffect(() => {
+    if (location.pathname === '/admin' || location.pathname === '/admin/') {
+      if (!isPermitted('dashboard')) {
+        const allAvailable = menuGroups.flatMap(g => g.items);
+        const firstValid = allAvailable.find(i => i.path !== '/admin' && i.path !== '/admin/');
+        if (firstValid) {
+          navigate(firstValid.path, { replace: true });
+        }
+      }
+    }
+  }, [location.pathname, permissions, isSuperAdmin]);
 
   const getIsActive = (itemPath: string) => {
     const currentTabVal = new URLSearchParams(location.search).get('tab');
@@ -794,14 +815,25 @@ export default function AdminLayout() {
                           <User size={14} className="text-blue-600" />
                           <span>My Account</span>
                         </Link>
-                        <Link
-                          to="/admin/all-accounts"
-                          onClick={() => setShowProfileDropdown(false)}
-                          className="flex items-center gap-2 p-2.5 bg-white border border-gray-200 hover:border-blue-500 rounded-xl text-xs font-bold text-gray-800 hover:text-blue-600 transition-all shadow-2xs"
-                        >
-                          <Users size={14} className="text-blue-600" />
-                          <span>All Account</span>
-                        </Link>
+                        {isPermitted('admin-access') ? (
+                          <Link
+                            to="/admin/all-accounts"
+                            onClick={() => setShowProfileDropdown(false)}
+                            className="flex items-center gap-2 p-2.5 bg-white border border-gray-200 hover:border-blue-500 rounded-xl text-xs font-bold text-gray-800 hover:text-blue-600 transition-all shadow-2xs"
+                          >
+                            <Users size={14} className="text-blue-600" />
+                            <span>All Account</span>
+                          </Link>
+                        ) : (
+                          <Link 
+                            to="/" 
+                            onClick={() => setShowProfileDropdown(false)}
+                            className="flex items-center gap-2 p-2.5 bg-white border border-gray-200 hover:border-blue-500 rounded-xl text-xs font-bold text-gray-800 hover:text-blue-600 transition-all shadow-2xs"
+                          >
+                            <Store size={14} className="text-slate-600" />
+                            <span>View Store</span>
+                          </Link>
+                        )}
                       </div>
 
                       <div>

@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { initializeFirestore, setLogLevel } from 'firebase/firestore';
+import { getFirestore, setLogLevel } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 // Silence verbose internal transport logs and quota errors
@@ -10,9 +10,7 @@ try {
 
 const app = initializeApp(firebaseConfig);
 
-// Configure Firestore with auto-detect long polling to work reliably in all environments
-export const db = initializeFirestore(app, {
-  experimentalAutoDetectLongPolling: true,
-}, firebaseConfig.firestoreDatabaseId || '(default)');
+// Standard reliable Firestore instance preventing experimental long-polling assertion failures (ca9/b815)
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || '(default)');
 
 export const auth = getAuth(app);

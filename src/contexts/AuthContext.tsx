@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, signInWithPopup, GoogleAuthProvider, signOut as firebaseSignOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -210,10 +210,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 directPerms = permDoc.data()?.permissions || [];
                 if (permDoc.data()?.department) fetchedDept = permDoc.data().department;
               } else {
-                const inviteDoc = await getDoc(doc(db, 'admin_invites', email));
-                if (inviteDoc.exists()) {
-                  directPerms = inviteDoc.data()?.permissions || [];
-                  if (inviteDoc.data()?.department) fetchedDept = inviteDoc.data().department;
+                const profileDoc = await getDoc(doc(db, 'admin_profiles', email));
+                if (profileDoc.exists()) {
+                  directPerms = profileDoc.data()?.permissions || [];
+                  if (profileDoc.data()?.department) fetchedDept = profileDoc.data().department;
+                } else {
+                  const inviteDoc = await getDoc(doc(db, 'admin_invites', email));
+                  if (inviteDoc.exists()) {
+                    directPerms = inviteDoc.data()?.permissions || [];
+                    if (inviteDoc.data()?.department) fetchedDept = inviteDoc.data().department;
+                  }
                 }
               }
             }
@@ -271,8 +277,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setLoading(false);
     });
+
     return unsubscribe;
   }, []);
+
+  // Real-time permission listener for logged-in admin
+  useEffect(() => {
+    if (!currentUser || isSuperAdmin) return;
+    const email = currentUser.email ? currentUser.email.toLowerCase().trim() : '';
+    if (!email) return;
+
+    const unsub = onSnapshot(doc(db, 'admin_permissions', email), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (data.permissions && Array.isArray(data.permissions)) {
+          setPermissions(data.permissions);
+        }
+        if (data.department) {
+          setDepartment(data.department);
+        }
+        setIsAdmin(true);
+      }
+    }, () => {});
+
+    return () => unsub();
+  }, [currentUser, isSuperAdmin]);
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
