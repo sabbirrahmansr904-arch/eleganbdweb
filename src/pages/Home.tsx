@@ -26,6 +26,7 @@ const Home = () => {
     shirtBannerUrl,
     pantBannerUrl,
     subHeroBannerUrl,
+    comboOfferBannerUrl,
     showCountdownBanner,
     comboOfferTitle,
     comboOfferSubTitle,
@@ -444,12 +445,32 @@ const Home = () => {
       {showCountdownBanner && (
         <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-6">
           <div className="bg-gradient-to-r from-blue-950 via-indigo-900 to-blue-950 rounded-2xl py-4 sm:py-5 px-5 sm:px-8 text-white shadow-[0_0_30px_rgba(245,158,11,0.5)] relative overflow-hidden border-2 border-amber-400 animate-pulse">
+            {/* Ambient Background Image if uploaded */}
+            {comboOfferBannerUrl && (
+              <div 
+                className="absolute inset-0 bg-cover bg-center opacity-20 pointer-events-none mix-blend-luminosity scale-105"
+                style={{ backgroundImage: `url(${comboOfferBannerUrl})` }}
+              />
+            )}
+
             {/* Background Glow FX */}
             <div className="absolute -left-10 -top-10 w-48 h-48 bg-amber-400/25 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-blue-400/25 rounded-full blur-3xl pointer-events-none" />
 
             <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6">
               <div className="text-center md:text-left flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5">
+                {/* Uploaded Banner Image Display */}
+                {comboOfferBannerUrl && (
+                  <div className="relative group shrink-0 self-center sm:self-auto">
+                    <img 
+                      src={comboOfferBannerUrl} 
+                      alt="Offer Promotion" 
+                      className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-20 object-cover rounded-xl border-2 border-amber-400 shadow-lg ring-2 ring-white/20 transform group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <div className="absolute inset-0 rounded-xl bg-amber-400/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                  </div>
+                )}
+
                 <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-gray-950 font-black text-xs sm:text-sm px-4 py-1.5 rounded-full uppercase tracking-wider shadow-md shrink-0 self-center sm:self-auto ring-2 ring-white/30">
                   <Sparkles size={14} className="fill-gray-950 animate-spin-slow" />
                   <span>{comboOfferDiscount || "১০% ছাড়"}</span>

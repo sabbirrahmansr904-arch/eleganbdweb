@@ -49,7 +49,9 @@ import {
   FileSpreadsheet,
   ChevronLeft,
   ChevronRight,
-  Images
+  Images,
+  Crown,
+  BadgeCheck
 } from 'lucide-react';
 import { cn, formatPrice } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -67,7 +69,7 @@ export default function AdminLayout() {
   const { logoUrl } = useBranding();
   const { orders } = useOrders();
   const { products } = useProducts();
-  const { currentUser, isSuperAdmin, department, permissions = [], signOut } = useAuth();
+  const { currentUser, isSuperAdmin, isCEO, department, permissions = [], signOut } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const location = useLocation();
@@ -132,12 +134,12 @@ export default function AdminLayout() {
   }, [currentUser?.email]);
 
   const userInitials = (userProfile?.name?.slice(0, 2) || currentUser?.email?.slice(0, 2) || 'AD').toUpperCase();
-  const activeDepartment = userProfile?.position || userProfile?.department || department || (isSuperAdmin ? 'CEO & Founder' : 'Sales Executive Department');
+  const activeDepartment = userProfile?.position || userProfile?.department || department || (isCEO ? 'CEO & Founder' : isSuperAdmin ? 'Super Admin' : 'Sales Executive Department');
   const userPhoto = userProfile?.photoURL || currentUser?.photoURL || '';
 
   const getDepartmentBadgeStyle = (dept: string) => {
-    if (dept.includes('CEO') || dept.includes('Founder')) {
-      return 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-700';
+    if (isCEO || dept.includes('CEO') || dept.includes('Founder')) {
+      return 'bg-gradient-to-r from-amber-100 to-amber-200 text-amber-900 border-amber-300 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-700 font-black shadow-2xs';
     }
     if (dept.includes('Sales')) {
       return 'bg-blue-100 text-blue-900 border-blue-300 dark:bg-blue-950/60 dark:text-blue-200 dark:border-blue-700';
@@ -793,9 +795,14 @@ export default function AdminLayout() {
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-black text-gray-900 dark:text-white truncate" title={currentUser?.email || ''}>
-                          {userProfile?.name || currentUser?.email || 'Admin User'}
-                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-black text-gray-900 dark:text-white truncate" title={currentUser?.email || ''}>
+                            {userProfile?.name || currentUser?.email || 'Admin User'}
+                          </p>
+                          {isCEO && (
+                            <BadgeCheck size={16} className="text-blue-600 shrink-0" title="Verified CEO Account" />
+                          )}
+                        </div>
                         <p className="text-[11px] text-gray-500 truncate">{currentUser?.email}</p>
                         <div className="flex items-center gap-1.5 mt-1">
                           <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${getDepartmentBadgeStyle(activeDepartment)}`}>
@@ -841,7 +848,7 @@ export default function AdminLayout() {
                           Account Role & Access
                         </p>
                         <p className="text-xs font-bold text-gray-800 dark:text-gray-200">
-                          {isSuperAdmin ? '👑 Super Admin (Full Access)' : '🔑 Authorized Admin User'}
+                          {isCEO ? '👑 CEO Executive (Full Access)' : isSuperAdmin ? '👑 Super Admin (Full Access)' : '🔑 Authorized Admin User'}
                         </p>
                       </div>
 

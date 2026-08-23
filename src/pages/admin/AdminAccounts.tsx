@@ -20,6 +20,8 @@ import {
   Shield,
   KeyRound,
   CheckCircle2,
+  BadgeCheck,
+  Crown,
   Lock,
   User,
   Sliders
@@ -82,7 +84,9 @@ const AVAILABLE_MODULES = [
 
 const DEFAULT_DEPARTMENTS = [
   'CEO & Founder',
+  'Management / Admin Department',
   'Management & Leadership',
+  'CEO & Operating Officer',
   'Sales Executive Department',
   'Logistics & Operations',
   'Inventory & Warehouse',
@@ -91,6 +95,26 @@ const DEFAULT_DEPARTMENTS = [
   'Marketing & Media'
 ];
 
+export const isCeoRoleOrEmail = (admin: AdminProfile | { email?: string; position?: string; department?: string; role?: string } | null | undefined): boolean => {
+  if (!admin) return false;
+  const email = (admin.email || '').toLowerCase().trim();
+  if (email === 'sohelmiah332004@gmail.com') return false;
+  const ceoEmails = [
+    'eleganbd.ltd@gmail.com',
+    'sabbirrahmansr904@gmail.com',
+    'shamiulislamatik@gmail.com',
+    'nasiruddinovi2025@gmail.com',
+    'elegantbd.ltd@gmail.com',
+    'eleganbd@gmail.com',
+    'elegantbd@gmail.com'
+  ];
+  if (ceoEmails.includes(email)) return true;
+  if (admin.role === 'ceo' || admin.role === 'super_admin' || admin.role === 'super-admin') return true;
+  if (admin.position && (admin.position.toUpperCase().includes('CEO') || admin.position.toLowerCase().includes('founder'))) return true;
+  if (admin.department && (admin.department.toUpperCase().includes('CEO') || admin.department.toLowerCase().includes('founder'))) return true;
+  return false;
+};
+
 export default function AdminAccounts() {
   const { currentUser, isSuperAdmin, isCEO } = useAuth();
   const [profiles, setProfiles] = useState<AdminProfile[]>([]);
@@ -98,9 +122,14 @@ export default function AdminAccounts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDept, setSelectedDept] = useState('All');
 
-  // Strict check: Only Sabbir Rahman and Elegan BD have master management rights to edit other admins
+  // Master admin check: All CEOs and Super Admins have master profile editing rights
   const userEmail = (currentUser?.email || '').toLowerCase().trim();
-  const isMasterAdmin = userEmail === 'sabbirrahmansr904@gmail.com' || userEmail === 'eleganbd.ltd@gmail.com';
+  const isMasterAdmin = isSuperAdmin || isCEO || [
+    'sabbirrahmansr904@gmail.com',
+    'eleganbd.ltd@gmail.com',
+    'shamiulislamatik@gmail.com',
+    'nasiruddinovi2025@gmail.com'
+  ].includes(userEmail);
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -160,9 +189,80 @@ export default function AdminAccounts() {
         photoURL: '',
         status: 'Active',
         permissions: ['all'],
-        role: 'super_admin'
+        role: 'ceo'
+      },
+      {
+        id: 'shamiulislamatik_gmail_com',
+        name: 'Shamiul Islam Atik',
+        email: 'shamiulislamatik@gmail.com',
+        phone: '+880 1620138392',
+        position: 'CEO & Founder',
+        department: 'Management / Admin Department',
+        photoURL: '',
+        status: 'Active',
+        permissions: ['all'],
+        role: 'ceo'
+      },
+      {
+        id: 'nasiruddinovi2025_gmail_com',
+        name: 'Nasir Uddin Ovi',
+        email: 'nasiruddinovi2025@gmail.com',
+        phone: '+880 1766386293',
+        position: 'CEO & Operating Officer',
+        department: 'Management / Admin Department',
+        photoURL: '',
+        status: 'Active',
+        permissions: ['all'],
+        role: 'ceo'
+      },
+      {
+        id: 'sohelmiah332004_gmail_com',
+        name: 'Sohel Miah',
+        email: 'sohelmiah332004@gmail.com',
+        phone: '+880 1700-000000',
+        position: 'Sales Executive',
+        department: 'Sales Executive Department',
+        photoURL: '',
+        status: 'Active',
+        permissions: ['dashboard', 'orders', 'exchanges', 'issues', 'customers', 'customer-profiler', 'products', 'inventory-log'],
+        role: 'admin'
       }
     ];
+
+    // Auto-bootstrap base records to Firestore if missing or incomplete
+    baseAdmins.forEach(async (baseAcc) => {
+      try {
+        const cleanEmail = baseAcc.email.toLowerCase().trim();
+        const docKey = cleanEmail.replace(/[^a-zA-Z0-9]/g, '_');
+        const isCeo = baseAcc.role === 'ceo';
+        
+        // Sync to admin_permissions
+        await setDoc(doc(db, 'admin_permissions', cleanEmail), {
+          email: cleanEmail,
+          name: baseAcc.name,
+          department: baseAcc.department,
+          position: baseAcc.position,
+          permissions: isCeo ? ['all', 'dashboard', 'orders', 'customers', 'products', 'issues', 'masterTable', 'finance', 'settings', 'media'] : baseAcc.permissions,
+          role: baseAcc.role || 'admin',
+          updatedAt: Date.now()
+        }, { merge: true });
+
+        // Sync to admin_profiles
+        await setDoc(doc(db, 'admin_profiles', docKey), {
+          name: baseAcc.name,
+          email: cleanEmail,
+          phone: baseAcc.phone,
+          position: baseAcc.position,
+          department: baseAcc.department,
+          role: baseAcc.role || 'admin',
+          status: 'Active',
+          permissions: baseAcc.permissions,
+          updatedAt: Date.now()
+        }, { merge: true });
+      } catch (e) {
+        // Silently continue
+      }
+    });
 
     // Listeners for real-time aggregation
     let unsubProfiles: (() => void) | null = null;
@@ -181,16 +281,20 @@ export default function AdminAccounts() {
         const email = (data.email || docId).toLowerCase().trim();
         if (!email || deletedEmailsRef.current.has(email)) return;
         const existing = combinedMap.get(email) || {} as AdminProfile;
+        const isCeo = isCeoRoleOrEmail({ email, ...data, ...existing });
+        
         combinedMap.set(email, {
           ...existing,
           ...data,
           id: docId,
           email: email,
           name: data.name || existing.name || email.split('@')[0],
-          department: data.department || existing.department || (email === 'eleganbd.ltd@gmail.com' ? 'CEO & Founder' : 'Sales Executive Department'),
-          position: data.position || existing.position || (email === 'eleganbd.ltd@gmail.com' ? 'CEO & Founder' : 'Sales Executive'),
+          department: data.department || existing.department || (isCeo ? 'CEO & Founder' : 'Sales Executive Department'),
+          position: data.position || existing.position || (isCeo ? 'CEO & Founder' : 'Sales Executive'),
           photoURL: data.photoURL || existing.photoURL || '',
-          status: data.status || existing.status || 'Active'
+          status: data.status || existing.status || 'Active',
+          role: isCeo ? 'ceo' : (data.role || existing.role || 'admin'),
+          permissions: isCeo ? ['all'] : (data.permissions || existing.permissions || ['dashboard', 'orders'])
         });
       });
 
@@ -199,15 +303,17 @@ export default function AdminAccounts() {
         const email = (data.email || docId).toLowerCase().trim();
         if (!email || deletedEmailsRef.current.has(email)) return;
         const existing = combinedMap.get(email) || {} as AdminProfile;
+        const isCeo = isCeoRoleOrEmail({ email, ...data, ...existing });
+
         combinedMap.set(email, {
           ...existing,
           id: existing.id || docId,
           email: email,
           name: existing.name || data.name || email.split('@')[0],
-          department: data.department || existing.department || 'Sales Executive Department',
-          position: existing.position || (data.department ? `${data.department.split(' ')[0]} Member` : 'Sales Executive'),
-          permissions: (data.permissions && data.permissions.length > 0) ? data.permissions : (existing.permissions || ['dashboard', 'orders', 'issues']),
-          role: data.role || existing.role || 'admin',
+          department: data.department || existing.department || (isCeo ? 'CEO & Founder' : 'Sales Executive Department'),
+          position: existing.position || (data.position || (isCeo ? 'CEO & Founder' : 'Sales Executive')),
+          permissions: isCeo ? ['all'] : ((data.permissions && data.permissions.length > 0) ? data.permissions : (existing.permissions || ['dashboard', 'orders', 'issues'])),
+          role: isCeo ? 'ceo' : (data.role || existing.role || 'admin'),
           updatedAt: data.updatedAt || existing.updatedAt || Date.now()
         });
       });
@@ -217,17 +323,19 @@ export default function AdminAccounts() {
         const email = (data.email || (docId.includes('@') ? docId : '')).toLowerCase().trim();
         if (!email || deletedEmailsRef.current.has(email)) return;
         const existing = combinedMap.get(email) || {} as AdminProfile;
+        const isCeo = isCeoRoleOrEmail({ email, ...data, ...existing });
+
         combinedMap.set(email, {
           ...existing,
           id: existing.id || docId,
           email: email,
           name: existing.name || data.name || email.split('@')[0],
-          department: data.department || existing.department || 'Sales Executive Department',
-          position: existing.position || (data.department ? `${data.department.split(' ')[0]} Member` : 'Sales Executive'),
-          permissions: (data.permissions && data.permissions.length > 0) ? data.permissions : (existing.permissions || ['dashboard', 'orders', 'issues']),
+          department: data.department || existing.department || (isCeo ? 'CEO & Founder' : 'Sales Executive Department'),
+          position: existing.position || (data.position || (isCeo ? 'CEO & Founder' : 'Sales Executive')),
+          permissions: isCeo ? ['all'] : ((data.permissions && data.permissions.length > 0) ? data.permissions : (existing.permissions || ['dashboard', 'orders', 'issues'])),
           isOnline: data.isOnline ?? existing.isOnline,
           lastActive: data.lastActive || existing.lastActive,
-          role: data.role || existing.role || 'admin'
+          role: isCeo ? 'ceo' : (data.role || existing.role || 'admin')
         });
       });
 
@@ -236,21 +344,23 @@ export default function AdminAccounts() {
         const email = (data.email || docId).toLowerCase().trim();
         if (!email || deletedEmailsRef.current.has(email)) return;
         const existing = combinedMap.get(email) || {} as AdminProfile;
+        const isCeo = isCeoRoleOrEmail({ email, ...data, ...existing });
+
         combinedMap.set(email, {
           ...existing,
           id: existing.id || docId,
           email: email,
           name: existing.name || data.name || email.split('@')[0],
-          department: data.department || existing.department || 'Sales Executive Department',
-          position: existing.position || 'Sales Executive',
-          permissions: data.permissions || existing.permissions || ['dashboard', 'orders', 'issues'],
-          role: data.role || existing.role || 'admin'
+          department: data.department || existing.department || (isCeo ? 'CEO & Founder' : 'Sales Executive Department'),
+          position: existing.position || (data.position || (isCeo ? 'CEO & Founder' : 'Sales Executive')),
+          permissions: isCeo ? ['all'] : (data.permissions || existing.permissions || ['dashboard', 'orders', 'issues']),
+          role: isCeo ? 'ceo' : (data.role || existing.role || 'admin')
         });
       });
 
       const list = Array.from(combinedMap.values()).sort((a, b) => {
-        const aIsCeo = a.email.toLowerCase() === 'eleganbd.ltd@gmail.com' || a.email.toLowerCase() === 'sabbirrahmansr904@gmail.com';
-        const bIsCeo = b.email.toLowerCase() === 'eleganbd.ltd@gmail.com' || b.email.toLowerCase() === 'sabbirrahmansr904@gmail.com';
+        const aIsCeo = isCeoRoleOrEmail(a);
+        const bIsCeo = isCeoRoleOrEmail(b);
         if (aIsCeo && !bIsCeo) return -1;
         if (!aIsCeo && bIsCeo) return 1;
 
@@ -406,17 +516,25 @@ export default function AdminAccounts() {
       }
     }
 
+    const isCeo = isCeoRoleOrEmail({
+      email: cleanEmail,
+      position: formData.position,
+      department: formData.department,
+      role: editingProfile?.role
+    });
+
     const payload: AdminProfile = {
       id: docId,
       name: formData.name.trim(),
       email: cleanEmail,
       phone: formData.phone?.trim() || '',
-      position: formData.position?.trim() || 'Admin Member',
-      department: formData.department?.trim() || 'Sales Executive Department',
+      position: formData.position?.trim() || (isCeo ? 'CEO & Founder' : 'Admin Member'),
+      department: formData.department?.trim() || (isCeo ? 'Management / Admin Department' : 'Sales Executive Department'),
       photoURL: safePhotoURL,
       status: formData.status || 'Active',
       bio: formData.bio?.trim() || '',
-      permissions: formData.permissions || ['dashboard', 'orders', 'issues'],
+      role: isCeo ? 'ceo' : (editingProfile?.role || 'admin'),
+      permissions: isCeo ? ['all'] : (formData.permissions || ['dashboard', 'orders', 'issues']),
       updatedAt: Date.now(),
       createdAt: editingProfile?.createdAt || Date.now()
     };
@@ -430,8 +548,9 @@ export default function AdminAccounts() {
         email: cleanEmail,
         name: payload.name,
         department: payload.department,
+        position: payload.position,
         permissions: payload.permissions,
-        role: 'admin',
+        role: isCeo ? 'ceo' : 'admin',
         updatedAt: Date.now(),
         updatedBy: currentUser?.email || 'admin'
       }, { merge: true });
@@ -441,8 +560,9 @@ export default function AdminAccounts() {
         email: cleanEmail,
         name: payload.name,
         department: payload.department,
+        position: payload.position,
         permissions: payload.permissions,
-        role: 'admin',
+        role: isCeo ? 'ceo' : 'admin',
         updatedAt: Date.now()
       }, { merge: true });
 
@@ -476,8 +596,7 @@ export default function AdminAccounts() {
       toast.error('শুধুমাত্র সাব্বির রহমান ও এলিগান বিডি এডমিন অ্যাকাউন্ট রিমুভ বা ডিলিট করতে পারবেন।');
       return;
     }
-    const cleanEmail = (profile.email || '').toLowerCase().trim();
-    if (cleanEmail === 'eleganbd.ltd@gmail.com' || cleanEmail === 'sabbirrahmansr904@gmail.com') {
+    if (isCeoRoleOrEmail(profile)) {
       toast.error('Primary Super Admin / CEO accounts cannot be removed!');
       return;
     }
@@ -492,8 +611,7 @@ export default function AdminAccounts() {
       return;
     }
 
-    const cleanEmail = (deleteTarget.email || '').toLowerCase().trim();
-    if (cleanEmail === 'eleganbd.ltd@gmail.com' || cleanEmail === 'sabbirrahmansr904@gmail.com') {
+    if (isCeoRoleOrEmail(deleteTarget)) {
       toast.error('Primary Super Admin / CEO accounts cannot be removed!');
       setDeleteTarget(null);
       return;
@@ -680,7 +798,7 @@ export default function AdminAccounts() {
           {filteredProfiles.map((admin) => {
             const cleanEmail = (admin.email || '').toLowerCase().trim();
             const isCurrentUser = currentUser?.email?.toLowerCase() === cleanEmail;
-            const isTopCeo = cleanEmail === 'eleganbd.ltd@gmail.com' || cleanEmail === 'sabbirrahmansr904@gmail.com';
+            const isTopCeo = isCeoRoleOrEmail(admin);
             
             const lastActiveTime = admin.lastActive || 0;
             const isOnlineNow = admin.isOnline && (Date.now() - lastActiveTime < 90000);
@@ -689,7 +807,10 @@ export default function AdminAccounts() {
             return (
               <div 
                 key={admin.id || admin.email}
-                className="bg-white rounded-3xl border border-slate-200/80 hover:border-blue-300 p-6 flex flex-col justify-between transition-all hover:shadow-lg group relative overflow-hidden"
+                className={cn(
+                  "bg-white rounded-3xl border p-6 flex flex-col justify-between transition-all hover:shadow-lg group relative overflow-hidden",
+                  isTopCeo ? "border-amber-200/90 shadow-xs ring-1 ring-amber-400/20" : "border-slate-200/80 hover:border-blue-300"
+                )}
               >
                 {/* Top Badges (Status & Roles) */}
                 <div className="flex items-center justify-between gap-2 mb-4">
@@ -713,11 +834,16 @@ export default function AdminAccounts() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     {isTopCeo ? (
-                      <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1 shadow-2xs">
-                        <Sparkles size={11} className="text-amber-500" /> CEO
-                      </span>
+                      <>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-100 to-amber-200 text-amber-900 border border-amber-300 flex items-center gap-1 shadow-2xs">
+                          <Crown size={11} className="text-amber-700 fill-amber-500" /> CEO
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1">
+                          <BadgeCheck size={12} className="text-blue-600" /> Verified
+                        </span>
+                      </>
                     ) : isCurrentUser ? (
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-50 text-blue-600 border border-blue-200">
                         You
@@ -733,7 +859,10 @@ export default function AdminAccounts() {
                 {/* Profile Avatar & Info */}
                 <div className="flex items-start gap-4 mb-5">
                   <div className="relative group/avatar shrink-0">
-                    <div className="w-16 h-16 rounded-2xl bg-[#0F172A] text-white flex items-center justify-center font-black text-xl shadow-md border-2 border-white overflow-hidden">
+                    <div className={cn(
+                      "w-16 h-16 rounded-2xl flex items-center justify-center font-black text-xl shadow-md border-2 overflow-hidden",
+                      isTopCeo ? "bg-gradient-to-br from-slate-900 to-amber-950 text-amber-200 border-amber-300" : "bg-[#0F172A] text-white border-white"
+                    )}>
                       {admin.photoURL ? (
                         <img src={admin.photoURL} alt={admin.name} className="w-full h-full object-cover" />
                       ) : (
@@ -743,16 +872,23 @@ export default function AdminAccounts() {
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-base font-black text-slate-900 truncate" title={admin.name}>
-                      {admin.name || cleanEmail.split('@')[0]}
-                    </h3>
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="text-base font-black text-slate-900 truncate" title={admin.name}>
+                        {admin.name || cleanEmail.split('@')[0]}
+                      </h3>
+                      {isTopCeo && (
+                        <span title="Verified CEO Account" className="shrink-0">
+                          <BadgeCheck size={16} className="text-blue-600 fill-blue-50" />
+                        </span>
+                      )}
+                    </div>
                     <div className="inline-flex items-center gap-1 mt-0.5 px-2.5 py-0.5 bg-slate-100 rounded-lg text-slate-800 text-xs font-bold border border-slate-200/80">
                       <Briefcase size={12} className="text-slate-500" />
-                      <span className="truncate">{admin.position || 'Admin Member'}</span>
+                      <span className="truncate">{admin.position || (isTopCeo ? 'CEO & Founder' : 'Admin Member')}</span>
                     </div>
                     <p className="text-[11px] text-slate-500 font-medium truncate mt-1 flex items-center gap-1">
                       <Building2 size={11} className="text-slate-400 shrink-0" />
-                      <span className="truncate">{admin.department || 'Sales Executive Department'}</span>
+                      <span className="truncate">{admin.department || (isTopCeo ? 'Management / Admin Department' : 'Sales Executive Department')}</span>
                     </p>
                   </div>
                 </div>
@@ -788,8 +924,9 @@ export default function AdminAccounts() {
                   </p>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     {isTopCeo ? (
-                      <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-50 text-amber-800 border border-amber-200">
-                        Full Access (All Modules)
+                      <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-900 border border-amber-300 flex items-center gap-1">
+                        <Sparkles size={10} className="text-amber-600" />
+                        Full CEO Executive Access (All Modules)
                       </span>
                     ) : (admin.permissions && admin.permissions.length > 0) ? (
                       admin.permissions.slice(0, 3).map(pKey => {

@@ -76,6 +76,7 @@ export default function BannerSettings() {
   const [localComboOfferTitle, setLocalComboOfferTitle] = useState(comboOfferTitle);
   const [localComboOfferSubTitle, setLocalComboOfferSubTitle] = useState(comboOfferSubTitle);
   const [localComboOfferDiscount, setLocalComboOfferDiscount] = useState(comboOfferDiscount);
+  const [localComboOfferBannerUrl, setLocalComboOfferBannerUrl] = useState(comboOfferBannerUrl);
   const [localComboOfferHours, setLocalComboOfferHours] = useState(comboOfferHours);
   const [localComboOfferMinutes, setLocalComboOfferMinutes] = useState(comboOfferMinutes);
   const [localComboOfferSeconds, setLocalComboOfferSeconds] = useState(comboOfferSeconds);
@@ -93,6 +94,7 @@ export default function BannerSettings() {
     setLocalComboOfferTitle(comboOfferTitle);
     setLocalComboOfferSubTitle(comboOfferSubTitle);
     setLocalComboOfferDiscount(comboOfferDiscount);
+    setLocalComboOfferBannerUrl(comboOfferBannerUrl);
     setLocalComboOfferHours(comboOfferHours);
     setLocalComboOfferMinutes(comboOfferMinutes);
     setLocalComboOfferSeconds(comboOfferSeconds);
@@ -104,7 +106,7 @@ export default function BannerSettings() {
     setLocalAboutText(aboutText);
   }, [
     showAnnouncementBar, announcementMessage, showCountdownBanner, comboOfferTitle, comboOfferSubTitle,
-    comboOfferDiscount, comboOfferHours, comboOfferMinutes, comboOfferSeconds, showHeroBanner, 
+    comboOfferDiscount, comboOfferBannerUrl, comboOfferHours, comboOfferMinutes, comboOfferSeconds, showHeroBanner, 
     primaryDeliveryDistrict, shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter, aboutText
   ]);
 
@@ -201,6 +203,27 @@ export default function BannerSettings() {
     toast.success(newVal ? 'কম্বো অফার সচল করা হয়েছে! (ওয়েবসাইটে এখন দেখা যাবে)' : 'কম্বো অফার বন্ধ করা হয়েছে! (ওয়েবসাইটে এখন দেখা যাবে না)');
   };
 
+  const handleOfferBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const loadingToast = toast.loading('ডিভাইস থেকে ছবি আপলোড ও প্রসেস করা হচ্ছে...');
+      try {
+        const result = await compressImage(file, 1200, 675, 0.8);
+        setLocalComboOfferBannerUrl(result);
+        setComboOfferBannerUrl(result);
+        toast.success('অফিস ভিজিট ব্যানার ছবি সফলভাবে আপডেট হয়েছে!', { id: loadingToast });
+      } catch (err) {
+        toast.error('ছবি আপলোড করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।', { id: loadingToast });
+      }
+    }
+  };
+
+  const handleRemoveOfferBanner = () => {
+    setLocalComboOfferBannerUrl('');
+    setComboOfferBannerUrl('');
+    toast.success('অফিস ভিজিট ব্যানার ছবি মুছে ফেলা হয়েছে।');
+  };
+
   const saveDesignSettings = () => {
     setShowAnnouncementBar(localShowAnnouncement);
     setAnnouncementMessage(localAnnouncementMessage);
@@ -208,6 +231,7 @@ export default function BannerSettings() {
     setComboOfferTitle(localComboOfferTitle);
     setComboOfferSubTitle(localComboOfferSubTitle);
     setComboOfferDiscount(localComboOfferDiscount);
+    setComboOfferBannerUrl(localComboOfferBannerUrl);
     setComboOfferHours(Number(localComboOfferHours));
     setComboOfferMinutes(Number(localComboOfferMinutes));
     setComboOfferSeconds(Number(localComboOfferSeconds));
@@ -441,20 +465,6 @@ export default function BannerSettings() {
                 setter: setHeroBannerUrl,
               },
               {
-                id: 'heroBanner2Url',
-                title: 'Hero Banner 2 (Slider Slide 2)',
-                description: 'Second slide in the home page hero slider carousel.',
-                url: heroBanner2Url,
-                setter: setHeroBanner2Url,
-              },
-              {
-                id: 'heroBanner3Url',
-                title: 'Hero Banner 3 (Slider Slide 3)',
-                description: 'Third slide in the home page hero slider carousel.',
-                url: heroBanner3Url,
-                setter: setHeroBanner3Url,
-              },
-              {
                 id: 'subHeroBannerUrl',
                 title: 'Sub-Hero Banner',
                 description: 'Secondary large width banner displayed on the home page below the hero slider.',
@@ -467,35 +477,6 @@ export default function BannerSettings() {
                 description: 'Promotional graphic featured in the collections layout.',
                 url: collectionsBannerUrl,
                 setter: setCollectionsBannerUrl,
-              },
-              {
-                id: 'featureBannerUrl',
-                title: 'Shirts Category Banner (Home Page)',
-                description: 'Custom banner image for Shirts on the home page.',
-                url: featureBannerUrl,
-                setter: setFeatureBannerUrl,
-              },
-              {
-                id: 'poloBannerUrl',
-                title: 'Pants Category Banner (Home Page)',
-                description: 'Custom banner image for Pants on the home page.',
-                url: poloBannerUrl,
-                setter: setPoloBannerUrl,
-              },
-              {
-                id: 'comboOfferBannerUrl',
-                title: 'Combo Offer Popup Banner',
-                description: 'The overlay popup modal shown to users inviting them to order combo offers.',
-                url: comboOfferBannerUrl,
-                setter: setComboOfferBannerUrl,
-              },
-              {
-                id: 'ceoPhotoUrl',
-                title: 'CEO / Founder Passport Photo (Our Brand Commitment)',
-                description: 'Passport size photo of Founder & CEO displayed in "Our Brand Commitment" section on Home page.',
-                url: ceoPhotoUrl,
-                setter: setCeoPhotoUrl,
-                isPortrait: true,
               },
             ].map((pBanner) => (
               <div key={pBanner.id} className="bg-white border border-gray-100 p-8 rounded-[32px] shadow-sm flex flex-col justify-between space-y-6 group hover:border-black/30 transition-all">
@@ -663,7 +644,7 @@ export default function BannerSettings() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Left column: Inputs */}
+              {/* Left column: Inputs & Image Upload */}
               <div className="space-y-5">
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-extrabold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
@@ -683,7 +664,7 @@ export default function BannerSettings() {
                     অফারের সাবটাইটেল / বিবরণ (Description)
                   </label>
                   <textarea
-                    rows={3}
+                    rows={2}
                     value={localComboOfferSubTitle}
                     onChange={(e) => setLocalComboOfferSubTitle(e.target.value)}
                     placeholder="e.g. আমাদের নতুন অফিসে সরাসরি এসে যেকোনো কেনাকাটা করলেই উপভোগ করুন ১০% বিশেষ ফ্ল্যাট ডিসকাউন্ট।"
@@ -702,6 +683,92 @@ export default function BannerSettings() {
                     placeholder="e.g. ১০% ছাড় (অফিস ভিজিট)"
                     className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 outline-none focus:border-black transition-all text-xs font-bold text-amber-600"
                   />
+                </div>
+
+                {/* Picture Upload from Device */}
+                <div className="space-y-2 pt-2 border-t border-gray-100">
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-gray-700 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <ImageIcon size={14} className="text-amber-500" /> ব্যানার ছবি (Upload Photo from Device)
+                    </span>
+                    <span className="text-[10px] text-gray-400 font-semibold lowercase">
+                      (real-time sync)
+                    </span>
+                  </label>
+
+                  {localComboOfferBannerUrl ? (
+                    <div className="relative group bg-gray-50 rounded-2xl p-3 border border-gray-200 flex items-center gap-4">
+                      <div className="relative w-24 h-16 rounded-xl overflow-hidden bg-black/5 border border-gray-200 shrink-0">
+                        <img
+                          src={localComboOfferBannerUrl}
+                          alt="Offer Banner"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <p className="text-xs font-bold text-gray-800 truncate">
+                          ছবি যুক্ত আছে (Active Image)
+                        </p>
+                        <p className="text-[10px] text-gray-500">
+                          ওয়েবসাইটে এবং লাইভ প্রিভিউতে সাথে সাথে দেখা যাবে।
+                        </p>
+                        <div className="flex items-center gap-2 pt-1">
+                          <label className="cursor-pointer inline-flex items-center gap-1 px-3 py-1 bg-black text-white text-[10px] font-bold rounded-lg hover:bg-gray-800 transition-all">
+                            <Upload size={10} />
+                            <span>ছবি পরিবর্তন করুন</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleOfferBannerUpload}
+                              className="hidden"
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={handleRemoveOfferBanner}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-600 border border-red-100 text-[10px] font-bold rounded-lg hover:bg-red-100 transition-all cursor-pointer"
+                          >
+                            <Trash2 size={10} />
+                            <span>মুছুন</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <label className="border-2 border-dashed border-gray-200 hover:border-amber-500 rounded-2xl p-5 flex flex-col items-center justify-center gap-2 text-center cursor-pointer transition-all bg-gray-50/50 hover:bg-amber-50/30 group">
+                      <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <Upload size={18} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-700">
+                          ডিভাইস থেকে ছবি আপলোড করুন
+                        </p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">
+                          ক্লিক করে আপনার ফোন বা কম্পিউটার থেকে ছবি সিলেক্ট করুন (JPG, PNG, WebP)
+                        </p>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleOfferBannerUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+
+                  {/* Optional Direct URL Input */}
+                  <div className="pt-1">
+                    <input
+                      type="text"
+                      value={localComboOfferBannerUrl}
+                      onChange={(e) => {
+                        setLocalComboOfferBannerUrl(e.target.value);
+                        setComboOfferBannerUrl(e.target.value);
+                      }}
+                      placeholder="বা সরাসরি ছবির লিংক পেস্ট করুন (Image URL)"
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 outline-none focus:border-black transition-all text-[11px] text-gray-600"
+                    />
+                  </div>
                 </div>
 
                 <div className="pt-4">
@@ -727,17 +794,44 @@ export default function BannerSettings() {
                   </div>
 
                   <div className="bg-gradient-to-r from-blue-950 via-indigo-900 to-blue-950 rounded-2xl py-3.5 px-4 text-white shadow-[0_0_20px_rgba(245,158,11,0.45)] relative overflow-hidden border-2 border-amber-400 animate-pulse">
+                    {/* Background ambient image if uploaded */}
+                    {localComboOfferBannerUrl && (
+                      <div 
+                        className="absolute inset-0 bg-cover bg-center opacity-25 pointer-events-none mix-blend-luminosity scale-105"
+                        style={{ backgroundImage: `url(${localComboOfferBannerUrl})` }}
+                      />
+                    )}
+
                     <div className="absolute -left-8 -top-8 w-32 h-32 bg-amber-400/25 rounded-full blur-3xl pointer-events-none" />
                     <div className="relative z-10 flex flex-col gap-2.5">
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 min-w-0">
-                        <div className="inline-flex items-center gap-1 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-gray-950 font-black text-[9.5px] px-2.5 py-0.5 rounded-full uppercase tracking-wider shrink-0 shadow-sm ring-1 ring-white/20">
-                          <Sparkles size={10} className="fill-gray-950" />
-                          <span>{localComboOfferDiscount || "১০% ছাড়"}</span>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 min-w-0">
+                        {/* Render uploaded image in live preview */}
+                        {localComboOfferBannerUrl && (
+                          <div className="relative shrink-0 self-center sm:self-auto">
+                            <img
+                              src={localComboOfferBannerUrl}
+                              alt="Offer thumbnail"
+                              className="w-14 h-14 sm:w-16 sm:h-16 object-cover rounded-xl border-2 border-amber-400 shadow-md ring-1 ring-white/30"
+                            />
+                          </div>
+                        )}
+
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="inline-flex items-center gap-1 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-gray-950 font-black text-[9.5px] px-2.5 py-0.5 rounded-full uppercase tracking-wider shrink-0 shadow-sm ring-1 ring-white/20">
+                            <Sparkles size={10} className="fill-gray-950" />
+                            <span>{localComboOfferDiscount || "১০% ছাড়"}</span>
+                          </div>
+                          <h5 className="text-xs font-black tracking-tight text-white leading-snug">
+                            {localComboOfferTitle || "নতুন অফিস উদ্বোধন উপলক্ষে অফিস ভিজিট কেনাকাটায় ১০% ফ্ল্যাট ছাড়!"}
+                          </h5>
+                          {localComboOfferSubTitle && (
+                            <p className="text-[10px] text-amber-100 font-medium line-clamp-2">
+                              {localComboOfferSubTitle}
+                            </p>
+                          )}
                         </div>
-                        <h5 className="text-xs font-black tracking-tight text-white leading-snug">
-                          {localComboOfferTitle || "নতুন অফিস উদ্বোধন উপলক্ষে অফিস ভিজিট কেনাকাটায় ১০% ফ্ল্যাট ছাড়!"}
-                        </h5>
                       </div>
+
                       <div className="flex items-center justify-between border-t border-white/10 pt-2 text-[9.5px]">
                         <span className="text-amber-300 font-bold flex items-center gap-1">
                           <Building2 size={12} className="animate-bounce text-amber-300" /> অফিস আউটলেট কেনাকাটায় ১০% ছাড়
@@ -751,7 +845,7 @@ export default function BannerSettings() {
                 </div>
 
                 <p className="text-[10px] text-gray-400 text-center italic mt-4">
-                  * "সেভ ও আপডেট করুন" বাটনে ক্লিক করলে গ্রাহক ওয়েবসাইটে নতুন অফিস ভিজিট অফার দেখবে।
+                  * ডিভাইস থেকে ছবি আপলোড করলে বা "সেভ ও আপডেট করুন" বাটনে ক্লিক করলে তা রিয়েল টাইমে সরাসরি ওয়েবসাইটে দেখা যাবে।
                 </p>
               </div>
             </div>

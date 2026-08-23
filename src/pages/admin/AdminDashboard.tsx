@@ -79,9 +79,11 @@ export default function AdminDashboard(): React.JSX.Element {
 
         // Default baseline admins
         const defaultAdmins = [
-          { email: 'eleganbd.ltd@gmail.com', dept: 'CEO & FOUNDER', role: 'CEO' },
-          { email: 'sabbirrahmansr904@gmail.com', dept: 'SALES EXECUTIVE DEPARTMENT', role: 'Super Admin' },
-          { email: 'nasiruddinovi2025@gmail.com', dept: 'MANAGEMENT / ADMIN ASSISTANT', role: 'Admin' }
+          { email: 'eleganbd.ltd@gmail.com', dept: 'CEO & Founder', role: 'CEO' },
+          { email: 'sabbirrahmansr904@gmail.com', dept: 'CEO & Founder', role: 'CEO' },
+          { email: 'shamiulislamatik@gmail.com', dept: 'Management / Admin Department', role: 'CEO' },
+          { email: 'nasiruddinovi2025@gmail.com', dept: 'Management / Admin Department', role: 'CEO' },
+          { email: 'sohelmiah332004@gmail.com', dept: 'Sales Executive Department', role: 'Sales Executive' }
         ];
 
         defaultAdmins.forEach(item => {

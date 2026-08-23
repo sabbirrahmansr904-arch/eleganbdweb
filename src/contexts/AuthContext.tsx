@@ -78,26 +78,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     !email ? false : [
       'eleganbd.ltd@gmail.com',
       'shamiulislamatik@gmail.com',
+      'nasiruddinovi2025@gmail.com',
       'elegantbd.ltd@gmail.com',
       'eleganbd@gmail.com',
       'elegantbd@gmail.com',
       'sabbirrahmansr904@gmail.com'
-    ].includes(email.toLowerCase());
+    ].includes(email.toLowerCase().trim()) && email.toLowerCase().trim() !== 'sohelmiah332004@gmail.com';
+
+  const isCeoEmail = (email: string | null) =>
+    !email ? false : [
+      'eleganbd.ltd@gmail.com',
+      'shamiulislamatik@gmail.com',
+      'nasiruddinovi2025@gmail.com',
+      'sabbirrahmansr904@gmail.com',
+      'elegantbd.ltd@gmail.com',
+      'eleganbd@gmail.com',
+      'elegantbd@gmail.com'
+    ].includes(email.toLowerCase().trim()) && email.toLowerCase().trim() !== 'sohelmiah332004@gmail.com';
 
   const refreshAdminStatus = async () => {
     if (auth.currentUser) {
       const email = auth.currentUser.email ? auth.currentUser.email.toLowerCase().trim() : '';
-      const ceoStatus = email === 'eleganbd.ltd@gmail.com';
+      const ceoStatus = isCeoEmail(auth.currentUser.email);
       setIsCEO(ceoStatus);
 
-      const superStatus = isSuperAdminEmail(auth.currentUser.email);
+      const superStatus = isSuperAdminEmail(auth.currentUser.email) || ceoStatus;
       setIsSuperAdmin(superStatus);
 
       let fetchedDept = ceoStatus ? 'CEO & Founder' : (superStatus ? 'CEO & Founder' : 'Sales Executive Department');
 
-      if (superStatus) {
+      if (superStatus || ceoStatus) {
         setIsAdmin(true);
-        setPermissions(['dashboard', 'customers', 'orders', 'products', 'issues', 'masterTable', 'finance', 'settings']);
+        setPermissions(['dashboard', 'customer-profiler', 'my-account', 'all-accounts', 'admin-access', 'orders', 'exchanges', 'issues', 'products', 'categories', 'masterTable', 'master-table', 'inventory-log', 'finance', 'dollar-expense', 'transaction-list', 'payments', 'settings', 'branding', 'banners', 'notifications', 'media', 'pathao', 'customers', 'all']);
         if (email) {
           const permDoc = await getDoc(doc(db, 'admin_permissions', email));
           if (permDoc.exists() && permDoc.data()?.department) {
@@ -110,23 +122,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const adminRef = doc(db, 'admins', auth.currentUser.uid);
           
           let directPerms: string[] | null = null;
+          let userRole = 'admin';
           if (email) {
             const permDoc = await getDoc(doc(db, 'admin_permissions', email));
             if (permDoc.exists()) {
-              directPerms = permDoc.data()?.permissions || [];
-              if (permDoc.data()?.department) fetchedDept = permDoc.data().department;
+              const pData = permDoc.data();
+              directPerms = pData?.permissions || [];
+              if (pData?.department) fetchedDept = pData.department;
+              if (pData?.role) userRole = pData.role;
+              if (pData?.role === 'ceo' || pData?.position?.toLowerCase().includes('ceo') || pData?.department?.toLowerCase().includes('ceo')) {
+                setIsCEO(true);
+                setIsSuperAdmin(true);
+                directPerms = ['all', 'dashboard', 'orders', 'issues', 'products', 'finance', 'settings', 'media', 'categories'];
+              }
             } else {
               const inviteDoc = await getDoc(doc(db, 'admin_invites', email));
               if (inviteDoc.exists()) {
-                directPerms = inviteDoc.data()?.permissions || [];
-                if (inviteDoc.data()?.department) fetchedDept = inviteDoc.data().department;
+                const iData = inviteDoc.data();
+                directPerms = iData?.permissions || [];
+                if (iData?.department) fetchedDept = iData.department;
+                if (iData?.role === 'ceo' || iData?.position?.toLowerCase().includes('ceo') || iData?.department?.toLowerCase().includes('ceo')) {
+                  setIsCEO(true);
+                  setIsSuperAdmin(true);
+                  directPerms = ['all', 'dashboard', 'orders', 'issues', 'products', 'finance', 'settings', 'media', 'categories'];
+                }
               }
             }
           }
 
           if (directPerms !== null) {
             await setDoc(adminRef, {
-              role: 'admin',
+              role: userRole,
               email: auth.currentUser.email,
               department: fetchedDept,
               permissions: directPerms,
@@ -138,9 +164,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } else {
             const adminDoc = await getDoc(adminRef);
             if (adminDoc.exists()) {
+              const aData = adminDoc.data();
               setIsAdmin(true);
-              setPermissions(adminDoc.data()?.permissions || []);
-              if (adminDoc.data()?.department) fetchedDept = adminDoc.data().department;
+              const aPerms = aData?.permissions || [];
+              setPermissions(aPerms);
+              if (aData?.department) fetchedDept = aData.department;
+              if (aData?.role === 'ceo' || aData?.role === 'super-admin' || fetchedDept.toLowerCase().includes('ceo')) {
+                setIsCEO(true);
+                setIsSuperAdmin(true);
+              }
               setDepartment(fetchedDept);
             } else {
               setIsAdmin(false);
@@ -167,19 +199,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setCurrentUser(user);
       if (user) {
         const email = user.email ? user.email.toLowerCase().trim() : '';
-        const ceoStatus = email === 'eleganbd.ltd@gmail.com';
+        const ceoStatus = isCeoEmail(user.email);
         setIsCEO(ceoStatus);
 
-        const superStatus = isSuperAdminEmail(user.email);
+        const superStatus = isSuperAdminEmail(user.email) || ceoStatus;
         setIsSuperAdmin(superStatus);
 
         let fetchedDept = ceoStatus ? 'CEO & Founder' : (superStatus ? 'CEO & Founder' : 'Sales Executive Department');
         
         let adminStatus = superStatus;
         try {
-          if (superStatus) {
+          if (superStatus || ceoStatus) {
             setIsAdmin(true);
-            setPermissions(['dashboard', 'customers', 'orders', 'products', 'issues', 'masterTable', 'finance', 'settings']);
+            setPermissions(['dashboard', 'customer-profiler', 'my-account', 'all-accounts', 'admin-access', 'orders', 'exchanges', 'issues', 'products', 'categories', 'masterTable', 'master-table', 'inventory-log', 'finance', 'dollar-expense', 'transaction-list', 'payments', 'settings', 'branding', 'banners', 'notifications', 'media', 'pathao', 'customers', 'all']);
             
             if (email) {
               const permDoc = await getDoc(doc(db, 'admin_permissions', email));
@@ -193,10 +225,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const adminDoc = await getDoc(adminRef);
             if (!adminDoc.exists()) {
               await setDoc(adminRef, { 
-                role: 'super-admin', 
+                role: ceoStatus ? 'ceo' : 'super-admin', 
                 email: user.email,
                 department: fetchedDept,
-                permissions: ['dashboard', 'customers', 'orders', 'products', 'issues', 'masterTable', 'finance', 'settings'],
+                permissions: ['all', 'dashboard', 'customer-profiler', 'my-account', 'all-accounts', 'admin-access', 'orders', 'exchanges', 'issues', 'products', 'categories', 'masterTable', 'master-table', 'inventory-log', 'finance', 'dollar-expense', 'transaction-list', 'payments', 'settings', 'branding', 'banners', 'notifications', 'media', 'pathao', 'customers'],
                 updatedAt: Date.now() 
               });
             }
@@ -204,21 +236,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const adminRef = doc(db, 'admins', user.uid);
             
             let directPerms: string[] | null = null;
+            let userRole = 'admin';
             if (email) {
               const permDoc = await getDoc(doc(db, 'admin_permissions', email));
               if (permDoc.exists()) {
-                directPerms = permDoc.data()?.permissions || [];
-                if (permDoc.data()?.department) fetchedDept = permDoc.data().department;
+                const pData = permDoc.data();
+                directPerms = pData?.permissions || [];
+                if (pData?.department) fetchedDept = pData.department;
+                if (pData?.role) userRole = pData.role;
+                if (pData?.role === 'ceo' || pData?.position?.toLowerCase().includes('ceo') || pData?.department?.toLowerCase().includes('ceo')) {
+                  setIsCEO(true);
+                  setIsSuperAdmin(true);
+                  directPerms = ['all', 'dashboard', 'orders', 'issues', 'products', 'finance', 'settings', 'media', 'categories'];
+                }
               } else {
                 const profileDoc = await getDoc(doc(db, 'admin_profiles', email));
                 if (profileDoc.exists()) {
-                  directPerms = profileDoc.data()?.permissions || [];
-                  if (profileDoc.data()?.department) fetchedDept = profileDoc.data().department;
+                  const prData = profileDoc.data();
+                  directPerms = prData?.permissions || [];
+                  if (prData?.department) fetchedDept = prData.department;
+                  if (prData?.role === 'ceo' || prData?.position?.toLowerCase().includes('ceo') || prData?.department?.toLowerCase().includes('ceo')) {
+                    setIsCEO(true);
+                    setIsSuperAdmin(true);
+                    directPerms = ['all', 'dashboard', 'orders', 'issues', 'products', 'finance', 'settings', 'media', 'categories'];
+                  }
                 } else {
                   const inviteDoc = await getDoc(doc(db, 'admin_invites', email));
                   if (inviteDoc.exists()) {
-                    directPerms = inviteDoc.data()?.permissions || [];
-                    if (inviteDoc.data()?.department) fetchedDept = inviteDoc.data().department;
+                    const iData = inviteDoc.data();
+                    directPerms = iData?.permissions || [];
+                    if (iData?.department) fetchedDept = iData.department;
+                    if (iData?.role === 'ceo' || iData?.position?.toLowerCase().includes('ceo') || iData?.department?.toLowerCase().includes('ceo')) {
+                      setIsCEO(true);
+                      setIsSuperAdmin(true);
+                      directPerms = ['all', 'dashboard', 'orders', 'issues', 'products', 'finance', 'settings', 'media', 'categories'];
+                    }
                   }
                 }
               }
@@ -226,7 +278,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (directPerms !== null) {
               await setDoc(adminRef, {
-                role: 'admin',
+                role: userRole,
                 email: user.email,
                 department: fetchedDept,
                 permissions: directPerms,
@@ -239,10 +291,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             } else {
               const adminDoc = await getDoc(adminRef);
               if (adminDoc.exists()) {
+                const aData = adminDoc.data();
                 setIsAdmin(true);
                 adminStatus = true;
-                setPermissions(adminDoc.data()?.permissions || []);
-                if (adminDoc.data()?.department) fetchedDept = adminDoc.data().department;
+                setPermissions(aData?.permissions || []);
+                if (aData?.department) fetchedDept = aData.department;
+                if (aData?.role === 'ceo' || aData?.role === 'super-admin' || fetchedDept.toLowerCase().includes('ceo')) {
+                  setIsCEO(true);
+                  setIsSuperAdmin(true);
+                }
                 setDepartment(fetchedDept);
               } else {
                 setIsAdmin(false);

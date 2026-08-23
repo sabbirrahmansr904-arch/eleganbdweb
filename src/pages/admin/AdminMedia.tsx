@@ -108,17 +108,23 @@ export default function AdminMedia() {
   const { banners, deleteBanner } = useBanners();
   const branding = useBranding();
   const { categories, updateCategory } = useCategories();
-  const { currentUser, isSuperAdmin, isCEO, permissions } = useAuth();
+  const { currentUser, isSuperAdmin, isCEO, isAdmin, permissions } = useAuth();
   const { currency, rate } = useCurrency();
 
-  // Master / Authorized Admin check for media management
+  // CEO and Master Admin verification
   const userEmail = (currentUser?.email || '').toLowerCase().trim();
+  const CEO_EMAILS = [
+    'eleganbd.ltd@gmail.com',
+    'sabbirrahmansr904@gmail.com',
+    'shamiulislamatik@gmail.com',
+    'nasiruddinovi2025@gmail.com'
+  ];
   const isMasterAdmin = 
     isSuperAdmin || 
     isCEO || 
-    (permissions && (permissions.includes('all') || permissions.includes('media') || permissions.includes('settings'))) ||
-    userEmail === 'sabbirrahmansr904@gmail.com' || 
-    userEmail === 'eleganbd.ltd@gmail.com';
+    isAdmin ||
+    CEO_EMAILS.includes(userEmail) ||
+    Boolean(permissions && (permissions.includes('all') || permissions.includes('media') || permissions.includes('products') || permissions.includes('settings')));
 
   // Firestore direct media state
   const [directMedia, setDirectMedia] = useState<any[]>([]);
@@ -648,174 +654,125 @@ export default function AdminMedia() {
       throw new Error('Only authorized administrators have permission to delete media.');
     }
 
+    const targetId = item.id;
+    const targetUrl = item.url;
+
     // 1. Immediately mark as deleted locally for instant UI removal
-    markAsDeletedLocally(item.id, item.url);
-    setDirectMedia(prev => prev.filter(dm => dm.id !== item.id && dm.url !== item.url));
+    markAsDeletedLocally(targetId, targetUrl);
+    setDirectMedia(prev => prev.filter(dm => dm.id !== targetId && dm.url !== targetUrl));
 
-    // 2. Clear from uploaded / media collection in Firestore
-    if (item.source === 'uploaded' || item.id) {
-      try {
-        await deleteDoc(doc(db, 'media', item.id));
-      } catch (e) {
-        console.warn('Could not delete directly from media collection:', e);
-      }
-    }
-
-    // Check if any matching doc in 'media' has this exact URL and delete it
     try {
-      const mediaSnap = await getDocs(collection(db, 'media'));
-      mediaSnap.docs.forEach(async (d) => {
-        if (d.data()?.url === item.url || d.id === item.id) {
-          await deleteDoc(doc(db, 'media', d.id)).catch(() => {});
-        }
-      });
-    } catch (e) {}
-
-    // 3. Remove from Products
-    if (item.source === 'product' || item.productId) {
-      if (item.productId) {
-        const targetProd = products.find(p => p.id === item.productId);
-        if (targetProd) {
-          const currentImgs = (targetProd.images || []).filter(img => img !== item.url);
-          const updatedThumb = targetProd.thumbnail === item.url ? (currentImgs[0] || '') : (targetProd.thumbnail || '');
-          await updateProduct({
-            ...targetProd,
-            images: currentImgs,
-            thumbnail: updatedThumb
-          });
-          await setDoc(doc(db, 'products', targetProd.id), {
-            images: currentImgs,
-            thumbnail: updatedThumb
-          }, { merge: true }).catch(() => {});
-        }
-      }
-
-      // Also clean up any other products referencing this URL
-      products.forEach(async (p) => {
-        if (p.thumbnail === item.url || (p.images && p.images.includes(item.url))) {
-          const remaining = (p.images || []).filter(img => img !== item.url);
-          const newThumb = p.thumbnail === item.url ? (remaining[0] || '') : (p.thumbnail || '');
-          await updateProduct({ ...p, images: remaining, thumbnail: newThumb }).catch(() => {});
-          await setDoc(doc(db, 'products', p.id), { images: remaining, thumbnail: newThumb }, { merge: true }).catch(() => {});
-        }
-      });
-    } 
-    
-    // 4. Remove from Banners
-    if (item.source === 'banner' || item.bannerId) {
-      if (item.bannerId) {
-        await deleteBanner(item.bannerId).catch(() => {});
-        try {
-          await deleteDoc(doc(db, 'banners', item.bannerId));
-        } catch (e) {}
-      }
-      banners.forEach(async (b) => {
-        if (b.image === item.url) {
-          await deleteBanner(b.id).catch(() => {});
-          await deleteDoc(doc(db, 'banners', b.id)).catch(() => {});
-        }
-      });
-    } 
-    
-    // 5. Remove from Branding assets
-    if (item.source === 'branding' || item.brandingKey) {
-      const bk = item.brandingKey;
-      if (bk === 'logoUrl') branding.setLogoUrl('');
-      else if (bk === 'ceoPhotoUrl') branding.setCeoPhotoUrl('');
-      else if (bk === 'sizeChartUrl') branding.setSizeChartUrl('');
-      else if (bk === 'heroBannerUrl') {
-        branding.setHeroBannerUrl('');
-        await setDoc(doc(db, 'config', 'banner_hero'), { url: '' }, { merge: true }).catch(() => {});
-      } else if (bk === 'heroBanner2Url') {
-        branding.setHeroBanner2Url('');
-        await setDoc(doc(db, 'config', 'banner_hero_2'), { url: '' }, { merge: true }).catch(() => {});
-      } else if (bk === 'heroBanner3Url') {
-        branding.setHeroBanner3Url('');
-        await setDoc(doc(db, 'config', 'banner_hero_3'), { url: '' }, { merge: true }).catch(() => {});
-      } else if (bk === 'subHeroBannerUrl') {
-        branding.setSubHeroBannerUrl('');
-        await setDoc(doc(db, 'config', 'banner_sub_hero'), { url: '' }, { merge: true }).catch(() => {});
-      } else if (bk === 'featureBannerUrl') {
-        branding.setFeatureBannerUrl('');
-        await setDoc(doc(db, 'config', 'banner_feature'), { url: '' }, { merge: true }).catch(() => {});
-      } else if (bk === 'poloBannerUrl') {
-        branding.setPoloBannerUrl('');
-        await setDoc(doc(db, 'config', 'banner_polo'), { url: '' }, { merge: true }).catch(() => {});
-      } else if (bk === 'shirtBannerUrl') {
-        branding.setShirtBannerUrl('');
-        await setDoc(doc(db, 'config', 'banner_shirt'), { url: '' }, { merge: true }).catch(() => {});
-      } else if (bk === 'pantBannerUrl') {
-        branding.setPantBannerUrl('');
-        await setDoc(doc(db, 'config', 'banner_pant'), { url: '' }, { merge: true }).catch(() => {});
-      } else if (bk === 'comboOfferBannerUrl') {
-        branding.setComboOfferBannerUrl('');
-        await setDoc(doc(db, 'config', 'banner_combo_offer'), { url: '' }, { merge: true }).catch(() => {});
-      } else if (bk === 'collectionsBannerUrl') {
-        branding.setCollectionsBannerUrl('');
-        await setDoc(doc(db, 'config', 'banner_collections'), { url: '' }, { merge: true }).catch(() => {});
-      } else if (bk === 'whyChooseImg1') {
-        branding.setWhyChooseImg1('');
-        await setDoc(doc(db, 'config', 'why_choose_1'), { url: '' }, { merge: true }).catch(() => {});
-      } else if (bk === 'whyChooseImg2') {
-        branding.setWhyChooseImg2('');
-        await setDoc(doc(db, 'config', 'why_choose_2'), { url: '' }, { merge: true }).catch(() => {});
-      } else if (bk === 'whyChooseImg3') {
-        branding.setWhyChooseImg3('');
-        await setDoc(doc(db, 'config', 'why_choose_3'), { url: '' }, { merge: true }).catch(() => {});
-      } else if (bk === 'whyChooseImg4') {
-        branding.setWhyChooseImg4('');
-        await setDoc(doc(db, 'config', 'why_choose_4'), { url: '' }, { merge: true }).catch(() => {});
-      } else if (bk === 'whyChooseImg5') {
-        branding.setWhyChooseImg5('');
-        await setDoc(doc(db, 'config', 'why_choose_5'), { url: '' }, { merge: true }).catch(() => {});
-      }
-
-      if (bk) {
-        await setDoc(doc(db, 'config', 'branding'), {
-          [bk]: ''
-        }, { merge: true }).catch(() => {});
-      }
-    } 
-    
-    // 6. Remove from Category assets
-    if (item.source === 'category' || item.categoryId || item.catSlug) {
-      if (item.categoryId) {
-        const cat = categories.find(c => c.id === item.categoryId);
-        if (cat) {
-          await updateCategory({ ...cat, image: '' }).catch(() => {});
-        }
-        await setDoc(doc(db, 'categories', item.categoryId), {
-          image: ''
-        }, { merge: true }).catch(() => {});
+      // 2. Clear from uploaded / media collection in Firestore
+      if (targetId && !targetId.startsWith('prod_') && !targetId.startsWith('banner_') && !targetId.startsWith('branding_') && !targetId.startsWith('cat_') && !targetId.startsWith('review_')) {
+        await deleteDoc(doc(db, 'media', targetId)).catch(() => {});
       }
       
+      // Also delete any doc in 'media' collection that matches targetId or targetUrl
+      try {
+        const mediaDocs = await getDocs(collection(db, 'media'));
+        for (const docSnap of mediaDocs.docs) {
+          const dData = docSnap.data();
+          if (docSnap.id === targetId || dData.url === targetUrl || dData.id === targetId) {
+            await deleteDoc(doc(db, 'media', docSnap.id)).catch(() => {});
+          }
+        }
+      } catch (e) {}
+
+      // 3. Remove from Products (check all products that reference this image URL or target productId)
+      if (products && Array.isArray(products)) {
+        for (const prod of products) {
+          const hasInImages = Array.isArray(prod.images) && prod.images.some(img => img === targetUrl);
+          const hasInThumb = prod.thumbnail === targetUrl;
+          const isTargetProduct = item.source === 'product' && item.productId === prod.id;
+
+          if (hasInImages || hasInThumb || isTargetProduct) {
+            const currentImgs = (prod.images || []).filter(img => img !== targetUrl);
+            const updatedThumb = prod.thumbnail === targetUrl ? (currentImgs[0] || '') : (prod.thumbnail || '');
+            await updateProduct({
+              ...prod,
+              images: currentImgs,
+              thumbnail: updatedThumb
+            }).catch(() => {});
+          }
+        }
+      } 
+      
+      // 4. Remove from Banners
+      if (banners && Array.isArray(banners)) {
+        for (const b of banners) {
+          if (b.id === item.bannerId || b.image === targetUrl) {
+            await deleteBanner(b.id).catch(() => {});
+          }
+        }
+      }
+      if (item.bannerId) {
+        await deleteBanner(item.bannerId).catch(() => {});
+      } 
+      
+      // 5. Remove from Branding assets
+      const bk = item.brandingKey;
+      if (bk) {
+        if (bk === 'logoUrl') branding.setLogoUrl('');
+        else if (bk === 'ceoPhotoUrl') branding.setCeoPhotoUrl('');
+        else if (bk === 'sizeChartUrl') branding.setSizeChartUrl('');
+        else if (bk === 'heroBannerUrl') branding.setHeroBannerUrl('');
+        else if (bk === 'heroBanner2Url') branding.setHeroBanner2Url('');
+        else if (bk === 'heroBanner3Url') branding.setHeroBanner3Url('');
+        else if (bk === 'subHeroBannerUrl') branding.setSubHeroBannerUrl('');
+        else if (bk === 'featureBannerUrl') branding.setFeatureBannerUrl('');
+        else if (bk === 'poloBannerUrl') branding.setPoloBannerUrl('');
+        else if (bk === 'shirtBannerUrl') branding.setShirtBannerUrl('');
+        else if (bk === 'pantBannerUrl') branding.setPantBannerUrl('');
+        else if (bk === 'comboOfferBannerUrl') branding.setComboOfferBannerUrl('');
+        else if (bk === 'collectionsBannerUrl') branding.setCollectionsBannerUrl('');
+        else if (bk === 'whyChooseImg1') branding.setWhyChooseImg1('');
+        else if (bk === 'whyChooseImg2') branding.setWhyChooseImg2('');
+        else if (bk === 'whyChooseImg3') branding.setWhyChooseImg3('');
+        else if (bk === 'whyChooseImg4') branding.setWhyChooseImg4('');
+        else if (bk === 'whyChooseImg5') branding.setWhyChooseImg5('');
+      } else {
+        // Also check if any branding url equals targetUrl
+        if (branding.logoUrl === targetUrl) branding.setLogoUrl('');
+        if (branding.ceoPhotoUrl === targetUrl) branding.setCeoPhotoUrl('');
+        if (branding.sizeChartUrl === targetUrl) branding.setSizeChartUrl('');
+        if (branding.heroBannerUrl === targetUrl) branding.setHeroBannerUrl('');
+        if (branding.heroBanner2Url === targetUrl) branding.setHeroBanner2Url('');
+        if (branding.heroBanner3Url === targetUrl) branding.setHeroBanner3Url('');
+        if (branding.subHeroBannerUrl === targetUrl) branding.setSubHeroBannerUrl('');
+        if (branding.featureBannerUrl === targetUrl) branding.setFeatureBannerUrl('');
+        if (branding.poloBannerUrl === targetUrl) branding.setPoloBannerUrl('');
+        if (branding.shirtBannerUrl === targetUrl) branding.setShirtBannerUrl('');
+        if (branding.pantBannerUrl === targetUrl) branding.setPantBannerUrl('');
+        if (branding.comboOfferBannerUrl === targetUrl) branding.setComboOfferBannerUrl('');
+        if (branding.collectionsBannerUrl === targetUrl) branding.setCollectionsBannerUrl('');
+        if (branding.whyChooseImg1 === targetUrl) branding.setWhyChooseImg1('');
+        if (branding.whyChooseImg2 === targetUrl) branding.setWhyChooseImg2('');
+        if (branding.whyChooseImg3 === targetUrl) branding.setWhyChooseImg3('');
+        if (branding.whyChooseImg4 === targetUrl) branding.setWhyChooseImg4('');
+        if (branding.whyChooseImg5 === targetUrl) branding.setWhyChooseImg5('');
+      }
+      
+      // 6. Remove from Category assets
+      if (categories && Array.isArray(categories)) {
+        for (const cat of categories) {
+          if (cat.id === item.categoryId || (cat as any).image === targetUrl) {
+            await updateCategory({ ...cat, image: '' }).catch(() => {});
+          }
+        }
+      }
       if (item.catSlug) {
         branding.setCategoryImageUrl(item.catSlug, '');
-        const updatedCatImgs = { ...(branding?.categoryImages || {}) };
-        delete updatedCatImgs[item.catSlug];
-        await setDoc(doc(db, 'config', 'branding'), {
-          categoryImages: updatedCatImgs
-        }, { merge: true }).catch(() => {});
-        await setDoc(doc(db, 'config', 'categories'), {
-          images: updatedCatImgs
-        }, { merge: true }).catch(() => {});
-      }
-
-      // Check all other categories with matching image URL
-      categories.forEach(async (c) => {
-        if ((c as any).image === item.url) {
-          await updateCategory({ ...c, image: '' }).catch(() => {});
-          await setDoc(doc(db, 'categories', c.id), { image: '' }, { merge: true }).catch(() => {});
+      } 
+      
+      // 7. Remove from Customer Reviews
+      if (item.reviewId || item.source === 'review') {
+        if (item.reviewId) {
+          await deleteDoc(doc(db, 'reviews', item.reviewId)).catch(() => {});
         }
-      });
-    } 
-    
-    // 7. Remove from Customer Reviews
-    if (item.source === 'review' || item.reviewId) {
-      if (item.reviewId) {
-        await deleteDoc(doc(db, 'reviews', item.reviewId)).catch(() => {});
-        setReviewsMedia(prev => prev.filter(r => r.id !== item.reviewId));
+        setReviewsMedia(prev => prev.filter(r => r.id !== item.reviewId && r.image !== targetUrl));
       }
+    } catch (err) {
+      console.warn('[AdminMedia] Delete item warning:', err);
     }
   };
 

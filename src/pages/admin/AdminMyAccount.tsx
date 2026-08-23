@@ -14,6 +14,8 @@ import {
   RefreshCw,
   Clock,
   CheckCircle2,
+  BadgeCheck,
+  Crown,
   Calendar,
   Lock,
   ShieldAlert
@@ -33,8 +35,13 @@ export default function AdminMyAccount() {
   const cleanEmail = userEmail.toLowerCase().trim();
   const emailDocKey = cleanEmail.replace(/[^a-zA-Z0-9]/g, '_');
 
-  // Check if current user is one of the 2 primary Super Admins / Founders
-  const isMasterAdmin = cleanEmail === 'sabbirrahmansr904@gmail.com' || cleanEmail === 'eleganbd.ltd@gmail.com';
+  // Check if current user is CEO or Super Admin
+  const isMasterAdmin = isSuperAdmin || isCEO || [
+    'sabbirrahmansr904@gmail.com',
+    'eleganbd.ltd@gmail.com',
+    'shamiulislamatik@gmail.com',
+    'nasiruddinovi2025@gmail.com'
+  ].includes(cleanEmail);
 
   const [profile, setProfile] = useState<AdminProfile>({
     id: emailDocKey,
@@ -225,15 +232,25 @@ export default function AdminMyAccount() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {isCEO ? (
-            <span className="px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-amber-50 text-amber-600 border border-amber-200 flex items-center gap-1.5">
-              <Sparkles size={13} /> CEO & Founder
-            </span>
+            <>
+              <span className="px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-gradient-to-r from-amber-100 to-amber-200 text-amber-900 border border-amber-300 flex items-center gap-1.5 shadow-2xs">
+                <Crown size={14} className="text-amber-700 fill-amber-500" /> CEO Executive
+              </span>
+              <span className="px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1">
+                <BadgeCheck size={14} className="text-blue-600" /> Verified
+              </span>
+            </>
           ) : isSuperAdmin ? (
-            <span className="px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-blue-50 text-blue-600 border border-blue-200 flex items-center gap-1.5">
-              <ShieldCheck size={13} /> Super Admin
-            </span>
+            <>
+              <span className="px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-blue-50 text-blue-600 border border-blue-200 flex items-center gap-1.5">
+                <ShieldCheck size={13} /> Super Admin
+              </span>
+              <span className="px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1">
+                <BadgeCheck size={14} className="text-blue-600" /> Verified
+              </span>
+            </>
           ) : (
             <span className="px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center gap-1.5">
               <CheckCircle2 size={13} /> Admin

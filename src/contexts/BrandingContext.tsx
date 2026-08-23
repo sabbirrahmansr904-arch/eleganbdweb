@@ -120,6 +120,12 @@ const DEFAULT_WHY_CHOOSE_TEXT_3 = "LIGHTWEIGHT COMFORT FOR EVERY DAY.";
 const DEFAULT_WHY_CHOOSE_TEXT_4 = "PREMIUM FABRIC. EFFORTLESS STYLE.";
 const DEFAULT_WHY_CHOOSE_TEXT_5 = "ELEGANT CRAFTSMANSHIP FOR MEN.";
 
+const cleanBannerUrl = (url?: string) => {
+  if (!url) return "";
+  if (url.includes('unsplash.com') || url.includes('genai-studio-artifacts-storage')) return "";
+  return url;
+};
+
 const cleanUrl = (url?: string) => {
   if (!url) return "/logo.png";
   if (url.includes('unsplash.com') || url.includes('genai-studio-artifacts-storage')) return "/logo.png";
@@ -149,16 +155,16 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (cached) {
       try {
         return cleanUrl(JSON.parse(cached).logoUrl);
-      } catch (e) { return ""; }
+      } catch (e) { return "/logo.png"; }
     }
-    return "";
+    return "/logo.png";
   });
   
   const [sizeChartUrl, setSizeChartUrlState] = useState<string>(() => {
     const cached = localStorage.getItem('eleganbd_branding');
     if (cached) {
       try {
-        return cleanUrl(JSON.parse(cached).sizeChartUrl);
+        return cleanBannerUrl(JSON.parse(cached).sizeChartUrl);
       } catch (e) { return ""; }
     }
     return "";
@@ -168,7 +174,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const cached = localStorage.getItem('eleganbd_branding');
     if (cached) {
       try {
-        return JSON.parse(cached).ceoPhotoUrl || "";
+        return cleanBannerUrl(JSON.parse(cached).ceoPhotoUrl);
       } catch (e) { return ""; }
     }
     return "";
@@ -178,7 +184,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const cached = localStorage.getItem('eleganbd_banners_large');
     if (cached) {
       try {
-        return cleanUrl(JSON.parse(cached).collectionsBannerUrl);
+        return cleanBannerUrl(JSON.parse(cached).collectionsBannerUrl);
       } catch (e) { return ""; }
     }
     return "";
@@ -188,7 +194,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const cached = localStorage.getItem('eleganbd_banners_large');
     if (cached) {
       try {
-        return cleanUrl(JSON.parse(cached).heroBannerUrl);
+        return cleanBannerUrl(JSON.parse(cached).heroBannerUrl);
       } catch (e) { return ""; }
     }
     return "";
@@ -198,7 +204,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const cached = localStorage.getItem('eleganbd_banners_large');
     if (cached) {
       try {
-        return cleanUrl(JSON.parse(cached).heroBanner2Url);
+        return cleanBannerUrl(JSON.parse(cached).heroBanner2Url);
       } catch (e) { return ""; }
     }
     return "";
@@ -208,7 +214,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const cached = localStorage.getItem('eleganbd_banners_large');
     if (cached) {
       try {
-        return cleanUrl(JSON.parse(cached).heroBanner3Url);
+        return cleanBannerUrl(JSON.parse(cached).heroBanner3Url);
       } catch (e) { return ""; }
     }
     return "";
@@ -218,7 +224,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const cached = localStorage.getItem('eleganbd_banners_large');
     if (cached) {
       try {
-        return cleanUrl(JSON.parse(cached).subHeroBannerUrl);
+        return cleanBannerUrl(JSON.parse(cached).subHeroBannerUrl);
       } catch (e) { return ""; }
     }
     return "";
@@ -228,7 +234,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const cached = localStorage.getItem('eleganbd_banners_large');
     if (cached) {
       try {
-        return cleanUrl(JSON.parse(cached).featureBannerUrl);
+        return cleanBannerUrl(JSON.parse(cached).featureBannerUrl);
       } catch (e) { return ""; }
     }
     return "";
@@ -238,7 +244,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const cached = localStorage.getItem('eleganbd_banners_large');
     if (cached) {
       try {
-        return cleanUrl(JSON.parse(cached).poloBannerUrl);
+        return cleanBannerUrl(JSON.parse(cached).poloBannerUrl);
       } catch (e) { return ""; }
     }
     return "";
@@ -248,7 +254,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const cached = localStorage.getItem('eleganbd_banners_large');
     if (cached) {
       try {
-        return cleanUrl(JSON.parse(cached).comboOfferBannerUrl);
+        return cleanBannerUrl(JSON.parse(cached).comboOfferBannerUrl);
       } catch (e) { return ""; }
     }
     return "";
@@ -622,7 +628,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         for (const key of bannerKeys) {
             const snap = await getDoc(doc(db, 'config', `banner_${key}`));
             if (snap.exists()) {
-                const url = cleanUrl(snap.data().url);
+                const url = cleanBannerUrl(snap.data().url);
                 const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
                 const cacheKey = key === 'sub_hero' ? 'subHeroBannerUrl' : key === 'hero_2' ? 'heroBanner2Url' : key === 'hero_3' ? 'heroBanner3Url' : `${key}BannerUrl`;
                 try {
@@ -682,10 +688,11 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       await setDoc(doc(db, 'config', path), data, { merge: true });
     } catch (e) {
-      console.error(`Failed to update ${path} in firestore`, e);
-      toast.error(`Update failed: ${e instanceof Error ? e.message : 'Unknown error'}. Image might be too large.`);
+      if (!isQuotaError(e)) {
+        console.warn(`[BrandingContext] Failed to update config/${path}:`, e);
+      }
     }
-  }
+  };
 
   const setLogoUrl = (url: string) => {
     setLogoUrlState(url);
