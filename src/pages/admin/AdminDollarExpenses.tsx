@@ -557,16 +557,18 @@ export default function AdminDollarExpenses(): React.JSX.Element {
             PDF ডাউনলোড
           </button>
           
-          <button 
-            onClick={() => {
-              setEditingTransaction(null);
-              setShowModal(true);
-            }}
-            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            নতুন ডলার লেনদেন
-          </button>
+          {isSabbirRahman && (
+            <button 
+              onClick={() => {
+                setEditingTransaction(null);
+                setShowModal(true);
+              }}
+              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              নতুন ডলার লেনদেন
+            </button>
+          )}
         </div>
       </div>
 

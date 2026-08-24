@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   Users, 
   UserPlus, 
@@ -25,7 +26,8 @@ import {
   User,
   Sliders,
   ShieldAlert,
-  Pin
+  Pin,
+  Home
 } from 'lucide-react';
 import { VerifiedBadge } from '../../components/admin/VerifiedBadge';
 import { db } from '../../lib/firebase';
@@ -128,7 +130,7 @@ export const isSabbirAccount = (admin: AdminProfile | { email?: string; name?: s
 };
 
 export default function AdminAccounts() {
-  const { currentUser, isSuperAdmin, isCEO } = useAuth();
+  const { currentUser, isSuperAdmin, isCEO, isSabbirRahman } = useAuth();
   const [profiles, setProfiles] = useState<AdminProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -136,7 +138,7 @@ export default function AdminAccounts() {
 
   // Only Sabbir & Elegan BD can edit accounts
   const userEmail = (currentUser?.email || '').toLowerCase().trim();
-  const canEditAccounts = [
+  const canEditAccounts = isSabbirRahman || [
     'sabbirrahmansr904@gmail.com',
     'eleganbd.ltd@gmail.com'
   ].includes(userEmail);
@@ -168,6 +170,10 @@ export default function AdminAccounts() {
 
   // Real-time synchronization with all admin collections
   useEffect(() => {
+    if (!isSabbirRahman) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
 
     const profilesDocs = new Map<string, any>();
@@ -175,7 +181,7 @@ export default function AdminAccounts() {
     const adminsDocs = new Map<string, any>();
     const invitesDocs = new Map<string, any>();
 
-    // Initial base primary accounts (Sabbir Rahman pinned #1)
+    // Initial base primary accounts
     const baseAdmins: AdminProfile[] = [
       {
         id: 'sabbirrahmansr904_gmail_com',
@@ -315,7 +321,7 @@ export default function AdminAccounts() {
           photoURL: data.photoURL || existing.photoURL || '',
           status: data.status || existing.status || 'Active',
           role: isCeo ? 'ceo' : (data.role || existing.role || 'admin'),
-          permissions: isCeo ? ['all'] : (data.permissions || existing.permissions || ['dashboard', 'orders']),
+          permissions: isCeo ? ['all'] : (data.permissions !== undefined ? data.permissions : (existing.permissions || ['dashboard', 'orders'])),
           mainTasks: data.mainTasks || existing.mainTasks || (isCeo ? 'সামগ্রিক ব্যবসায়িক পরিচালনা, স্ট্র্যাটেজিক পরিকল্পনা ও সিদ্ধান্ত গ্রহণ।' : 'অর্ডার প্রসেসিং, কাস্টমার সাপোর্ট ও রিয়েল-টাইম কাজ।')
         });
       });
@@ -328,17 +334,17 @@ export default function AdminAccounts() {
         const isCeo = isCeoRoleOrEmail({ email, ...data, ...existing });
 
         combinedMap.set(email, {
-          ...existing,
           ...data,
+          ...existing,
           id: existing.id || docId,
           email: email,
           name: existing.name || data.name || email.split('@')[0],
-          phone: data.phone || existing.phone || '',
-          department: data.department || existing.department || (isCeo ? 'CEO & Founder' : 'Sales Executive Department'),
+          phone: existing.phone || data.phone || '',
+          department: existing.department || data.department || (isCeo ? 'CEO & Founder' : 'Sales Executive Department'),
           position: existing.position || (data.position || (isCeo ? 'CEO & Founder' : 'Sales Executive')),
-          permissions: isCeo ? ['all'] : ((data.permissions && data.permissions.length > 0) ? data.permissions : (existing.permissions || ['dashboard', 'orders', 'issues'])),
-          role: isCeo ? 'ceo' : (data.role || existing.role || 'admin'),
-          mainTasks: data.mainTasks || existing.mainTasks || (isCeo ? 'সামগ্রিক ব্যবসায়িক পরিচালনা, স্ট্র্যাটেজিক পরিকল্পনা ও সিদ্ধান্ত গ্রহণ।' : 'অর্ডার প্রসেসিং, কাস্টমার সাপোর্ট ও রিয়েল-টাইম কাজ।'),
+          permissions: isCeo ? ['all'] : (existing.permissions !== undefined ? existing.permissions : (data.permissions || ['dashboard', 'orders', 'issues'])),
+          role: isCeo ? 'ceo' : (existing.role || data.role || 'admin'),
+          mainTasks: existing.mainTasks || data.mainTasks || (isCeo ? 'সামগ্রিক ব্যবসায়িক পরিচালনা, স্ট্র্যাটেজিক পরিকল্পনা ও সিদ্ধান্ত গ্রহণ।' : 'অর্ডার প্রসেসিং, কাস্টমার সাপোর্ট ও রিয়েল-টাইম কাজ।'),
           updatedAt: data.updatedAt || existing.updatedAt || Date.now()
         });
       });
@@ -351,19 +357,19 @@ export default function AdminAccounts() {
         const isCeo = isCeoRoleOrEmail({ email, ...data, ...existing });
 
         combinedMap.set(email, {
-          ...existing,
           ...data,
+          ...existing,
           id: existing.id || docId,
           email: email,
           name: existing.name || data.name || email.split('@')[0],
-          phone: data.phone || existing.phone || '',
-          department: data.department || existing.department || (isCeo ? 'CEO & Founder' : 'Sales Executive Department'),
+          phone: existing.phone || data.phone || '',
+          department: existing.department || data.department || (isCeo ? 'CEO & Founder' : 'Sales Executive Department'),
           position: existing.position || (data.position || (isCeo ? 'CEO & Founder' : 'Sales Executive')),
-          permissions: isCeo ? ['all'] : ((data.permissions && data.permissions.length > 0) ? data.permissions : (existing.permissions || ['dashboard', 'orders', 'issues'])),
+          permissions: isCeo ? ['all'] : (existing.permissions !== undefined ? existing.permissions : (data.permissions || ['dashboard', 'orders', 'issues'])),
           isOnline: data.isOnline ?? existing.isOnline,
           lastActive: data.lastActive || existing.lastActive,
-          role: isCeo ? 'ceo' : (data.role || existing.role || 'admin'),
-          mainTasks: data.mainTasks || existing.mainTasks || (isCeo ? 'সামগ্রিক ব্যবসায়িক পরিচালনা, স্ট্র্যাটেজিক পরিকল্পনা ও সিদ্ধান্ত গ্রহণ।' : 'অর্ডার প্রসেসিং, কাস্টমার সাপোর্ট ও রিয়েল-টাইম কাজ।')
+          role: isCeo ? 'ceo' : (existing.role || data.role || 'admin'),
+          mainTasks: existing.mainTasks || data.mainTasks || (isCeo ? 'সামগ্রিক ব্যবসায়িক পরিচালনা, স্ট্র্যাটেজিক পরিকল্পনা ও সিদ্ধান্ত গ্রহণ।' : 'অর্ডার প্রসেসিং, কাস্টমার সাপোর্ট ও রিয়েল-টাইম কাজ।')
         });
       });
 
@@ -375,26 +381,21 @@ export default function AdminAccounts() {
         const isCeo = isCeoRoleOrEmail({ email, ...data, ...existing });
 
         combinedMap.set(email, {
-          ...existing,
           ...data,
+          ...existing,
           id: existing.id || docId,
           email: email,
           name: existing.name || data.name || email.split('@')[0],
-          phone: data.phone || existing.phone || '',
-          department: data.department || existing.department || (isCeo ? 'CEO & Founder' : 'Sales Executive Department'),
+          phone: existing.phone || data.phone || '',
+          department: existing.department || data.department || (isCeo ? 'CEO & Founder' : 'Sales Executive Department'),
           position: existing.position || (data.position || (isCeo ? 'CEO & Founder' : 'Sales Executive')),
-          permissions: isCeo ? ['all'] : (data.permissions || existing.permissions || ['dashboard', 'orders', 'issues']),
-          role: isCeo ? 'ceo' : (data.role || existing.role || 'admin'),
-          mainTasks: data.mainTasks || existing.mainTasks || (isCeo ? 'সামগ্রিক ব্যবসায়িক পরিচালনা, স্ট্র্যাটেজিক পরিকল্পনা ও সিদ্ধান্ত গ্রহণ।' : 'অর্ডার প্রসেসিং, কাস্টমার সাপোর্ট ও রিয়েল-টাইম কাজ।')
+          permissions: isCeo ? ['all'] : (existing.permissions !== undefined ? existing.permissions : (data.permissions || ['dashboard', 'orders', 'issues'])),
+          role: isCeo ? 'ceo' : (existing.role || data.role || 'admin'),
+          mainTasks: existing.mainTasks || data.mainTasks || (isCeo ? 'সামগ্রিক ব্যবসায়িক পরিচালনা, স্ট্র্যাটেজিক পরিকল্পনা ও সিদ্ধান্ত গ্রহণ।' : 'অর্ডার প্রসেসিং, কাস্টমার সাপোর্ট ও রিয়েল-টাইম কাজ।')
         });
       });
 
       const list = Array.from(combinedMap.values()).sort((a, b) => {
-        // 1. Sabbir Rahman is pinned permanently as #1 (first)
-        const aIsSabbir = isSabbirAccount(a);
-        const bIsSabbir = isSabbirAccount(b);
-        if (aIsSabbir && !bIsSabbir) return -1;
-        if (!aIsSabbir && bIsSabbir) return 1;
 
         // 2. Then other CEOs
         const aIsCeo = isCeoRoleOrEmail(a);
@@ -753,7 +754,7 @@ export default function AdminAccounts() {
     }
   };
 
-  // Filtered profiles (Sabbir Rahman always preserved at the very top)
+  // Filtered profiles
   const filteredProfiles = profiles.filter(p => {
     const matchesSearch = 
       (p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -763,13 +764,29 @@ export default function AdminAccounts() {
       (p.department || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDept = selectedDept === 'All' || p.department === selectedDept;
     return matchesSearch && matchesDept;
-  }).sort((a, b) => {
-    const aIsSabbir = isSabbirAccount(a);
-    const bIsSabbir = isSabbirAccount(b);
-    if (aIsSabbir && !bIsSabbir) return -1;
-    if (!aIsSabbir && bIsSabbir) return 1;
-    return 0;
   });
+
+  if (!isSabbirRahman) {
+    return (
+      <div className="flex-1 p-8 flex flex-col items-center justify-center text-center min-h-[60vh] bg-[#F8F9FD] dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm my-auto">
+        <div className="w-16 h-16 rounded-2xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 flex items-center justify-center mb-4 shadow-md">
+          <Lock size={32} />
+        </div>
+        <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-2">
+          Access Restricted • শুধুমাত্র সাব্বির রহমানের জন্য সংরক্ষিত
+        </h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 max-w-lg mb-6 leading-relaxed">
+          All Accounts এবং এডমিন অ্যাকাউন্ট ম্যানেজমেন্টের সম্পূর্ণ এক্সেস শুধুমাত্র সাব্বির রহমান (Sabbir Rahman)-এর অ্যাকাউন্টে সীমাবদ্ধ। অন্য কোনো এডমিন অ্যাকাউন্ট থেকে এই তথ্যগুলো দেখা বা পরিবর্তন করা সম্ভব নয়।
+        </p>
+        <Link
+          to="/admin"
+          className="bg-black hover:bg-brand-gold hover:text-black text-white dark:bg-[#F8F9FD] dark:text-black transition-all px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest shadow-md flex items-center gap-2"
+        >
+          <Home size={16} /> Return to Admin Dashboard
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-12 font-sans">
@@ -925,11 +942,7 @@ export default function AdminAccounts() {
                   </div>
 
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    {isSabbir && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1 shadow-2xs">
-                        <Pin size={10} className="text-amber-700 fill-amber-500" /> Pinned
-                      </span>
-                    )}
+                    
                     {isTopCeo ? (
                       <>
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-100 to-amber-200 text-amber-900 border border-amber-300 flex items-center gap-1 shadow-2xs">

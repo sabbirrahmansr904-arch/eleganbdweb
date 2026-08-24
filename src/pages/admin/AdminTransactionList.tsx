@@ -6,6 +6,7 @@ import React, { useState, useMemo } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useFinance } from '../../contexts/FinanceContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { formatPrice } from '../../lib/utils';
 import { 
   FileSpreadsheet, 
@@ -27,6 +28,7 @@ import toast from 'react-hot-toast';
 import { BankLogoBadge } from '../../utils/bankLogos';
 
 export default function AdminTransactionList(): React.JSX.Element {
+  const { isSabbirRahman } = useAuth();
   const {
     bankAccounts,
     bankTransactions,
@@ -107,6 +109,10 @@ export default function AdminTransactionList(): React.JSX.Element {
   const handleClearSelection = () => setSelectedTxIds([]);
 
   const handleBulkStatusChange = async (status: 'paid' | 'unpaid') => {
+    if (!isSabbirRahman) {
+      toast.error('স্ট্যাটাস পরিবর্তন করার অনুমতি শুধুমাত্র সাব্বির রহমান এর একাউন্টে সংরক্ষিত!');
+      return;
+    }
     if (selectedTxIds.length === 0) return;
     for (const id of selectedTxIds) {
       const tx = bankTransactions.find(t => t.id === id);
@@ -206,6 +212,10 @@ export default function AdminTransactionList(): React.JSX.Element {
 
   const handleEditTxSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isSabbirRahman) {
+      toast.error('এডিট করার অনুমতি শুধুমাত্র সাব্বির রহমান এর একাউন্টে সংরক্ষিত!');
+      return;
+    }
     await updateBankTransaction(editTxForm.id, {
       accountId: editTxForm.accountId,
       type: editTxForm.type,
@@ -478,7 +488,7 @@ export default function AdminTransactionList(): React.JSX.Element {
                               <Clock className="w-3 h-3 text-amber-600 shrink-0" />
                               <span>Unpaid</span>
                             </span>
-                            <button
+            <button
                               onClick={async () => {
                                 await toggleTransactionStatus(tx.id, tx.status);
                                 toast.success('লেনদেন Paid হিসেবে আপডেট করা হয়েছে!');
@@ -495,7 +505,7 @@ export default function AdminTransactionList(): React.JSX.Element {
                               <Check className="w-3 h-3 stroke-[3] text-emerald-600 shrink-0" />
                               <span>Paid</span>
                             </span>
-                            <button
+            <button
                               onClick={async () => {
                                 await toggleTransactionStatus(tx.id, tx.status);
                                 toast('লেনদেন Unpaid এ পরিবর্তন করা হয়েছে', { icon: '⏳' });
@@ -510,7 +520,7 @@ export default function AdminTransactionList(): React.JSX.Element {
                       </td>
 
                       <td className="py-4 px-4 text-center">
-                        <button 
+            <button 
                           onClick={() => toast('সংযুক্ত রশিদ ও প্রমাণপত্র চেক করা হচ্ছে...', { icon: 'ℹ️' })}
                           className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gray-100 text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 transition-colors cursor-pointer"
                         >
@@ -520,7 +530,7 @@ export default function AdminTransactionList(): React.JSX.Element {
 
                       <td className="py-4 px-4 text-center whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1.5">
-                          <button
+            <button
                             onClick={() => {
                               setSelectedTx(tx);
                               setShowViewTxModal(true);
@@ -531,22 +541,22 @@ export default function AdminTransactionList(): React.JSX.Element {
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleEditTxClick(tx)}
-                            className="p-1.5 text-gray-400 hover:text-indigo-600 bg-gray-50 hover:bg-white border border-transparent hover:border-gray-150 rounded-lg transition-colors cursor-pointer"
-                            title="এডিট"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setTxToDelete(tx);
-                              setShowDeleteConfirmModal(true);
-                            }}
-                            className="p-1.5 text-gray-400 hover:text-rose-600 bg-gray-50 hover:bg-red-50 border border-transparent hover:border-red-100 rounded-lg transition-colors cursor-pointer"
-                            title="মুছে ফেলুন"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                                onClick={() => handleEditTxClick(tx)}
+                                className="p-1.5 text-gray-400 hover:text-indigo-600 bg-gray-50 hover:bg-white border border-transparent hover:border-gray-150 rounded-lg transition-colors cursor-pointer"
+                                title="এডিট"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+            <button
+                                onClick={() => {
+                                  setTxToDelete(tx);
+                                  setShowDeleteConfirmModal(true);
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-rose-600 bg-gray-50 hover:bg-red-50 border border-transparent hover:border-red-100 rounded-lg transition-colors cursor-pointer"
+                                title="মুছে ফেলুন"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                         </div>
                       </td>
                     </tr>
@@ -604,7 +614,7 @@ export default function AdminTransactionList(): React.JSX.Element {
           <div className="bg-white rounded-[24px] max-w-lg w-full p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-gray-100 pb-4">
               <h3 className="text-base font-black text-gray-900">লেনদেন তথ্য সম্পাদনা করুন</h3>
-              <button onClick={() => setShowEditTxModal(false)} className="p-2 hover:bg-gray-100 rounded-xl cursor-pointer">
+            <button onClick={() => setShowEditTxModal(false)} className="p-2 hover:bg-gray-100 rounded-xl cursor-pointer">
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
@@ -665,14 +675,14 @@ export default function AdminTransactionList(): React.JSX.Element {
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                <button
+            <button
                   type="button"
                   onClick={() => setShowEditTxModal(false)}
                   className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold cursor-pointer"
                 >
                   বাতিল
                 </button>
-                <button
+            <button
                   type="submit"
                   className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black cursor-pointer"
                 >
@@ -696,13 +706,13 @@ export default function AdminTransactionList(): React.JSX.Element {
               <p className="text-xs text-gray-500 font-medium">এই লেনদেন স্থায়ীভাবে মুছে ফেলা হবে এবং ব্যালেন্স সামঞ্জস্য করা হবে।</p>
             </div>
             <div className="flex items-center gap-3 pt-2">
-              <button
+            <button
                 onClick={() => setShowDeleteConfirmModal(false)}
                 className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold cursor-pointer"
               >
                 বাতিল
               </button>
-              <button
+            <button
                 onClick={async () => {
                   await deleteBankTransaction(txToDelete.id);
                   setShowDeleteConfirmModal(false);
@@ -724,7 +734,7 @@ export default function AdminTransactionList(): React.JSX.Element {
           <div className="bg-white rounded-[24px] max-w-md w-full p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-gray-100 pb-4">
               <h3 className="text-base font-black text-gray-900">লেনদেনের বিস্তারিত বিবরণ</h3>
-              <button onClick={() => setShowViewTxModal(false)} className="p-2 hover:bg-gray-100 rounded-xl cursor-pointer">
+            <button onClick={() => setShowViewTxModal(false)} className="p-2 hover:bg-gray-100 rounded-xl cursor-pointer">
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
@@ -751,7 +761,7 @@ export default function AdminTransactionList(): React.JSX.Element {
               </div>
             </div>
             <div className="pt-2">
-              <button
+            <button
                 onClick={() => setShowViewTxModal(false)}
                 className="w-full py-3 bg-gray-900 text-white rounded-xl text-xs font-black cursor-pointer"
               >

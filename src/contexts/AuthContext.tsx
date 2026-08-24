@@ -38,7 +38,15 @@ export const isSabbirEmail = (email: string | null | undefined, displayName?: st
   );
 };
 
-export const ACCOUNTING_PERMISSIONS = ['finance', 'dollar-expense', 'partnership', 'transaction-list', 'payments'];
+export const ACCOUNTING_PERMISSIONS = [
+  'finance', 
+  'dollar-expense', 
+  'partnership', 
+  'transaction-list', 
+  'payments',
+  'all-accounts',
+  'admin-access'
+];
 
 export const filterPermsForUser = (perms: string[], isSabbir: boolean): string[] => {
   if (isSabbir) return perms;

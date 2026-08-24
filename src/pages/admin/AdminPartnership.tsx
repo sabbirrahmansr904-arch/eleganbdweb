@@ -57,6 +57,7 @@ import {
 import { handleFirestoreError, OperationType } from '../../lib/firestoreUtils';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFinance } from '../../contexts/FinanceContext';
+import { useBranding } from '../../contexts/BrandingContext';
 import { compressAvatar } from '../../utils/imageCompressor';
 
 export interface PartnerProfile {
@@ -154,6 +155,7 @@ const PAYMENT_METHODS = [
 export default function AdminPartnership() {
   const { currentUser, isSabbirRahman } = useAuth();
   const { bankAccounts } = useFinance();
+  const { logoUrl } = useBranding();
 
   // State
   const [partners, setPartners] = useState<PartnerProfile[]>(() => {
@@ -194,6 +196,7 @@ export default function AdminPartnership() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showManagePartnersModal, setShowManagePartnersModal] = useState(false);
   const [showPrintStatementModal, setShowPrintStatementModal] = useState(false);
+  const [includeLedgerInPrint, setIncludeLedgerInPrint] = useState(true);
   const [editingTransaction, setEditingTransaction] = useState<PartnerTransaction | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -302,8 +305,9 @@ export default function AdminPartnership() {
   }, []);
 
   // Helper to resolve the correct photo URL for each partner
-  const getPartnerAvatar = (partner: PartnerProfile): string => {
-    if (partner.photoURL && partner.photoURL.trim().length > 5) {
+  const getPartnerAvatar = (partner?: PartnerProfile | null): string => {
+    if (!partner) return '';
+    if (partner.photoURL && typeof partner.photoURL === 'string' && partner.photoURL.trim().length > 5) {
       return partner.photoURL;
     }
     const emailKey = (partner.email || '').toLowerCase().trim();
@@ -332,19 +336,19 @@ export default function AdminPartnership() {
       const local = localStorage.getItem('elegan_admin_profiles');
       if (local) {
         const list = JSON.parse(local);
-        const match = list.find((item: any) => 
+        const match = Array.isArray(list) ? list.find((item: any) => 
           (item.email && item.email.toLowerCase() === emailKey) ||
           (item.name && item.name.toLowerCase() === nameKey) ||
           (nameKey.includes('sabbir') && item.name?.toLowerCase().includes('sabbir')) ||
           (nameKey.includes('nasir') && item.name?.toLowerCase().includes('nasir')) ||
           (nameKey.includes('shamiul') && item.name?.toLowerCase().includes('shamiul'))
-        );
+        ) : null;
         if (match?.photoURL) return match.photoURL;
       }
     } catch (e) {}
 
     // Check currently logged in user photo
-    if (currentUser?.email?.toLowerCase() === emailKey && currentUser.photoURL) {
+    if (currentUser?.email && currentUser.email.toLowerCase() === emailKey && currentUser.photoURL) {
       return currentUser.photoURL;
     }
 
@@ -559,9 +563,11 @@ export default function AdminPartnership() {
     // Parse date and time into timestamp
     let finalTimestamp = Date.now();
     try {
-      const [year, month, day] = formData.date.split('-').map(Number);
-      const tempDate = new Date(year, month - 1, day);
-      finalTimestamp = tempDate.getTime();
+      if (formData.date && typeof formData.date === 'string' && formData.date.includes('-')) {
+        const [year, month, day] = formData.date.split('-').map(Number);
+        const tempDate = new Date(year, month - 1, day);
+        finalTimestamp = tempDate.getTime();
+      }
     } catch (err) {
       finalTimestamp = Date.now();
     }
@@ -775,13 +781,15 @@ export default function AdminPartnership() {
             প্রিন্ট স্টেটমেন্ট
           </button>
 
-          <button
+          {isSabbirRahman && (
+<button
             onClick={() => handleOpenAddForPartner('partner_1', 'investment')}
             className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white transition-all shadow-md shadow-emerald-200 flex items-center gap-2 active:scale-95"
           >
             <Plus className="w-4 h-4" />
             + নতুন বিনিয়োগ এন্ট্রি
           </button>
+)}
         </div>
       </div>
 
@@ -905,13 +913,13 @@ export default function AdminPartnership() {
                             {avatarSrc ? (
                               <img 
                                 src={avatarSrc} 
-                                alt={partner.name} 
+                                alt={partner.name || 'Partner'} 
                                 className="w-full h-full object-cover" 
                                 referrerPolicy="no-referrer"
                               />
                             ) : (
                               <span className="tracking-wider">
-                                {partner.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || `P${index + 1}`}
+                                {(partner.name || '').split(' ').filter(Boolean).map(n => n[0]).join('').slice(0, 2).toUpperCase() || `P${index + 1}`}
                               </span>
                             )}
                           </div>
@@ -938,17 +946,6 @@ export default function AdminPartnership() {
                       <span className="inline-block text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 mt-1">
                         {partner.role}
                       </span>
-                    </div>
-                  </div>
-
-                  {/* Equity Percentage Badge */}
-                  <div className="text-right">
-                    <div 
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-black"
-                      style={{ backgroundColor: `${partner.color}15`, color: partner.color }}
-                    >
-                      <Percent className="w-3 h-3" />
-                      {sharePercentage}% শেয়ার
                     </div>
                   </div>
                 </div>
@@ -1010,7 +1007,8 @@ export default function AdminPartnership() {
               </div>
 
               {/* Card Footer Quick Actions */}
-              <div className="p-4 bg-slate-50/50 border-t border-slate-100 flex items-center gap-2">
+              {isSabbirRahman && (
+<div className="p-4 bg-slate-50/50 border-t border-slate-100 flex items-center gap-2">
                 <button
                   onClick={() => handleOpenAddForPartner(partner.id, 'investment')}
                   className="flex-1 py-2 px-3 rounded-xl text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors flex items-center justify-center gap-1.5 border border-emerald-200/60 shadow-2xs"
@@ -1027,6 +1025,7 @@ export default function AdminPartnership() {
                   উত্তোলন
                 </button>
               </div>
+)}
             </div>
           );
         })}
@@ -1178,7 +1177,7 @@ export default function AdminPartnership() {
                   style={{ backgroundColor: isSelected ? p.color : undefined }}
                 >
                   <span className="w-2 h-2 rounded-full" style={{ backgroundColor: isSelected ? '#fff' : p.color }} />
-                  {p.name.split(' ')[0]} ({count})
+                  {(p.name || '').split(' ')[0] || p.id} ({count})
                 </button>
               );
             })}
@@ -1315,13 +1314,13 @@ export default function AdminPartnership() {
                                 {avatarSrc ? (
                                   <img 
                                     src={avatarSrc} 
-                                    alt={tx.partnerName} 
+                                    alt={tx.partnerName || 'Partner'} 
                                     className="w-full h-full object-cover" 
                                     referrerPolicy="no-referrer" 
                                   />
                                 ) : (
                                   <span>
-                                    {tx.partnerName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                                    {(tx.partnerName || '').split(' ').filter(Boolean).map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'P'}
                                   </span>
                                 )}
                               </div>
@@ -1473,9 +1472,9 @@ export default function AdminPartnership() {
                           : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
                       }`}
                     >
-                      <span className="truncate">{p.name.split(' ')[0]}</span>
+                      <span className="truncate">{(p.name || '').split(' ')[0] || p.id}</span>
                       <span className={`text-[10px] truncate ${formData.partnerId === p.id ? 'text-slate-300' : 'text-slate-400'}`}>
-                        {p.role.split('&')[0]}
+                        {(p.role || '').split('&')[0] || 'Partner'}
                       </span>
                     </button>
                   ))}
@@ -1716,12 +1715,12 @@ export default function AdminPartnership() {
                         {currentAvatar ? (
                           <img 
                             src={currentAvatar} 
-                            alt={p.name} 
+                            alt={p.name || 'Partner'} 
                             className="w-full h-full object-cover" 
                             referrerPolicy="no-referrer" 
                           />
                         ) : (
-                          <span>{p.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'P'}</span>
+                          <span>{(p.name || '').split(' ').filter(Boolean).map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'P'}</span>
                         )}
                       </div>
 
@@ -1842,87 +1841,402 @@ export default function AdminPartnership() {
         </div>
       )}
 
-      {/* MODAL 3: Print Statement Modal */}
+      {/* MODAL 3: A4 Print Statement Modal */}
       {showPrintStatementModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div>
-                <h2 className="text-xl font-black text-slate-900">Elegan BD — ৩ পার্টনারশিপ মূলধন স্টেটমেন্ট</h2>
-                <p className="text-xs text-slate-500">তারিখ: {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-start overflow-y-auto p-2 sm:p-6 font-sans">
+          
+          {/* Top Control Bar (Screen Only - No Print) */}
+          <div className="no-print w-full max-w-[210mm] bg-white/95 backdrop-blur-md rounded-2xl p-4 mb-4 shadow-xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 sticky top-2 z-50">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shadow-2xs">
+                <Printer size={20} />
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => window.print()}
-                  className="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs flex items-center gap-2"
-                >
-                  <Printer className="w-4 h-4" />
-                  প্রিন্ট করুন
-                </button>
-                <button
-                  onClick={() => setShowPrintStatementModal(false)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+              <div>
+                <h3 className="text-sm font-black text-slate-900">A4 Partnership Capital Statement</h3>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  A4 পেপারে প্রিন্ট বা PDF ডাউনলোড করার জন্য প্রস্তুত
+                </p>
               </div>
             </div>
 
-            {/* Printable summary */}
-            <div className="grid grid-cols-3 gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
-              <div>
-                <span className="text-xs text-slate-500 block">মোট বিনিয়োগ</span>
-                <span className="text-lg font-black text-emerald-700">{formatPrice(overallTotals.totalInvested)}</span>
-              </div>
-              <div>
-                <span className="text-xs text-slate-500 block">মোট উত্তোলন</span>
-                <span className="text-lg font-black text-amber-700">{formatPrice(overallTotals.totalWithdrawn)}</span>
-              </div>
-              <div>
-                <span className="text-xs text-slate-500 block">বর্তমান কার্যকর মূলধন</span>
-                <span className="text-lg font-black text-indigo-700">{formatPrice(overallTotals.netActiveCapital)}</span>
-              </div>
-            </div>
+            <div className="flex items-center gap-2.5 flex-wrap justify-end w-full sm:w-auto">
+              <label className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold cursor-pointer select-none hover:bg-slate-200 transition-all">
+                <input 
+                  type="checkbox" 
+                  checked={includeLedgerInPrint} 
+                  onChange={(e) => setIncludeLedgerInPrint(e.target.checked)}
+                  className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                />
+                <span>লেনদেন হিস্ট্রি যুক্ত করুন</span>
+              </label>
 
-            {/* Partner wise table */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">পার্টনারভিত্তিক মূলধন সামারি</h4>
-              <table className="w-full text-xs text-left border border-slate-200 rounded-xl overflow-hidden">
-                <thead className="bg-slate-100 text-slate-600 font-bold">
-                  <tr>
-                    <th className="p-2.5">পার্টনারের নাম</th>
-                    <th className="p-2.5">পদবি</th>
-                    <th className="p-2.5 text-right">মোট বিনিয়োগ</th>
-                    <th className="p-2.5 text-right">মোট উত্তোলন</th>
-                    <th className="p-2.5 text-right">নেট ব্যালেন্স</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {partners.map(p => {
-                    const stats = partnerStats[p.id] || { totalInvested: 0, totalWithdrawn: 0, netCapital: 0 };
-                    return (
-                      <tr key={p.id}>
-                        <td className="p-2.5 font-bold text-slate-900">{p.name}</td>
-                        <td className="p-2.5 text-slate-500">{p.role}</td>
-                        <td className="p-2.5 text-right font-semibold text-emerald-700">{formatPrice(stats.totalInvested)}</td>
-                        <td className="p-2.5 text-right font-semibold text-amber-700">-{formatPrice(stats.totalWithdrawn)}</td>
-                        <td className="p-2.5 text-right font-black text-slate-900">{formatPrice(stats.netCapital)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-2 shadow-md shadow-blue-500/20 transition-all active:scale-95 cursor-pointer"
+              >
+                <Printer className="w-4 h-4" />
+                <span>A4 প্রিন্ট / Save PDF</span>
+              </button>
 
-            {/* Signatures */}
-            <div className="pt-8 grid grid-cols-3 gap-8 text-center text-xs text-slate-500 border-t border-slate-100">
-              {partners.map(p => (
-                <div key={p.id} className="space-y-1">
-                  <div className="border-b border-slate-300 w-32 mx-auto mb-2" />
-                  <p className="font-bold text-slate-800">{p.name}</p>
-                  <p className="text-[11px] text-slate-400">{p.role}</p>
+              <button
+                type="button"
+                onClick={() => setShowPrintStatementModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
+                title="বন্ধ করুন"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Dynamic Print CSS Injection for A4 Paper */}
+          <style dangerouslySetInnerHTML={{ __html: `
+            @media print {
+              @page {
+                size: A4 portrait;
+                margin: 8mm 10mm 8mm 10mm;
+              }
+              body * {
+                visibility: hidden !important;
+              }
+              #partnership-print-sheet, #partnership-print-sheet * {
+                visibility: visible !important;
+              }
+              #partnership-print-sheet {
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                min-height: 100% !important;
+                margin: 0 !important;
+                padding: 4mm 6mm !important;
+                box-shadow: none !important;
+                border: none !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              .no-print {
+                display: none !important;
+              }
+            }
+          `}} />
+
+          {/* The Exact A4 Document Sheet (Screen Preview & Print Target) */}
+          <div 
+            id="partnership-print-sheet" 
+            className="printable-sheet w-full max-w-[210mm] min-h-[297mm] bg-white text-slate-900 p-8 sm:p-12 shadow-2xl border border-slate-200 rounded-lg box-border flex flex-col justify-between space-y-6"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
+            {/* Top Accent Strip */}
+            <div className="space-y-6">
+              
+              {/* Document Header with Brand Logo & Metadata */}
+              <div className="flex items-start justify-between border-b-2 border-slate-900 pb-5 gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-slate-900 p-2 flex items-center justify-center shrink-0 border border-slate-200">
+                    <img 
+                      src={logoUrl || '/logo.png'} 
+                      alt="Elegan BD" 
+                      className="w-full h-full object-contain filter invert"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">ELEGAN BD LIMITED</h1>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-slate-900 text-white tracking-wider">
+                        Official Record
+                      </span>
+                    </div>
+                    <p className="text-xs font-bold text-slate-700">
+                      PARTNERSHIP CAPITAL & EQUITY STATEMENT • ৩ পার্টনারের মূলধন স্টেটমেন্ট
+                    </p>
+                    <p className="text-[10px] text-slate-500">
+                      Corporate Office: House #12, Sector #11, Uttara, Dhaka | eleganbd.ltd@gmail.com | +880 1766-386293
+                    </p>
+                  </div>
                 </div>
-              ))}
+
+                {/* Statement Reference Box */}
+                <div className="text-right space-y-1 shrink-0 bg-slate-50 border border-slate-200/90 rounded-xl p-2.5 min-w-[170px]">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Document Ref</div>
+                  <div className="text-xs font-black text-slate-900 font-mono">
+                    EBD-CAP-{new Date().getFullYear()}{String(new Date().getMonth() + 1).padStart(2, '0')}{String(new Date().getDate()).padStart(2, '0')}
+                  </div>
+                  <div className="text-[10px] text-slate-600 font-medium">
+                    তারিখ: {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
+                  </div>
+                  <div className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                    <CheckCircle2 size={10} /> Verified & Audited
+                  </div>
+                </div>
+              </div>
+
+              {/* 3 Executive High-Contrast Highlight Metric Boxes */}
+              <div className="grid grid-cols-3 gap-3.5">
+                <div className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/50 text-center space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 flex items-center justify-center gap-1">
+                    <ArrowUpRight size={13} className="text-emerald-600" />
+                    <span>মোট মূলধন বিনিয়োগ</span>
+                  </div>
+                  <div className="text-xl sm:text-2xl font-black text-emerald-700 tracking-tight">
+                    {formatPrice(overallTotals.totalInvested)}
+                  </div>
+                  <div className="text-[9px] text-emerald-700/80 font-medium">
+                    ৩ জন পার্টনারের সর্বমোট মূলধন ডিপোজিট
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/50 text-center space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-amber-800 flex items-center justify-center gap-1">
+                    <ArrowDownRight size={13} className="text-amber-600" />
+                    <span>মোট মূলধন উত্তোলন</span>
+                  </div>
+                  <div className="text-xl sm:text-2xl font-black text-amber-700 tracking-tight">
+                    {formatPrice(overallTotals.totalWithdrawn)}
+                  </div>
+                  <div className="text-[9px] text-amber-700/80 font-medium">
+                    পার্টনারদের মোট উত্তোলন / ড্রয়িংস
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-xl border border-indigo-200 bg-indigo-50/50 text-center space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-800 flex items-center justify-center gap-1">
+                    <Wallet size={13} className="text-indigo-600" />
+                    <span>বর্তমান কার্যকর মূলধন</span>
+                  </div>
+                  <div className="text-xl sm:text-2xl font-black text-indigo-700 tracking-tight">
+                    {formatPrice(overallTotals.netActiveCapital)}
+                  </div>
+                  <div className="text-[9px] text-indigo-700/80 font-medium">
+                    চলতি সক্রিয় মূলধন ব্যালেন্স
+                  </div>
+                </div>
+              </div>
+
+              {/* Partner-Wise Detailed Equity & Capital Matrix Table */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                    <Users size={14} className="text-blue-600" />
+                    <span>পার্টনারভিত্তিক মূলধন ও ইকুইটি শেয়ার বিবরণী</span>
+                  </h3>
+                  <span className="text-[10px] text-slate-500 font-semibold">
+                    
+                  </span>
+                </div>
+
+                <table className="w-full text-xs text-left border-collapse border border-slate-300 rounded-lg overflow-hidden">
+                  <thead>
+                    <tr className="bg-slate-900 text-white font-bold text-[11px]">
+                      <th className="p-2.5 border border-slate-700 text-center w-8">#</th>
+                      <th className="p-2.5 border border-slate-700">পার্টনারের নাম ও পদবি</th>
+                      <th className="p-2.5 border border-slate-700 text-center">টার্গেট শেয়ার</th>
+                      <th className="p-2.5 border border-slate-700 text-right">মোট বিনিয়োগ</th>
+                      <th className="p-2.5 border border-slate-700 text-right">মোট উত্তোলন</th>
+                      <th className="p-2.5 border border-slate-700 text-right">নেট মূলধন ব্যালেন্স</th>
+                      <th className="p-2.5 border border-slate-700 text-center">বর্তমান শেয়ার %</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {partners.map((p, idx) => {
+                      const stats = partnerStats[p.id] || { totalInvested: 0, totalWithdrawn: 0, netCapital: 0 };
+                      const actualShare = overallTotals.netActiveCapital > 0 
+                        ? ((stats.netCapital / overallTotals.netActiveCapital) * 100).toFixed(1) 
+                        : p.targetShare.toFixed(1);
+                      const avatarSrc = getPartnerAvatar(p);
+
+                      return (
+                        <tr key={p.id} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50/70"}>
+                          <td className="p-2.5 border border-slate-200 text-center font-bold text-slate-500">
+                            {idx + 1}
+                          </td>
+                          <td className="p-2.5 border border-slate-200">
+                            <div className="flex items-center gap-2.5">
+                              <div 
+                                className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-black text-[10px] shrink-0 overflow-hidden border border-slate-200 shadow-2xs"
+                                style={{ backgroundColor: avatarSrc ? '#0f172a' : p.color }}
+                              >
+                                {avatarSrc ? (
+                                  <img 
+                                    src={avatarSrc} 
+                                    alt={p.name} 
+                                    className="w-full h-full object-cover" 
+                                    referrerPolicy="no-referrer"
+                                  />
+                                ) : (
+                                  <span>{(p.name || '').split(' ').filter(Boolean).map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'P'}</span>
+                                )}
+                              </div>
+                              <div>
+                                <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                                  <span>{p.name}</span>
+                                  {p.id === 'partner_1' && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200">
+                                      Main
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[10px] text-slate-500">{p.role} • {p.phone}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-2.5 border border-slate-200 text-center font-bold text-slate-700">
+                            {p.targetShare}%
+                          </td>
+                          <td className="p-2.5 border border-slate-200 text-right font-bold text-emerald-700">
+                            {formatPrice(stats.totalInvested)}
+                          </td>
+                          <td className="p-2.5 border border-slate-200 text-right font-bold text-amber-700">
+                            -{formatPrice(stats.totalWithdrawn)}
+                          </td>
+                          <td className="p-2.5 border border-slate-200 text-right font-black text-slate-900 text-[13px]">
+                            {formatPrice(stats.netCapital)}
+                          </td>
+                          <td className="p-2.5 border border-slate-200 text-center">
+                            <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-900 text-white">
+                              {actualShare}%
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+
+                    {/* Table Summary Total Row */}
+                    <tr className="bg-slate-100 font-black text-slate-900 border-t-2 border-slate-400">
+                      <td colSpan={2} className="p-2.5 border border-slate-300 text-right uppercase tracking-wider text-[11px]">
+                        সর্বমোট সামারি (Total Grand Summary):
+                      </td>
+                      <td className="p-2.5 border border-slate-300 text-center">100%</td>
+                      <td className="p-2.5 border border-slate-300 text-right text-emerald-800">
+                        {formatPrice(overallTotals.totalInvested)}
+                      </td>
+                      <td className="p-2.5 border border-slate-300 text-right text-amber-800">
+                        -{formatPrice(overallTotals.totalWithdrawn)}
+                      </td>
+                      <td className="p-2.5 border border-slate-300 text-right text-indigo-900 text-[13px]">
+                        {formatPrice(overallTotals.netActiveCapital)}
+                      </td>
+                      <td className="p-2.5 border border-slate-300 text-center">100.0%</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Optional Recent Transactions Ledger on A4 */}
+              {includeLedgerInPrint && transactions.length > 0 && (
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                      <Clock size={13} className="text-slate-600" />
+                      <span>সর্বশেষ মূলধন লেনদেন ও ডিপোজিট হিস্ট্রি (Recent Capital Movements)</span>
+                    </h3>
+                    <span className="text-[10px] text-slate-500">
+                      মোট রেকর্ড: {transactions.length} টি
+                    </span>
+                  </div>
+
+                  <table className="w-full text-[11px] text-left border-collapse border border-slate-200 rounded-lg overflow-hidden">
+                    <thead>
+                      <tr className="bg-slate-200/90 text-slate-800 font-bold text-[10px]">
+                        <th className="p-1.5 border border-slate-300 text-center w-8">#</th>
+                        <th className="p-1.5 border border-slate-300">তারিখ ও সময়</th>
+                        <th className="p-1.5 border border-slate-300">পার্টনারের নাম</th>
+                        <th className="p-1.5 border border-slate-300">ধরণ</th>
+                        <th className="p-1.5 border border-slate-300">পদ্ধতি ও ক্যাটাগরি</th>
+                        <th className="p-1.5 border border-slate-300 text-right">পরিমাণ (৳)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {transactions.slice(0, 8).map((tx, idx) => (
+                        <tr key={tx.id} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
+                          <td className="p-1.5 border border-slate-200 text-center text-slate-500 font-mono text-[10px]">
+                            {idx + 1}
+                          </td>
+                          <td className="p-1.5 border border-slate-200 text-slate-700 whitespace-nowrap text-[10px]">
+                            {new Date(tx.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} {tx.timeString || ''}
+                          </td>
+                          <td className="p-1.5 border border-slate-200 font-bold text-slate-900">
+                            {tx.partnerName}
+                          </td>
+                          <td className="p-1.5 border border-slate-200">
+                            <span className={`inline-block px-1.5 py-0.2 rounded text-[9px] font-bold ${
+                              tx.type === 'investment' 
+                                ? 'bg-emerald-100 text-emerald-800' 
+                                : 'bg-amber-100 text-amber-800'
+                            }`}>
+                              {tx.type === 'investment' ? 'মূলধন ডিপোজিট' : 'উত্তোলন'}
+                            </span>
+                          </td>
+                          <td className="p-1.5 border border-slate-200 text-slate-600 text-[10px]">
+                            {tx.paymentMethod} {tx.note ? `• ${tx.note}` : ''}
+                          </td>
+                          <td className={`p-1.5 border border-slate-200 text-right font-black ${
+                            tx.type === 'investment' ? 'text-emerald-700' : 'text-amber-700'
+                          }`}>
+                            {tx.type === 'investment' ? '+' : '-'}{formatPrice(tx.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Official Declaration Note */}
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[10px] text-slate-600 leading-relaxed">
+                <span className="font-bold text-slate-900">অফিশিয়াল ঘোষণা ও বিবরণ: </span>
+                এই স্টেটমেন্টটি Elegan BD Limited-এর কেন্দ্রীয় ডিজিটাল অ্যাকাউন্টস লেজার থেকে সরাসরি প্রস্তুতকৃত। ৩ জন ম্যানেজিং পার্টনারের পারস্পরিক চুক্তি ও সিদ্ধান্ত অনুসারে প্রতিটি মূলধন ডিপোজিট এবং বর্তমান শেয়ার অংশীদারিত্ব নিরীক্ষিত ও চূড়ান্ত বলে গণ্য হবে।
+              </div>
+            </div>
+
+            {/* Official 3 Partners Authorization & Signature Block (3 Columns Side by Side) */}
+            <div className="pt-6 border-t-2 border-slate-900 mt-6">
+              <div className="grid grid-cols-3 gap-6 text-center">
+                
+                {/* Partner 1 Signature */}
+                <div className="space-y-1.5">
+                  <div className="h-12 flex items-end justify-center">
+                    <div className="border-b-2 border-dashed border-slate-400 w-40" />
+                  </div>
+                  <div className="font-black text-slate-900 text-xs">Sabbir Rahman</div>
+                  <div className="text-[10px] font-bold text-slate-600">Founder & CEO</div>
+                  <div className="text-[9px] text-slate-400 pt-1">তারিখ: __________________</div>
+                </div>
+
+                {/* Partner 2 Signature */}
+                <div className="space-y-1.5">
+                  <div className="h-12 flex items-end justify-center">
+                    <div className="border-b-2 border-dashed border-slate-400 w-40" />
+                  </div>
+                  <div className="font-black text-slate-900 text-xs">Nasir Uddin</div>
+                  <div className="text-[10px] font-bold text-slate-600">Operating Partner & CEO</div>
+                  <div className="text-[9px] text-slate-400 pt-1">তারিখ: __________________</div>
+                </div>
+
+                {/* Partner 3 Signature */}
+                <div className="space-y-1.5">
+                  <div className="h-12 flex items-end justify-center">
+                    <div className="border-b-2 border-dashed border-slate-400 w-40" />
+                  </div>
+                  <div className="font-black text-slate-900 text-xs">Shamiul Islam</div>
+                  <div className="text-[10px] font-bold text-slate-600">Strategic Director & CEO</div>
+                  <div className="text-[9px] text-slate-400 pt-1">তারিখ: __________________</div>
+                </div>
+              </div>
+
+              {/* Bottom Footer Watermark */}
+              <div className="flex items-center justify-between text-[9px] text-slate-400 font-medium pt-5 border-t border-slate-100 mt-4">
+                <span>ELEGAN BD LIMITED • CENTRAL PARTNERSHIP LEDGER</span>
+                <span>SYSTEM GENERATED DOCUMENT • STRICTLY CONFIDENTIAL</span>
+                <span>PAGE 1 OF 1 (A4 PORTRAIT)</span>
+              </div>
             </div>
           </div>
         </div>

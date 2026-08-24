@@ -563,13 +563,15 @@ export default function AdminFinance(): React.JSX.Element {
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
-          <button
+          {isSabbirRahman && (
+<button
             onClick={() => setShowAddAccountModal(true)}
             className="px-4 py-2.5 bg-white hover:bg-gray-50 text-indigo-600 border border-indigo-200 rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-2xs cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>নতুন অ্যাকাউন্ট</span>
           </button>
+)}
 
           <button
             onClick={() => {
@@ -691,14 +693,12 @@ export default function AdminFinance(): React.JSX.Element {
                   <div className="pt-3.5 border-t border-gray-100 flex items-center justify-between w-full">
                     <div>
                       <span className="text-[9.5px] text-gray-400 font-bold uppercase tracking-widest block">ব্যালেন্স</span>
-                      <span className={`text-xl font-black tracking-tight mt-0.5 block ${
-                        isZeroBalance || isProductAccount ? 'text-emerald-600' : isBkash ? 'text-pink-600' : isNagad ? 'text-orange-600' : isRocket ? 'text-purple-600' : 'text-emerald-600'
-                      }`}>{formatPrice(acc.balance || 0)}</span>
+                      <span className="text-xl font-black tracking-tight mt-0.5 block text-emerald-600">
+                        {formatPrice(acc.balance || 0)}
+                      </span>
                     </div>
 
-                    <div className={`w-8 h-8 rounded-full border flex items-center justify-center bg-gray-50/60 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all duration-300 ${
-                      isBkash ? 'border-pink-100 text-pink-500' : isNagad ? 'border-orange-100 text-orange-500' : isRocket ? 'border-purple-100 text-purple-500' : 'border-emerald-100 text-emerald-500'
-                    }`}>
+                    <div className="w-8 h-8 rounded-full border border-emerald-100 text-emerald-500 flex items-center justify-center bg-gray-50/60 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all duration-300">
                       <ArrowUpRight className="w-4 h-4" />
                     </div>
                   </div>

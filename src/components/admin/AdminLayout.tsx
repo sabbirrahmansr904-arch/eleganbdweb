@@ -284,11 +284,26 @@ export default function AdminLayout() {
     return ['finance', 'partnership', 'dollar-expense', 'transaction-list', 'payments'].includes(key);
   };
 
+  const isAdminStrictKey = (key: string) => {
+    return ['admin-access', 'all-accounts'].includes(key);
+  };
+
+  const isRestrictedSabbirKey = (key: string) => {
+    return isAdminStrictKey(key);
+  };
+
   const isPermitted = (key: string) => {
-    // Strict Accounting Gate: Only Sabbir Rahman has access to accounting suite
-    if (isAccountingKey(key)) {
+    if (isAdminStrictKey(key)) {
       return !!isSabbirRahman;
     }
+    
+    if (isAccountingKey(key)) {
+      if (isSabbirRahman) return true;
+      const allowedEmails = ['nasiruddinovi2025@gmail.com', 'shamiulislamatik@gmail.com'];
+      if (currentUser?.email && allowedEmails.includes(currentUser.email)) return true;
+      return false;
+    }
+
     if (isSuperAdmin) return true;
     if (key === 'my-account') return true;
     if (!permissions || permissions.length === 0) return false;
@@ -300,10 +315,8 @@ export default function AdminLayout() {
     if (key === 'master-table' && (permissions.includes('masterTable') || permissions.includes('master-table'))) return true;
     if (key === 'masterTable' && (permissions.includes('masterTable') || permissions.includes('master-table'))) return true;
     if (key === 'inventory-log' && (permissions.includes('inventory-log') || permissions.includes('masterTable') || permissions.includes('master-table'))) return true;
-    if (key === 'admin-access' && (permissions.includes('admin-access') || permissions.includes('all-accounts') || permissions.includes('settings'))) return true;
-    if (key === 'all-accounts' && (permissions.includes('admin-access') || permissions.includes('all-accounts') || permissions.includes('settings'))) return true;
     if (key === 'media' && (permissions.includes('media') || permissions.includes('products') || permissions.includes('settings'))) return true;
-    if (['categories', 'branding', 'banners', 'notifications', 'media', 'pathao', 'admin-access'].includes(key) && permissions.includes('settings')) return true;
+    if (['categories', 'branding', 'banners', 'notifications', 'media', 'pathao'].includes(key) && permissions.includes('settings')) return true;
     return false;
   };
 
@@ -922,11 +935,11 @@ export default function AdminLayout() {
                 <Lock size={32} />
               </div>
               <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-2">
-                {isAccountingKey(currentRequiredPerm || '') ? 'Accounting Restricted • অ্যাকাউন্টিং সংরক্ষিত' : 'Access Restricted • এক্সেস সীমিত'}
+                {isRestrictedSabbirKey(currentRequiredPerm || '') ? 'Access Restricted • শুধুমাত্র সাব্বির রহমানের জন্য সংরক্ষিত' : 'Access Restricted • এক্সেস সীমিত'}
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400 max-w-lg mb-6 leading-relaxed">
-                {isAccountingKey(currentRequiredPerm || '')
-                  ? 'অ্যাকাউন্টিং সেকশনের (Finance, Partnership, Transaction List, Dollar Expense, Pay Method) পূর্ণ দায়িত্ব ও এডিট/মডিফাই এক্সেস শুধুমাত্র সাব্বির রহমান (Sabbir Rahman) এর একাউন্টে সীমাবদ্ধ। অন্য কোনো এডমিন একাউন্ট থেকে এই পেজের ডেটা পরিবর্তন বা এডিট করা সম্ভব নয়।'
+                {isRestrictedSabbirKey(currentRequiredPerm || '')
+                  ? 'এই সেকশনের (All Accounts, Admin Access) পূর্ণ এক্সেস শুধুমাত্র সাব্বির রহমান (Sabbir Rahman)-এর অ্যাকাউন্টে সীমাবদ্ধ। অন্য কোনো এডমিন অ্যাকাউন্ট থেকে এই পেজ দেখার অনুমতি নেই।'
                   : `আপনার এডমিন অ্যাকাউন্টে এই মডিউলটি (${currentRequiredPerm?.toUpperCase()}) ব্যবহারের পারমিশন দেওয়া হয়নি। আপনি শুধুমাত্র আপনার জন্য নির্ধারিত অনুমোদিত মডিউলে কাজ করতে পারবেন।`}
               </p>
               <Link

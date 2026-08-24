@@ -1276,7 +1276,7 @@ export default function AdminSettings() {
   };
 
   useEffect(() => {
-    if (activeTab === 'Admin Access' && isSuperAdmin) {
+    if (activeTab === 'Admin Access' && isSabbirRahman) {
       loadAdminConfigAndList();
     }
     return () => {
@@ -1284,7 +1284,7 @@ export default function AdminSettings() {
         unsubAdminsRef.current();
       }
     };
-  }, [activeTab, isSuperAdmin]);
+  }, [activeTab, isSabbirRahman]);
 
   const handleOpenAddModal = () => {
     setIsEditingAccess(false);
@@ -1463,7 +1463,7 @@ export default function AdminSettings() {
     const params = new URLSearchParams(location.search);
     const tabParam = params.get('tab');
     
-    if (tabParam === 'Admin Access' && !isSuperAdmin) {
+    if (tabParam === 'Admin Access' && !isSabbirRahman) {
       setActiveTab('General');
     } else if (tabParam) {
       setActiveTab(tabParam);
@@ -1472,7 +1472,7 @@ export default function AdminSettings() {
     } else {
       setActiveTab('General');
     }
-  }, [location.pathname, location.search, isSuperAdmin]);
+  }, [location.pathname, location.search, isSabbirRahman]);
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -2111,7 +2111,7 @@ export default function AdminSettings() {
 
 
           
-          {activeTab === 'Admin Access' && isSuperAdmin && (
+          {activeTab === 'Admin Access' && isSabbirRahman && (
             <div className="space-y-10 max-w-4xl relative z-10 font-sans">
               <div className="space-y-8">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-6">
