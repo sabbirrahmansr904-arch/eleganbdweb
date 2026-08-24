@@ -33,6 +33,7 @@ import { useCategories } from '../../contexts/CategoryContext';
 import { Product } from '../../types';
 import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
+import { autoSaveToMediaLibrary } from '../../utils/mediaLibrary';
 
 const SHIRT_SIZES = ['M', 'L', 'XL', 'XXL'];
 const PANT_SIZES = ['28', '30', '32', '34', '36', '38', '40'];
@@ -173,6 +174,13 @@ export default function AdminAddProduct() {
             newImages.push(dataUrl);
           }
           setUploadedImages(newImages);
+
+          // Auto save uploaded image to Media Library
+          autoSaveToMediaLibrary(dataUrl, {
+            name: file.name ? file.name.replace(/\.[^/.]+$/, "") : `Product Photo ${index + 1}`,
+            category: 'Product Catalog',
+            source: 'product'
+          });
         };
         img.src = reader.result as string;
       };

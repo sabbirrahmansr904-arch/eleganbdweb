@@ -260,7 +260,7 @@ export const BankLogoBadge: React.FC<BankLogoBadgeProps> = ({
   // 1. If user uploaded a custom image from device / URL (and no error), render it!
   if (isCustomUploaded && !imgError) {
     return (
-      <div className={`bg-white border border-gray-200/80 shadow-xs flex items-center justify-center overflow-hidden shrink-0 transition-transform duration-200 ${sizeClasses[size]} ${className}`}>
+      <div className={`bg-transparent border border-gray-200/40 shadow-2xs flex items-center justify-center overflow-hidden shrink-0 transition-transform duration-200 ${sizeClasses[size]} ${className}`}>
         <img
           src={logoUrl}
           alt={bankName}

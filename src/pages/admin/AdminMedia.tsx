@@ -263,7 +263,7 @@ export default function AdminMedia() {
           url: dm.url,
           filename: dm.name || extractFilename(dm.url, 'uploaded_media.webp'),
           title: dm.name || 'Uploaded Media Asset',
-          source: 'uploaded',
+          source: (dm.source as MediaSource) || 'uploaded',
           category: dm.category || 'General Asset',
           createdAt: dm.createdAt || Date.now(),
           uploadedBy: dm.uploadedBy || 'Admin',

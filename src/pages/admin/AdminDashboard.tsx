@@ -29,7 +29,8 @@ import {
   FileText,
   AlertCircle,
   Bell,
-  Users
+  Users,
+  Calendar
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import toast from 'react-hot-toast';
@@ -1190,8 +1191,8 @@ export default function AdminDashboard(): React.JSX.Element {
         </div>
       </div>
 
-      {/* ROW 1: 4-COLUMN METRICS GRID - MATCHING THE PICTURE */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* ROW 1: 5-COLUMN METRICS GRID - MATCHING THE PICTURE */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
         
         {/* CARD 1: Total Sales */}
         <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:shadow-xs transition-all">
@@ -1412,6 +1413,63 @@ export default function AdminDashboard(): React.JSX.Element {
           </div>
         </div>
 
+        {/* CARD 5: Sales This Month */}
+        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:shadow-xs transition-all">
+          <div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#FAF5FF] text-[#8B5CF6] flex items-center justify-center shadow-2xs">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-gray-400">Sales This Month</span>
+                </div>
+              </div>
+              <button className="text-gray-400 hover:text-gray-900 p-1 rounded-lg hover:bg-gray-50 transition-colors">
+                <MoreVertical className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="mt-4">
+              <h3 className="text-2xl font-black text-gray-900 tracking-tight">
+                {formatPrice(salesThisMonth.total, currency, rate)}
+              </h3>
+              <p className="text-[11px] font-black text-purple-600/90 mt-1">
+                {salesThisMonth.count} Orders (চলতি মাসের বিক্রি)
+              </p>
+            </div>
+          </div>
+
+          {/* Trend & Sparkline */}
+          <div className="flex items-end justify-between mt-2 pt-2 border-t border-gray-50/50">
+            <span className={`inline-flex items-center gap-1 text-[11px] font-black ${monthlyStats.revenueGrowth >= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'} px-2 py-0.5 rounded-md`}>
+              {monthlyStats.revenueGrowth >= 0 ? `↑ ${monthlyStats.revenueGrowth}%` : `↓ ${Math.abs(monthlyStats.revenueGrowth)}%`} <span className="text-gray-400 font-bold text-[10px]">vs last month</span>
+            </span>
+            <div className="w-20 h-8">
+              <svg width="80" height="32" viewBox="0 0 80 32" className="text-[#8B5CF6]">
+                <path
+                  d="M0 20 C15 25, 25 10, 40 15 C55 20, 65 5, 80 12"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M0 20 C15 25, 25 10, 40 15 C55 20, 65 5, 80 12 L80 32 L0 32 Z"
+                  fill="url(#sparkline-purple)"
+                  opacity="0.1"
+                />
+                <defs>
+                  <linearGradient id="sparkline-purple-2" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#8B5CF6" />
+                    <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       {/* ROW 2: SALES REPORT (FULL WIDTH) */}
@@ -1451,19 +1509,7 @@ export default function AdminDashboard(): React.JSX.Element {
               ))}
             </div>
 
-            {/* Export PDF Button */}
-            <button
-              onClick={() => {
-                toast.success('Preparing Sales Report PDF export...');
-                setTimeout(() => {
-                  toast.success('Sales report PDF exported successfully!');
-                }, 800);
-              }}
-              className="flex items-center gap-1.5 bg-[#F8F9FD] border border-gray-200 hover:bg-gray-50 text-gray-700 px-3.5 py-1.5 rounded-lg text-[10px] font-black transition-all shadow-2xs cursor-pointer"
-            >
-              <FileText className="w-3.5 h-3.5 text-gray-500" />
-              <span>Export PDF</span>
-            </button>
+
           </div>
         </div>
 

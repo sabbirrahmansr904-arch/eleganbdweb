@@ -39,7 +39,6 @@ import {
   ShoppingCart,
   Edit3,
   Trash2,
-  DollarSign,
   Clock,
   Download
 } from 'lucide-react';
@@ -2271,19 +2270,6 @@ export default function AdminOrders(): React.JSX.Element {
                               className="p-1 rounded-md transition-all text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8F9FD] hover:shadow-sm cursor-pointer"
                             >
                               <Tag size={13} className="stroke-[2.5]" />
-                            </button>
-                            
-                            <div className="w-[1px] h-3.5 bg-[#E2E8F0] mx-0.5" />
-                            
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleStatusChange(order.id, 'Processing');
-                              }} 
-                              title="Mark as Paid/Processing"
-                              className="p-1 hover:bg-[#F8F9FD] hover:shadow-sm rounded-md transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
-                            >
-                              <DollarSign size={13} className="stroke-[2.5]" />
                             </button>
                             
                             <div className="w-[1px] h-3.5 bg-[#E2E8F0] mx-0.5" />

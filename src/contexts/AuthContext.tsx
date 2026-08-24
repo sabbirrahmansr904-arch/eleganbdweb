@@ -13,6 +13,8 @@ interface AuthContextType {
   isAdmin: boolean;
   isSuperAdmin: boolean;
   isCEO: boolean;
+  isSabbirRahman: boolean;
+  canManageAccounting: boolean;
   department: string;
   permissions: string[];
   loading: boolean;
@@ -24,6 +26,24 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const isSabbirEmail = (email: string | null | undefined, displayName?: string | null | undefined): boolean => {
+  if (!email && !displayName) return false;
+  const e = (email || '').toLowerCase().trim();
+  const d = (displayName || '').toLowerCase().trim();
+  return (
+    e === 'sabbirrahmansr904@gmail.com' ||
+    e.startsWith('sabbirrahmansr904') ||
+    d.includes('sabbir rahman')
+  );
+};
+
+export const ACCOUNTING_PERMISSIONS = ['finance', 'dollar-expense', 'partnership', 'transaction-list', 'payments'];
+
+export const filterPermsForUser = (perms: string[], isSabbir: boolean): string[] => {
+  if (isSabbir) return perms;
+  return perms.filter(p => !ACCOUNTING_PERMISSIONS.includes(p) && p !== 'all');
+};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -38,6 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isCEO, setIsCEO] = useState(false);
+  const [isSabbirRahman, setIsSabbirRahman] = useState(false);
   const [department, setDepartment] = useState<string>('Sales Executive Department');
   const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,11 +126,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const superStatus = isSuperAdminEmail(auth.currentUser.email) || ceoStatus;
       setIsSuperAdmin(superStatus);
 
+      const sabbirStatus = isSabbirEmail(auth.currentUser.email, auth.currentUser.displayName);
+      setIsSabbirRahman(sabbirStatus);
+
       let fetchedDept = ceoStatus ? 'CEO & Founder' : (superStatus ? 'CEO & Founder' : 'Sales Executive Department');
+
+      const allBasePerms = ['dashboard', 'customer-profiler', 'my-account', 'all-accounts', 'admin-access', 'orders', 'exchanges', 'issues', 'products', 'categories', 'masterTable', 'master-table', 'inventory-log', 'finance', 'dollar-expense', 'partnership', 'transaction-list', 'payments', 'settings', 'branding', 'banners', 'notifications', 'media', 'pathao', 'customers', 'all'];
 
       if (superStatus || ceoStatus) {
         setIsAdmin(true);
-        setPermissions(['dashboard', 'customer-profiler', 'my-account', 'all-accounts', 'admin-access', 'orders', 'exchanges', 'issues', 'products', 'categories', 'masterTable', 'master-table', 'inventory-log', 'finance', 'dollar-expense', 'transaction-list', 'payments', 'settings', 'branding', 'banners', 'notifications', 'media', 'pathao', 'customers', 'all']);
+        setPermissions(sabbirStatus ? allBasePerms : filterPermsForUser(allBasePerms, false));
         if (email) {
           const permDoc = await getDoc(doc(db, 'admin_permissions', email));
           if (permDoc.exists() && permDoc.data()?.department) {
@@ -151,22 +177,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
 
           if (directPerms !== null) {
+            const finalPerms = filterPermsForUser(directPerms, sabbirStatus);
             await setDoc(adminRef, {
               role: userRole,
               email: auth.currentUser.email,
               department: fetchedDept,
-              permissions: directPerms,
+              permissions: finalPerms,
               updatedAt: Date.now()
             }, { merge: true });
             setIsAdmin(true);
-            setPermissions(directPerms);
+            setPermissions(finalPerms);
             setDepartment(fetchedDept);
           } else {
             const adminDoc = await getDoc(adminRef);
             if (adminDoc.exists()) {
               const aData = adminDoc.data();
               setIsAdmin(true);
-              const aPerms = aData?.permissions || [];
+              const aPerms = filterPermsForUser(aData?.permissions || [], sabbirStatus);
               setPermissions(aPerms);
               if (aData?.department) fetchedDept = aData.department;
               if (aData?.role === 'ceo' || aData?.role === 'super-admin' || fetchedDept.toLowerCase().includes('ceo')) {
@@ -189,6 +216,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else {
       setIsAdmin(false);
       setIsSuperAdmin(false);
+      setIsCEO(false);
+      setIsSabbirRahman(false);
       setPermissions([]);
       setDepartment('Sales Executive Department');
     }
@@ -205,13 +234,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const superStatus = isSuperAdminEmail(user.email) || ceoStatus;
         setIsSuperAdmin(superStatus);
 
+        const sabbirStatus = isSabbirEmail(user.email, user.displayName);
+        setIsSabbirRahman(sabbirStatus);
+
         let fetchedDept = ceoStatus ? 'CEO & Founder' : (superStatus ? 'CEO & Founder' : 'Sales Executive Department');
         
         let adminStatus = superStatus;
+        const allBasePerms = ['dashboard', 'customer-profiler', 'my-account', 'all-accounts', 'admin-access', 'orders', 'exchanges', 'issues', 'products', 'categories', 'masterTable', 'master-table', 'inventory-log', 'finance', 'dollar-expense', 'partnership', 'transaction-list', 'payments', 'settings', 'branding', 'banners', 'notifications', 'media', 'pathao', 'customers', 'all'];
+
         try {
           if (superStatus || ceoStatus) {
             setIsAdmin(true);
-            setPermissions(['dashboard', 'customer-profiler', 'my-account', 'all-accounts', 'admin-access', 'orders', 'exchanges', 'issues', 'products', 'categories', 'masterTable', 'master-table', 'inventory-log', 'finance', 'dollar-expense', 'transaction-list', 'payments', 'settings', 'branding', 'banners', 'notifications', 'media', 'pathao', 'customers', 'all']);
+            setPermissions(sabbirStatus ? allBasePerms : filterPermsForUser(allBasePerms, false));
             
             if (email) {
               const permDoc = await getDoc(doc(db, 'admin_permissions', email));
@@ -228,7 +262,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 role: ceoStatus ? 'ceo' : 'super-admin', 
                 email: user.email,
                 department: fetchedDept,
-                permissions: ['all', 'dashboard', 'customer-profiler', 'my-account', 'all-accounts', 'admin-access', 'orders', 'exchanges', 'issues', 'products', 'categories', 'masterTable', 'master-table', 'inventory-log', 'finance', 'dollar-expense', 'transaction-list', 'payments', 'settings', 'branding', 'banners', 'notifications', 'media', 'pathao', 'customers'],
+                permissions: sabbirStatus ? allBasePerms : filterPermsForUser(allBasePerms, false),
                 updatedAt: Date.now() 
               });
             }
@@ -277,16 +311,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             if (directPerms !== null) {
+              const finalPerms = filterPermsForUser(directPerms, sabbirStatus);
               await setDoc(adminRef, {
                 role: userRole,
                 email: user.email,
                 department: fetchedDept,
-                permissions: directPerms,
+                permissions: finalPerms,
                 updatedAt: Date.now()
               }, { merge: true });
               setIsAdmin(true);
               adminStatus = true;
-              setPermissions(directPerms);
+              setPermissions(finalPerms);
               setDepartment(fetchedDept);
             } else {
               const adminDoc = await getDoc(adminRef);
@@ -294,7 +329,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const aData = adminDoc.data();
                 setIsAdmin(true);
                 adminStatus = true;
-                setPermissions(aData?.permissions || []);
+                const finalPerms = filterPermsForUser(aData?.permissions || [], sabbirStatus);
+                setPermissions(finalPerms);
                 if (aData?.department) fetchedDept = aData.department;
                 if (aData?.role === 'ceo' || aData?.role === 'super-admin' || fetchedDept.toLowerCase().includes('ceo')) {
                   setIsCEO(true);
@@ -316,7 +352,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setIsAdmin(superStatus);
           adminStatus = superStatus;
           setDepartment(fetchedDept);
-          setPermissions(superStatus ? ['dashboard', 'customers', 'orders', 'products', 'issues', 'masterTable', 'finance', 'settings'] : []);
+          const fallbackPerms = superStatus ? ['dashboard', 'customers', 'orders', 'products', 'issues', 'masterTable', 'finance', 'settings'] : [];
+          setPermissions(filterPermsForUser(fallbackPerms, sabbirStatus));
         }
 
         // Set customerUser if not admin
@@ -329,6 +366,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsAdmin(false);
         setIsSuperAdmin(false);
         setIsCEO(false);
+        setIsSabbirRahman(false);
         setPermissions([]);
         setDepartment('Sales Executive Department');
       }
@@ -344,11 +382,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const email = currentUser.email ? currentUser.email.toLowerCase().trim() : '';
     if (!email) return;
 
+    const sabbirStatus = isSabbirEmail(currentUser.email, currentUser.displayName);
+
     const unsub = onSnapshot(doc(db, 'admin_permissions', email), (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
         if (data.permissions && Array.isArray(data.permissions)) {
-          setPermissions(data.permissions);
+          setPermissions(filterPermsForUser(data.permissions, sabbirStatus));
         }
         if (data.department) {
           setDepartment(data.department);
@@ -425,6 +465,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAdmin,
       isSuperAdmin,
       isCEO,
+      isSabbirRahman,
+      canManageAccounting: isSabbirRahman,
       department,
       permissions,
       loading, 

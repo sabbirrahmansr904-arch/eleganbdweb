@@ -26,6 +26,7 @@ import { Banner } from '../../../types';
 import toast from 'react-hot-toast';
 import { cn } from '../../../lib/utils';
 import { compressImage } from '../../../utils/imageCompressor';
+import { autoSaveToMediaLibrary } from '../../../utils/mediaLibrary';
 
 export default function BannerSettings() {
   const [activeTab, setActiveTab] = useState<'design' | 'banners' | 'promo' | 'offer'>('design');
@@ -119,7 +120,8 @@ export default function BannerSettings() {
           ? await compressImage(file, 600, 800, 0.75)
           : await compressImage(file, 1200, 675, 0.75);
         setter(result);
-        toast.success(`${key} updated successfully.`, { id: loadingToast });
+        autoSaveToMediaLibrary(result, { name: `Banner: ${key}`, category: 'Banners & Sliders', source: 'banner' });
+        toast.success(`${key} updated successfully and saved to Media Library.`, { id: loadingToast });
       } catch (err) {
         toast.error(`Failed to compress and upload banner.`, { id: loadingToast });
       }
@@ -137,6 +139,7 @@ export default function BannerSettings() {
       try {
         const result = await compressImage(file, 1600, 900, 0.8);
         setFormData(prev => ({ ...prev, image: result }));
+        autoSaveToMediaLibrary(result, { name: `Hero Banner Slider: ${file.name.replace(/\.[^/.]+$/, "") || 'Slider'}`, category: 'Banners & Sliders', source: 'banner' });
       } catch (err) {
         toast.error('Failed to compress image.');
       }
@@ -211,7 +214,8 @@ export default function BannerSettings() {
         const result = await compressImage(file, 1200, 675, 0.8);
         setLocalComboOfferBannerUrl(result);
         setComboOfferBannerUrl(result);
-        toast.success('অফিস ভিজিট ব্যানার ছবি সফলভাবে আপডেট হয়েছে!', { id: loadingToast });
+        autoSaveToMediaLibrary(result, { name: 'Combo Offer Banner', category: 'Banners & Sliders', source: 'banner' });
+        toast.success('অফিস ভিজিট ব্যানার ছবি সফলভাবে আপডেট ও মিডিয়াতে সেভ হয়েছে!', { id: loadingToast });
       } catch (err) {
         toast.error('ছবি আপলোড করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।', { id: loadingToast });
       }

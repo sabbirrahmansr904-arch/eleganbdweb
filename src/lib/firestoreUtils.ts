@@ -74,10 +74,14 @@ export function isQuotaError(error: unknown): boolean {
                   lowerStr.includes('free tier database') ||
                   lowerStr.includes('firestore.googleapis.com') ||
                   lowerStr.includes('project_number:905794080701') ||
+                  lowerStr.includes('internal assertion failed') ||
+                  lowerStr.includes('unexpected state') ||
+                  lowerStr.includes('ca9') ||
+                  lowerStr.includes('b815') ||
                   (error as any)?.code === 'resource-exhausted' ||
                   (error as any)?.code === 'RESOURCE_EXHAUSTED';
 
-  if (matched) {
+  if (matched && (lowerStr.includes('quota') || lowerStr.includes('resource-exhausted') || lowerStr.includes('resource_exhausted') || lowerStr.includes('read units'))) {
     setQuotaExceededState(true);
   }
   return matched;

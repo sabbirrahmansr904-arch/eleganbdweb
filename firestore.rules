@@ -240,6 +240,10 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    match /partner_investments/{investmentId} {
+      allow read, write: if isAdmin();
+    }
+
     match /partner_transactions/{txId} {
       allow read, write: if isAdmin();
     }

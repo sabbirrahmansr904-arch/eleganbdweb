@@ -54,14 +54,18 @@ import AdminSettings from './pages/admin/AdminSettings';
 import AdminInventoryOverview from './pages/admin/AdminInventoryOverview';
 import AdminMasterTable from './pages/admin/AdminMasterTable';
 import AdminInventoryLog from './pages/admin/AdminInventoryLog';
+import AdminStockIn from './pages/admin/AdminStockIn';
+import AdminStockOut from './pages/admin/AdminStockOut';
 import AdminExchanges from './pages/admin/AdminExchanges';
 import AdminIssues from './pages/admin/AdminIssues';
 import AdminMedia from './pages/admin/AdminMedia';
+import AdminStockCheck from './pages/admin/AdminStockCheck';
 import FixSizes from './pages/admin/FixSizes';
 import AdminExpenses from './pages/admin/AdminExpenses';
 import AdminFinance from './pages/admin/AdminFinance';
 import AdminTransactionList from './pages/admin/AdminTransactionList';
 import AdminDollarExpenses from './pages/admin/AdminDollarExpenses';
+import AdminPartnership from './pages/admin/AdminPartnership';
 import AdminAccounts from './pages/admin/AdminAccounts';
 import AdminMyAccount from './pages/admin/AdminMyAccount';
 
@@ -132,11 +136,14 @@ function AppRoutes() {
           <Route path="customer-profiler" element={<AdminCustomerProfiler />} />
           <Route path="all-accounts" element={<AdminAccounts />} />
           <Route path="all-account" element={<AdminAccounts />} />
+          <Route path="stock-check" element={<AdminStockCheck />} />
           <Route path="my-account" element={<AdminMyAccount />} />
           <Route path="account" element={<AdminMyAccount />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="inventory" element={<AdminInventoryOverview />} />
           <Route path="master-table" element={<AdminMasterTable />} />
+          <Route path="stock-in" element={<AdminStockIn />} />
+          <Route path="stock-out" element={<AdminStockOut />} />
           <Route path="inventory-log" element={<AdminInventoryLog />} />
           <Route path="exchanges" element={<AdminExchanges />} />
           <Route path="issues" element={<AdminIssues />} />
@@ -144,6 +151,8 @@ function AppRoutes() {
           <Route path="fix-sizes" element={<FixSizes />} />
           <Route path="expenses" element={<AdminExpenses />} />
           <Route path="finance" element={<AdminFinance />} />
+          <Route path="partnership" element={<AdminPartnership />} />
+          <Route path="partners" element={<AdminPartnership />} />
           <Route path="transaction-list" element={<AdminTransactionList />} />
           <Route path="dollar-expenses" element={<AdminDollarExpenses />} />
         </Route>

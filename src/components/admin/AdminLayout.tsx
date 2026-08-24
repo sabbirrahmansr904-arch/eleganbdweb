@@ -47,12 +47,17 @@ import {
   Coins,
   Database,
   FileSpreadsheet,
+  Handshake,
   ChevronLeft,
   ChevronRight,
   Images,
   Crown,
-  BadgeCheck
+  BarChart3,
+  Plus,
+  Minus,
+  Clock
 } from 'lucide-react';
+import { VerifiedBadge } from './VerifiedBadge';
 import { cn, formatPrice } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBranding } from '../../contexts/BrandingContext';
@@ -69,7 +74,7 @@ export default function AdminLayout() {
   const { logoUrl } = useBranding();
   const { orders } = useOrders();
   const { products } = useProducts();
-  const { currentUser, isSuperAdmin, isCEO, department, permissions = [], signOut } = useAuth();
+  const { currentUser, isSuperAdmin, isCEO, isSabbirRahman, department, permissions = [], signOut } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const location = useLocation();
@@ -275,7 +280,15 @@ export default function AdminLayout() {
     return notifications.filter(n => !readIds.includes(n.id)).length;
   }, [notifications, readIds]);
 
+  const isAccountingKey = (key: string) => {
+    return ['finance', 'partnership', 'dollar-expense', 'transaction-list', 'payments'].includes(key);
+  };
+
   const isPermitted = (key: string) => {
+    // Strict Accounting Gate: Only Sabbir Rahman has access to accounting suite
+    if (isAccountingKey(key)) {
+      return !!isSabbirRahman;
+    }
     if (isSuperAdmin) return true;
     if (key === 'my-account') return true;
     if (!permissions || permissions.length === 0) return false;
@@ -287,12 +300,10 @@ export default function AdminLayout() {
     if (key === 'master-table' && (permissions.includes('masterTable') || permissions.includes('master-table'))) return true;
     if (key === 'masterTable' && (permissions.includes('masterTable') || permissions.includes('master-table'))) return true;
     if (key === 'inventory-log' && (permissions.includes('inventory-log') || permissions.includes('masterTable') || permissions.includes('master-table'))) return true;
-    if (key === 'dollar-expense' && (permissions.includes('dollar-expense') || permissions.includes('finance'))) return true;
-    if (key === 'transaction-list' && (permissions.includes('transaction-list') || permissions.includes('finance'))) return true;
     if (key === 'admin-access' && (permissions.includes('admin-access') || permissions.includes('all-accounts') || permissions.includes('settings'))) return true;
     if (key === 'all-accounts' && (permissions.includes('admin-access') || permissions.includes('all-accounts') || permissions.includes('settings'))) return true;
     if (key === 'media' && (permissions.includes('media') || permissions.includes('products') || permissions.includes('settings'))) return true;
-    if (['categories', 'branding', 'banners', 'notifications', 'media', 'pathao', 'payments', 'admin-access'].includes(key) && permissions.includes('settings')) return true;
+    if (['categories', 'branding', 'banners', 'notifications', 'media', 'pathao', 'admin-access'].includes(key) && permissions.includes('settings')) return true;
     return false;
   };
 
@@ -318,10 +329,15 @@ export default function AdminLayout() {
     if (path.startsWith('/admin/exchanges')) return 'exchanges';
     if (path.startsWith('/admin/issues')) return 'issues';
     if (path.startsWith('/admin/master-table')) return 'master-table';
+    if (path.startsWith('/admin/stock-in')) return 'stock-in';
+    if (path.startsWith('/admin/stock-out')) return 'stock-out';
     if (path.startsWith('/admin/inventory-log')) return 'inventory-log';
-    if (path.startsWith('/admin/transaction-list')) return 'finance';
+    if (path.startsWith('/admin/stock-check')) return 'products';
+    if (path.startsWith('/admin/my-attendance')) return 'my-account';
+    if (path.startsWith('/admin/transaction-list')) return 'transaction-list';
     if (path.startsWith('/admin/finance')) return 'finance';
     if (path.startsWith('/admin/dollar-expenses')) return 'dollar-expense';
+    if (path.startsWith('/admin/partnership') || path.startsWith('/admin/partners')) return 'partnership';
     if (path.startsWith('/admin/settings')) {
       const searchParams = new URLSearchParams(location.search);
       const tab = searchParams.get('tab');
@@ -348,7 +364,7 @@ export default function AdminLayout() {
         { name: 'Customer Profiler', path: '/admin/customer-profiler', icon: UserCheck, perm: 'customer-profiler' },
         { name: 'My Account', path: '/admin/my-account', icon: User, perm: 'my-account' },
         { name: 'All Account', path: '/admin/all-accounts', icon: Users, perm: 'admin-access' },
-        { name: 'Categories', path: '/admin/settings?tab=Categories', icon: Folder, perm: 'categories' },
+        { name: 'Stock Check', path: '/admin/stock-check', icon: BarChart3, perm: 'products' },
       ]
     },
     {
@@ -362,8 +378,11 @@ export default function AdminLayout() {
     {
       title: 'INVENTORY',
       items: [
+        { name: 'Categories', path: '/admin/settings?tab=Categories', icon: Folder, perm: 'categories' },
         { name: 'Products', path: '/admin/products', icon: ShoppingBag, perm: 'products' },
         { name: 'Master Table', path: '/admin/master-table', icon: Table, perm: 'master-table' },
+        { name: 'Stock In', path: '/admin/stock-in', icon: Plus, perm: 'inventory-log' },
+        { name: 'Stock Out', path: '/admin/stock-out', icon: Minus, perm: 'inventory-log' },
         { name: 'Inventory Log', path: '/admin/inventory-log', icon: History, perm: 'inventory-log' },
       ]
     },
@@ -371,7 +390,8 @@ export default function AdminLayout() {
       title: 'ACCOUNTING',
       items: [
         { name: 'Finance', path: '/admin/finance', icon: DollarSign, perm: 'finance' },
-        { name: 'Transaction List', path: '/admin/transaction-list', icon: FileSpreadsheet, perm: 'finance' },
+        { name: 'Partnership', path: '/admin/partnership', icon: Handshake, perm: 'partnership' },
+        { name: 'Transaction List', path: '/admin/transaction-list', icon: FileSpreadsheet, perm: 'transaction-list' },
         { name: 'Dollar Expense', path: '/admin/dollar-expenses', icon: Coins, perm: 'dollar-expense' },
         { name: 'Pay Method', path: '/admin/settings?tab=Payments', icon: CreditCard, perm: 'payments' },
       ]
@@ -379,7 +399,6 @@ export default function AdminLayout() {
     {
       title: 'SYSTEM',
       items: [
-        { name: 'Settings', path: '/admin/settings', icon: Settings, perm: 'settings' },
         { name: 'Branding', path: '/admin/settings?tab=Branding', icon: Palette, perm: 'branding' },
         { name: 'Banners', path: '/admin/settings?tab=Banners', icon: Globe, perm: 'banners' },
         { name: 'Notifications', path: '/admin/settings?tab=Notifications', icon: Bell, perm: 'notifications' },
@@ -800,7 +819,7 @@ export default function AdminLayout() {
                             {userProfile?.name || currentUser?.email || 'Admin User'}
                           </p>
                           {isCEO && (
-                            <BadgeCheck size={16} className="text-blue-600 shrink-0" title="Verified CEO Account" />
+                            <VerifiedBadge size={16} title="Verified CEO Account" />
                           )}
                         </div>
                         <p className="text-[11px] text-gray-500 truncate">{currentUser?.email}</p>
@@ -903,10 +922,12 @@ export default function AdminLayout() {
                 <Lock size={32} />
               </div>
               <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-2">
-                Access Restricted • এক্সেস সীমিত
+                {isAccountingKey(currentRequiredPerm || '') ? 'Accounting Restricted • অ্যাকাউন্টিং সংরক্ষিত' : 'Access Restricted • এক্সেস সীমিত'}
               </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mb-6 leading-relaxed">
-                আপনার এডমিন অ্যাকাউন্টে এই মডিউলটি ({currentRequiredPerm?.toUpperCase()}) ব্যবহারের পারমিশন দেওয়া হয়নি। আপনি শুধুমাত্র আপনার জন্য নির্ধারিত অনুমোদিত মডিউলে কাজ করতে পারবেন।
+              <p className="text-sm text-gray-500 dark:text-gray-400 max-w-lg mb-6 leading-relaxed">
+                {isAccountingKey(currentRequiredPerm || '')
+                  ? 'অ্যাকাউন্টিং সেকশনের (Finance, Partnership, Transaction List, Dollar Expense, Pay Method) পূর্ণ দায়িত্ব ও এডিট/মডিফাই এক্সেস শুধুমাত্র সাব্বির রহমান (Sabbir Rahman) এর একাউন্টে সীমাবদ্ধ। অন্য কোনো এডমিন একাউন্ট থেকে এই পেজের ডেটা পরিবর্তন বা এডিট করা সম্ভব নয়।'
+                  : `আপনার এডমিন অ্যাকাউন্টে এই মডিউলটি (${currentRequiredPerm?.toUpperCase()}) ব্যবহারের পারমিশন দেওয়া হয়নি। আপনি শুধুমাত্র আপনার জন্য নির্ধারিত অনুমোদিত মডিউলে কাজ করতে পারবেন।`}
               </p>
               <Link
                 to="/admin"

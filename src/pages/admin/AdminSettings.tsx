@@ -48,6 +48,7 @@ import { useOrders } from '../../contexts/OrderContext';
 import { db } from '../../lib/firebase';
 import { doc, getDoc, getDocs, setDoc, deleteDoc, collection, onSnapshot } from 'firebase/firestore';
 import { compressImage } from '../../utils/imageCompressor';
+import { autoSaveToMediaLibrary } from '../../utils/mediaLibrary';
 import { Coupon } from '../../types';
 import toast from 'react-hot-toast';
 
@@ -88,7 +89,7 @@ export default function AdminSettings() {
     setShowShowcase
   } = useBranding();
   const { products, offerProductIds = [], updateOfferProducts, updateProduct } = useProducts();
-  const { currentUser, isSuperAdmin, permissions = [] } = useAuth();
+  const { currentUser, isSuperAdmin, isSabbirRahman, permissions = [] } = useAuth();
   const { orders } = useOrders();
 
   const [activeTab, setActiveTab ] = useState('General');
@@ -215,6 +216,7 @@ export default function AdminSettings() {
     { id: 'master-table', name: 'Master Table', banglaName: 'মাস্টার টেবিল', desc: 'বাল্ক স্ক্যানিং, লেবেল প্রিন্ট ও দ্রুত প্রসেসিং' },
     { id: 'inventory-log', name: 'Inventory Log', banglaName: 'ইনভেন্টরি লগ', desc: 'স্টক ইন/আউট ও স্টক হিস্ট্রি' },
     { id: 'finance', name: 'Finance', banglaName: 'ফাইন্যান্স', desc: 'ব্যাংক ট্রানজেকশন, অ্যাকাউন্ট ও হিসাব' },
+    { id: 'partnership', name: 'Partnership', banglaName: 'পার্টনারশিপ', desc: 'পার্টনারদের বিনিয়োগ ও হিসাব ট্র্যাকিং' },
     { id: 'dollar-expense', name: 'Dollar Expense', banglaName: 'ডলার এক্সপেন্স', desc: 'ডলার হিসাব ও খরচ ট্র্যাকিং' },
     { id: 'settings', name: 'Settings', banglaName: 'সেটিংস', desc: 'জেনারেল স্টোর সেটিংস' },
     { id: 'branding', name: 'Branding', banglaName: 'ব্র্যান্ডিং', desc: 'লোগো, নাম ও থিম সেটিংস' },
@@ -468,6 +470,10 @@ export default function AdminSettings() {
   ) : false;
 
   const handleSavePayments = async () => {
+    if (!isSabbirRahman) {
+      toast.error('Pay Method সেটিংস পরিবর্তন করার অনুমতি শুধুমাত্র সাব্বির রহমান এর একাউন্টে সংরক্ষিত!');
+      return;
+    }
     const loadingToast = toast.loading('Saving payments settings...');
     try {
       const payload = {
@@ -503,6 +509,7 @@ export default function AdminSettings() {
     try {
       const compressed = await compressImage(file, 400, 400, 0.85);
       setBkashLogo(compressed);
+      autoSaveToMediaLibrary(compressed, { name: 'Payment Logo - bKash', category: 'Payment Methods', source: 'branding' });
       toast.success("bKash logo updated. Click 'Save changes' to save permanently.", { id: toastId });
     } catch (err) {
       console.error(err);
@@ -517,6 +524,7 @@ export default function AdminSettings() {
     try {
       const compressed = await compressImage(file, 400, 400, 0.85);
       setNagadLogo(compressed);
+      autoSaveToMediaLibrary(compressed, { name: 'Payment Logo - Nagad', category: 'Payment Methods', source: 'branding' });
       toast.success("Nagad logo updated. Click 'Save changes' to save permanently.", { id: toastId });
     } catch (err) {
       console.error(err);
@@ -531,6 +539,7 @@ export default function AdminSettings() {
     try {
       const compressed = await compressImage(file, 400, 400, 0.85);
       setCodLogo(compressed);
+      autoSaveToMediaLibrary(compressed, { name: 'Payment Logo - Cash on Delivery', category: 'Payment Methods', source: 'branding' });
       toast.success("Cash on Delivery picture updated. Click 'Save changes' to save permanently.", { id: toastId });
     } catch (err) {
       console.error(err);
@@ -545,6 +554,7 @@ export default function AdminSettings() {
     try {
       const compressed = await compressImage(file, 400, 400, 0.85);
       setRocketLogo(compressed);
+      autoSaveToMediaLibrary(compressed, { name: 'Payment Logo - Rocket', category: 'Payment Methods', source: 'branding' });
       toast.success("Rocket logo updated. Click 'Save changes' to save permanently.", { id: toastId });
     } catch (err) {
       console.error(err);
@@ -1239,6 +1249,13 @@ export default function AdminSettings() {
         });
 
         const sortedList = Array.from(adminMap.values()).sort((a, b) => {
+          const aEmail = (a.email || '').toLowerCase().trim();
+          const bEmail = (b.email || '').toLowerCase().trim();
+          const aIsSabbir = aEmail === 'sabbirrahmansr904@gmail.com' || (a.name || '').toLowerCase().includes('sabbir rahman');
+          const bIsSabbir = bEmail === 'sabbirrahmansr904@gmail.com' || (b.name || '').toLowerCase().includes('sabbir rahman');
+          if (aIsSabbir && !bIsSabbir) return -1;
+          if (!aIsSabbir && bIsSabbir) return 1;
+
           const aOnline = a.isOnline && (Date.now() - (a.lastActive || 0) < 90000);
           const bOnline = b.isOnline && (Date.now() - (b.lastActive || 0) < 90000);
           if (aOnline && !bOnline) return -1;
@@ -1392,12 +1409,13 @@ export default function AdminSettings() {
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const loadingToast = toast.loading('Uploading logo...');
+      const loadingToast = toast.loading('Uploading logo with transparency support...');
       try {
-        const result = await compressImage(file, 1024, 1024, 0.8);
+        const result = await compressImage(file, 1024, 1024, 0.9, true);
         setTempLogo(result);
         setLogoUrl(result);
-        toast.success('Logo updated permanently.', { id: loadingToast });
+        autoSaveToMediaLibrary(result, { name: 'Brand Logo', category: 'Branding & Logos', source: 'branding' });
+        toast.success('Logo updated permanently with transparent background and saved to Media Library!', { id: loadingToast });
       } catch (err) {
         toast.error('Failed to update logo.', { id: loadingToast });
       }
@@ -1410,6 +1428,7 @@ export default function AdminSettings() {
       try {
         const result = await compressImage(file, 1000, 1000, 0.8);
         setTempSizeChart(result);
+        autoSaveToMediaLibrary(result, { name: 'Size Guide Chart', category: 'General Asset', source: 'branding' });
         toast.success('Size chart preview updated. Apply changes to save.');
       } catch (err) {
         toast.error('Failed to compress size chart.');
@@ -1425,7 +1444,8 @@ export default function AdminSettings() {
         const result = await compressImage(file, 1200, 630, 0.85);
         setTempHeroBanner(result);
         setHeroBannerUrl(result);
-        toast.success('Google search preview image updated successfully!', { id: loadingToast });
+        autoSaveToMediaLibrary(result, { name: 'Google Search Share Preview', category: 'Banners & Sliders', source: 'banner' });
+        toast.success('Google search preview image updated successfully and saved to Media!', { id: loadingToast });
       } catch (err) {
         toast.error('Failed to upload image.', { id: loadingToast });
       }
@@ -1775,7 +1795,7 @@ export default function AdminSettings() {
                   {/* Chrome tab visual mockup */}
                   <div className="bg-[#e9eef6] dark:bg-slate-800 p-2.5 rounded-xl border border-gray-200/60">
                     <div className="inline-flex items-center gap-2.5 bg-white dark:bg-slate-900 px-3.5 py-2 rounded-t-lg shadow-xs border-t border-x border-gray-200/80 max-w-sm">
-                      <div className="w-4 h-4 rounded-xs overflow-hidden flex items-center justify-center bg-black shrink-0 border border-gray-300">
+                      <div className="w-4 h-4 rounded-xs overflow-hidden flex items-center justify-center bg-transparent shrink-0">
                         <img 
                           src={tempLogo || '/logo.png'} 
                           alt="Tab Favicon" 
@@ -1794,7 +1814,7 @@ export default function AdminSettings() {
                 </div>
 
                 <div className="p-8 border-2 border-dashed border-gray-200 rounded-3xl bg-[#F8F9FD] shadow-xs flex flex-col items-center justify-center text-center space-y-6">
-                  <div className="w-56 h-36 bg-gray-50 flex items-center justify-center border border-gray-200 rounded-2xl overflow-hidden relative group/inner shadow-inner p-4">
+                  <div className="w-56 h-36 bg-transparent flex items-center justify-center border border-gray-200 rounded-2xl overflow-hidden relative group/inner shadow-inner p-4">
                     <img 
                       src={tempLogo || '/logo.png'} 
                       alt="Logo Preview" 
@@ -3053,6 +3073,15 @@ export default function AdminSettings() {
 
           {activeTab === 'Payments' && (
             <div className="space-y-8 relative z-10 font-sans text-left">
+              {!isSabbirRahman && (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3.5 text-amber-900 shadow-sm">
+                  <Lock className="shrink-0 text-amber-600" size={20} />
+                  <p className="text-xs font-bold leading-relaxed">
+                    Pay Method সেটিংস পরিবর্তন ও কনফিগারেশন করার অনুমতি শুধুমাত্র সাব্বির রহমান (<span className="font-mono underline">sabbirrahmansr904@gmail.com</span>) এর একাউন্টে সংরক্ষিত।
+                  </p>
+                </div>
+              )}
+
               {/* Title Header with Save changes button */}
               <div className="flex items-center justify-between border-b border-gray-100 pb-6 mb-8">
                 <div className="flex items-center gap-3">
@@ -3064,7 +3093,10 @@ export default function AdminSettings() {
                   </span>
                   <button
                     onClick={handleSavePayments}
-                    className="px-5 py-2.5 bg-[#5850ec] hover:bg-[#4f46e5] text-white text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer"
+                    disabled={!isSabbirRahman}
+                    className={`px-5 py-2.5 text-white text-xs font-bold rounded-xl transition-all shadow-sm ${
+                      !isSabbirRahman ? 'bg-gray-400 cursor-not-allowed opacity-60' : 'bg-[#5850ec] hover:bg-[#4f46e5] cursor-pointer'
+                    }`}
                   >
                     Save changes
                   </button>

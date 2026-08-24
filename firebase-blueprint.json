@@ -222,9 +222,60 @@
         "notes": { "type": "string" }
       },
       "required": ["type", "amount", "rate", "bdtAmount", "date"]
+    },
+    "Partner": {
+      "title": "Partner",
+      "description": "Partner profile details for partnership equity tracking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "targetShare": { "type": "number" },
+        "color": { "type": "string" },
+        "avatar": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["name"]
+    },
+    "PartnerTransaction": {
+      "title": "PartnerTransaction",
+      "description": "Real-time investment and withdrawal records per partner",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "partnerId": { "type": "string" },
+        "partnerName": { "type": "string" },
+        "type": { "type": "string", "enum": ["investment", "withdrawal", "profit_share"] },
+        "amount": { "type": "number" },
+        "date": { "type": "number" },
+        "timeString": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "accountId": { "type": "string" },
+        "category": { "type": "string" },
+        "reference": { "type": "string" },
+        "notes": { "type": "string" },
+        "recordedBy": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["partnerId", "partnerName", "type", "amount", "date"]
     }
   },
   "firestore": {
+    "/partners/{partnerId}": {
+      "schema": { "$ref": "#/entities/Partner" },
+      "description": "Partner profiles in the business (admin only)"
+    },
+    "/partner_investments/{investmentId}": {
+      "schema": { "$ref": "#/entities/PartnerTransaction" },
+      "description": "Real-time investment and withdrawal records per partner (admin only)"
+    },
+    "/partner_transactions/{txId}": {
+      "schema": { "$ref": "#/entities/PartnerTransaction" },
+      "description": "Partner transactions (admin only)"
+    },
     "/dollar_transactions/{transactionId}": {
       "schema": { "$ref": "#/entities/DollarTransaction" },
       "description": "Stored dollar transactions (buy/spend) (admin only)"
