@@ -147,6 +147,7 @@ export default function AdminAccounts() {
   // Delete modal state
   const [deleteTarget, setDeleteTarget] = useState<AdminProfile | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
   
   // Form fields
   const [formData, setFormData] = useState<Partial<AdminProfile>>({
@@ -228,19 +229,6 @@ export default function AdminAccounts() {
         permissions: ['all'],
         role: 'ceo',
         mainTasks: 'অপারেশনাল ব্যবস্থাপনা, সাপ্লাই চেইন ও ডেলিভারি সুপারভিশন, এবং দৈনন্দিন কার্যক্রমে সমন্বয়।'
-      },
-      {
-        id: 'sohelmiah332004_gmail_com',
-        name: 'Sohel Miah',
-        email: 'sohelmiah332004@gmail.com',
-        phone: '+880 1700-000000',
-        position: 'Sales Executive',
-        department: 'Sales Executive Department',
-        photoURL: '',
-        status: 'Active',
-        permissions: ['dashboard', 'orders', 'exchanges', 'issues', 'customers', 'customer-profiler', 'products', 'inventory-log'],
-        role: 'admin',
-        mainTasks: 'অর্ডার প্রসেসিং, কাস্টমার সাপোর্ট, ইনভেন্টরি আপডেট ও রিয়েল-টাইম সেলস ফলোআপ।'
       }
     ];
 
@@ -248,6 +236,7 @@ export default function AdminAccounts() {
     baseAdmins.forEach(async (baseAcc) => {
       try {
         const cleanEmail = baseAcc.email.toLowerCase().trim();
+        if (deletedEmailsRef.current.has(cleanEmail)) return;
         const docKey = cleanEmail.replace(/[^a-zA-Z0-9]/g, '_');
         const docRef = doc(db, 'admin_profiles', docKey);
         const docSnap = await getDoc(docRef);
@@ -294,7 +283,12 @@ export default function AdminAccounts() {
       const combinedMap = new Map<string, AdminProfile>();
 
       // Add base accounts first
-      baseAdmins.forEach(p => combinedMap.set(p.email.toLowerCase().trim(), { ...p }));
+      baseAdmins.forEach(p => {
+        const ce = p.email.toLowerCase().trim();
+        if (!deletedEmailsRef.current.has(ce)) {
+          combinedMap.set(ce, { ...p });
+        }
+      });
 
       // 1. From admin_profiles
       profilesDocs.forEach((data, docId) => {
@@ -632,12 +626,13 @@ export default function AdminAccounts() {
       }, { merge: true });
 
       // Update local state instantly
-      const updated = profiles.some(p => p.email.toLowerCase() === cleanEmail)
-        ? profiles.map(p => p.email.toLowerCase() === cleanEmail ? { ...p, ...payload } : p)
-        : [...profiles, payload];
-
-      setProfiles(updated);
-      localStorage.setItem('elegan_admin_profiles', JSON.stringify(updated));
+      setProfiles(prev => {
+        const updated = prev.some(p => p.email.toLowerCase() === cleanEmail)
+          ? prev.map(p => p.email.toLowerCase() === cleanEmail ? { ...p, ...payload } : p)
+          : [...prev, payload];
+        localStorage.setItem('elegan_admin_profiles', JSON.stringify(updated));
+        return updated;
+      });
 
       toast.success(editingProfile ? 'Admin profile updated!' : 'New Admin Account & Permissions created!');
       setIsModalOpen(false);
@@ -683,6 +678,7 @@ export default function AdminAccounts() {
     }
 
     setIsDeleting(true);
+    const cleanEmail = (deleteTarget.email || '').toLowerCase().trim();
     const emailKey = cleanEmail.replace(/[^a-zA-Z0-9]/g, '_');
     const targetId = deleteTarget.id;
 
@@ -720,17 +716,21 @@ export default function AdminAccounts() {
       await Promise.all(deletePromises);
 
       // 3. Update local state & storage
-      const updated = profiles.filter(p => p.email.toLowerCase().trim() !== cleanEmail && p.id !== targetId);
-      setProfiles(updated);
-      localStorage.setItem('elegan_admin_profiles', JSON.stringify(updated));
+      setProfiles(prev => {
+        const updated = prev.filter(p => p.email.toLowerCase().trim() !== cleanEmail && p.id !== targetId);
+        localStorage.setItem('elegan_admin_profiles', JSON.stringify(updated));
+        return updated;
+      });
 
       toast.success(`Admin access revoked for ${deleteTarget.name || cleanEmail}`);
       setDeleteTarget(null);
     } catch (e) {
       console.error('Error deleting admin account:', e);
-      const updated = profiles.filter(p => p.email.toLowerCase().trim() !== cleanEmail && p.id !== targetId);
-      setProfiles(updated);
-      localStorage.setItem('elegan_admin_profiles', JSON.stringify(updated));
+      setProfiles(prev => {
+        const updated = prev.filter(p => p.email.toLowerCase().trim() !== cleanEmail && p.id !== targetId);
+        localStorage.setItem('elegan_admin_profiles', JSON.stringify(updated));
+        return updated;
+      });
       toast.success(`Admin account removed successfully.`);
       setDeleteTarget(null);
     } finally {
@@ -946,7 +946,7 @@ export default function AdminAccounts() {
                       isTopCeo ? "bg-gradient-to-br from-slate-900 to-amber-950 text-amber-200 border-amber-300" : "bg-[#0F172A] text-white border-white"
                     )}>
                       {admin.photoURL ? (
-                        <img src={admin.photoURL} alt={admin.name} className="w-full h-full object-cover" />
+                        <img src={admin.photoURL} alt={admin.name} className="w-full h-full object-cover cursor-pointer hover:scale-110 transition-transform duration-300" onClick={() => setFullScreenImage(admin.photoURL || null)} />
                       ) : (
                         <span>{initials}</span>
                       )}
@@ -1370,6 +1370,29 @@ export default function AdminAccounts() {
           </div>
         </div>
       )}
+      {/* Full Screen Image Modal */}
+      {fullScreenImage && (
+        <div 
+          className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setFullScreenImage(null)}
+        >
+          <div className="relative max-w-5xl max-h-[90vh] w-full h-full flex items-center justify-center">
+            <button 
+              onClick={(e) => { e.stopPropagation(); setFullScreenImage(null); }}
+              className="absolute top-4 right-4 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-colors"
+            >
+              <X size={24} />
+            </button>
+            <img 
+              src={fullScreenImage} 
+              alt="Full Screen Profile" 
+              className="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl animate-in zoom-in-95 duration-300"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

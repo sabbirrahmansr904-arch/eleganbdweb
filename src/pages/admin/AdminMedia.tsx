@@ -12,6 +12,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { formatPrice, cn } from '../../lib/utils';
 import { 
+  Users,
   Search, 
   ExternalLink, 
   Eye, 
@@ -55,7 +56,7 @@ import { db } from '../../lib/firebase';
 import { compressImage } from '../../utils/imageCompressor';
 import { formatDistanceToNow } from 'date-fns';
 
-export type MediaSource = 'uploaded' | 'product' | 'banner' | 'branding' | 'category' | 'review';
+export type MediaSource = 'uploaded' | 'product' | 'banner' | 'branding' | 'category' | 'review' | 'admin';
 
 export interface UnifiedMediaItem {
   id: string;
@@ -101,6 +102,7 @@ const CATEGORY_FILTERS = [
   { id: 'branding', label: 'Branding & Logos', icon: Sparkles },
   { id: 'category', label: 'Category Icons', icon: FolderOpen },
   { id: 'review', label: 'Customer Reviews', icon: Info },
+  { id: 'admin', label: 'Admin Profiles', icon: Users },
 ] as const;
 
 export default function AdminMedia() {
@@ -129,6 +131,7 @@ export default function AdminMedia() {
   // Firestore direct media state
   const [directMedia, setDirectMedia] = useState<any[]>([]);
   const [reviewsMedia, setReviewsMedia] = useState<any[]>([]);
+  const [adminsMedia, setAdminsMedia] = useState<any[]>([]);
   const [loadingDirect, setLoadingDirect] = useState(true);
 
   // Instant local delete cache to ensure immediate removal
@@ -216,6 +219,28 @@ export default function AdminMedia() {
         setReviewsMedia(items);
       }, (err) => {
         console.warn('Reviews photo listener warning:', err);
+      });
+
+      return () => unsubscribe();
+    } catch (e) {}
+  }, []);
+
+  
+  // 2.5 Listen to real-time 'admin_profiles' collection for profile photos
+  useEffect(() => {
+    try {
+      const adminsRef = collection(db, 'admin_profiles');
+      const unsubscribe = onSnapshot(adminsRef, (snapshot) => {
+        const items: any[] = [];
+        snapshot.docs.forEach(d => {
+          const data = d.data();
+          if (data.photoURL && typeof data.photoURL === 'string' && data.photoURL.length > 10) {
+            items.push({ id: d.id, ...data });
+          }
+        });
+        setAdminsMedia(items);
+      }, (err) => {
+        console.warn('Admins photo listener warning:', err);
       });
 
       return () => unsubscribe();
@@ -449,8 +474,32 @@ export default function AdminMedia() {
       });
     });
 
+    
+    // G. Live Admin Profile Pictures
+    if (adminsMedia && Array.isArray(adminsMedia)) {
+      adminsMedia.forEach((admin) => {
+        const adminItemId = `admin_${admin.id}`;
+        if (admin.photoURL && !seenUrls.has(admin.photoURL) && !isExcluded(adminItemId, admin.photoURL)) {
+          seenUrls.add(admin.photoURL);
+          list.push({
+            id: adminItemId,
+            url: admin.photoURL,
+            filename: extractFilename(admin.photoURL, `admin_${admin.id}.webp`),
+            title: admin.name || 'Admin Profile Photo',
+            source: 'admin',
+            category: 'Admin Profiles',
+            createdAt: admin.updatedAt || admin.createdAt || Date.now(),
+            uploadedBy: admin.email || 'Admin',
+            fileSize: 'Avatar Scale',
+            dimensions: 'Profile Sync',
+            canDelete: false // Master admins usually don't delete other profiles via Media tab directly
+          });
+        }
+      });
+    }
+
     return list;
-  }, [directMedia, products, banners, branding, categories, reviewsMedia, isMasterAdmin, deletedIds]);
+  }, [directMedia, products, banners, branding, categories, reviewsMedia, adminsMedia, isMasterAdmin, deletedIds]);
 
   // Counts for tabs
   const counts = useMemo(() => {
@@ -461,7 +510,8 @@ export default function AdminMedia() {
       banner: 0,
       branding: 0,
       category: 0,
-      review: 0
+      review: 0,
+      admin: 0
     };
     allMediaItems.forEach(item => {
       if (countsMap[item.source] !== undefined) {
@@ -984,7 +1034,8 @@ export default function AdminMedia() {
         })}
       </div>
 
-      {/* 3. Search, Sorting, Bulk and View Switcher Toolbar */}
+      {/* 3. Users,
+  Search, Sorting, Bulk and View Switcher Toolbar */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
         
         {/* Search Bar */}
