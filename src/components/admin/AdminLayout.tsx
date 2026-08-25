@@ -293,17 +293,6 @@ export default function AdminLayout() {
   };
 
   const isPermitted = (key: string) => {
-    if (isAdminStrictKey(key)) {
-      return !!isSabbirRahman;
-    }
-    
-    if (isAccountingKey(key)) {
-      if (isSabbirRahman) return true;
-      const allowedEmails = ['nasiruddinovi2025@gmail.com', 'shamiulislamatik@gmail.com'];
-      if (currentUser?.email && allowedEmails.includes(currentUser.email)) return true;
-      return false;
-    }
-
     if (isSuperAdmin) return true;
     if (key === 'my-account') return true;
     if (!permissions || permissions.length === 0) return false;
@@ -935,7 +924,7 @@ export default function AdminLayout() {
                 <Lock size={32} />
               </div>
               <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-2">
-                {isRestrictedSabbirKey(currentRequiredPerm || '') ? 'Access Restricted • শুধুমাত্র সাব্বির রহমানের জন্য সংরক্ষিত' : 'Access Restricted • এক্সেস সীমিত'}
+                'Access Restricted • এক্সেস সীমিত'
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400 max-w-lg mb-6 leading-relaxed">
                 {isRestrictedSabbirKey(currentRequiredPerm || '')

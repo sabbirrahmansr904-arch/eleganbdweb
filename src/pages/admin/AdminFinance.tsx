@@ -148,10 +148,7 @@ export default function AdminFinance(): React.JSX.Element {
   // Handle Add Account Submit
   const handleAddAccountSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isSabbirRahman) {
-      toast.error('ব্যাংক অ্যাকাউন্ট যোগ করার অনুমতি শুধুমাত্র সাব্বির রহমান এর একাউন্টে সংরক্ষিত!');
-      return;
-    }
+    
     if (!accountForm.bankName || !accountForm.accountName || !accountForm.accountNumber) {
       toast.error('স্টার (*) চিহ্নিত ঘরগুলো পূরণ করা আবশ্যক।');
       return;
@@ -179,10 +176,7 @@ export default function AdminFinance(): React.JSX.Element {
 
   // Handle Edit Account
   const handleEditAccountClick = (acc: any) => {
-    if (!isSabbirRahman) {
-      toast.error('অ্যাকাউন্ট এডিট করার অনুমতি শুধুমাত্র সাব্বির রহমান এর একাউন্টে সংরক্ষিত!');
-      return;
-    }
+    
     setEditAccountForm({
       id: acc.id,
       bankName: acc.bankName || '',
@@ -198,10 +192,7 @@ export default function AdminFinance(): React.JSX.Element {
 
   const handleEditAccountSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isSabbirRahman) {
-      toast.error('অ্যাকাউন্ট আপডেট করার অনুমতি শুধুমাত্র সাব্বির রহমান এর একাউন্টে সংরক্ষিত!');
-      return;
-    }
+    
     await updateBankAccount({
       id: editAccountForm.id,
       bankName: editAccountForm.bankName,
@@ -217,10 +208,7 @@ export default function AdminFinance(): React.JSX.Element {
 
   // Handle Edit Transaction Click
   const handleEditTxClick = (tx: any) => {
-    if (!isSabbirRahman) {
-      toast.error('লেনদেন এডিট করার অনুমতি শুধুমাত্র সাব্বির রহমান এর একাউন্টে সংরক্ষিত!');
-      return;
-    }
+    
     setEditTxForm({
       id: tx.id,
       accountId: tx.accountId,
@@ -237,10 +225,7 @@ export default function AdminFinance(): React.JSX.Element {
 
   const handleEditTxSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isSabbirRahman) {
-      toast.error('লেনদেন আপডেট করার অনুমতি শুধুমাত্র সাব্বির রহমান এর একাউন্টে সংরক্ষিত!');
-      return;
-    }
+    
     await updateBankTransaction(editTxForm.id, {
       accountId: editTxForm.accountId,
       type: editTxForm.type,
@@ -257,10 +242,7 @@ export default function AdminFinance(): React.JSX.Element {
   // Handle New Transaction Submit
   const handleTxSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isSabbirRahman) {
-      toast.error('নতুন লেনদেন যোগ করার অনুমতি শুধুমাত্র সাব্বির রহমান এর একাউন্টে সংরক্ষিত!');
-      return;
-    }
+    
     if (!txForm.accountId || !txForm.amount) {
       toast.error('হিসাব এবং পরিমাণ আবশ্যক।');
       return;
@@ -420,10 +402,7 @@ export default function AdminFinance(): React.JSX.Element {
   };
 
   const handleBulkStatusChange = async (targetStatus: 'paid' | 'unpaid') => {
-    if (!isSabbirRahman) {
-      toast.error('বাল্ক স্ট্যাটাস পরিবর্তন করার অনুমতি শুধুমাত্র সাব্বির রহমান এর একাউন্টে সংরক্ষিত!');
-      return;
-    }
+    
     if (selectedTxIds.length === 0) return;
     try {
       for (const id of selectedTxIds) {
@@ -563,7 +542,7 @@ export default function AdminFinance(): React.JSX.Element {
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
-          {isSabbirRahman && (
+          {true && (
 <button
             onClick={() => setShowAddAccountModal(true)}
             className="px-4 py-2.5 bg-white hover:bg-gray-50 text-indigo-600 border border-indigo-200 rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-2xs cursor-pointer"
@@ -651,10 +630,7 @@ export default function AdminFinance(): React.JSX.Element {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (!isSabbirRahman) {
-                            toast.error('অ্যাকাউন্ট ডিলিট করার অনুমতি শুধুমাত্র সাব্বির রহমান এর একাউন্টে সংরক্ষিত!');
-                            return;
-                          }
+                          
                           deleteBankAccount(acc.id);
                         }}
                         className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 bg-gray-50 rounded-lg transition-colors cursor-pointer"
@@ -1729,12 +1705,7 @@ export default function AdminFinance(): React.JSX.Element {
               </button>
               <button
                 onClick={async () => {
-                  if (!isSabbirRahman) {
-                    toast.error('লেনদেন ডিলিট করার অনুমতি শুধুমাত্র সাব্বির রহমান এর একাউন্টে সংরক্ষিত!');
-                    setShowDeleteConfirmModal(false);
-                    setTxToDelete(null);
-                    return;
-                  }
+                  
                   try {
                     await deleteBankTransaction(txToDelete.id);
                   } catch (e) {

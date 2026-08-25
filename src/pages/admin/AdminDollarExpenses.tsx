@@ -275,10 +275,7 @@ export default function AdminDollarExpenses(): React.JSX.Element {
   // Save Transaction Handler
   const handleSaveTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isSabbirRahman) {
-      toast.error('ডলার খরচের তথ্য সেভ বা এডিট করার অনুমতি শুধুমাত্র সাব্বির রহমান এর একাউন্টে সংরক্ষিত!');
-      return;
-    }
+    
     const amountVal = parseFloat(form.amount);
 
     if (isNaN(amountVal) || amountVal <= 0) {
@@ -353,10 +350,7 @@ export default function AdminDollarExpenses(): React.JSX.Element {
 
   // Delete Transaction Handler
   const handleDeleteTransaction = async (id: string) => {
-    if (!isSabbirRahman) {
-      toast.error('ডলার লেনদেন ডিলিট করার অনুমতি শুধুমাত্র সাব্বির রহমান এর একাউন্টে সংরক্ষিত!');
-      return;
-    }
+    
     try {
       await deleteDoc(doc(db, 'dollar_transactions', id));
       toast.success('লেনদেন সফলভাবে ডিলিট হয়েছে!');
@@ -557,7 +551,7 @@ export default function AdminDollarExpenses(): React.JSX.Element {
             PDF ডাউনলোড
           </button>
           
-          {isSabbirRahman && (
+          {true && (
             <button 
               onClick={() => {
                 setEditingTransaction(null);

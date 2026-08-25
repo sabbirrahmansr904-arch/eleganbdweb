@@ -547,10 +547,7 @@ export default function AdminPartnership() {
   // Save Transaction (Add or Edit)
   const handleSubmitTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isSabbirRahman) {
-      toast.error('পার্টনারশিপ ও ইনভেস্টমেন্ট এডিট করার অনুমতি শুধুমাত্র সাব্বির রহমান এর একাউন্টে সংরক্ষিত!');
-      return;
-    }
+    
     const numAmount = parseFloat(formData.amount);
     if (isNaN(numAmount) || numAmount <= 0) {
       toast.error('অনুগ্রহ করে সঠিক টাকার পরিমাণ প্রদান করুন!');
@@ -612,10 +609,7 @@ export default function AdminPartnership() {
 
   // Delete Transaction
   const handleDeleteTransaction = async (id: string) => {
-    if (!isSabbirRahman) {
-      toast.error('পার্টনারশিপ রেকর্ড ডিলিট করার অনুমতি শুধুমাত্র সাব্বির রহমান এর একাউন্টে সংরক্ষিত!');
-      return;
-    }
+    
     const loadingToast = toast.loading('রেকর্ড মুছে ফেলা হচ্ছে...');
     try {
       await deleteDoc(doc(db, 'partner_investments', id));
@@ -648,10 +642,7 @@ export default function AdminPartnership() {
   // Save Partner Profiles
   const handleSavePartnerProfiles = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isSabbirRahman) {
-      toast.error('পার্টনার তথ্য এডিট করার অনুমতি শুধুমাত্র সাব্বির রহমান এর একাউন্টে সংরক্ষিত!');
-      return;
-    }
+    
     setIsSubmitting(true);
     const loadingToast = toast.loading('পার্টনার প্রোফাইল সেভ করা হচ্ছে...');
 
@@ -781,7 +772,7 @@ export default function AdminPartnership() {
             প্রিন্ট স্টেটমেন্ট
           </button>
 
-          {isSabbirRahman && (
+          {true && (
 <button
             onClick={() => handleOpenAddForPartner('partner_1', 'investment')}
             className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white transition-all shadow-md shadow-emerald-200 flex items-center gap-2 active:scale-95"
@@ -1007,7 +998,7 @@ export default function AdminPartnership() {
               </div>
 
               {/* Card Footer Quick Actions */}
-              {isSabbirRahman && (
+              {true && (
 <div className="p-4 bg-slate-50/50 border-t border-slate-100 flex items-center gap-2">
                 <button
                   onClick={() => handleOpenAddForPartner(partner.id, 'investment')}

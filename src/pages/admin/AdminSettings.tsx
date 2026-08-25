@@ -470,10 +470,7 @@ export default function AdminSettings() {
   ) : false;
 
   const handleSavePayments = async () => {
-    if (!isSabbirRahman) {
-      toast.error('Pay Method সেটিংস পরিবর্তন করার অনুমতি শুধুমাত্র সাব্বির রহমান এর একাউন্টে সংরক্ষিত!');
-      return;
-    }
+    
     const loadingToast = toast.loading('Saving payments settings...');
     try {
       const payload = {
@@ -1276,7 +1273,7 @@ export default function AdminSettings() {
   };
 
   useEffect(() => {
-    if (activeTab === 'Admin Access' && isSabbirRahman) {
+    if (activeTab === 'Admin Access') {
       loadAdminConfigAndList();
     }
     return () => {
@@ -1463,7 +1460,7 @@ export default function AdminSettings() {
     const params = new URLSearchParams(location.search);
     const tabParam = params.get('tab');
     
-    if (tabParam === 'Admin Access' && !isSabbirRahman) {
+    if (false) {
       setActiveTab('General');
     } else if (tabParam) {
       setActiveTab(tabParam);
@@ -2111,7 +2108,7 @@ export default function AdminSettings() {
 
 
           
-          {activeTab === 'Admin Access' && isSabbirRahman && (
+          {activeTab === 'Admin Access' && (
             <div className="space-y-10 max-w-4xl relative z-10 font-sans">
               <div className="space-y-8">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-6">
@@ -3073,14 +3070,7 @@ export default function AdminSettings() {
 
           {activeTab === 'Payments' && (
             <div className="space-y-8 relative z-10 font-sans text-left">
-              {!isSabbirRahman && (
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3.5 text-amber-900 shadow-sm">
-                  <Lock className="shrink-0 text-amber-600" size={20} />
-                  <p className="text-xs font-bold leading-relaxed">
-                    Pay Method সেটিংস পরিবর্তন ও কনফিগারেশন করার অনুমতি শুধুমাত্র সাব্বির রহমান (<span className="font-mono underline">sabbirrahmansr904@gmail.com</span>) এর একাউন্টে সংরক্ষিত।
-                  </p>
-                </div>
-              )}
+              
 
               {/* Title Header with Save changes button */}
               <div className="flex items-center justify-between border-b border-gray-100 pb-6 mb-8">
@@ -3093,9 +3083,9 @@ export default function AdminSettings() {
                   </span>
                   <button
                     onClick={handleSavePayments}
-                    disabled={!isSabbirRahman}
+                    disabled={false}
                     className={`px-5 py-2.5 text-white text-xs font-bold rounded-xl transition-all shadow-sm ${
-                      !isSabbirRahman ? 'bg-gray-400 cursor-not-allowed opacity-60' : 'bg-[#5850ec] hover:bg-[#4f46e5] cursor-pointer'
+                      'bg-[#5850ec] hover:bg-[#4f46e5] cursor-pointer'
                     }`}
                   >
                     Save changes

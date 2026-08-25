@@ -109,10 +109,7 @@ export default function AdminTransactionList(): React.JSX.Element {
   const handleClearSelection = () => setSelectedTxIds([]);
 
   const handleBulkStatusChange = async (status: 'paid' | 'unpaid') => {
-    if (!isSabbirRahman) {
-      toast.error('স্ট্যাটাস পরিবর্তন করার অনুমতি শুধুমাত্র সাব্বির রহমান এর একাউন্টে সংরক্ষিত!');
-      return;
-    }
+    
     if (selectedTxIds.length === 0) return;
     for (const id of selectedTxIds) {
       const tx = bankTransactions.find(t => t.id === id);
@@ -212,10 +209,7 @@ export default function AdminTransactionList(): React.JSX.Element {
 
   const handleEditTxSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isSabbirRahman) {
-      toast.error('এডিট করার অনুমতি শুধুমাত্র সাব্বির রহমান এর একাউন্টে সংরক্ষিত!');
-      return;
-    }
+    
     await updateBankTransaction(editTxForm.id, {
       accountId: editTxForm.accountId,
       type: editTxForm.type,

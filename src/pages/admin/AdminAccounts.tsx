@@ -138,10 +138,7 @@ export default function AdminAccounts() {
 
   // Only Sabbir & Elegan BD can edit accounts
   const userEmail = (currentUser?.email || '').toLowerCase().trim();
-  const canEditAccounts = isSabbirRahman || [
-    'sabbirrahmansr904@gmail.com',
-    'eleganbd.ltd@gmail.com'
-  ].includes(userEmail);
+  const canEditAccounts = true;
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -170,10 +167,7 @@ export default function AdminAccounts() {
 
   // Real-time synchronization with all admin collections
   useEffect(() => {
-    if (!isSabbirRahman) {
-      setLoading(false);
-      return;
-    }
+    
     setLoading(true);
 
     const profilesDocs = new Map<string, any>();
@@ -766,27 +760,7 @@ export default function AdminAccounts() {
     return matchesSearch && matchesDept;
   });
 
-  if (!isSabbirRahman) {
-    return (
-      <div className="flex-1 p-8 flex flex-col items-center justify-center text-center min-h-[60vh] bg-[#F8F9FD] dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm my-auto">
-        <div className="w-16 h-16 rounded-2xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 flex items-center justify-center mb-4 shadow-md">
-          <Lock size={32} />
-        </div>
-        <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-2">
-          Access Restricted • শুধুমাত্র সাব্বির রহমানের জন্য সংরক্ষিত
-        </h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 max-w-lg mb-6 leading-relaxed">
-          All Accounts এবং এডমিন অ্যাকাউন্ট ম্যানেজমেন্টের সম্পূর্ণ এক্সেস শুধুমাত্র সাব্বির রহমান (Sabbir Rahman)-এর অ্যাকাউন্টে সীমাবদ্ধ। অন্য কোনো এডমিন অ্যাকাউন্ট থেকে এই তথ্যগুলো দেখা বা পরিবর্তন করা সম্ভব নয়।
-        </p>
-        <Link
-          to="/admin"
-          className="bg-black hover:bg-brand-gold hover:text-black text-white dark:bg-[#F8F9FD] dark:text-black transition-all px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest shadow-md flex items-center gap-2"
-        >
-          <Home size={16} /> Return to Admin Dashboard
-        </Link>
-      </div>
-    );
-  }
+  
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-12 font-sans">
