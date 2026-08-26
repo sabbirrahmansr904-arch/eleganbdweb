@@ -305,8 +305,35 @@ export default function AdminFinance(): React.JSX.Element {
   };
 
   // Filter transactions
+  const timeframeFilteredTransactions = useMemo(() => {
+    return bankTransactions.filter(tx => {
+      if (timeframeFilter === 'all') return true;
+      const txDate = new Date(tx.date);
+      const today = new Date();
+      if (timeframeFilter === 'today') {
+        return txDate.toDateString() === today.toDateString();
+      }
+      if (timeframeFilter === '7days') {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(today.getDate() - 7);
+        return txDate >= sevenDaysAgo;
+      }
+      if (timeframeFilter === 'this_month') {
+        return txDate.getMonth() === today.getMonth() && txDate.getFullYear() === today.getFullYear();
+      }
+      if (timeframeFilter === 'custom' && startDate && endDate) {
+        const s = new Date(startDate);
+        s.setHours(0, 0, 0, 0);
+        const e = new Date(endDate);
+        e.setHours(23, 59, 59, 999);
+        return txDate >= s && txDate <= e;
+      }
+      return true;
+    });
+  }, [bankTransactions, timeframeFilter, startDate, endDate]);
+
   const filteredTransactions = useMemo(() => {
-    const filtered = bankTransactions.filter(tx => {
+    const filtered = timeframeFilteredTransactions.filter(tx => {
       if (accountFilter !== 'ALL' && tx.accountId !== accountFilter && tx.targetAccountId !== accountFilter) return false;
       if (typeFilter !== 'ALL') {
         if (typeFilter === 'income' && tx.type !== 'deposit') return false;
@@ -333,7 +360,7 @@ export default function AdminFinance(): React.JSX.Element {
       setCurrentPage(1);
     }
     return filtered;
-  }, [bankTransactions, accountFilter, typeFilter, statusFilter, searchQuery, bankAccounts, currentPage, itemsPerPage]);
+  }, [timeframeFilteredTransactions, accountFilter, typeFilter, statusFilter, searchQuery, bankAccounts, currentPage, itemsPerPage]);
 
   const paginatedTransactions = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -342,28 +369,33 @@ export default function AdminFinance(): React.JSX.Element {
 
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
 
+  
+  
+
+  // Use timeframeFilteredTransactions for Summary calculations instead of bankTransactions
+
   // Summary calculations
   const totalIncome = useMemo(() => {
-    return bankTransactions
+    return timeframeFilteredTransactions
       .filter(tx => tx.type === 'deposit' && tx.status !== 'unpaid')
       .reduce((sum, tx) => sum + tx.amount, 0);
-  }, [bankTransactions]);
+  }, [timeframeFilteredTransactions]);
 
   const totalExpense = useMemo(() => {
-    return bankTransactions
+    return timeframeFilteredTransactions
       .filter(tx => tx.type === 'withdraw' && tx.status !== 'unpaid')
       .reduce((sum, tx) => sum + tx.amount, 0);
-  }, [bankTransactions]);
+  }, [timeframeFilteredTransactions]);
 
   const unpaidCount = useMemo(() => {
-    return bankTransactions.filter(tx => tx.status === 'unpaid').length;
-  }, [bankTransactions]);
+    return timeframeFilteredTransactions.filter(tx => tx.status === 'unpaid').length;
+  }, [timeframeFilteredTransactions]);
 
   const unpaidTotalAmount = useMemo(() => {
-    return bankTransactions
+    return timeframeFilteredTransactions
       .filter(tx => tx.status === 'unpaid')
       .reduce((sum, tx) => sum + tx.amount, 0);
-  }, [bankTransactions]);
+  }, [timeframeFilteredTransactions]);
 
   const netBalance = totalIncome - totalExpense;
 
@@ -435,6 +467,28 @@ export default function AdminFinance(): React.JSX.Element {
   };
 
   // Export Report handler (Supports selected transactions or full list)
+  
+  const handleExportCSV = () => {
+    if (bankTransactions.length === 0) return;
+    const headers = ['Date', 'Type', 'Account', 'Amount', 'Reference', 'Notes', 'Status'];
+    const rows = filteredTransactions.map(tx => {
+      const date = new Date(tx.date).toLocaleDateString('en-GB');
+      const type = tx.type === 'deposit' ? 'Income' : tx.type === 'withdraw' ? 'Expense' : 'Transfer';
+      const acc = bankAccounts.find(a => a.id === tx.accountId);
+      const accName = acc ? acc.bankName : '';
+      return [`"${date}"`, `"${type}"`, `"${accName}"`, tx.amount, `"${tx.reference || ''}"`, `"${tx.notes || ''}"`, `"${tx.status}"`].join(',');
+    });
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `finance_report_${new Date().toLocaleDateString('en-GB')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleExportReport = (format: 'pdf' | 'csv', onlySelected: boolean = false) => {
     let targetList = filteredTransactions;
     if (onlySelected && selectedTxIds.length > 0) {
@@ -588,13 +642,8 @@ export default function AdminFinance(): React.JSX.Element {
             <span>প্রিন্ট ও PDF প্রিভিউ</span>
           </button>
 
-          <button
-            onClick={() => handleExportReport('pdf')}
-            className="px-5 py-2.5 bg-[#0b0f19] hover:bg-slate-900 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-sm cursor-pointer"
-          >
-            <Download className="w-4 h-4 text-red-400" />
-            <span>PDF ডাউনলোড</span>
-          </button>
+          <button onClick={() => handleExportReport('pdf')} className="px-5 py-2.5 bg-[#0b0f19] hover:bg-slate-900 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-sm cursor-pointer"> <Download className="w-4 h-4 text-red-400" /> <span>PDF ডাউনলোড</span> </button>
+          <button onClick={handleExportCSV} className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-sm cursor-pointer"> <Download className="w-4 h-4 text-white" /> <span>Excel/CSV</span> </button>
         </div>
       </div>
 
@@ -718,16 +767,26 @@ export default function AdminFinance(): React.JSX.Element {
       <div className="bg-white border border-gray-100 rounded-[24px] p-6 shadow-2xs mb-6">
         <div className="flex flex-col sm:flex-row items-center justify-between border-b border-gray-50 pb-4 gap-4 mb-5">
           <h4 className="text-sm font-black text-gray-900 uppercase tracking-wider">সারসংক্ষেপ (নির্বাচিত সময়)</h4>
-          <select
-            value={timeframeFilter}
-            onChange={(e) => setTimeframeFilter(e.target.value)}
-            className="bg-[#F8F9FD] border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-bold text-gray-700 focus:outline-none cursor-pointer"
-          >
-            <option value="this_month">এই মাস</option>
-            <option value="today">আজ</option>
-            <option value="7days">৭ দিন</option>
-            <option value="all">সব সময়</option>
-          </select>
+          <div className="flex items-center gap-2">
+            {timeframeFilter === 'custom' && (
+              <div className="flex items-center gap-2 mr-2 bg-[#F8F9FD] border border-gray-200 rounded-lg px-2 py-1">
+                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-transparent text-xs font-bold text-gray-700 focus:outline-none" />
+                <span className="text-gray-400">-</span>
+                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent text-xs font-bold text-gray-700 focus:outline-none" />
+              </div>
+            )}
+            <select
+              value={timeframeFilter}
+              onChange={(e) => setTimeframeFilter(e.target.value)}
+              className="bg-[#F8F9FD] border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-bold text-gray-700 focus:outline-none cursor-pointer"
+            >
+              <option value="this_month">এই মাস</option>
+              <option value="today">আজ</option>
+              <option value="7days">৭ দিন</option>
+              <option value="all">সব সময়</option>
+              <option value="custom">কাস্টম রেঞ্জ</option>
+            </select>
+          </div>
         </div>
 
         <div className={`grid grid-cols-2 sm:grid-cols-3 ${(totalUsdBalance !== 0 || bankAccounts.some(a => isUsdAccount(a))) ? 'xl:grid-cols-6' : 'xl:grid-cols-5'} gap-4`}>
@@ -769,7 +828,7 @@ export default function AdminFinance(): React.JSX.Element {
 
           <div className="flex flex-col bg-gray-50/60 p-4 rounded-2xl border border-gray-150 justify-center">
             <span className="text-[10px] font-black text-gray-700 uppercase tracking-wider mb-1">মোট লেনদেন</span>
-            <span className="text-lg font-black text-gray-900">{bankTransactions.length} টি</span>
+            <span className="text-lg font-black text-gray-900">{timeframeFilteredTransactions.length} টি</span>
           </div>
         </div>
       </div>
