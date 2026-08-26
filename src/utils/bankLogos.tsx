@@ -97,7 +97,29 @@ export const CashLogo = ({ className = "w-full h-full" }: { className?: string }
   </svg>
 );
 
+export const RedotpayLogo = ({ className = "w-full h-full" }: { className?: string }) => (
+  <svg viewBox="0 0 120 120" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="120" height="120" rx="28" fill="#E60028" />
+    <rect x="20" y="22" width="80" height="76" rx="16" fill="#FFFFFF" fillOpacity="0.12" />
+    {/* Clean stylized R & Dollar Card glyph */}
+    <path d="M40 34 H68 C78 34 85 41 85 51 C85 61 78 68 68 68 H54 V86 H40 V34 Z M54 46 V56 H67 C70.5 56 73 53.5 73 51 C73 48.5 70.5 46 67 46 H54 Z" fill="#FFFFFF" />
+    <path d="M64 64 L80 86 H66 L52 68 Z" fill="#FFFFFF" />
+    <circle cx="86" cy="34" r="5" fill="#FFD700" />
+    <text x="60" y="104" textAnchor="middle" fill="#FFFFFF" fontSize="13" fontWeight="900" letterSpacing="1" fontFamily="sans-serif">USD CARD</text>
+  </svg>
+);
+
 export const BANK_PRESETS: BankPreset[] = [
+  {
+    id: 'redotpay',
+    name: 'RedotPay USD (ডলার কার্ড)',
+    accountType: 'ডলার অ্যাকাউন্ট (USD)',
+    logoUrl: 'preset:redotpay',
+    brandColor: '#E60028',
+    bgColor: '#FEF2F2',
+    textColor: '#DC2626',
+    category: 'mfs'
+  },
   {
     id: 'bkash',
     name: 'bKash Personal',
@@ -216,6 +238,7 @@ export function getBankBrandKey(bankName: string, logoUrl?: string): string | nu
     return logoUrl.replace('preset:', '');
   }
   const cleanName = (bankName || '').toLowerCase();
+  if (cleanName.includes('redotpay') || cleanName.includes('redot') || cleanName.includes('রেডটপে') || cleanName.includes('রেডট পে')) return 'redotpay';
   if (cleanName.includes('bkash') || cleanName.includes('বিকাশ')) return 'bkash';
   if (cleanName.includes('nagad') || cleanName.includes('নগদ')) return 'nagad';
   if (cleanName.includes('rocket') || cleanName.includes('রকেট')) return 'rocket';
@@ -278,6 +301,7 @@ export const BankLogoBadge: React.FC<BankLogoBadgeProps> = ({
   if (brandKey) {
     return (
       <div className={`flex items-center justify-center shrink-0 shadow-sm transition-transform duration-200 ${sizeClasses[size]} ${className}`}>
+        {brandKey === 'redotpay' && <RedotpayLogo />}
         {brandKey === 'bkash' && <BkashLogo />}
         {brandKey === 'nagad' && <NagadLogo />}
         {brandKey === 'rocket' && <RocketLogo />}

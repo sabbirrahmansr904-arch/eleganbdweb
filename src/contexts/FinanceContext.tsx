@@ -14,6 +14,7 @@ export interface BankAccount {
   balance: number;
   accountType?: string;
   logoUrl?: string;
+  currency?: 'BDT' | 'USD';
 }
 
 export interface BankTransaction {
@@ -28,6 +29,38 @@ export interface BankTransaction {
   attachment?: string;
   status?: 'unpaid' | 'paid';
 }
+
+export const isUsdAccount = (acc?: BankAccount | { bankName?: string; accountName?: string; accountType?: string; currency?: string } | null): boolean => {
+  if (!acc) return false;
+  if (acc.currency === 'USD') return true;
+  const name = (acc.bankName || '').toLowerCase();
+  const accName = (acc.accountName || '').toLowerCase();
+  const accType = (acc.accountType || '').toLowerCase();
+  return name.includes('redotpay') || 
+         name.includes('redot') || 
+         name.includes('রেডটপে') || 
+         name.includes('রেডট পে') || 
+         name.includes('dollar') || 
+         name.includes('ডলার') || 
+         name.includes('usd') ||
+         accName.includes('redotpay') ||
+         accName.includes('dollar') ||
+         accName.includes('usd') ||
+         accType.includes('usd') ||
+         accType.includes('dollar') ||
+         accType.includes('ডলার');
+};
+
+export const formatAccountBalance = (acc: BankAccount, amount?: number): string => {
+  const value = amount !== undefined ? amount : (acc.balance || 0);
+  const isNegative = value < 0;
+  const absValue = Math.abs(value);
+  
+  if (isUsdAccount(acc)) {
+    return `${isNegative ? '-' : ''}$${absValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  return `${isNegative ? '-' : ''}৳${Math.round(absValue).toLocaleString('en-IN')}`;
+};
 
 interface FinanceContextType {
   bankAccounts: BankAccount[];
@@ -69,6 +102,10 @@ export const sortBankAccounts = (accounts: BankAccount[]): BankAccount[] => {
     // 5th: Rocket
     if (name.includes('rocket') || accName.includes('rocket') || name.includes('রকেট')) {
       return 5;
+    }
+    // 6th: Redotpay / Dollar USD Wallets
+    if (isUsdAccount(acc)) {
+      return 6;
     }
     return 10;
   };

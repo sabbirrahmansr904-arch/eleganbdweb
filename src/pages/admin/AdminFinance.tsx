@@ -5,7 +5,7 @@
 import React, { useState, useMemo } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { useFinance, sortBankAccounts } from '../../contexts/FinanceContext';
+import { useFinance, sortBankAccounts, isUsdAccount, formatAccountBalance } from '../../contexts/FinanceContext';
 import { useOrders } from '../../contexts/OrderContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatPrice } from '../../lib/utils';
@@ -32,11 +32,12 @@ import {
   Clock,
   AlertCircle,
   Printer,
-  Upload
+  Upload,
+  DollarSign
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { BankLogoBadge, getAutoBankLogo } from '../../utils/bankLogos';
+import { BankLogoBadge, getAutoBankLogo, BANK_PRESETS } from '../../utils/bankLogos';
 
 export default function AdminFinance(): React.JSX.Element {
   const { isSabbirRahman } = useAuth();
@@ -117,7 +118,8 @@ export default function AdminFinance(): React.JSX.Element {
     branch: '',
     initialBalance: '',
     accountType: 'ব্যক্তিগত',
-    logoUrl: ''
+    logoUrl: '',
+    currency: 'BDT' as 'BDT' | 'USD'
   });
 
   // Edit Account Form state
@@ -129,7 +131,8 @@ export default function AdminFinance(): React.JSX.Element {
     branch: '',
     balance: 0,
     initialBalance: 0,
-    logoUrl: ''
+    logoUrl: '',
+    currency: 'BDT' as 'BDT' | 'USD'
   });
 
   // Edit Transaction Form state
@@ -160,7 +163,8 @@ export default function AdminFinance(): React.JSX.Element {
       branch: accountForm.branch,
       initialBalance: parseFloat(accountForm.initialBalance) || 0,
       accountType: accountForm.accountType,
-      logoUrl: accountForm.logoUrl
+      logoUrl: accountForm.logoUrl,
+      currency: accountForm.currency
     });
     setAccountForm({
       bankName: '',
@@ -169,7 +173,8 @@ export default function AdminFinance(): React.JSX.Element {
       branch: '',
       initialBalance: '',
       accountType: 'ব্যক্তিগত',
-      logoUrl: ''
+      logoUrl: '',
+      currency: 'BDT'
     });
     setShowAddAccountModal(false);
   };
@@ -185,7 +190,8 @@ export default function AdminFinance(): React.JSX.Element {
       branch: acc.branch || '',
       balance: acc.balance || 0,
       initialBalance: acc.initialBalance || 0,
-      logoUrl: acc.logoUrl || ''
+      logoUrl: acc.logoUrl || '',
+      currency: acc.currency || (isUsdAccount(acc) ? 'USD' : 'BDT')
     });
     setShowEditAccountModal(true);
   };
@@ -201,7 +207,8 @@ export default function AdminFinance(): React.JSX.Element {
       branch: editAccountForm.branch,
       initialBalance: editAccountForm.initialBalance,
       balance: editAccountForm.balance,
-      logoUrl: editAccountForm.logoUrl
+      logoUrl: editAccountForm.logoUrl,
+      currency: editAccountForm.currency
     });
     setShowEditAccountModal(false);
   };
@@ -360,15 +367,24 @@ export default function AdminFinance(): React.JSX.Element {
 
   const netBalance = totalIncome - totalExpense;
 
+  // USD Balance Summary across all Dollar Wallets (e.g. Redotpay)
+  const totalUsdBalance = useMemo(() => {
+    return bankAccounts
+      .filter(a => isUsdAccount(a))
+      .reduce((sum, a) => sum + (a.balance || 0), 0);
+  }, [bankAccounts]);
+
   // Account distribution for Pie chart
   const pieData = useMemo(() => {
-    const totalAllBalances = bankAccounts.reduce((sum, a) => sum + (a.balance || 0), 0) || 1;
-    const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#8b5cf6'];
+    const totalAllBalances = bankAccounts.reduce((sum, a) => sum + Math.max(0, a.balance || 0), 0) || 1;
+    const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#8b5cf6', '#dc2626'];
     return bankAccounts.map((acc, index) => ({
       name: acc.bankName,
-      value: acc.balance || 0,
-      percent: Math.round(((acc.balance || 0) / totalAllBalances) * 100),
-      color: colors[index % colors.length]
+      value: Math.max(0, acc.balance || 0),
+      percent: Math.round((Math.max(0, acc.balance || 0) / totalAllBalances) * 100),
+      color: isUsdAccount(acc) ? '#E60028' : colors[index % colors.length],
+      isUsd: isUsdAccount(acc),
+      acc
     }));
   }, [bankAccounts]);
 
@@ -582,11 +598,8 @@ export default function AdminFinance(): React.JSX.Element {
         </div>
       </div>
 
-      {/* Top 4 Account Balance Cards + Summary Card Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-        
-        {/* Left Accounts Cards (1st: Cash, 2nd: Sonali Bank, 3rd: bKash, 4th: Nagad) */}
-        <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
+      {/* All Accounts Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5 mb-6">
           {bankAccounts.length === 0 ? (
             <div className="col-span-full bg-white p-8 text-center rounded-[24px] border border-gray-100 text-xs text-gray-400">
               কোনো ব্যাংক অ্যাকাউন্ট বা ওয়ালেট পাওয়া যায়নি। উপরে "+ নতুন অ্যাকাউন্ট" বাটনে ক্লিক করে অ্যাকাউন্ট যোগ করুন।
@@ -596,6 +609,7 @@ export default function AdminFinance(): React.JSX.Element {
               const isBkash = acc.bankName.toLowerCase().includes('bkash');
               const isNagad = acc.bankName.toLowerCase().includes('nagad');
               const isRocket = acc.bankName.toLowerCase().includes('rocket');
+              const isUsd = isUsdAccount(acc);
               const isProductAccount = (acc.accountType || '').toLowerCase().includes('product') || (acc.bankName || '').toLowerCase().includes('product') || (acc.accountName || '').toLowerCase().includes('product') || (acc.bankName || '').toLowerCase().includes('প্রোডাক্ট') || (acc.accountName || '').toLowerCase().includes('প্রোডাক্ট');
               const isZeroBalance = (acc.balance || 0) === 0;
               const isSelected = accountFilter === acc.id;
@@ -607,14 +621,23 @@ export default function AdminFinance(): React.JSX.Element {
                   className={`bg-white border rounded-[26px] p-5 sm:p-6 min-h-[265px] flex flex-col justify-between shadow-2xs hover:shadow-md transition-all cursor-pointer relative overflow-hidden group ${
                     isSelected ? 'border-indigo-600 ring-4 ring-indigo-50 shadow-md' : 'border-gray-150 hover:border-indigo-250'
                   } ${
-                    isBkash ? 'hover:border-pink-300' : isNagad ? 'hover:border-orange-300' : isRocket ? 'hover:border-purple-300' : 'hover:border-emerald-300'
+                    isUsd ? 'hover:border-red-300' : isBkash ? 'hover:border-pink-300' : isNagad ? 'hover:border-orange-300' : isRocket ? 'hover:border-purple-300' : 'hover:border-emerald-300'
                   }`}
                 >
                   {/* Top Bar: Account Type Badge & Edit/Delete Action Icons */}
                   <div className="flex items-center justify-between w-full">
-                    <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-gray-50 border border-gray-150 text-gray-600">
-                      {acc.accountType || 'ব্যক্তিগত'}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${
+                        isUsd ? 'bg-red-50 border-red-200 text-red-700' : 'bg-gray-50 border-gray-150 text-gray-600'
+                      }`}>
+                        {acc.accountType || (isUsd ? 'ডলার অ্যাকাউন্ট (USD)' : 'ব্যক্তিগত')}
+                      </span>
+                      {isUsd && (
+                        <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-600 flex items-center gap-0.5 shadow-2xs">
+                          <DollarSign className="w-2.5 h-2.5" /> USD
+                        </span>
+                      )}
+                    </div>
 
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
@@ -668,14 +691,20 @@ export default function AdminFinance(): React.JSX.Element {
                   {/* Bottom Balance Bar */}
                   <div className="pt-3.5 border-t border-gray-100 flex items-center justify-between w-full">
                     <div>
-                      <span className="text-[9.5px] text-gray-400 font-bold uppercase tracking-widest block">ব্যালেন্স</span>
-                      <span className="text-xl font-black tracking-tight mt-0.5 block text-emerald-600">
-                        {formatPrice(acc.balance || 0)}
+                      <span className="text-[9.5px] text-gray-400 font-bold uppercase tracking-widest block">
+                        {isUsd ? 'ডলার ব্যালেন্স (USD)' : 'ব্যালেন্স'}
+                      </span>
+                      <span className={`text-xl font-black tracking-tight mt-0.5 block ${isUsd ? 'font-mono' : ''} ${(acc.balance || 0) < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        {formatAccountBalance(acc)}
                       </span>
                     </div>
 
-                    <div className="w-8 h-8 rounded-full border border-emerald-100 text-emerald-500 flex items-center justify-center bg-gray-50/60 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all duration-300">
-                      <ArrowUpRight className="w-4 h-4" />
+                    <div className={`w-8 h-8 rounded-full border flex items-center justify-center bg-gray-50/60 transition-all duration-300 ${
+                      isUsd 
+                        ? 'border-red-200 text-red-600 group-hover:bg-red-600 group-hover:text-white group-hover:border-red-600' 
+                        : 'border-emerald-100 text-emerald-500 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600'
+                    }`}>
+                      {isUsd ? <DollarSign className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
                     </div>
                   </div>
                 </div>
@@ -684,59 +713,66 @@ export default function AdminFinance(): React.JSX.Element {
           )}
         </div>
 
-        {/* Right Total Finance Summary Card */}
-        <div className="lg:col-span-1 bg-white border border-gray-100 rounded-[24px] p-6 space-y-4 shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between border-b border-gray-50 pb-2">
-            <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">সারসংক্ষেপ (নির্বাচিত সময়)</h4>
-            <select
-              value={timeframeFilter}
-              onChange={(e) => setTimeframeFilter(e.target.value)}
-              className="bg-[#F8F9FD] border border-gray-200 rounded-lg px-2.5 py-1 text-[10px] font-bold text-gray-600 focus:outline-none cursor-pointer"
-            >
-              <option value="this_month">এই মাস</option>
-              <option value="today">আজ</option>
-              <option value="7days">৭ দিন</option>
-              <option value="all">সব সময়</option>
-            </select>
-          </div>
-
-          <div className="space-y-2.5">
-            <div className="flex items-center justify-between bg-emerald-50/45 p-3 rounded-xl border border-emerald-100/50">
-              <span className="text-xs font-bold text-emerald-800">মোট ইনকাম (Paid)</span>
-              <span className="text-sm font-black text-emerald-700">{formatPrice(totalIncome)}</span>
-            </div>
-
-            <div className="flex items-center justify-between bg-rose-50/45 p-3 rounded-xl border border-rose-100/50">
-              <span className="text-xs font-bold text-rose-800">মোট খরচ (Paid)</span>
-              <span className="text-sm font-black text-rose-700">{formatPrice(totalExpense)}</span>
-            </div>
-
-            <div className="flex items-center justify-between bg-indigo-50/45 p-3 rounded-xl border border-indigo-100/50">
-              <span className="text-xs font-bold text-indigo-900">নিট ব্যালেন্স</span>
-              <span className="text-sm font-black text-indigo-700">{formatPrice(netBalance)}</span>
-            </div>
-
-            <div className="flex items-center justify-between bg-amber-50/70 p-3 rounded-xl border border-amber-200">
-              <div className="flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-amber-600" />
-                <span className="text-xs font-bold text-amber-900">বকেয়া (Unpaid)</span>
-              </div>
-              <div className="text-right">
-                <span className="text-xs font-black text-amber-700 block">{unpaidCount} টি লেনদেন</span>
-                <span className="text-[10px] text-amber-600 font-bold">{formatPrice(unpaidTotalAmount)}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between bg-gray-50/60 p-3 rounded-xl border border-gray-150">
-              <span className="text-xs font-bold text-gray-700">মোট লেনদেন</span>
-              <span className="text-sm font-black text-gray-900">{bankTransactions.length} টি</span>
-            </div>
-          </div>
+        
+      {/* Finance Summary Horizontal Card */}
+      <div className="bg-white border border-gray-100 rounded-[24px] p-6 shadow-2xs mb-6">
+        <div className="flex flex-col sm:flex-row items-center justify-between border-b border-gray-50 pb-4 gap-4 mb-5">
+          <h4 className="text-sm font-black text-gray-900 uppercase tracking-wider">সারসংক্ষেপ (নির্বাচিত সময়)</h4>
+          <select
+            value={timeframeFilter}
+            onChange={(e) => setTimeframeFilter(e.target.value)}
+            className="bg-[#F8F9FD] border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-bold text-gray-700 focus:outline-none cursor-pointer"
+          >
+            <option value="this_month">এই মাস</option>
+            <option value="today">আজ</option>
+            <option value="7days">৭ দিন</option>
+            <option value="all">সব সময়</option>
+          </select>
         </div>
 
+        <div className={`grid grid-cols-2 sm:grid-cols-3 ${(totalUsdBalance !== 0 || bankAccounts.some(a => isUsdAccount(a))) ? 'xl:grid-cols-6' : 'xl:grid-cols-5'} gap-4`}>
+          <div className="flex flex-col bg-emerald-50/45 p-4 rounded-2xl border border-emerald-100/50 justify-center">
+            <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wider mb-1">মোট ইনকাম (Paid)</span>
+            <span className="text-lg font-black text-emerald-700">{formatPrice(totalIncome)}</span>
+          </div>
+
+          <div className="flex flex-col bg-rose-50/45 p-4 rounded-2xl border border-rose-100/50 justify-center">
+            <span className="text-[10px] font-black text-rose-800 uppercase tracking-wider mb-1">মোট খরচ (Paid)</span>
+            <span className="text-lg font-black text-rose-700">{formatPrice(totalExpense)}</span>
+          </div>
+
+          <div className="flex flex-col bg-indigo-50/45 p-4 rounded-2xl border border-indigo-100/50 justify-center">
+            <span className="text-[10px] font-black text-indigo-900 uppercase tracking-wider mb-1">নিট ব্যালেন্স (টাকা)</span>
+            <span className={`text-lg font-black ${netBalance < 0 ? 'text-rose-600' : 'text-indigo-700'}`}>{formatPrice(netBalance)}</span>
+          </div>
+
+          {(totalUsdBalance !== 0 || bankAccounts.some(a => isUsdAccount(a))) && (
+            <div className="flex flex-col bg-red-50/70 p-4 rounded-2xl border border-red-200 justify-center">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-[10px] font-black text-red-900 uppercase tracking-wider">ডলার ব্যালেন্স (USD)</span>
+              </div>
+              <span className={`text-lg font-black font-mono ${totalUsdBalance < 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
+                {totalUsdBalance < 0 ? '-' : ''}${Math.abs(totalUsdBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+          )}
+
+          <div className="flex flex-col bg-amber-50/70 p-4 rounded-2xl border border-amber-200 justify-center">
+            <div className="flex items-center gap-1.5 mb-1">
+              <span className="text-[10px] font-black text-amber-900 uppercase tracking-wider">বকেয়া (Unpaid)</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-black text-amber-600">{formatPrice(unpaidTotalAmount)}</span>
+              <span className="text-[11px] font-bold text-amber-700">{unpaidCount} টি লেনদেন</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col bg-gray-50/60 p-4 rounded-2xl border border-gray-150 justify-center">
+            <span className="text-[10px] font-black text-gray-700 uppercase tracking-wider mb-1">মোট লেনদেন</span>
+            <span className="text-lg font-black text-gray-900">{bankTransactions.length} টি</span>
+          </div>
+        </div>
       </div>
-
-
 
       {/* Main Grid: New Transaction Form (Left) & Charts / Activity (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -772,7 +808,7 @@ export default function AdminFinance(): React.JSX.Element {
                 >
                   <option value="">হিসাব নির্বাচন করুন</option>
                   {bankAccounts.map(acc => (
-                    <option key={acc.id} value={acc.id}>{acc.bankName} - {acc.accountName} ({formatPrice(acc.balance)})</option>
+                    <option key={acc.id} value={acc.id}>{acc.bankName} - {acc.accountName} ({formatAccountBalance(acc)})</option>
                   ))}
                 </select>
               </div>
@@ -794,16 +830,26 @@ export default function AdminFinance(): React.JSX.Element {
 
               {/* Amount */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">পরিমাণ (৳) *</label>
-                <input
-                  required
-                  type="number"
-                  step="any"
-                  placeholder="0.00"
-                  value={txForm.amount}
-                  onChange={(e) => setTxForm({ ...txForm, amount: e.target.value })}
-                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-3 text-xs font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
-                />
+                {(() => {
+                  const sel = bankAccounts.find(a => a.id === txForm.accountId);
+                  const isUsd = isUsdAccount(sel);
+                  return (
+                    <>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">
+                        {isUsd ? 'পরিমাণ ($ USD) *' : 'পরিমাণ (৳) *'}
+                      </label>
+                      <input
+                        required
+                        type="number"
+                        step="any"
+                        placeholder={isUsd ? "0.00 ($)" : "0.00 (৳)"}
+                        value={txForm.amount}
+                        onChange={(e) => setTxForm({ ...txForm, amount: e.target.value })}
+                        className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-3 text-xs font-bold text-gray-700 focus:border-indigo-300 focus:outline-none"
+                      />
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Date */}
@@ -949,7 +995,11 @@ export default function AdminFinance(): React.JSX.Element {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(val: any) => formatPrice(Number(val))} />
+                  <Tooltip 
+                    formatter={(val: any, name: any, item: any) => 
+                      item?.payload?.isUsd ? `$${Number(val).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : formatPrice(Number(val))
+                    } 
+                  />
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
@@ -965,7 +1015,9 @@ export default function AdminFinance(): React.JSX.Element {
                     <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }}></span>
                     <span>{item.name}</span>
                   </div>
-                  <span className="font-black text-gray-900">{formatPrice(item.value)} ({item.percent}%)</span>
+                  <span className="font-black text-gray-900">
+                    {item.isUsd ? `$${item.value.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : formatPrice(item.value)} ({item.percent}%)
+                  </span>
                 </div>
               ))}
             </div>
@@ -980,6 +1032,7 @@ export default function AdminFinance(): React.JSX.Element {
                 const acc = bankAccounts.find(a => a.id === tx.accountId);
                 const isDeposit = tx.type === 'deposit';
                 const isTransfer = tx.type === 'transfer';
+                const isUsd = isUsdAccount(acc);
                 
                 // MOCK timestamps matching visual image beautifully
                 const times = ["৫ মিনিট আগে", "৩০ মিনিট আগে", "১ ঘণ্টা আগে"];
@@ -998,7 +1051,7 @@ export default function AdminFinance(): React.JSX.Element {
                       </div>
                     </div>
                     <span className={`text-xs font-black whitespace-nowrap ${isDeposit ? 'text-emerald-600' : isTransfer ? 'text-indigo-600' : 'text-rose-600'}`}>
-                      {isDeposit ? '+' : isTransfer ? '' : '-'}{formatPrice(tx.amount)}
+                      {isDeposit ? '+' : isTransfer ? '' : '-'}{isUsd ? `$${tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : formatPrice(tx.amount)}
                     </span>
                   </div>
                 );
@@ -1024,7 +1077,7 @@ export default function AdminFinance(): React.JSX.Element {
       {/* 1. New Account Modal */}
       {showAddAccountModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-[150] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl">
+          <div className="bg-white rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-gray-50 pb-2">
               <h3 className="text-base font-black text-gray-900">নতুন অ্যাকাউন্ট / ওয়ালেট যোগ</h3>
               <button onClick={() => setShowAddAccountModal(false)} className="text-gray-400 hover:text-black transition-colors cursor-pointer">
@@ -1032,7 +1085,78 @@ export default function AdminFinance(): React.JSX.Element {
               </button>
             </div>
 
+            {/* Quick 1-Click Bank & Wallet Presets */}
+            <div className="space-y-1.5 bg-slate-50/80 p-3 rounded-2xl border border-slate-200/70">
+              <label className="text-[10px] font-black uppercase tracking-wider text-gray-600 block">
+                জনপ্রিয় অ্যাকাউন্ট প্রিসেট (১-ক্লিক সিলেকশন)
+              </label>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+                {BANK_PRESETS.map((p) => {
+                  const isPresetUsd = p.id === 'redotpay';
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        setAccountForm({
+                          ...accountForm,
+                          bankName: p.name.split(' (')[0],
+                          accountName: p.name,
+                          accountType: p.accountType,
+                          currency: isPresetUsd ? 'USD' : 'BDT',
+                          logoUrl: p.logoUrl
+                        });
+                        toast.success(`${p.name} প্রিসেট সিলেক্ট করা হয়েছে`);
+                      }}
+                      className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold whitespace-nowrap flex items-center gap-1.5 transition-all shrink-0 cursor-pointer shadow-2xs ${
+                        isPresetUsd 
+                          ? 'border-red-200 bg-red-50/70 hover:bg-red-100 text-red-800' 
+                          : 'border-gray-200 hover:border-indigo-400 bg-white hover:bg-indigo-50/50 text-gray-700'
+                      }`}
+                    >
+                      <BankLogoBadge bankName={p.name} logoUrl={p.logoUrl} size="xs" />
+                      <span>{p.name.split(' ')[0]}</span>
+                      {isPresetUsd && <span className="text-[9px] px-1 bg-red-600 text-white rounded font-mono font-bold">$</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <form onSubmit={handleAddAccountSubmit} className="space-y-4">
+              {/* Currency Selector (BDT vs USD) */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-600 block">
+                  মুদ্রা / কারেন্সি (Currency) *
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAccountForm({ ...accountForm, currency: 'BDT' })}
+                    className={`py-2.5 px-3 rounded-xl border text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      accountForm.currency !== 'USD'
+                        ? 'bg-indigo-50 border-indigo-500 text-indigo-700 ring-2 ring-indigo-200 shadow-2xs'
+                        : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    <span className="font-bold text-sm">৳</span>
+                    <span>BDT (বাংলাদেশি টাকা)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAccountForm({ ...accountForm, currency: 'USD' })}
+                    className={`py-2.5 px-3 rounded-xl border text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      accountForm.currency === 'USD'
+                        ? 'bg-red-50 border-red-500 text-red-700 ring-2 ring-red-200 shadow-2xs'
+                        : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    <DollarSign className="w-4 h-4 text-red-600" />
+                    <span>USD (ডলার অ্যাকাউন্ট)</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Device Image Upload Zone & Instant Preview */}
               <div className="space-y-2 bg-gradient-to-br from-indigo-50/50 to-slate-50 p-3.5 rounded-2xl border border-indigo-100/80">
                 <div className="flex items-center justify-between">
@@ -1091,7 +1215,7 @@ export default function AdminFinance(): React.JSX.Element {
                 <input 
                   required
                   type="text" 
-                  placeholder="উদা: bKash Personal, Sonali Bank"
+                  placeholder={accountForm.currency === 'USD' ? "উদা: Redotpay, Dollar Wallet" : "উদা: bKash Personal, Sonali Bank"}
                   value={accountForm.bankName} 
                   onChange={(e) => setAccountForm({ ...accountForm, bankName: e.target.value })}
                   className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
@@ -1111,11 +1235,11 @@ export default function AdminFinance(): React.JSX.Element {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">অ্যাকাউন্ট নাম্বার / মোবাইল নাম্বার *</label>
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">অ্যাকাউন্ট নাম্বার / মোবাইল নাম্বার / কার্ড আইডি *</label>
                 <input 
                   required
                   type="text" 
-                  placeholder="উদা: 01XXXXXXXXX"
+                  placeholder={accountForm.currency === 'USD' ? "উদা: ID 58291029 বা 01XXXXXXXXX" : "উদা: 01XXXXXXXXX"}
                   value={accountForm.accountNumber} 
                   onChange={(e) => setAccountForm({ ...accountForm, accountNumber: e.target.value })}
                   className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
@@ -1123,10 +1247,10 @@ export default function AdminFinance(): React.JSX.Element {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">শাখা (Branch)</label>
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">শাখা / বিবরণ (Branch / Note)</label>
                 <input 
                   type="text" 
-                  placeholder="উদা: Mirpur-10 (ঐচ্ছিক)"
+                  placeholder={accountForm.currency === 'USD' ? "উদা: Virtual Dollar Card (ঐচ্ছিক)" : "উদা: Mirpur-10 (ঐচ্ছিক)"}
                   value={accountForm.branch} 
                   onChange={(e) => setAccountForm({ ...accountForm, branch: e.target.value })}
                   className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
@@ -1134,15 +1258,22 @@ export default function AdminFinance(): React.JSX.Element {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">প্রাথমিক ব্যালেন্স (৳)</label>
-                <input 
-                  type="number" 
-                  step="any"
-                  placeholder="0.00"
-                  value={accountForm.initialBalance} 
-                  onChange={(e) => setAccountForm({ ...accountForm, initialBalance: e.target.value })}
-                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
-                />
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">
+                  {accountForm.currency === 'USD' ? 'প্রাথমিক ডলার ব্যালেন্স ($ USD)' : 'প্রাথমিক ব্যালেন্স (৳ BDT)'}
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 font-mono">
+                    {accountForm.currency === 'USD' ? '$' : '৳'}
+                  </span>
+                  <input 
+                    type="number" 
+                    step="any"
+                    placeholder="0.00"
+                    value={accountForm.initialBalance} 
+                    onChange={(e) => setAccountForm({ ...accountForm, initialBalance: e.target.value })}
+                    className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl pl-8 pr-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none font-mono"
+                  />
+                </div>
               </div>
 
               <button 
@@ -1159,15 +1290,48 @@ export default function AdminFinance(): React.JSX.Element {
       {/* 2. Edit Account Modal */}
       {showEditAccountModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-[150] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl">
+          <div className="bg-white rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-gray-50 pb-2">
-              <h3 className="text-base font-black text-gray-900">ব্যাংক অ্যাকাউন্ট সংশোধন</h3>
+              <h3 className="text-base font-black text-gray-900">অ্যাকাউন্ট সংশোধন</h3>
               <button onClick={() => setShowEditAccountModal(false)} className="text-gray-400 hover:text-black transition-colors cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleEditAccountSubmit} className="space-y-4">
+              {/* Currency Selector (BDT vs USD) */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-600 block">
+                  মুদ্রা / কারেন্সি (Currency) *
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditAccountForm({ ...editAccountForm, currency: 'BDT' })}
+                    className={`py-2.5 px-3 rounded-xl border text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      editAccountForm.currency !== 'USD'
+                        ? 'bg-indigo-50 border-indigo-500 text-indigo-700 ring-2 ring-indigo-200 shadow-2xs'
+                        : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    <span className="font-bold text-sm">৳</span>
+                    <span>BDT (বাংলাদেশি টাকা)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditAccountForm({ ...editAccountForm, currency: 'USD' })}
+                    className={`py-2.5 px-3 rounded-xl border text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      editAccountForm.currency === 'USD'
+                        ? 'bg-red-50 border-red-500 text-red-700 ring-2 ring-red-200 shadow-2xs'
+                        : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    <DollarSign className="w-4 h-4 text-red-600" />
+                    <span>USD (ডলার অ্যাকাউন্ট)</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Device Image Upload Zone & Instant Preview */}
               <div className="space-y-2 bg-gradient-to-br from-indigo-50/50 to-slate-50 p-3.5 rounded-2xl border border-indigo-100/80">
                 <div className="flex items-center justify-between">
@@ -1255,13 +1419,15 @@ export default function AdminFinance(): React.JSX.Element {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">প্রাথমিক ব্যালেন্স (৳)</label>
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">
+                  {editAccountForm.currency === 'USD' ? 'প্রাথমিক ব্যালেন্স ($ USD)' : 'প্রাথমিক ব্যালেন্স (৳ BDT)'}
+                </label>
                 <input 
                   type="number" 
                   step="any"
                   value={editAccountForm.initialBalance} 
                   onChange={(e) => setEditAccountForm({ ...editAccountForm, initialBalance: parseFloat(e.target.value) || 0 })}
-                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none"
+                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:border-indigo-350 focus:outline-none font-mono"
                 />
               </div>
 
@@ -1297,7 +1463,7 @@ export default function AdminFinance(): React.JSX.Element {
                   className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:outline-none"
                 >
                   {bankAccounts.map(acc => (
-                    <option key={acc.id} value={acc.id}>{acc.bankName} - {acc.accountName}</option>
+                    <option key={acc.id} value={acc.id}>{acc.bankName} - {acc.accountName} ({formatAccountBalance(acc)})</option>
                   ))}
                 </select>
               </div>
@@ -1317,15 +1483,26 @@ export default function AdminFinance(): React.JSX.Element {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">পরিমাণ (৳) *</label>
-                <input 
-                  required
-                  type="number" 
-                  step="any"
-                  value={editTxForm.amount}
-                  onChange={(e) => setEditTxForm({ ...editTxForm, amount: e.target.value })}
-                  className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:outline-none"
-                />
+                {(() => {
+                  const selAcc = bankAccounts.find(a => a.id === editTxForm.accountId);
+                  const isUsd = isUsdAccount(selAcc);
+                  return (
+                    <>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">
+                        {isUsd ? 'পরিমাণ ($ USD) *' : 'পরিমাণ (৳) *'}
+                      </label>
+                      <input 
+                        required
+                        type="number" 
+                        step="any"
+                        placeholder={isUsd ? "0.00 ($)" : "0.00 (৳)"}
+                        value={editTxForm.amount}
+                        onChange={(e) => setEditTxForm({ ...editTxForm, amount: e.target.value })}
+                        className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:outline-none font-mono"
+                      />
+                    </>
+                  );
+                })()}
               </div>
 
               <div className="space-y-1">
@@ -1421,7 +1598,15 @@ export default function AdminFinance(): React.JSX.Element {
               </div>
               <div className="flex justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
                 <span className="text-gray-400">পরিমাণ:</span>
-                <span className="font-black text-[#4f46e5]">{formatPrice(selectedTx.amount)}</span>
+                <span className="font-black text-[#4f46e5]">
+                  {(() => {
+                    const acc = bankAccounts.find(a => a.id === selectedTx.accountId);
+                    if (isUsdAccount(acc)) {
+                      return `$${selectedTx.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    }
+                    return formatPrice(selectedTx.amount);
+                  })()}
+                </span>
               </div>
               <div className="flex justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
                 <span className="text-gray-400">রেফারেন্স:</span>
@@ -1612,7 +1797,7 @@ export default function AdminFinance(): React.JSX.Element {
                             <td className={`py-2 px-3 text-right font-black text-xs ${
                               isIncome ? 'text-emerald-700' : isTransfer ? 'text-indigo-700' : 'text-rose-700'
                             }`}>
-                              {isIncome ? '+' : isTransfer ? '' : '-'}{formatPrice(tx.amount)}
+                              {isIncome ? '+' : isTransfer ? '' : '-'}{isUsdAccount(acc) ? `$${tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : formatPrice(tx.amount)}
                             </td>
                           </tr>
                         );
@@ -1682,7 +1867,15 @@ export default function AdminFinance(): React.JSX.Element {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">পরিমাণ:</span>
-                  <span className="font-black text-gray-900">{formatPrice(txToDelete.amount)}</span>
+                  <span className="font-black text-gray-900">
+                    {(() => {
+                      const acc = bankAccounts.find(a => a.id === txToDelete.accountId);
+                      if (isUsdAccount(acc)) {
+                        return `$${txToDelete.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                      }
+                      return formatPrice(txToDelete.amount);
+                    })()}
+                  </span>
                 </div>
                 {txToDelete.reference && (
                   <div className="flex justify-between">

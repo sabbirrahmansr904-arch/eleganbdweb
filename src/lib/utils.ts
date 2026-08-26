@@ -12,10 +12,12 @@ export function formatPrice(price: number, currency: 'USD' | 'BDT' = 'BDT', rate
   const displayPrice = currency === 'USD' ? price / rate : price;
   
   if (currency === 'BDT') {
-    return `৳${new Intl.NumberFormat('en-BD', {
+    const isNegative = displayPrice < 0;
+    const absValue = Math.abs(displayPrice);
+    return `${isNegative ? '-' : ''}৳${new Intl.NumberFormat('en-IN', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(displayPrice)}`;
+    }).format(absValue)}`;
   }
 
   return new Intl.NumberFormat('en-US', {

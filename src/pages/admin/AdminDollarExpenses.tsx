@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType, isQuotaError } from '../../lib/firestoreUtils';
 import { formatPrice } from '../../lib/utils';
-import { useFinance } from '../../contexts/FinanceContext';
+import { useFinance, isUsdAccount, formatAccountBalance } from '../../contexts/FinanceContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
   Plus, 
@@ -47,6 +47,8 @@ interface DollarTransaction {
   purpose?: string;
   notes?: string;
   account?: string;
+  accountId?: string;
+  usdAccountId?: string;
 }
 
 export default function AdminDollarExpenses(): React.JSX.Element {
@@ -78,6 +80,7 @@ export default function AdminDollarExpenses(): React.JSX.Element {
     rate: '117.5',
     bdtAmount: '',
     accountId: '',
+    usdAccountId: '',
     account: 'bKash',
     purpose: 'Facebook Ads',
     notes: ''
@@ -100,7 +103,9 @@ export default function AdminDollarExpenses(): React.JSX.Element {
           date: Number(data.date || Date.now()),
           purpose: data.purpose || '',
           notes: data.notes || '',
-          account: data.account || 'bKash'
+          account: data.account || 'bKash',
+          accountId: data.accountId || '',
+          usdAccountId: data.usdAccountId || ''
         });
       });
       setTransactions(list);
@@ -117,12 +122,20 @@ export default function AdminDollarExpenses(): React.JSX.Element {
   useEffect(() => {
     if (editingTransaction) {
       setFormType(editingTransaction.type);
+      const computedBdt = editingTransaction.bdtAmount 
+        ? editingTransaction.bdtAmount.toString() 
+        : ((editingTransaction.amount || 0) * (editingTransaction.rate || 117.5)).toFixed(2);
+      const computedRate = editingTransaction.rate
+        ? editingTransaction.rate.toString()
+        : (editingTransaction.amount > 0 && editingTransaction.bdtAmount ? (editingTransaction.bdtAmount / editingTransaction.amount).toFixed(2) : '117.5');
+
       setForm({
         date: new Date(editingTransaction.date).toISOString().split('T')[0],
         amount: editingTransaction.amount.toString(),
-        rate: (editingTransaction.rate || 117.5).toString(),
-        bdtAmount: (editingTransaction.bdtAmount || '').toString(),
+        rate: computedRate,
+        bdtAmount: computedBdt,
         accountId: editingTransaction.accountId || '',
+        usdAccountId: editingTransaction.usdAccountId || '',
         account: editingTransaction.account || 'bKash',
         purpose: editingTransaction.purpose || 'Facebook Ads',
         notes: editingTransaction.notes || ''
@@ -135,6 +148,7 @@ export default function AdminDollarExpenses(): React.JSX.Element {
         rate: '117.5',
         bdtAmount: '',
         accountId: bankAccounts.length > 0 ? bankAccounts[0].id : '',
+        usdAccountId: bankAccounts.filter(a => isUsdAccount(a)).length > 0 ? bankAccounts.filter(a => isUsdAccount(a))[0].id : '',
         account: bankAccounts.length > 0 ? `${bankAccounts[0].bankName} (${bankAccounts[0].accountNumber})` : 'bKash',
         purpose: 'Facebook Ads',
         notes: ''
@@ -145,19 +159,32 @@ export default function AdminDollarExpenses(): React.JSX.Element {
   // Handle auto-calculating values
   const handleAmountChange = (val: string) => {
     const amt = parseFloat(val);
+    const bdt = parseFloat(form.bdtAmount);
     const r = parseFloat(form.rate);
-    const calculatedBdt = (!isNaN(amt) && !isNaN(r)) ? (amt * r).toFixed(2) : '';
+
+    let nextBdt = form.bdtAmount;
+    let nextRate = form.rate;
+
+    if (!isNaN(amt) && amt > 0) {
+      if (!isNaN(bdt) && bdt > 0) {
+        nextRate = (bdt / amt).toFixed(2);
+      } else if (!isNaN(r) && r > 0) {
+        nextBdt = (amt * r).toFixed(2);
+      }
+    }
+
     setForm(prev => ({
       ...prev,
       amount: val,
-      bdtAmount: calculatedBdt
+      bdtAmount: nextBdt,
+      rate: nextRate
     }));
   };
 
   const handleRateChange = (val: string) => {
     const r = parseFloat(val);
     const amt = parseFloat(form.amount);
-    const calculatedBdt = (!isNaN(amt) && !isNaN(r)) ? (amt * r).toFixed(2) : '';
+    const calculatedBdt = (!isNaN(amt) && !isNaN(r)) ? (amt * r).toFixed(2) : form.bdtAmount;
     setForm(prev => ({
       ...prev,
       rate: val,
@@ -168,7 +195,7 @@ export default function AdminDollarExpenses(): React.JSX.Element {
   const handleBdtAmountChange = (val: string) => {
     const bdt = parseFloat(val);
     const amt = parseFloat(form.amount);
-    const calculatedRate = (!isNaN(bdt) && !isNaN(amt) && amt > 0) ? (bdt / amt).toFixed(4) : '';
+    const calculatedRate = (!isNaN(bdt) && !isNaN(amt) && amt > 0) ? (bdt / amt).toFixed(2) : form.rate;
     setForm(prev => ({
       ...prev,
       bdtAmount: val,
@@ -285,10 +312,27 @@ export default function AdminDollarExpenses(): React.JSX.Element {
 
     const finalDate = new Date(form.date).getTime();
 
-    const rateVal = formType === 'buy' ? (parseFloat(form.rate) || 0) : (stats.avgBuyRate || 117.5);
-    const bdtVal = formType === 'buy' 
-      ? (parseFloat(form.bdtAmount) || (amountVal * rateVal))
-      : (amountVal * (stats.avgBuyRate || 117.5));
+    const enteredBdt = parseFloat(form.bdtAmount);
+    const enteredRate = parseFloat(form.rate);
+
+    let bdtVal = 0;
+    let rateVal = 0;
+
+    if (formType === 'buy') {
+      if (!isNaN(enteredBdt) && enteredBdt > 0) {
+        bdtVal = enteredBdt;
+        rateVal = amountVal > 0 ? Number((bdtVal / amountVal).toFixed(4)) : (enteredRate || 117.5);
+      } else if (!isNaN(enteredRate) && enteredRate > 0) {
+        rateVal = enteredRate;
+        bdtVal = Number((amountVal * rateVal).toFixed(2));
+      } else {
+        rateVal = stats.avgBuyRate || 117.5;
+        bdtVal = Number((amountVal * rateVal).toFixed(2));
+      }
+    } else {
+      bdtVal = !isNaN(enteredBdt) && enteredBdt > 0 ? enteredBdt : Number((amountVal * (stats.avgBuyRate || 117.5)).toFixed(2));
+      rateVal = 0;
+    }
 
     let selectedAccName = form.account;
     if (form.accountId) {
@@ -304,6 +348,7 @@ export default function AdminDollarExpenses(): React.JSX.Element {
       rate: formType === 'buy' ? rateVal : 0,
       bdtAmount: bdtVal,
       accountId: form.accountId || '',
+      usdAccountId: formType === 'buy' ? form.usdAccountId : '',
       account: selectedAccName,
       date: finalDate,
       purpose: formType === 'spend' ? form.purpose : 'ডলার ক্রয়',
@@ -318,19 +363,56 @@ export default function AdminDollarExpenses(): React.JSX.Element {
         const docRef = await addDoc(collection(db, 'dollar_transactions'), payload);
 
         // If a real bank account is selected and it's a dollar buy, record it in the finance bank transaction ledger
-        if (formType === 'buy' && form.accountId && bdtVal > 0) {
-          try {
-            await addBankTransaction({
-              accountId: form.accountId,
-              type: 'withdraw', // Dollar buy deducts BDT from account
-              amount: bdtVal,
-              date: finalDate,
-              reference: `ডলার ক্রয় ($${amountVal} @ ৳${rateVal})`,
-              notes: form.notes ? `ডলার ক্রয় - ${form.notes}` : 'ডলার ক্রয়',
-              status: 'paid'
-            });
-          } catch (bankErr) {
-            console.error('Failed to log bank transaction:', bankErr);
+        if (formType === 'buy') {
+          if (form.accountId && bdtVal > 0) {
+            try {
+              await addBankTransaction({
+                accountId: form.accountId,
+                type: 'withdraw', // Dollar buy deducts BDT from account
+                amount: bdtVal,
+                date: finalDate,
+                reference: `ডলার ক্রয় ($${amountVal} @ ৳${rateVal})`,
+                notes: form.notes ? `ডলার ক্রয় - ${form.notes}` : 'ডলার ক্রয়',
+                status: 'paid'
+              });
+            } catch (bankErr) {
+              console.error('Failed to log bank transaction:', bankErr);
+            }
+          }
+          if (form.usdAccountId && amountVal > 0) {
+            try {
+              await addBankTransaction({
+                accountId: form.usdAccountId,
+                type: 'deposit', // Dollar buy adds USD to the dollar wallet
+                amount: amountVal,
+                date: finalDate,
+                reference: `ডলার জমা (Purchased)`,
+                notes: form.notes ? `ডলার জমা - ${form.notes}` : 'ডলার ক্রয় থেকে জমা',
+                status: 'paid'
+              });
+            } catch (bankErr) {
+              console.error('Failed to log bank transaction:', bankErr);
+            }
+          }
+        } else if (formType === 'spend') {
+          if (form.accountId && amountVal > 0) {
+            // Find if the selected account is actually a USD account
+            const acc = bankAccounts.find(a => a.id === form.accountId);
+            if (acc) {
+              try {
+                await addBankTransaction({
+                  accountId: form.accountId,
+                  type: 'withdraw', // Spend deducts either USD or BDT depending on account type
+                  amount: isUsdAccount(acc) ? amountVal : bdtVal,
+                  date: finalDate,
+                  reference: `ডলার খরচ (${form.purpose})`,
+                  notes: form.notes ? `ডলার খরচ - ${form.notes}` : 'ডলার খরচ',
+                  status: 'paid'
+                });
+              } catch (bankErr) {
+                console.error('Failed to log bank transaction:', bankErr);
+              }
+            }
           }
         }
 
@@ -807,9 +889,17 @@ export default function AdminDollarExpenses(): React.JSX.Element {
                         </span>
                       </td>
                       <td className="py-3 px-4">
-                        <span className="inline-flex items-center px-2.5 py-1 bg-slate-100 text-slate-800 rounded-lg text-[11px] font-bold">
-                          {t.account || 'bKash'}
-                        </span>
+                        <div className="flex flex-col gap-1 items-start">
+                          <span className="inline-flex items-center px-2.5 py-1 bg-slate-100 text-slate-800 rounded-lg text-[11px] font-bold">
+                            {t.account || 'bKash'} {isBuy ? '(থেকে)' : ''}
+                          </span>
+                          {isBuy && t.usdAccountId && (
+                            <span className="inline-flex items-center px-2.5 py-1 bg-red-50 text-red-800 rounded-lg text-[10px] font-bold border border-red-100">
+                              <DollarSign className="w-2.5 h-2.5 mr-0.5" />
+                              {bankAccounts.find(a => a.id === t.usdAccountId)?.bankName || 'USD Account'} (জমা)
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className={`py-3 px-4 font-black text-right ${isBuy ? 'text-emerald-600' : 'text-slate-900'}`}>
                         {isBuy ? '+' : '-'}${t.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -951,36 +1041,73 @@ export default function AdminDollarExpenses(): React.JSX.Element {
                 </div>
               </div>
 
-              {/* Amount (USD) and Rate */}
+              {/* Amount (USD) and Total BDT Amount / Rate */}
               {formType === 'buy' ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider block">ডলার (USD)</label>
-                    <div className="relative">
-                      <DollarSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input 
-                        type="number" 
-                        step="any"
-                        required
-                        placeholder="e.g. 100"
-                        value={form.amount}
-                        onChange={(e) => handleAmountChange(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 outline-none focus:border-indigo-400 transition-all"
-                      />
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider block">
+                        ডলার (USD) *
+                      </label>
+                      <div className="relative">
+                        <DollarSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input 
+                          type="number" 
+                          step="any"
+                          required
+                          placeholder="e.g. 100"
+                          value={form.amount}
+                          onChange={(e) => handleAmountChange(e.target.value)}
+                          className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 outline-none focus:border-indigo-400 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase text-indigo-700 tracking-wider flex items-center justify-between">
+                        <span>মোট টাকা (BDT) *</span>
+                        <span className="text-[9px] text-indigo-500 font-bold bg-indigo-50 px-1.5 py-0.5 rounded">কত টাকা লেগেছে</span>
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-black text-indigo-600">৳</span>
+                        <input 
+                          type="number" 
+                          step="any"
+                          required
+                          placeholder="e.g. 12000"
+                          value={form.bdtAmount}
+                          onChange={(e) => handleBdtAmountChange(e.target.value)}
+                          className="w-full pl-8 pr-3 py-2.5 bg-indigo-50/40 border border-indigo-200 focus:border-indigo-500 rounded-xl text-xs font-black text-indigo-900 outline-none transition-all placeholder:text-gray-400"
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider block">রেট (BDT / USD)</label>
-                    <input 
-                      type="number" 
-                      step="any"
-                      required
-                      placeholder="e.g. 117.5"
-                      value={form.rate}
-                      onChange={(e) => handleRateChange(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 outline-none focus:border-indigo-400 transition-all"
-                    />
+                  {/* Optional / Auto-calculated Exchange Rate */}
+                  <div className="bg-gray-50/80 p-2.5 rounded-xl border border-gray-100 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-bold text-gray-600">
+                        ডলার রেট (Rate ৳/USD)
+                      </label>
+                      <span className="text-[10px] font-bold text-indigo-600">
+                        {form.amount && form.bdtAmount && parseFloat(form.amount) > 0 ? (
+                          `হিসাবকৃত রেট: ৳${(parseFloat(form.bdtAmount) / parseFloat(form.amount)).toFixed(2)}/USD`
+                        ) : (
+                          'ঐচ্ছিক / অটো-হিসাব'
+                        )}
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">৳</span>
+                      <input 
+                        type="number" 
+                        step="any"
+                        placeholder="e.g. 117.5"
+                        value={form.rate}
+                        onChange={(e) => handleRateChange(e.target.value)}
+                        className="w-full pl-8 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700 outline-none focus:border-indigo-400 transition-all placeholder:text-gray-400"
+                      />
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -1027,7 +1154,7 @@ export default function AdminDollarExpenses(): React.JSX.Element {
                   <option value="">-- অ্যাকাউন্ট সিলেক্ট করুন --</option>
                   {bankAccounts.map((acc) => (
                     <option key={acc.id} value={acc.id}>
-                      {acc.bankName} - {acc.accountName} ({acc.accountNumber}) {formType === 'buy' ? `[ব্যালেন্স: ৳${acc.balance?.toLocaleString()}]` : ''}
+                      {acc.bankName} - {acc.accountName} ({acc.accountNumber}) ({formatAccountBalance(acc)})
                     </option>
                   ))}
                 </select>
@@ -1038,12 +1165,38 @@ export default function AdminDollarExpenses(): React.JSX.Element {
                 )}
               </div>
 
+              {/* Destination USD Account Selection (Only for buy) */}
+              {formType === 'buy' && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center justify-between">
+                    <span>ডলার জমা হওয়ার অ্যাকাউন্ট (কোথায় ডলার যোগ হবে)</span>
+                  </label>
+                  <select 
+                    value={form.usdAccountId}
+                    onChange={(e) => setForm({ ...form, usdAccountId: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 outline-none focus:border-indigo-400 transition-all"
+                  >
+                    <option value="">-- ডলার অ্যাকাউন্ট সিলেক্ট করুন (ঐচ্ছিক) --</option>
+                    {bankAccounts.filter(a => isUsdAccount(a)).map((acc) => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.bankName} - {acc.accountName} ({acc.accountNumber}) ({formatAccountBalance(acc)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {/* Calculation Preview Banner (Only for dollar buy) */}
               {formType === 'buy' ? (
-                <div className="bg-indigo-50/60 border border-indigo-100 rounded-xl p-3 text-[11px] text-indigo-900 font-bold flex items-center justify-between">
-                  <span>হিসাব (Calculation):</span>
+                <div className="bg-indigo-50/80 border border-indigo-100 rounded-xl p-3 text-[11px] text-indigo-900 font-bold flex items-center justify-between">
+                  <span>মোট খরচ (Total BDT):</span>
                   <span className="font-black text-indigo-700">
-                    ${form.amount || '0'} × ৳{form.rate || '0'} = ৳{form.bdtAmount || '0'} ({form.account})
+                    ৳{parseFloat(form.bdtAmount || '0').toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({form.account})
+                    {form.amount && parseFloat(form.amount) > 0 && form.rate && (
+                      <span className="text-[10px] text-indigo-500 font-semibold ml-1.5">
+                        (${form.amount} @ ৳{parseFloat(form.rate).toFixed(2)})
+                      </span>
+                    )}
                   </span>
                 </div>
               ) : (
