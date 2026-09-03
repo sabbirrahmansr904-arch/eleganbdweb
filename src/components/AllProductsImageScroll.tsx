@@ -86,6 +86,13 @@ export default function AllProductsImageScroll() {
               ? product.images[0] 
               : (product.image || 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=500&q=80');
 
+            const isPant = Boolean(
+              (product.category || '').toLowerCase().includes('pant') ||
+              (product.category || '').toLowerCase().includes('trouser') ||
+              (product.name || '').toLowerCase().includes('pant') ||
+              (product.name || '').toLowerCase().includes('trouser')
+            );
+
             return (
               <Link
                 key={product.id}
@@ -93,11 +100,14 @@ export default function AllProductsImageScroll() {
                 className="shrink-0 w-48 sm:w-56 md:w-60 group/card bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-2xs hover:shadow-xl hover:border-blue-500 transition-all duration-300 transform hover:-translate-y-1 snap-start relative"
               >
                 {/* Image Box */}
-                <div className="relative aspect-3/4 w-full bg-gray-50 overflow-hidden">
+                <div className={cn("relative w-full overflow-hidden", isPant ? "aspect-square bg-white" : "aspect-3/4 bg-gray-50")}>
                   <img
                     src={imgUrl}
                     alt={product.name}
-                    className="w-full h-full object-cover object-center group-hover/card:scale-108 transition-transform duration-500"
+                    className={cn(
+                      "w-full h-full transition-transform duration-500 group-hover/card:scale-108",
+                      isPant ? "object-contain object-center" : "object-cover object-center"
+                    )}
                     loading="lazy"
                     decoding="async"
                     referrerPolicy="no-referrer"

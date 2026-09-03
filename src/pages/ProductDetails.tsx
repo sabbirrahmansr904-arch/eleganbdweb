@@ -260,7 +260,15 @@ const ProductDetails = () => {
 
             {/* Main Image */}
             <div 
-              className="order-1 md:order-2 flex-1 relative group aspect-[3/4] bg-gray-50 rounded-sm overflow-hidden border border-gray-100 cursor-zoom-in"
+              className={cn(
+                "order-1 md:order-2 flex-1 relative group bg-gray-50 rounded-sm overflow-hidden border border-gray-100 cursor-zoom-in",
+                Boolean(
+                  (product.category || '').toLowerCase().includes('pant') ||
+                  (product.category || '').toLowerCase().includes('trouser') ||
+                  (product.name || '').toLowerCase().includes('pant') ||
+                  (product.name || '').toLowerCase().includes('trouser')
+                ) ? "aspect-square" : "aspect-[3/4]"
+              )}
               onMouseMove={handleMouseMove}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}

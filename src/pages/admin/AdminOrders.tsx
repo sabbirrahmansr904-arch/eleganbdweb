@@ -54,6 +54,7 @@ import { useNavigate } from 'react-router-dom';
 import { DISTRICT_THANAS } from '../../data/locations';
 import { parseCustomerAddress } from '../../utils/addressParser';
 import { Html5Qrcode } from 'html5-qrcode';
+import { bookPathaoOrder, bookSteadfastOrder, trackCourierOrder } from '../../utils/apiClient';
 
 const formatOrderDate = (dateStr: string) => {
   try {
@@ -723,17 +724,8 @@ export default function AdminOrders(): React.JSX.Element {
         if (!consignmentId) continue;
 
         try {
-          const res = await fetch('/api/courier/track-order', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              consignmentId, 
-              trackingCode: consignmentId,
-              courier: ord.courier || (isSteadfast ? 'steadfast' : 'pathao')
-            })
-          });
-          const data = await res.json();
-          if (res.ok && data.success && data.status) {
+          const { ok, data } = await trackCourierOrder(consignmentId, ord.courier || (isSteadfast ? 'steadfast' : 'pathao'));
+          if (ok && data.success && data.status) {
             const rawStatus = (data.status || '').toLowerCase();
             let newStatus: Order['status'] = ord.status;
 
@@ -870,14 +862,9 @@ export default function AdminOrders(): React.JSX.Element {
     const loadingToast = toast.loading(`Booking Order #${shortCode} with Pathao API...`);
 
     try {
-      const res = await fetch('/api/pathao/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order: updatedOrder })
-      });
-      const data = await res.json();
+      const { ok, data } = await bookPathaoOrder(updatedOrder);
       
-      if (res.ok && data.success) {
+      if (ok && data.success) {
         const consignment_id = data.consignment_id || "PL-000000";
         const charge = pathaoBookingOrder.courierCharge || 120;
         const payout = Math.max(0, (pathaoBookingOrder.total || 0) - charge);
@@ -927,14 +914,9 @@ export default function AdminOrders(): React.JSX.Element {
     const loadingToast = toast.loading(`Booking Order #${shortCode} with Steadfast API...`);
 
     try {
-      const res = await fetch('/api/steadfast/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order: updatedOrder })
-      });
-      const data = await res.json();
+      const { ok, data } = await bookSteadfastOrder(updatedOrder);
       
-      if (res.ok && data.success) {
+      if (ok && data.success) {
         const consignmentId = data.consignmentId || "SF000000";
         const trackingCode = data.trackingCode || consignmentId;
         if (updateOrder) {
@@ -978,14 +960,9 @@ export default function AdminOrders(): React.JSX.Element {
     const loadingToast = toast.loading(`Booking Order #${shortCode} with Pathao API...`);
     
     try {
-      const res = await fetch('/api/pathao/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order: activeScanOrder })
-      });
-      const data = await res.json();
+      const { ok, data } = await bookPathaoOrder(activeScanOrder);
 
-      if (res.ok && data.success) {
+      if (ok && data.success) {
         const consignment_id = data.consignment_id || "PL-000000";
         const charge = activeScanOrder.courierCharge || 120;
         const payout = Math.max(0, (activeScanOrder.total || 0) - charge);

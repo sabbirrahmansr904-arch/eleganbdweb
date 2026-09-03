@@ -31,6 +31,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { trackCourierOrder } from '../utils/apiClient';
 
 export default function TrackOrder() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -68,17 +69,8 @@ export default function TrackOrder() {
     setLiveCourierName(isSteadfast ? 'Steadfast' : 'Pathao');
 
     try {
-      const res = await fetch('/api/courier/track-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          consignmentId: cleanId,
-          trackingCode: cleanId,
-          courier: targetOrder.courier || (isSteadfast ? 'steadfast' : 'pathao')
-        })
-      });
-      const data = await res.json();
-      if (res.ok && data.success && data.status) {
+      const { ok, data } = await trackCourierOrder(cleanId, targetOrder.courier || (isSteadfast ? 'steadfast' : 'pathao'));
+      if (ok && data.success && data.status) {
         setLiveCourierStatus(data.status);
         if (data.courier) {
           setLiveCourierName(data.courier);

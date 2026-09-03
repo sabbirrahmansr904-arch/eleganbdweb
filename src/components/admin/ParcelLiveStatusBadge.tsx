@@ -4,6 +4,7 @@ import { Order } from '../../types';
 import { useOrders } from '../../contexts/OrderContext';
 import { isDeliveredOrSuccess } from '../../utils/orderUtils';
 import toast from 'react-hot-toast';
+import { trackCourierOrder } from '../../utils/apiClient';
 
 interface ParcelLiveStatusBadgeProps {
   order: Order;
@@ -27,18 +28,9 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
     setError(false);
 
     try {
-      const res = await fetch('/api/courier/track-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          consignmentId: cleanTrackingId, 
-          trackingCode: cleanTrackingId,
-          courier: order.courier || (isSteadfastInitial ? 'steadfast' : 'pathao')
-        })
-      });
+      const { ok, data } = await trackCourierOrder(cleanTrackingId, order.courier || (isSteadfastInitial ? 'steadfast' : 'pathao'));
 
-      const data = await res.json();
-      if (res.ok && data.success && data.status) {
+      if (ok && data.success && data.status) {
         setStatus(data.status);
         const resolvedCourier = data.courier === 'Steadfast' ? 'SF' : 'Pathao';
         setCourierName(resolvedCourier);

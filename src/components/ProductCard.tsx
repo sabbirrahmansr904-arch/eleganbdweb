@@ -95,19 +95,44 @@ const ProductCard = React.memo(({ product, onAddToCart, loading = "eager", badge
   const discount = product.discount || 0;
   const rating = product.rating || 0;
 
+  const isPant = Boolean(
+    (product.category || '').toLowerCase().includes('pant') ||
+    (product.category || '').toLowerCase().includes('trouser') ||
+    (product.name || '').toLowerCase().includes('pant') ||
+    (product.name || '').toLowerCase().includes('trouser')
+  );
+  const [isSquareImg, setIsSquareImg] = useState<boolean>(false);
+  const isSquareDisplay = isPant || isSquareImg;
+
   return (
     <div
       className="group relative bg-white rounded-xl sm:rounded-2xl border border-gray-200/90 shadow-2xs hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col justify-between h-full"
     >
       <div>
-        {/* Product Image Container - Full Card Width, Tall Portrait Display */}
-        <Link to={`/product/${product.id}`} className="block relative aspect-[3/4.2] w-full overflow-hidden bg-[#f0f2f5] group/img">
+        {/* Product Image Container - Square for Pants/Square Images, Portrait for Shirts */}
+        <Link 
+          to={`/product/${product.id}`} 
+          className={cn(
+            "block relative w-full overflow-hidden group/img transition-all",
+            isSquareDisplay ? "aspect-square bg-white" : "aspect-[3/4.2] bg-[#f0f2f5]"
+          )}
+        >
           {product.images && product.images.length > 0 && product.images[0] ? (
             <img
               src={product.images[0]}
               alt={product.name}
+              onLoad={(e) => {
+                const target = e.currentTarget;
+                if (target.naturalWidth && target.naturalHeight) {
+                  const ratio = target.naturalWidth / target.naturalHeight;
+                  if (ratio >= 0.92 && ratio <= 1.08) {
+                    setIsSquareImg(true);
+                  }
+                }
+              }}
               className={cn(
-                "w-full h-full transition-transform duration-500 ease-out group-hover/img:scale-105 object-cover object-top",
+                "w-full h-full transition-transform duration-500 ease-out group-hover/img:scale-105",
+                isSquareDisplay ? "object-contain object-center" : "object-cover object-top",
                 product.stock === 0 && "grayscale"
               )}
               referrerPolicy="no-referrer"

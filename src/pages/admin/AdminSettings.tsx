@@ -51,6 +51,7 @@ import { compressImage } from '../../utils/imageCompressor';
 import { autoSaveToMediaLibrary } from '../../utils/mediaLibrary';
 import { Coupon } from '../../types';
 import toast from 'react-hot-toast';
+import { safeApiFetch } from '../../utils/apiClient';
 
 const formatLastActive = (timestamp: number) => {
   if (!timestamp) return 'Offline';
@@ -704,16 +705,14 @@ export default function AdminSettings() {
     setIsTestingSteadfast(true);
     const loadingToast = toast.loading('Connecting to Steadfast API...');
     try {
-      const res = await fetch('/api/steadfast/test-connection', {
+      const { ok, data } = await safeApiFetch('/api/steadfast/test-connection', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           apiKey: steadfastApiKey.trim(),
           secretKey: steadfastSecretKey.trim()
         })
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (ok && data.success) {
         toast.success(`Connection established! Account balance: ৳ ${data.balance}`, { id: loadingToast, duration: 5000 });
       } else {
         toast.error(data.error || 'Connection failed. Please check credentials.', { id: loadingToast });
@@ -733,9 +732,8 @@ export default function AdminSettings() {
     setIsTestingPathao(true);
     const loadingToast = toast.loading('Connecting to Pathao OAuth API...');
     try {
-      const res = await fetch('/api/pathao/test-connection', {
+      const { ok, data } = await safeApiFetch('/api/pathao/test-connection', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clientId: pathaoClientId.trim(),
           clientSecret: pathaoClientSecret.trim(),
@@ -744,8 +742,7 @@ export default function AdminSettings() {
           baseUrl: pathaoBaseUrl.trim()
         })
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (ok && data.success) {
         toast.success(`Pathao Merchant API Connected Successfully! Token Received.`, { id: loadingToast });
       } else {
         toast.error(`Pathao Connection Failed: ${data.error || 'Check credentials'}`, { id: loadingToast, duration: 6000 });
