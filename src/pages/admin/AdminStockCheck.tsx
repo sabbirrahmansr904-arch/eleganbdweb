@@ -31,6 +31,12 @@ export default function AdminStockCheck() {
   }, [products]);
 
   const getProductSizes = (product: Product) => {
+    if (Array.isArray(product.sizes) && product.sizes.length > 0) {
+      return product.sizes;
+    }
+    if (product.sizeStock && Object.keys(product.sizeStock).length > 0) {
+      return Object.keys(product.sizeStock);
+    }
     const cat = (product.category || '').toLowerCase();
     const name = (product.name || '').toLowerCase();
 
@@ -40,7 +46,7 @@ export default function AdminStockCheck() {
     if (cat.includes('pant') || cat.includes('trouser') || cat.includes('jeans') || name.includes('pant') || name.includes('trouser') || name.includes('jeans')) {
       return ['28', '30', '32', '34', '36', '38', '40'];
     }
-    return ['0', '1', '2', '3', '4', '5', '6'];
+    return ['M', 'L', 'XL', 'XXL'];
   };
 
   const filteredProducts = useMemo(() => {
@@ -140,8 +146,11 @@ export default function AdminStockCheck() {
       {/* Products Stock List */}
       <div className="space-y-4">
         {filteredProducts.map((product) => {
-          const sizesObj = product.sizeStock || product.sizes || {};
-          const totalStock = Object.values(sizesObj).reduce((sum, qty) => sum + (Number(qty) || 0), 0);
+          const targetSizes = getProductSizes(product);
+          const totalStock = targetSizes.reduce((sum, sz) => {
+            const qty = Number(product.sizeStock?.[sz] ?? (product.sizes as any)?.[sz] ?? 0);
+            return sum + (Math.max(0, qty) || 0);
+          }, 0);
           const hasStock = totalStock > 0;
           const thumbnail = product.images?.[0] || product.image || '/placeholder.png';
 

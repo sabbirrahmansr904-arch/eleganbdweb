@@ -97,12 +97,27 @@ export default function AdminMasterTable(): React.JSX.Element {
   const globalTotalUnits = useMemo(() => {
     return products.reduce((acc, p) => {
       if (p.sizes && p.sizes.length > 0) {
-        const sumSizes = Object.values(p.sizeStock || {}).reduce((s, q) => s + (Number(q) || 0), 0);
+        const sumSizes = p.sizes.reduce((s, sz) => s + (Math.max(0, Number(p.sizeStock?.[sz]) || 0)), 0);
         return acc + sumSizes;
       }
-      return acc + (Number(p.stock) || 0);
+      if (p.sizeStock && Object.keys(p.sizeStock).length > 0) {
+        const sumSizes = Object.values(p.sizeStock).reduce((s, q) => s + (Math.max(0, Number(q) || 0)), 0);
+        return acc + sumSizes;
+      }
+      return acc + (Math.max(0, Number(p.stock) || 0));
     }, 0);
   }, [products]);
+
+  // Helper to compute a single product's exact total stock
+  const getProductTotalStock = (product: typeof products[0]): number => {
+    if (product.sizes && product.sizes.length > 0) {
+      return product.sizes.reduce((s, sz) => s + (Math.max(0, Number(product.sizeStock?.[sz]) || 0)), 0);
+    }
+    if (product.sizeStock && Object.keys(product.sizeStock).length > 0) {
+      return Object.values(product.sizeStock).reduce((s, q) => s + (Math.max(0, Number(q) || 0)), 0);
+    }
+    return Math.max(0, Number(product.stock) || 0);
+  };
 
   // Filtered products list matching active search & dropdowns
   const filteredProducts = useMemo(() => {
@@ -118,9 +133,7 @@ export default function AdminMasterTable(): React.JSX.Element {
 
       // Stock level matching
       let matchesStock = true;
-      const totalStock = product.sizes && product.sizes.length > 0
-        ? Object.values(product.sizeStock || {}).reduce((s, q) => s + (Number(q) || 0), 0)
-        : (product.stock || 0);
+      const totalStock = getProductTotalStock(product);
 
       if (stockFilter === 'Low') {
         matchesStock = totalStock > 0 && totalStock <= 5;
@@ -173,9 +186,7 @@ export default function AdminMasterTable(): React.JSX.Element {
         });
 
         // Add total stock
-        const totalStock = p.sizes && p.sizes.length > 0
-          ? Object.values(p.sizeStock || {}).reduce((s, q) => s + (Number(q) || 0), 0)
-          : (p.stock || 0);
+        const totalStock = getProductTotalStock(p);
         rowData.push(totalStock);
 
         return rowData.join(',');
@@ -246,7 +257,7 @@ export default function AdminMasterTable(): React.JSX.Element {
           return;
         }
         const updatedSizeStock = { ...(product.sizeStock || {}) };
-        updatedSizeStock[field] = Math.round(numValue);
+        updatedSizeStock[field] = Math.max(0, Math.round(numValue));
         updatedProduct.sizeStock = updatedSizeStock;
 
         // Ensure current sizes array contains this edited size
@@ -254,8 +265,8 @@ export default function AdminMasterTable(): React.JSX.Element {
           updatedProduct.sizes = [...updatedProduct.sizes, field];
         }
 
-        // Recalculate global stock
-        updatedProduct.stock = Object.values(updatedSizeStock).reduce((s, q) => s + (Number(q) || 0), 0);
+        // Recalculate global stock strictly from sizeStock
+        updatedProduct.stock = updatedProduct.sizes.reduce((s, sz) => s + (Math.max(0, Number(updatedSizeStock[sz]) || 0)), 0);
       }
 
       await updateProduct(updatedProduct);
@@ -485,11 +496,7 @@ export default function AdminMasterTable(): React.JSX.Element {
                   
                   // Calculate category total stock sum
                   const categoryTotalStock = items.reduce((acc, p) => {
-                    if (p.sizes && p.sizes.length > 0) {
-                      const sumSizes = Object.values(p.sizeStock || {}).reduce((s, q) => s + (Number(q) || 0), 0);
-                      return acc + sumSizes;
-                    }
-                    return acc + (Number(p.stock) || 0);
+                    return acc + getProductTotalStock(p);
                   }, 0);
 
                   return (
@@ -511,9 +518,7 @@ export default function AdminMasterTable(): React.JSX.Element {
 
                       {/* INDIVIDUAL PRODUCTS LIST */}
                       {items.map(product => {
-                        const totalUnits = product.sizes && product.sizes.length > 0
-                          ? Object.values(product.sizeStock || {}).reduce((s, q) => s + (Number(q) || 0), 0)
-                          : (product.stock || 0);
+                        const totalUnits = getProductTotalStock(product);
 
                         return (
                           <tr key={product.id} className="hover:bg-[#DDE5F2] transition-colors h-16 group border-b border-white/60">

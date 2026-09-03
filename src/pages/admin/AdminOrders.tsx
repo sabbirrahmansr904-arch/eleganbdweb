@@ -1578,7 +1578,7 @@ export default function AdminOrders(): React.JSX.Element {
             <ShoppingCart className="w-6 h-6" />
           </div>
           <div className="flex flex-col">
-            <h1 className="text-2xl font-black text-[#0F172A] tracking-tight flex items-center gap-2">
+            <h1 className="text-2xl font-black text-[#0F172A] tracking-tight">
               Orders
             </h1>
             <p className="text-[12px] text-[#64748B] font-semibold mt-0.5">

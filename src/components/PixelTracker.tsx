@@ -102,11 +102,13 @@ export default function PixelTracker() {
           }
         }
 
-      } catch (err) {
+      } catch (err: any) {
         if (isQuotaError(err)) {
           console.warn('Tracking scripts skipped due to Firestore quota limit reached');
+        } else if (err?.message?.includes('offline') || err?.code === 'unavailable') {
+          console.warn('Tracking scripts skipped (client offline or initializing)');
         } else {
-          console.error('Error loading or executing tracking scripts:', err);
+          console.warn('Tracking scripts initialization notice:', err?.message || err);
         }
       }
     };

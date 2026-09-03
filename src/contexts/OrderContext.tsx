@@ -82,6 +82,12 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    if (!isAdmin && !currentUser) {
+      setOrders([]);
+      setLoading(false);
+      return;
+    }
+
     // 1. Real-time orders listener (Firestore is primary real-time stream)
     setLoading(true);
     let q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
@@ -141,10 +147,18 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           const updatedSizeStock = { ...(product.sizeStock || {}) };
           const currentSizeStock = updatedSizeStock[item.selectedSize] || 0;
           updatedSizeStock[item.selectedSize] = currentSizeStock + item.quantity;
-          const updatedTotalStock = (product.stock || 0) + item.quantity;
+          
+          const validSizes = Array.isArray(product.sizes) && product.sizes.length > 0
+            ? product.sizes
+            : Object.keys(updatedSizeStock);
+
+          const updatedTotalStock = validSizes.length > 0
+            ? validSizes.reduce((sum, sz) => sum + (Math.max(0, Number(updatedSizeStock[sz]) || 0)), 0)
+            : Object.values(updatedSizeStock).reduce((sum, v) => sum + (Math.max(0, Number(v) || 0)), 0);
           
           await updateProduct({
             ...product,
+            sizes: validSizes,
             sizeStock: updatedSizeStock,
             stock: updatedTotalStock
           });
@@ -174,10 +188,18 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           const updatedSizeStock = { ...(product.sizeStock || {}) };
           const currentSizeStock = updatedSizeStock[item.selectedSize] || 0;
           updatedSizeStock[item.selectedSize] = Math.max(0, currentSizeStock - item.quantity);
-          const updatedTotalStock = Math.max(0, (product.stock || 0) - item.quantity);
+          
+          const validSizes = Array.isArray(product.sizes) && product.sizes.length > 0
+            ? product.sizes
+            : Object.keys(updatedSizeStock);
+
+          const updatedTotalStock = validSizes.length > 0
+            ? validSizes.reduce((sum, sz) => sum + (Math.max(0, Number(updatedSizeStock[sz]) || 0)), 0)
+            : Object.values(updatedSizeStock).reduce((sum, v) => sum + (Math.max(0, Number(v) || 0)), 0);
           
           await updateProduct({
             ...product,
+            sizes: validSizes,
             sizeStock: updatedSizeStock,
             stock: updatedTotalStock
           });
@@ -371,10 +393,18 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           const updatedSizeStock = { ...(product.sizeStock || {}) };
           const currentSizeStock = updatedSizeStock[item.selectedSize] || 0;
           updatedSizeStock[item.selectedSize] = Math.max(0, currentSizeStock - item.quantity);
-          const updatedTotalStock = Math.max(0, (product.stock || 0) - item.quantity);
+          
+          const validSizes = Array.isArray(product.sizes) && product.sizes.length > 0
+            ? product.sizes
+            : Object.keys(updatedSizeStock);
+
+          const updatedTotalStock = validSizes.length > 0
+            ? validSizes.reduce((sum, sz) => sum + (Math.max(0, Number(updatedSizeStock[sz]) || 0)), 0)
+            : Object.values(updatedSizeStock).reduce((sum, v) => sum + (Math.max(0, Number(v) || 0)), 0);
           
           await updateProduct({
             ...product,
+            sizes: validSizes,
             sizeStock: updatedSizeStock,
             stock: updatedTotalStock
           });

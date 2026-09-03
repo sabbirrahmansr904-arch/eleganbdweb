@@ -164,10 +164,10 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   };
   
   if (errMsg.includes('Missing or insufficient permissions')) {
-    console.error('Firestore Permission Error: ', JSON.stringify(errInfo));
-    throw new Error(JSON.stringify(errInfo));
+    console.warn(`[Firestore Permission Notice] ${operationType} on ${path}:`, errInfo);
+    return;
   }
   
-  console.error(`Firestore Error [${operationType} - ${path}]:`, error);
+  console.warn(`Firestore Notice [${operationType} - ${path}]:`, error);
 }
 

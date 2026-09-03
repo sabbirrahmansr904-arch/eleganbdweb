@@ -35,6 +35,10 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => {
     // We listen to real-time inventory transactions for admins and logged-in users
     if (authLoading) return;
+    if (!isAdmin && !currentUser) {
+      setLoading(false);
+      return;
+    }
 
     if (isFirestoreQuotaExceeded) {
       setLoading(false);
@@ -78,7 +82,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         if (isQuotaError(error)) {
           console.warn('[InventoryContext] Firestore quota limit reached. Using cached transactions.');
         } else {
-          console.error('[InventoryContext] Real-time listener error:', error);
+          console.warn('[InventoryContext] Real-time listener notice:', error);
           handleFirestoreError(error, OperationType.LIST, 'inventory_transactions');
         }
         setLoading(false);
@@ -88,7 +92,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return () => {
       unsubscribe();
     };
-  }, [isAdmin, authLoading]);
+  }, [isAdmin, currentUser, authLoading]);
 
   const addTransaction = useCallback(async (trans: Omit<StockTransaction, 'id' | 'timestamp'>) => {
     const id = `tx_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;

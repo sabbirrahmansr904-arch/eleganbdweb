@@ -25,7 +25,8 @@ import {
   CheckCircle2,
   Save,
   Trash2,
-  ExternalLink
+  ExternalLink,
+  Maximize2
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useProducts } from '../../contexts/ProductContext';
@@ -55,6 +56,8 @@ export default function AdminAddProduct() {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isBestSelling, setIsBestSelling] = useState(false);
   const [isNewArrival, setIsNewArrival] = useState(true);
+  const [coverFit, setCoverFit] = useState<'contain' | 'cover'>('contain');
+  const [previewModalImage, setPreviewModalImage] = useState<string | null>(null);
 
   const handleDeleteCategory = async () => {
     if (selectedCategory === 'UNCATEGORIZED') return;
@@ -152,8 +155,8 @@ export default function AdminAddProduct() {
           const canvas = document.createElement('canvas');
           let width = img.width;
           let height = img.height;
-          const MAX_WIDTH = 800;
-          const MAX_HEIGHT = 800;
+          const MAX_WIDTH = 1254;
+          const MAX_HEIGHT = 1254;
           
           if (width > height) {
             if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
@@ -161,11 +164,11 @@ export default function AdminAddProduct() {
             if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
           }
           
-          canvas.width = width;
-          canvas.height = height;
+          canvas.width = Math.round(width);
+          canvas.height = Math.round(height);
           const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          ctx?.drawImage(img, 0, 0, Math.round(width), Math.round(height));
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
           
           const newImages = [...uploadedImages];
           if (index < newImages.length) {
@@ -563,29 +566,71 @@ Wash Care:
             </div>
 
             <div className="space-y-4">
-              <label className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-400 block">Cover Photo (Main)</label>
-              <div className="relative aspect-[3/4] max-w-md mx-auto w-full bg-[#f2f5fa] rounded-2xl overflow-hidden border border-gray-200 group transition-all shadow-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-500 block">Cover Photo (Main)</label>
+                  <span className="text-[9px] font-black uppercase tracking-wider text-blue-600 bg-blue-50 border border-blue-100/80 px-2 py-0.5 rounded-md">
+                    1254 × 1254 PX (1:1)
+                  </span>
+                </div>
+                {uploadedImages[coverImageIndex] && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCoverFit(prev => prev === 'contain' ? 'cover' : 'contain')}
+                      className="text-[9px] font-bold text-gray-600 hover:text-blue-600 bg-white hover:bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-lg transition-all shadow-2xs cursor-pointer flex items-center gap-1"
+                      title="Toggle image display mode"
+                    >
+                      {coverFit === 'contain' ? 'Fit (Contain)' : 'Fill (Cover)'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewModalImage(uploadedImages[coverImageIndex])}
+                      className="text-[9px] font-bold text-gray-600 hover:text-blue-600 bg-white hover:bg-gray-50 border border-gray-200 p-1.5 rounded-lg transition-all shadow-2xs cursor-pointer"
+                      title="Full Resolution Preview (1254 × 1254)"
+                    >
+                      <Maximize2 size={13} />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* 1254 x 1254 px aspect-square display box */}
+              <div className="relative aspect-square max-w-[560px] mx-auto w-full bg-[#f8fafc] rounded-2xl overflow-hidden border border-gray-200 group transition-all shadow-xs flex items-center justify-center">
                 {uploadedImages[coverImageIndex] ? (
                   <>
                     <img 
                       src={uploadedImages[coverImageIndex]} 
-                      alt="Cover Preview"
-                      className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-102" 
+                      alt="Cover Preview (1254 × 1254)"
+                      className={cn(
+                        "w-full h-full transition-transform duration-300 group-hover:scale-[1.01]",
+                        coverFit === 'contain' ? "object-contain p-2" : "object-cover object-top"
+                      )} 
                       referrerPolicy="no-referrer" 
                     />
-                    <button 
-                      type="button"
-                      onClick={() => {
-                        const newImgs = [...uploadedImages];
-                        newImgs.splice(coverImageIndex, 1);
-                        setUploadedImages(newImgs);
-                        setCoverImageIndex(0);
-                      }}
-                      className="absolute top-3 right-3 bg-white/90 backdrop-blur-md text-gray-700 hover:text-red-600 p-2 rounded-xl hover:bg-white transition-all shadow-md z-10"
-                      title="Remove Photo"
-                    >
-                      <X size={16} />
-                    </button>
+                    <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewModalImage(uploadedImages[coverImageIndex])}
+                        className="bg-white/90 backdrop-blur-md text-gray-700 hover:text-blue-600 p-2 rounded-xl hover:bg-white transition-all shadow-md cursor-pointer"
+                        title="View Full 1254 × 1254"
+                      >
+                        <Maximize2 size={16} />
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          const newImgs = [...uploadedImages];
+                          newImgs.splice(coverImageIndex, 1);
+                          setUploadedImages(newImgs);
+                          setCoverImageIndex(0);
+                        }}
+                        className="bg-white/90 backdrop-blur-md text-gray-700 hover:text-red-600 p-2 rounded-xl hover:bg-white transition-all shadow-md cursor-pointer"
+                        title="Remove Photo"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
                   </>
                 ) : (
                   <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50/40 transition-all text-center p-8">
@@ -596,8 +641,8 @@ Wash Care:
                        </div>
                     </div>
                     <span className="text-[11px] font-black text-blue-600 uppercase tracking-[0.15em] mb-1">Select Main Thumbnail</span>
-                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Portrait Ratio (3:4) Recommended</span>
-                    <span className="text-[8px] font-medium text-gray-300 italic mt-1">High Quality Edge-to-Edge Fit</span>
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">1254 × 1254 PX (1:1 Square) Recommended</span>
+                    <span className="text-[8px] font-medium text-gray-300 italic mt-1">High Quality 1:1 Edge-to-Edge Fit</span>
                     <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange(uploadedImages.length, e)} />
                   </label>
                 )}
@@ -606,7 +651,10 @@ Wash Care:
 
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <label className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-400 block">Gallery Images</label>
+                <div className="flex items-center gap-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-500 block">Gallery Images</label>
+                  <span className="text-[9px] font-bold text-gray-400">1:1 Square</span>
+                </div>
                 <label className="text-[9px] font-black text-red-500 hover:text-red-600 uppercase tracking-widest flex items-center gap-1 cursor-pointer bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors">
                   <Plus size={12} /> Add More
                   <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange(uploadedImages.length, e)} />
@@ -616,22 +664,32 @@ Wash Care:
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {uploadedImages.map((img, i) => (
                   i !== coverImageIndex && (
-                    <div key={i} className="relative aspect-[3/4] bg-gray-50 rounded-xl overflow-hidden border border-gray-200 group shadow-xs">
-                      <img src={img} alt="" className="w-full h-full object-cover object-top" />
-                      <button 
-                        type="button"
-                        onClick={() => {
-                          const newImgs = [...uploadedImages];
-                          newImgs.splice(i, 1);
-                          setUploadedImages(newImgs);
-                          if (coverImageIndex === i) setCoverImageIndex(0);
-                          else if (coverImageIndex > i) setCoverImageIndex(coverImageIndex - 1);
-                        }}
-                        className="absolute top-2 right-2 bg-white/90 text-gray-700 hover:text-red-600 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-md"
-                        title="Remove Image"
-                      >
-                        <X size={12} />
-                      </button>
+                    <div key={i} className="relative aspect-square bg-gray-50 rounded-xl overflow-hidden border border-gray-200 group shadow-xs flex items-center justify-center">
+                      <img src={img} alt="" className="w-full h-full object-contain p-1" />
+                      <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all z-10">
+                        <button
+                          type="button"
+                          onClick={() => setPreviewModalImage(img)}
+                          className="bg-white/90 text-gray-700 hover:text-blue-600 p-1.5 rounded-lg transition-all shadow-md cursor-pointer"
+                          title="Zoom"
+                        >
+                          <Maximize2 size={12} />
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            const newImgs = [...uploadedImages];
+                            newImgs.splice(i, 1);
+                            setUploadedImages(newImgs);
+                            if (coverImageIndex === i) setCoverImageIndex(0);
+                            else if (coverImageIndex > i) setCoverImageIndex(coverImageIndex - 1);
+                          }}
+                          className="bg-white/90 text-gray-700 hover:text-red-600 p-1.5 rounded-lg transition-all shadow-md cursor-pointer"
+                          title="Remove Image"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
                     </div>
                   )
                 ))}
@@ -730,6 +788,42 @@ Wash Care:
           </button>
         </div>
       </form>
+
+      {/* 1254 x 1254 Full Preview Modal */}
+      {previewModalImage && (
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-xs z-50 flex items-center justify-center p-4"
+          onClick={() => setPreviewModalImage(null)}
+        >
+          <div 
+            className="relative max-w-[88vh] max-h-[88vh] aspect-square w-full bg-white rounded-3xl overflow-hidden shadow-2xl p-3 flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black text-gray-800 uppercase tracking-wider">Product Photo Preview</span>
+                <span className="text-[10px] font-extrabold text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-0.5 rounded-md">
+                  1254 × 1254 PX (1:1)
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewModalImage(null)}
+                className="text-gray-400 hover:text-gray-800 p-1.5 rounded-xl hover:bg-gray-100 transition-all cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden relative flex items-center justify-center bg-[#f8fafc] rounded-2xl m-1 p-2">
+              <img 
+                src={previewModalImage} 
+                alt="1254 × 1254 Preview" 
+                className="max-w-full max-h-full object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -41,13 +41,38 @@ const normalizeProductCategory = (p: Product): Product => {
   } else if (lowerCategory === 'premium shirt' || lowerCategory === 'premium-shirt') {
     category = 'Premium Shirt';
   }
+
+  // Clean sizeStock & sizes
+  const rawSizeStock = (p.sizeStock && typeof p.sizeStock === 'object') ? p.sizeStock : {};
+  const cleanedSizeStock: Record<string, number> = {};
+  
+  let validSizes: string[] = Array.isArray(p.sizes) ? p.sizes.filter(Boolean) : [];
+  if (validSizes.length === 0 && Object.keys(rawSizeStock).length > 0) {
+    validSizes = Object.keys(rawSizeStock).filter(k => k !== 'stock' && k !== 'total' && k !== 'undefined');
+  }
+
+  // Ensure all configured sizes have a non-negative number
+  validSizes.forEach(sz => {
+    cleanedSizeStock[sz] = Math.max(0, Number(rawSizeStock[sz]) || 0);
+  });
+
+  // Calculate actual total stock strictly from size breakdown if sizes exist
+  let calculatedStock = 0;
+  if (validSizes.length > 0) {
+    calculatedStock = validSizes.reduce((sum, sz) => sum + (cleanedSizeStock[sz] || 0), 0);
+  } else if (Object.keys(rawSizeStock).length > 0) {
+    calculatedStock = Object.values(cleanedSizeStock).reduce((sum, v) => sum + (v || 0), 0);
+  } else {
+    calculatedStock = Math.max(0, Number(p.stock) || 0);
+  }
+
   return {
     ...p,
     category,
-    stock: p.stock || 0,
+    stock: calculatedStock,
     images: p.images || [],
-    sizes: p.sizes || [],
-    sizeStock: p.sizeStock || {}
+    sizes: validSizes,
+    sizeStock: cleanedSizeStock
   };
 };
 

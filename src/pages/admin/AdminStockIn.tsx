@@ -21,7 +21,7 @@ import { db } from '../../lib/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 
 export default function AdminStockIn() {
-  const { products, refreshProducts } = useProducts();
+  const { products, updateProduct, refreshProducts } = useProducts();
   const { transactions, addTransaction, loading: inventoryLoading } = useInventory();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,9 +42,15 @@ export default function AdminStockIn() {
     ).slice(0, 10);
   }, [products, searchQuery]);
 
-  // Determine size schema based on product category / name
+  // Determine size schema based on product's actual sizes or category / name
   const getProductSizes = (product: Product | null) => {
-    if (!product) return ['0', '1', '2', '3', '4', '5', '6'];
+    if (!product) return ['M', 'L', 'XL', 'XXL'];
+    if (Array.isArray(product.sizes) && product.sizes.length > 0) {
+      return product.sizes;
+    }
+    if (product.sizeStock && Object.keys(product.sizeStock).length > 0) {
+      return Object.keys(product.sizeStock);
+    }
     const cat = (product.category || '').toLowerCase();
     const name = (product.name || '').toLowerCase();
 
@@ -54,7 +60,7 @@ export default function AdminStockIn() {
     if (cat.includes('pant') || cat.includes('trouser') || cat.includes('jeans') || name.includes('pant') || name.includes('trouser') || name.includes('jeans')) {
       return ['28', '30', '32', '34', '36', '38', '40'];
     }
-    return ['0', '1', '2', '3', '4', '5', '6'];
+    return ['M', 'L', 'XL', 'XXL'];
   };
 
   const currentSizes = getProductSizes(selectedProduct);
@@ -62,7 +68,6 @@ export default function AdminStockIn() {
   const handleSelectProduct = (product: Product) => {
     setSelectedProduct(product);
     setSearchQuery(product.name);
-    // Initialize quantities for all sizes to 0
     const sizes = getProductSizes(product);
     const initialQty: Record<string, number> = {};
     sizes.forEach(s => {
@@ -108,19 +113,25 @@ export default function AdminStockIn() {
         notes: notes.trim() || 'Stock In entry'
       });
 
-      // 2. Update product stock & sizeStock in Firestore
-      const updatedSizeStock = { ...(selectedProduct.sizeStock || selectedProduct.sizes || {}) };
-      // If selectedProduct.sizes was stored as array or record, let's merge sizeStock
+      // 2. Update product stock & sizeStock accurately
+      const updatedSizeStock = { ...(selectedProduct.sizeStock || {}) };
       Object.entries(quantities).forEach(([sz, qty]) => {
-        const currentQty = Number(updatedSizeStock[sz] || (Array.isArray(selectedProduct.sizes) ? 0 : (selectedProduct.sizes as any)[sz]) || 0);
+        const currentQty = Number(updatedSizeStock[sz] || 0);
         updatedSizeStock[sz] = currentQty + qty;
       });
 
-      const newTotalStock = (selectedProduct.stock || 0) + totalQuantityAdded;
+      const updatedSizes = Array.from(new Set([
+        ...(selectedProduct.sizes || []),
+        ...Object.keys(updatedSizeStock)
+      ]));
 
-      await updateDoc(doc(db, 'products', selectedProduct.id), {
-        stock: newTotalStock,
-        sizeStock: updatedSizeStock
+      const newTotalStock = updatedSizes.reduce((sum, sz) => sum + (Math.max(0, Number(updatedSizeStock[sz]) || 0)), 0);
+
+      await updateProduct({
+        ...selectedProduct,
+        sizes: updatedSizes,
+        sizeStock: updatedSizeStock,
+        stock: newTotalStock
       });
 
       toast.success(`সফলভাবে ${totalQuantityAdded} পিস স্টক ইন করা হয়েছে!`);

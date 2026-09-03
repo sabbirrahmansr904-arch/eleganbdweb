@@ -90,7 +90,7 @@ export interface PartnerTransaction {
   createdAt: number;
 }
 
-const DEFAULT_3_PARTNERS: PartnerProfile[] = [
+export const CANONICAL_3_PARTNERS: PartnerProfile[] = [
   {
     id: 'partner_1',
     name: 'Sabbir Rahman',
@@ -112,7 +112,7 @@ const DEFAULT_3_PARTNERS: PartnerProfile[] = [
     targetShare: 30,
     color: '#10b981', // Emerald Green
     avatarBg: 'bg-emerald-500',
-    badge: 'Operating Partner',
+    badge: 'CEO & Operating Partner',
     photoURL: ''
   },
   {
@@ -124,10 +124,51 @@ const DEFAULT_3_PARTNERS: PartnerProfile[] = [
     targetShare: 30,
     color: '#8b5cf6', // Violet / Purple
     avatarBg: 'bg-purple-500',
-    badge: 'Strategic Director',
+    badge: 'CEO & Strategic Director',
     photoURL: ''
   }
 ];
+
+const DEFAULT_3_PARTNERS = CANONICAL_3_PARTNERS;
+
+// Helper to map any partner identifier or email to canonical partner ID ('partner_1' | 'partner_2' | 'partner_3')
+export const resolveCanonicalPartnerId = (idOrNameOrEmail?: string): 'partner_1' | 'partner_2' | 'partner_3' => {
+  if (!idOrNameOrEmail) return 'partner_1';
+  const val = idOrNameOrEmail.toLowerCase().trim();
+
+  // Partner 1: Sabbir Rahman
+  if (
+    val === 'partner_1' ||
+    val.includes('sabbir') ||
+    val.includes('sabbirrahmansr904') ||
+    val.includes('eleganbd.ltd@gmail.com') ||
+    val.includes('eleganbd')
+  ) {
+    return 'partner_1';
+  }
+
+  // Partner 2: Nasir Uddin
+  if (
+    val === 'partner_2' ||
+    val.includes('nasir') ||
+    val.includes('nasiruddinovi') ||
+    val.includes('ovi')
+  ) {
+    return 'partner_2';
+  }
+
+  // Partner 3: Shamiul Islam
+  if (
+    val === 'partner_3' ||
+    val.includes('shamiul') ||
+    val.includes('atik') ||
+    val.includes('shamiulislam')
+  ) {
+    return 'partner_3';
+  }
+
+  return 'partner_1';
+};
 
 const INVESTMENT_CATEGORIES = [
   'Initial Seed Capital (প্রাথমিক মূলধন)',
@@ -219,48 +260,140 @@ export default function AdminPartnership() {
   const [partnerEditForm, setPartnerEditForm] = useState<PartnerProfile[]>(DEFAULT_3_PARTNERS);
   const [adminPhotos, setAdminPhotos] = useState<Record<string, string>>({});
 
-  // Real-time Firestore Listeners
+  // Real-time Firestore Listeners with Strict 3-Partner Normalization & Admin Account Sync
   useEffect(() => {
+    let rawPartnersMap = new Map<string, any>();
+    let adminProfilesMap = new Map<string, any>();
+    let adminPermsMap = new Map<string, any>();
+
+    const rebuildCanonical3Partners = () => {
+      const canonical3 = CANONICAL_3_PARTNERS.map((defPartner) => {
+        const canonicalId = defPartner.id as 'partner_1' | 'partner_2' | 'partner_3';
+        const partnerEmail = defPartner.email.toLowerCase().trim();
+        const emailDocKey = partnerEmail.replace(/[^a-zA-Z0-9]/g, '_');
+
+        // Look up data in partners collection
+        const pDoc = rawPartnersMap.get(canonicalId) || rawPartnersMap.get(partnerEmail) || rawPartnersMap.get(emailDocKey);
+
+        // Look up data in admin_profiles & admin_permissions
+        const adminProfile = adminProfilesMap.get(partnerEmail) || adminProfilesMap.get(emailDocKey);
+        const adminPerm = adminPermsMap.get(partnerEmail) || adminPermsMap.get(emailDocKey);
+
+        // Derive authoritative Position / Role from Admin Accounts
+        let derivedPosition = '';
+        if (adminProfile?.position && adminProfile.position.trim().length > 0) {
+          derivedPosition = adminProfile.position.trim();
+        } else if (adminPerm?.position && adminPerm.position.trim().length > 0) {
+          derivedPosition = adminPerm.position.trim();
+        } else if (pDoc?.role && pDoc.role.trim().length > 0 && pDoc.role !== '-') {
+          derivedPosition = pDoc.role.trim();
+        } else {
+          derivedPosition = defPartner.role;
+        }
+
+        // Derive authoritative Name
+        let derivedName = adminProfile?.name || adminPerm?.name || pDoc?.name || defPartner.name;
+        if (derivedName.toLowerCase().includes('founder') && canonicalId === 'partner_1') {
+          derivedName = 'Sabbir Rahman';
+        }
+
+        // Derive authoritative Phone
+        let derivedPhone = adminProfile?.phone || adminPerm?.phone || pDoc?.phone || defPartner.phone;
+
+        // Derive Photo
+        let derivedPhoto = adminProfile?.photoURL || pDoc?.photoURL || '';
+
+        // Target Share
+        let derivedTargetShare = typeof pDoc?.targetShare === 'number' ? pDoc.targetShare : defPartner.targetShare;
+
+        return {
+          id: canonicalId,
+          name: derivedName,
+          role: derivedPosition,
+          phone: derivedPhone,
+          email: defPartner.email,
+          targetShare: derivedTargetShare,
+          color: defPartner.color,
+          avatarBg: defPartner.avatarBg,
+          badge: derivedPosition || defPartner.badge,
+          photoURL: derivedPhoto
+        } as PartnerProfile;
+      });
+
+      setPartners(canonical3);
+      setPartnerEditForm(canonical3);
+      try {
+        localStorage.setItem('elegan_partners_profiles_v1', JSON.stringify(canonical3));
+      } catch (e) {}
+    };
+
     // 1. Fetch / Sync Partner Profiles
     const unsubscribePartners = onSnapshot(collection(db, 'partners'), (snapshot) => {
-      if (!snapshot.empty) {
-        const loadedPartners: PartnerProfile[] = [];
-        snapshot.forEach((docSnap) => {
-          loadedPartners.push({ id: docSnap.id, ...docSnap.data() } as PartnerProfile);
-        });
-        // Sort to preserve 3 partner order
-        loadedPartners.sort((a, b) => (a.id > b.id ? 1 : -1));
-        setPartners(loadedPartners);
-        localStorage.setItem('elegan_partners_profiles_v1', JSON.stringify(loadedPartners));
-      } else {
-        // Initial bootstrap in firestore if empty
-        DEFAULT_3_PARTNERS.forEach(async (p) => {
+      rawPartnersMap.clear();
+      snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        rawPartnersMap.set(docSnap.id, d);
+        if (d.email) rawPartnersMap.set(String(d.email).toLowerCase().trim(), d);
+
+        // Auto clean-up redundant non-canonical duplicate documents in Firestore
+        if (docSnap.id !== 'partner_1' && docSnap.id !== 'partner_2' && docSnap.id !== 'partner_3') {
+          deleteDoc(doc(db, 'partners', docSnap.id)).catch(() => {});
+        }
+      });
+
+      // Ensure base docs exist
+      if (snapshot.empty) {
+        CANONICAL_3_PARTNERS.forEach(async (p) => {
           try {
-            await setDoc(doc(db, 'partners', p.id), p);
-          } catch (err) {
-            console.warn('Initial partner seed error:', err);
-          }
+            await setDoc(doc(db, 'partners', p.id), p, { merge: true });
+          } catch (err) {}
         });
       }
+
+      rebuildCanonical3Partners();
     }, (error) => {
-      console.error('Error fetching partners from firestore:', error);
+      console.warn('Error fetching partners:', error);
+      rebuildCanonical3Partners();
     });
 
-    // 2. Fetch / Sync Admin Profiles for live profile pictures
+    // 2. Fetch / Sync Admin Profiles for live position & profile pictures
     const unsubscribeAdminProfiles = onSnapshot(collection(db, 'admin_profiles'), (snapshot) => {
+      adminProfilesMap.clear();
       const photosMap: Record<string, string> = {};
+
       snapshot.forEach((docSnap) => {
         const data = docSnap.data();
-        if (data.email && data.photoURL) {
-          photosMap[data.email.toLowerCase().trim()] = data.photoURL;
+        const emailKey = (data.email || '').toLowerCase().trim();
+        if (emailKey) {
+          adminProfilesMap.set(emailKey, data);
+          adminProfilesMap.set(emailKey.replace(/[^a-zA-Z0-9]/g, '_'), data);
+          if (data.photoURL) photosMap[emailKey] = data.photoURL;
         }
         if (data.name && data.photoURL) {
           photosMap[data.name.toLowerCase().trim()] = data.photoURL;
         }
       });
+
       setAdminPhotos(photosMap);
+      rebuildCanonical3Partners();
     }, (error) => {
-      console.error('Error fetching admin profiles for partnership photos:', error);
+      console.warn('Error fetching admin_profiles:', error);
+    });
+
+    // 2b. Fetch / Sync Admin Permissions (for positions set in permissions doc)
+    const unsubscribeAdminPerms = onSnapshot(collection(db, 'admin_permissions'), (snapshot) => {
+      adminPermsMap.clear();
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const emailKey = (data.email || '').toLowerCase().trim();
+        if (emailKey) {
+          adminPermsMap.set(emailKey, data);
+          adminPermsMap.set(emailKey.replace(/[^a-zA-Z0-9]/g, '_'), data);
+        }
+      });
+      rebuildCanonical3Partners();
+    }, (error) => {
+      console.warn('Error fetching admin_permissions:', error);
     });
 
     // 3. Fetch / Sync Partner Transactions in Real-time
@@ -269,10 +402,13 @@ export default function AdminPartnership() {
       const txList: PartnerTransaction[] = [];
       snapshot.forEach((docSnap) => {
         const data = docSnap.data();
+        const canonicalId = resolveCanonicalPartnerId(data.partnerId || data.partnerName || '');
+        const partnerProfile = CANONICAL_3_PARTNERS.find(p => p.id === canonicalId);
+
         txList.push({
           id: docSnap.id,
-          partnerId: data.partnerId || 'partner_1',
-          partnerName: data.partnerName || 'Unknown Partner',
+          partnerId: canonicalId,
+          partnerName: partnerProfile ? partnerProfile.name : (data.partnerName || 'Unknown Partner'),
           type: data.type || 'investment',
           amount: Number(data.amount) || 0,
           date: Number(data.date) || Date.now(),
@@ -288,18 +424,21 @@ export default function AdminPartnership() {
       });
 
       setTransactions(txList);
-      localStorage.setItem('elegan_partner_transactions_v1', JSON.stringify(txList));
+      try {
+        localStorage.setItem('elegan_partner_transactions_v1', JSON.stringify(txList));
+      } catch (e) {}
       setLastSyncTime(new Date());
       setLoading(false);
       setIsLiveSyncing(true);
     }, (error) => {
-      console.error('Real-time listener error for partner_investments:', error);
+      console.warn('Real-time listener error for partner_investments:', error);
       setLoading(false);
     });
 
     return () => {
       unsubscribePartners();
       unsubscribeAdminProfiles();
+      unsubscribeAdminPerms();
       unsubscribeTransactions();
     };
   }, []);
@@ -644,15 +783,38 @@ export default function AdminPartnership() {
     e.preventDefault();
     
     setIsSubmitting(true);
-    const loadingToast = toast.loading('পার্টনার প্রোফাইল সেভ করা হচ্ছে...');
+    const loadingToast = toast.loading('পার্টনার প্রোফাইল ও পদবি সেভ করা হচ্ছে...');
 
     try {
       for (const p of partnerEditForm) {
+        // 1. Save to partners collection
         await setDoc(doc(db, 'partners', p.id), p, { merge: true });
+
+        // 2. Sync position, name, phone, photoURL to admin_profiles & admin_permissions
+        if (p.email) {
+          const cleanEmail = p.email.toLowerCase().trim();
+          const docKey = cleanEmail.replace(/[^a-zA-Z0-9]/g, '_');
+          const adminPayload: Record<string, any> = {
+            name: p.name,
+            position: p.role,
+            phone: p.phone || '',
+            updatedAt: Date.now()
+          };
+          if (p.photoURL) {
+            adminPayload.photoURL = p.photoURL;
+          }
+
+          try {
+            await setDoc(doc(db, 'admin_profiles', docKey), adminPayload, { merge: true });
+            await setDoc(doc(db, 'admin_permissions', docKey), { position: p.role, name: p.name }, { merge: true });
+          } catch (err) {}
+        }
       }
       setPartners(partnerEditForm);
-      localStorage.setItem('elegan_partners_profiles_v1', JSON.stringify(partnerEditForm));
-      toast.success('পার্টনার তথ্য সফলভাবে আপডেট হয়েছে!', { id: loadingToast });
+      try {
+        localStorage.setItem('elegan_partners_profiles_v1', JSON.stringify(partnerEditForm));
+      } catch (e) {}
+      toast.success('পার্টনার তথ্য ও পদবি সফলভাবে আপডেট হয়েছে!', { id: loadingToast });
       setShowManagePartnersModal(false);
     } catch (error) {
       console.error('Error saving partners:', error);
@@ -934,8 +1096,8 @@ export default function AdminPartnership() {
                           </span>
                         )}
                       </div>
-                      <span className="inline-block text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 mt-1">
-                        {partner.role}
+                      <span className="inline-flex items-center text-xs font-bold px-2.5 py-0.5 rounded-lg bg-slate-100 text-slate-800 mt-1 border border-slate-200/80 shadow-2xs">
+                        {partner.role || partner.badge || 'CEO & Partner'}
                       </span>
                     </div>
                   </div>

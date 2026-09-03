@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { db } from '../lib/firebase';
 import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { handleFirestoreError, OperationType, isFirestoreQuotaExceeded, isQuotaError } from '../lib/firestoreUtils';
+import { useAuth } from './AuthContext';
 
 export interface BankAccount {
   id: string;
@@ -134,8 +135,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return [];
   });
   const [loading, setLoading] = useState(true);
+  const { isAdmin, loading: authLoading } = useAuth();
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!isAdmin) {
+      setLoading(false);
+      return;
+    }
+
     if (isFirestoreQuotaExceeded) {
       setLoading(false);
       return;
@@ -177,7 +185,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } catch {
       setLoading(false);
     }
-  }, []);
+  }, [isAdmin, authLoading]);
 
   const recalculateBalances = async (accounts: BankAccount[], transactions: BankTransaction[]) => {
     for (const acc of accounts) {
