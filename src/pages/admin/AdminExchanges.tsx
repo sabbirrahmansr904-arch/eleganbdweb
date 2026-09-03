@@ -377,8 +377,10 @@ export default function AdminExchanges() {
     setFormOrderId(ex.orderId);
     setFormCustomerName(ex.customerName);
     setFormPhone(ex.phone);
-    setFormReturnedItems(ex.returnedItems.length > 0 ? [...ex.returnedItems] : [{ name: '', size: '', quantity: 1, price: 0 }]);
-    setFormSentItems(ex.sentItems.length > 0 ? [...ex.sentItems] : [{ name: '', size: '', quantity: 1, price: 0 }]);
+    const ret = Array.isArray(ex.returnedItems) ? ex.returnedItems : [];
+    const sent = Array.isArray(ex.sentItems) ? ex.sentItems : [];
+    setFormReturnedItems(ret.length > 0 ? [...ret] : [{ name: '', size: '', quantity: 1, price: 0 }]);
+    setFormSentItems(sent.length > 0 ? [...sent] : [{ name: '', size: '', quantity: 1, price: 0 }]);
     setFormStatus(ex.status);
     setFormIssueActive(ex.issueActive);
     setFormNotes(ex.notes || '');
@@ -468,7 +470,10 @@ export default function AdminExchanges() {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    const returnedHTML = ex.returnedItems.map(it => `
+    const returnedItems = Array.isArray(ex.returnedItems) ? ex.returnedItems : [];
+    const sentItems = Array.isArray(ex.sentItems) ? ex.sentItems : [];
+
+    const returnedHTML = returnedItems.map(it => `
       <tr>
         <td style="padding: 12px; border-bottom: 1px solid #f1f5f9; font-weight: 600;">${it.name} (Size: ${it.size})</td>
         <td style="padding: 12px; border-bottom: 1px solid #f1f5f9; text-align: center;">${it.quantity}</td>
@@ -477,7 +482,7 @@ export default function AdminExchanges() {
       </tr>
     `).join('');
 
-    const sentHTML = ex.sentItems.length > 0 ? ex.sentItems.map(it => `
+    const sentHTML = sentItems.length > 0 ? sentItems.map(it => `
       <tr>
         <td style="padding: 12px; border-bottom: 1px solid #f1f5f9; font-weight: 600; color: #2563eb;">${it.name} (Size: ${it.size})</td>
         <td style="padding: 12px; border-bottom: 1px solid #f1f5f9; text-align: center; color: #2563eb;">${it.quantity}</td>
@@ -905,24 +910,24 @@ export default function AdminExchanges() {
                       {/* Returned Items */}
                       <td className="py-4 px-4">
                         <div className="flex flex-col gap-1 max-w-[200px]">
-                          {ex.returnedItems.map((item, idx) => (
+                          {(ex.returnedItems || []).map((item, idx) => (
                             <span key={idx} className="bg-amber-50 text-amber-800 border border-amber-100 rounded px-2 py-0.5 text-[10px] font-bold uppercase truncate" title={`${item.name} (${item.size})`}>
                               {item.quantity}x {item.name} ({item.size})
                             </span>
                           ))}
-                          {ex.returnedItems.length === 0 && <span className="text-gray-400 text-xs">—</span>}
+                          {(!ex.returnedItems || ex.returnedItems.length === 0) && <span className="text-gray-400 text-xs">—</span>}
                         </div>
                       </td>
 
                       {/* Sent / Replacement Items */}
                       <td className="py-4 px-4">
                         <div className="flex flex-col gap-1 max-w-[200px]">
-                          {ex.sentItems.map((item, idx) => (
+                          {(ex.sentItems || []).map((item, idx) => (
                             <span key={idx} className="bg-blue-50 text-blue-800 border border-blue-100 rounded px-2 py-0.5 text-[10px] font-bold uppercase truncate" title={`${item.name} (${item.size})`}>
                               {item.quantity}x {item.name} ({item.size})
                             </span>
                           ))}
-                          {ex.sentItems.length === 0 && <span className="text-gray-400 text-xs">—</span>}
+                          {(!ex.sentItems || ex.sentItems.length === 0) && <span className="text-gray-400 text-xs">—</span>}
                         </div>
                       </td>
 
@@ -1666,13 +1671,13 @@ export default function AdminExchanges() {
               <div>
                 <h4 className="text-[10px] text-amber-700 font-extrabold uppercase tracking-widest border-b border-amber-100 pb-1.5 mb-2">Returned Items (Credit)</h4>
                 <div className="space-y-2">
-                  {activeExchange.returnedItems.map((item, idx) => (
+                  {(activeExchange.returnedItems || []).map((item, idx) => (
                     <div key={idx} className="flex justify-between text-xs bg-amber-50/50 p-2.5 rounded-xl border border-amber-100">
                       <span className="font-bold">{item.name} (Size: {item.size})</span>
                       <span className="font-semibold text-gray-600">Qty: {item.quantity} × ৳{item.price} = ৳{item.price * item.quantity}</span>
                     </div>
                   ))}
-                  {activeExchange.returnedItems.length === 0 && (
+                  {(!activeExchange.returnedItems || activeExchange.returnedItems.length === 0) && (
                     <p className="text-xs text-gray-400">No items returned</p>
                   )}
                 </div>
@@ -1682,13 +1687,13 @@ export default function AdminExchanges() {
               <div>
                 <h4 className="text-[10px] text-blue-700 font-extrabold uppercase tracking-widest border-b border-blue-100 pb-1.5 mb-2">Sent / Replacement Items (Debit)</h4>
                 <div className="space-y-2">
-                  {activeExchange.sentItems.map((item, idx) => (
+                  {(activeExchange.sentItems || []).map((item, idx) => (
                     <div key={idx} className="flex justify-between text-xs bg-blue-50/50 p-2.5 rounded-xl border border-blue-100">
                       <span className="font-bold text-blue-800">{item.name} (Size: {item.size})</span>
                       <span className="font-semibold text-blue-600">Qty: {item.quantity} × ৳{item.price} = ৳{item.price * item.quantity}</span>
                     </div>
                   ))}
-                  {activeExchange.sentItems.length === 0 && (
+                  {(!activeExchange.sentItems || activeExchange.sentItems.length === 0) && (
                     <p className="text-xs text-gray-400">No replacement items sent (Return-only)</p>
                   )}
                 </div>

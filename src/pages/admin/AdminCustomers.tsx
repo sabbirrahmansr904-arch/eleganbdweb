@@ -55,11 +55,15 @@ export default function AdminCustomers() {
     }
   }, []);
 
-  const filteredCustomers = customers.filter(customer => 
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.phone.includes(searchTerm)
-  );
+  const filteredCustomers = customers.filter(customer => {
+    const q = searchTerm.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      (customer.name || '').toLowerCase().includes(q) ||
+      (customer.email || '').toLowerCase().includes(q) ||
+      String(customer.phone || '').includes(q)
+    );
+  });
 
   const handleAction = (name: string) => {
     toast.success(`Accessing profile for ${name}...`);

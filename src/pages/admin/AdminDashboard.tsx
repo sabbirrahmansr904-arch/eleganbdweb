@@ -436,7 +436,7 @@ export default function AdminDashboard(): React.JSX.Element {
 
   // Current period quantity of items sold
   const periodVolumeCount = useMemo(() => {
-    return periodOrders.reduce((sum, o) => sum + (o.items ? o.items.reduce((s, item) => s + item.quantity, 0) : 0), 0);
+    return periodOrders.reduce((sum, o) => sum + (Array.isArray(o.items) ? o.items.reduce((s, item) => s + (Number(item?.quantity) || 1), 0) : 0), 0);
   }, [periodOrders]);
 
   // Sales Today calculation
@@ -451,7 +451,7 @@ export default function AdminDashboard(): React.JSX.Element {
              od.getFullYear() === now.getFullYear();
     });
     const count = todayOrders.length;
-    const total = todayOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+    const total = todayOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
     return { count, total };
   }, [orders]);
 
@@ -466,7 +466,7 @@ export default function AdminDashboard(): React.JSX.Element {
              od.getMonth() === now.getMonth() &&
              od.getFullYear() === now.getFullYear();
     });
-    return todayOrders.reduce((sum, o) => sum + (o.items ? o.items.reduce((s, item) => s + item.quantity, 0) : 0), 0);
+    return todayOrders.reduce((sum, o) => sum + (Array.isArray(o.items) ? o.items.reduce((s, item) => s + (Number(item?.quantity) || 1), 0) : 0), 0);
   }, [orders]);
 
   // Sales This Month calculation
@@ -479,14 +479,14 @@ export default function AdminDashboard(): React.JSX.Element {
       return od.getMonth() === now.getMonth() && od.getFullYear() === now.getFullYear();
     });
     const count = monthOrders.length;
-    const total = monthOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+    const total = monthOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
     return { count, total };
   }, [orders]);
 
   // Total products stock volume in-store (live update of inventory)
   const totalStockVolume = useMemo(() => {
     if (!products) return 0;
-    return products.reduce((sum, p) => sum + (p.stock || 0), 0);
+    return products.reduce((sum, p) => sum + (Number(p.stock) || 0), 0);
   }, [products]);
 
   // Metrics mappings
@@ -518,20 +518,25 @@ export default function AdminDashboard(): React.JSX.Element {
     let hasRealCategorySales = false;
 
     periodOrders.forEach(order => {
-      if (order.items) {
+      if (Array.isArray(order.items)) {
         order.items.forEach(item => {
+          if (!item) return;
           const catName = item.category || 'Other';
+          const itemPrice = Number(item.price) || 0;
+          const itemQty = Number(item.quantity) || 1;
+          const itemTotal = itemPrice * itemQty;
+
           if (categoryNames.includes(catName)) {
-            totals[catName] += (item.price * item.quantity);
+            totals[catName] = (totals[catName] || 0) + itemTotal;
             hasRealCategorySales = true;
           } else {
-            const found = categoryNames.find(c => c.toLowerCase() === catName.toLowerCase());
+            const found = categoryNames.find(c => (c || '').toLowerCase() === (catName || '').toLowerCase());
             if (found) {
-              totals[found] += (item.price * item.quantity);
+              totals[found] = (totals[found] || 0) + itemTotal;
               hasRealCategorySales = true;
             } else {
               if (!totals['Other']) totals['Other'] = 0;
-              totals['Other'] += (item.price * item.quantity);
+              totals['Other'] += itemTotal;
             }
           }
         });
@@ -720,13 +725,15 @@ export default function AdminDashboard(): React.JSX.Element {
     orders
       .filter(o => o.status !== 'Cancelled')
       .forEach(order => {
-        if (order.items) {
+        if (Array.isArray(order.items)) {
           order.items.forEach(item => {
-            if (!productSales[item.id]) {
-              productSales[item.id] = { count: 0, totalQty: 0 };
+            if (!item) return;
+            const itemId = item.id || (item as any).productId || 'unknown';
+            if (!productSales[itemId]) {
+              productSales[itemId] = { count: 0, totalQty: 0 };
             }
-            productSales[item.id].count += 1;
-            productSales[item.id].totalQty += item.quantity;
+            productSales[itemId].count += 1;
+            productSales[itemId].totalQty += (Number(item.quantity) || 1);
           });
         }
       });

@@ -250,12 +250,12 @@ export default function AdminCustomerProfiler() {
       const q = searchTerm.toLowerCase().trim();
       const matchesSearch = 
         !q ||
-        p.name.toLowerCase().includes(q) ||
-        p.phone.includes(q) ||
-        p.email.toLowerCase().includes(q) ||
-        p.address.toLowerCase().includes(q) ||
-        p.city.toLowerCase().includes(q) ||
-        p.orders.some(o => (o.invoiceNo && String(o.invoiceNo).includes(q)) || (o.id && o.id.includes(q)));
+        (p.name || '').toLowerCase().includes(q) ||
+        String(p.phone || '').includes(q) ||
+        (p.email || '').toLowerCase().includes(q) ||
+        (p.address || '').toLowerCase().includes(q) ||
+        (p.city || '').toLowerCase().includes(q) ||
+        (Array.isArray(p.orders) && p.orders.some(o => (o.invoiceNo && String(o.invoiceNo).includes(q)) || (o.id && String(o.id).includes(q))));
 
       if (!matchesSearch) return false;
 

@@ -419,14 +419,15 @@ export default function AdminOrders(): React.JSX.Element {
 
   // Helper to render procedural QR code visualization with its custom text scan code
   const renderOrderQRCode = React.useCallback((orderId: string) => {
-    const hash = orderId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const idStr = String(orderId || '');
+    const hash = idStr.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const size = 5;
     const pixels = [];
     for (let i = 0; i < size * size; i++) {
       const active = ((hash + i * 7) % 3 === 0) || (i === 0 || i === size - 1 || i === size * (size - 1) || i === size * size - 1 || i === 12);
       pixels.push(active);
     }
-    const scanCode = `SCAN-${orderId.slice(-6).toUpperCase()}`;
+    const scanCode = `SCAN-${idStr.slice(-6).toUpperCase()}`;
 
     return (
       <div className="flex items-center gap-2.5">
@@ -476,7 +477,8 @@ export default function AdminOrders(): React.JSX.Element {
 
   // Filter Logic
   const filteredOrders = useMemo(() => {
-    return orders.filter(order => {
+    return (orders || []).filter(order => {
+      if (!order) return false;
       // 1. Status Filter
       if (filterStatus !== 'All') {
         if (normalizeStatus(order.status) !== filterStatus) return false;
@@ -485,11 +487,11 @@ export default function AdminOrders(): React.JSX.Element {
       // 2. Search query match
       const queryLower = searchQuery.toLowerCase().trim();
       if (queryLower !== '') {
-        const matchesId = order.id.toLowerCase().includes(queryLower);
-        const matchesClient = order.customerName.toLowerCase().includes(queryLower);
-        const matchesPhone = order.phone.includes(queryLower);
-        const matchesCity = order.city.toLowerCase().includes(queryLower);
-        const matchesSKU = order.items.some(it => it.sku?.toLowerCase().includes(queryLower) || it.name.toLowerCase().includes(queryLower));
+        const matchesId = (order.id || '').toLowerCase().includes(queryLower);
+        const matchesClient = (order.customerName || '').toLowerCase().includes(queryLower);
+        const matchesPhone = (order.phone || '').includes(queryLower);
+        const matchesCity = (order.city || '').toLowerCase().includes(queryLower);
+        const matchesSKU = Array.isArray(order.items) && order.items.some(it => it.sku?.toLowerCase().includes(queryLower) || it.name?.toLowerCase().includes(queryLower));
         const matchesInvoice = order.invoiceNo !== undefined && String(order.invoiceNo).includes(queryLower);
         
         if (!matchesId && !matchesClient && !matchesPhone && !matchesCity && !matchesSKU && !matchesInvoice) {
@@ -547,7 +549,8 @@ export default function AdminOrders(): React.JSX.Element {
 
   const uniquePartners = useMemo(() => {
     const set = new Set<string>();
-    orders.forEach(order => {
+    (orders || []).forEach(order => {
+      if (!order) return;
       const val = getInvoiceBy(order);
       if (val) set.add(val);
     });
@@ -556,7 +559,8 @@ export default function AdminOrders(): React.JSX.Element {
 
   const uniqueCouriers = useMemo(() => {
     const set = new Set<string>();
-    orders.forEach(order => {
+    (orders || []).forEach(order => {
+      if (!order) return;
       const oCourier = order.courier || (order as any).courierName || 'Pathao';
       if (oCourier) set.add(oCourier);
     });
@@ -565,7 +569,8 @@ export default function AdminOrders(): React.JSX.Element {
 
   const uniqueCreators = useMemo(() => {
     const set = new Set<string>();
-    orders.forEach(order => {
+    (orders || []).forEach(order => {
+      if (!order) return;
       const oCreator = order.invoiceBy || order.customerId || 'Online Store';
       if (oCreator) set.add(oCreator);
     });
@@ -695,7 +700,7 @@ export default function AdminOrders(): React.JSX.Element {
         issueStatus: status
       };
       setIssueConversationOrder(updatedOrder);
-      toast.success(`Issue marked as ${status.toUpperCase()}`);
+      toast.success(`Issue marked as ${(status || '').toUpperCase()}`);
     } catch (err) {
       toast.error('Failed to change issue status');
     }
@@ -796,7 +801,7 @@ export default function AdminOrders(): React.JSX.Element {
 
     // 1. Check if already scanned in session (second time "nibe na")
     if (scannedIds.includes(order.id) || (activeScanOrder && activeScanOrder.id === order.id)) {
-      toast.error(`Scan Rejected! Order #${order.id.slice(-6).toUpperCase()} has already been scanned in this session.`);
+      toast.error(`Scan Rejected! Order #${(order.id || '').slice(-6).toUpperCase()} has already been scanned in this session.`);
       return;
     }
 
@@ -834,7 +839,7 @@ export default function AdminOrders(): React.JSX.Element {
     // Set as active pending confirmation
     setActiveScanOrder(order);
     setScanInput('');
-    toast.success(`Scanned Order #${order.id.slice(-6).toUpperCase()}!`);
+    toast.success(`Scanned Order #${(order.id || '').slice(-6).toUpperCase()}!`);
   };
 
   const handleBookPathao = async () => {
@@ -910,7 +915,7 @@ export default function AdminOrders(): React.JSX.Element {
       orderNote: steadfastNote
     };
 
-    const shortCode = steadfastBookingOrder.id.slice(-6).toUpperCase();
+    const shortCode = (steadfastBookingOrder?.id || '').slice(-6).toUpperCase();
     const loadingToast = toast.loading(`Booking Order #${shortCode} with Steadfast API...`);
 
     try {
@@ -956,7 +961,7 @@ export default function AdminOrders(): React.JSX.Element {
     }
     
     setBookingToPathao(true);
-    const shortCode = activeScanOrder.id.slice(-6).toUpperCase();
+    const shortCode = (activeScanOrder?.id || '').slice(-6).toUpperCase();
     const loadingToast = toast.loading(`Booking Order #${shortCode} with Pathao API...`);
     
     try {
@@ -1382,7 +1387,7 @@ export default function AdminOrders(): React.JSX.Element {
       selectedSize: item.selectedSize,
       quantity: item.quantity,
       price: item.price,
-      sku: item.product.sku || `EP ${item.product.id.slice(-3).toUpperCase()}`
+      sku: item.product?.sku || (item.product?.id ? `EP ${item.product.id.slice(-3).toUpperCase()}` : 'EP 100')
     }));
 
     const subtotal = newOrderItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
@@ -1455,8 +1460,8 @@ export default function AdminOrders(): React.JSX.Element {
     };
 
     try {
-      await addOrder(newOrder);
-      toast.success(`Memo Order #${orderId} created successfully!`);
+      const created = await addOrder(newOrder);
+      toast.success(`Memo Order #${created?.id || orderId} created successfully!`);
       resetCreateModalState();
     } catch (err: any) {
       console.error("Manual order creation failed:", err);
@@ -1523,7 +1528,7 @@ export default function AdminOrders(): React.JSX.Element {
         };
       default: 
         return {
-          text: (status as string).toUpperCase(),
+          text: String(status || '').toUpperCase(),
           class: 'bg-gray-100 text-gray-500 border-gray-200',
         };
     }
@@ -1711,7 +1716,7 @@ export default function AdminOrders(): React.JSX.Element {
             >
               <option value="All">🤝 PARTNER: ALL</option>
               {uniquePartners.map(p => (
-                <option key={p} value={p}>{p.toUpperCase()}</option>
+                <option key={p} value={p}>{String(p || '').toUpperCase()}</option>
               ))}
             </select>
             <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none stroke-[2]" />
@@ -1728,7 +1733,7 @@ export default function AdminOrders(): React.JSX.Element {
               <option value="Pathao">PATHAO</option>
               <option value="Steadfast">STEADFAST</option>
               {uniqueCouriers.filter(c => c.toLowerCase() !== 'pathao' && c.toLowerCase() !== 'steadfast').map(c => (
-                <option key={c} value={c}>{c.toUpperCase()}</option>
+                <option key={c} value={c}>{String(c || '').toUpperCase()}</option>
               ))}
             </select>
             <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none stroke-[2]" />
@@ -1743,7 +1748,7 @@ export default function AdminOrders(): React.JSX.Element {
             >
               <option value="All">👤 CREATOR: ALL</option>
               {uniqueCreators.map(cr => (
-                <option key={cr} value={cr}>{cr.toUpperCase()}</option>
+                <option key={cr} value={cr}>{String(cr || '').toUpperCase()}</option>
               ))}
             </select>
             <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none stroke-[2]" />
@@ -1797,10 +1802,10 @@ export default function AdminOrders(): React.JSX.Element {
                 
                 <div className="bg-slate-50 p-3 rounded-xl mb-4">
                   <div className="text-sm font-bold text-slate-800 mb-1">
-                    {order.items.map(i => i.name).join(', ')}
+                    {Array.isArray(order.items) && order.items.length > 0 ? order.items.map(i => i.name).join(', ') : 'No items'}
                   </div>
                   <div className="text-xs text-slate-600">
-                    {order.items.map(i => `${i.selectedSize || 'M'} (x${i.quantity})`).join(', ')}
+                    {Array.isArray(order.items) && order.items.length > 0 ? order.items.map(i => `${i.selectedSize || 'M'} (x${i.quantity || 1})`).join(', ') : '—'}
                   </div>
                 </div>
                 
@@ -2054,8 +2059,8 @@ export default function AdminOrders(): React.JSX.Element {
 
                       {/* SKU */}
                       <td className="py-4 px-4 whitespace-nowrap text-xs font-bold text-[#2563EB]">
-                        {order.items && order.items.length > 0 
-                          ? order.items.map(item => item.sku || `EP-${item.id?.slice(-4).toUpperCase()}`).join(', ') 
+                        {Array.isArray(order.items) && order.items.length > 0 
+                          ? order.items.map(item => item.sku || (item.id ? `EP-${item.id.slice(-4).toUpperCase()}` : 'EP-ITEM')).join(', ') 
                           : '—'}
                       </td>
 
@@ -2436,7 +2441,7 @@ export default function AdminOrders(): React.JSX.Element {
                               referrerPolicy="no-referrer"
                             />
                             <div className="flex-1 min-w-0">
-                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 font-mono">SKU: EP-{prod.id.slice(-4).toUpperCase()}</span>
+                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 font-mono">SKU: EP-{prod?.id ? prod.id.slice(-4).toUpperCase() : '0000'}</span>
                               <p className="text-xs font-black text-[#0C1421] truncate mt-0.5" title={prod.name}>{prod.name}</p>
                               <p className="text-xs font-black text-blue-600 font-mono mt-0.5">{formatPrice(prod.price, currency, rate)}</p>
                             </div>
@@ -2445,7 +2450,7 @@ export default function AdminOrders(): React.JSX.Element {
                           {/* Sizes selector pills to quickly add to memo */}
                           <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-dashed border-gray-200">
                             <span className="text-[9px] font-extrabold text-gray-400 uppercase mr-1">ADD SIZE:</span>
-                            {prod.sizes.map(sz => {
+                            {(prod.sizes || []).map(sz => {
                               const stockQty = prod.sizeStock?.[sz] ?? 0;
                               return (
                                 <button
@@ -2503,7 +2508,7 @@ export default function AdminOrders(): React.JSX.Element {
                                     {item.product.name} ({item.selectedSize})
                                   </p>
                                   <p className="text-[10px] font-bold text-slate-500 font-mono mt-0.5">
-                                    SKU: EP-{item.product.id.slice(-4).toUpperCase()}
+                                    SKU: EP-{item.product?.id ? item.product.id.slice(-4).toUpperCase() : '0000'}
                                   </p>
                                 </div>
                               </div>
@@ -3206,7 +3211,7 @@ export default function AdminOrders(): React.JSX.Element {
                               <div className="min-w-0 flex-1 text-left">
                                 <div className="flex items-center gap-2">
                                   <span className="font-extrabold font-mono text-[10px] text-emerald-400">
-                                    #{order.id.slice(-6).toUpperCase()}
+                                    #{(order.id || '').slice(-6).toUpperCase()}
                                   </span>
                                   <span className="font-black text-gray-300 truncate">
                                     {order.customerName}
@@ -3217,7 +3222,7 @@ export default function AdminOrders(): React.JSX.Element {
                                 </p>
                                 <div className="flex items-center gap-1.5 mt-1 font-mono text-[9.5px]">
                                   <span className="text-[#10B981] font-black font-sans">SCAN CODE:</span>
-                                  <span className="text-gray-300 font-bold bg-[#1E293B] px-1.5 py-0.5 rounded-sm select-all">SCAN-{order.id.slice(-6).toUpperCase()}</span>
+                                  <span className="text-gray-300 font-bold bg-[#1E293B] px-1.5 py-0.5 rounded-sm select-all">SCAN-{(order.id || '').slice(-6).toUpperCase()}</span>
                                 </div>
                               </div>
                               
@@ -3378,7 +3383,7 @@ export default function AdminOrders(): React.JSX.Element {
                           <div className="min-w-0 flex-1 text-left">
                             <div className="flex items-center gap-2">
                               <span className="font-extrabold text-[#0C1421] font-mono">
-                                #{queuedOrder.id.slice(-6).toUpperCase()}
+                                #{(queuedOrder.id || '').slice(-6).toUpperCase()}
                               </span>
                               <span className="text-gray-500 font-bold font-sans">
                                 {queuedOrder.customerName}
@@ -3500,10 +3505,10 @@ export default function AdminOrders(): React.JSX.Element {
                         <span className="text-emerald-600 font-bold">Ready</span>
                       ) : issueConversationOrder.status === 'Shipped' ? (
                         <span className="text-blue-600">Shipped</span>
-                      ) : issueConversationOrder.status.toLowerCase() === 'delivered' ? (
+                      ) : (issueConversationOrder.status || '').toLowerCase() === 'delivered' ? (
                         <span className="text-green-600">Delivered</span>
                       ) : (
-                        issueConversationOrder.status === 'Pending' ? 'ORDER PLACED' : issueConversationOrder.status.toUpperCase()
+                        issueConversationOrder.status === 'Pending' ? 'ORDER PLACED' : String(issueConversationOrder.status || '').toUpperCase()
                       )}
                     </span>
                     <ParcelLiveStatusBadge order={issueConversationOrder} showDetails />
@@ -3524,7 +3529,9 @@ export default function AdminOrders(): React.JSX.Element {
                 <div className="col-span-2 space-y-1">
                   <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Item Summary</span>
                   <span className="text-sm font-black text-indigo-600 block">
-                    {issueConversationOrder.items.map(it => `${it.name} (${it.selectedSize} (x${it.quantity}))`).join(', ')}
+                    {Array.isArray(issueConversationOrder.items) && issueConversationOrder.items.length > 0
+                      ? issueConversationOrder.items.map(it => `${it.name} (${it.selectedSize} (x${it.quantity || 1}))`).join(', ')
+                      : 'No items recorded'}
                   </span>
                 </div>
 
@@ -3629,7 +3636,7 @@ export default function AdminOrders(): React.JSX.Element {
 
                         {/* URGENCY badge */}
                         <span className="px-2.5 py-1 text-[10px] font-extrabold bg-[#E8F0FE] text-[#1A73E8] border border-[#D2E3FC] rounded-full uppercase tracking-wider shadow-3xs">
-                          URGENCY: {issueConversationOrder.issueUrgency?.toUpperCase() || 'NORMAL'}
+                          URGENCY: {String(issueConversationOrder.issueUrgency || 'NORMAL').toUpperCase()}
                         </span>
 
                         {/* Edit / Pencil button */}
@@ -4122,7 +4129,7 @@ export default function AdminOrders(): React.JSX.Element {
                         <button 
                           type="button"
                           onClick={async () => {
-                            const computedSubtotal = selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                            const computedSubtotal = Array.isArray(selectedOrder.items) ? selectedOrder.items.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0) : 0;
                             try {
                               await updateOrder(selectedOrder.id, {
                                 customerName: editName,
@@ -4285,7 +4292,7 @@ export default function AdminOrders(): React.JSX.Element {
                           {(selectedOrder.transactionId || (selectedOrder as any).paidAmount) && (
                             <div className="col-span-2 border-t border-slate-100/80 pt-3">
                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
-                                Payment Transaction ({selectedOrder.paymentMethod.toUpperCase()})
+                                Payment Transaction ({String(selectedOrder.paymentMethod || 'COD').toUpperCase()})
                               </span>
                               <div className="flex items-center gap-3">
                                 {selectedOrder.transactionId && (
@@ -4304,7 +4311,7 @@ export default function AdminOrders(): React.JSX.Element {
                           <div className="col-span-2 border-t border-slate-100/80 pt-3">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Invoice No</span>
                             <span className="text-sm font-black text-indigo-600 font-mono block whitespace-nowrap">
-                              {selectedOrder.invoiceNo ? String(selectedOrder.invoiceNo) : selectedOrder.id.replace(/^ORD-?/i, '')}
+                              {selectedOrder.invoiceNo ? String(selectedOrder.invoiceNo) : (selectedOrder.id || '').replace(/^ORD-?/i, '')}
                             </span>
                           </div>
                           <div className="col-span-2">
@@ -4318,7 +4325,7 @@ export default function AdminOrders(): React.JSX.Element {
                                 selectedOrder.status === 'QC' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
                                 'bg-[#ECEAFE] text-[#554BF0]' // Pending / Placing
                               )}>
-                                {selectedOrder.status === 'QC' ? 'QC PASSED' : (selectedOrder.status === 'Pending' ? 'ORDER PLACED' : selectedOrder.status.toUpperCase())}
+                                {selectedOrder.status === 'QC' ? 'QC PASSED' : (selectedOrder.status === 'Pending' ? 'ORDER PLACED' : String(selectedOrder.status || '').toUpperCase())}
                               </span>
                               <ParcelLiveStatusBadge order={selectedOrder} showDetails />
                             </div>
@@ -4343,25 +4350,29 @@ export default function AdminOrders(): React.JSX.Element {
                         </div>
 
                         <div className="divide-y divide-slate-100/60">
-                          {selectedOrder.items.map((it, idx) => (
-                            <div key={idx} className="grid grid-cols-12 gap-2 py-4 items-center first:pt-0 last:pb-0">
-                              <div className="col-span-6">
-                                <span className="text-sm font-black text-slate-900 block leading-tight">{it.name}</span>
-                                <span className="text-[10px] font-bold text-slate-400 mt-1 block font-mono">
-                                  {it.selectedSize || '30'} | ES {it.id ? it.id.slice(-3).toUpperCase() : '109'}
-                                </span>
+                          {Array.isArray(selectedOrder.items) && selectedOrder.items.length > 0 ? (
+                            selectedOrder.items.map((it, idx) => (
+                              <div key={idx} className="grid grid-cols-12 gap-2 py-4 items-center first:pt-0 last:pb-0">
+                                <div className="col-span-6">
+                                  <span className="text-sm font-black text-slate-900 block leading-tight">{it.name}</span>
+                                  <span className="text-[10px] font-bold text-slate-400 mt-1 block font-mono">
+                                    {it.selectedSize || '30'} | ES {it.id ? it.id.slice(-3).toUpperCase() : '109'}
+                                  </span>
+                                </div>
+                                <div className="col-span-2 text-center font-bold text-slate-800 text-sm">
+                                  {it.quantity || 1}
+                                </div>
+                                <div className="col-span-2 text-right font-bold text-slate-500 text-sm font-mono">
+                                  {formatPrice(it.price || 0, currency, rate)}
+                                </div>
+                                <div className="col-span-2 text-right font-black text-slate-900 text-sm font-mono">
+                                  {formatPrice((it.price || 0) * (it.quantity || 1), currency, rate)}
+                                </div>
                               </div>
-                              <div className="col-span-2 text-center font-bold text-slate-800 text-sm">
-                                {it.quantity}
-                              </div>
-                              <div className="col-span-2 text-right font-bold text-slate-500 text-sm font-mono">
-                                {formatPrice(it.price, currency, rate)}
-                              </div>
-                              <div className="col-span-2 text-right font-black text-slate-900 text-sm font-mono">
-                                {formatPrice(it.price * it.quantity, currency, rate)}
-                              </div>
-                            </div>
-                          ))}
+                            ))
+                          ) : (
+                            <div className="py-4 text-center text-xs text-slate-400 font-medium">No order items found</div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -4374,7 +4385,7 @@ export default function AdminOrders(): React.JSX.Element {
                         <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
                           <span>Subtotal</span>
                           <span className="font-bold text-slate-800 font-mono">
-                            {formatPrice(selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0), currency, rate)}
+                            {formatPrice(Array.isArray(selectedOrder.items) ? selectedOrder.items.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0) : 0, currency, rate)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
@@ -4391,7 +4402,7 @@ export default function AdminOrders(): React.JSX.Element {
                         </div>
                         <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
                           <span className="uppercase">
-                            Advance Payment ({selectedOrder.paymentMethod === 'cod' ? 'COD' : selectedOrder.paymentMethod.toUpperCase()})
+                            Advance Payment ({selectedOrder.paymentMethod === 'cod' ? 'COD' : String(selectedOrder.paymentMethod || 'ONLINE').toUpperCase()})
                           </span>
                           <span className="font-bold text-[#10B981] font-mono">
                             {formatPrice((selectedOrder as any).advancePayment || 0, currency, rate)}
@@ -4409,7 +4420,7 @@ export default function AdminOrders(): React.JSX.Element {
                           <span className="text-sm font-black text-slate-950 uppercase tracking-wider">Collectable</span>
                           <span className="text-2xl font-black text-slate-900 font-mono tracking-tight">
                             {formatPrice(
-                              selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 
+                              (Array.isArray(selectedOrder.items) ? selectedOrder.items.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0) : 0) + 
                               (selectedOrder.deliveryCharge || 0) - 
                               ((selectedOrder as any).discount || 0) - 
                               ((selectedOrder as any).advancePayment || 0),
@@ -4804,7 +4815,7 @@ export default function AdminOrders(): React.JSX.Element {
                           <span className="text-xs text-slate-400 font-bold">COD Amount:</span>
                           <span className="text-sm font-black text-[#FF5A5F]">{formatPrice(pathaoBookingOrder.total)}</span>
                         </div>
-                        <span className="text-xs text-slate-400 font-bold">• Items: {pathaoBookingOrder.items.reduce((sum, item) => sum + (item.quantity || 1), 0)}</span>
+                        <span className="text-xs text-slate-400 font-bold">• Items: {Array.isArray(pathaoBookingOrder.items) ? pathaoBookingOrder.items.reduce((sum, item) => sum + (item.quantity || 1), 0) : 0}</span>
                       </div>
                     </div>
 
@@ -4997,7 +5008,7 @@ export default function AdminOrders(): React.JSX.Element {
                   </div>
                   <div className="text-center">
                     <h2 className="text-lg font-black text-slate-900 tracking-tight leading-tight">Book via Steadfast</h2>
-                    <p className="text-[11px] text-slate-500 font-bold mt-0.5">Order {steadfastBookingOrder.id.slice(-8).toUpperCase()}</p>
+                    <p className="text-[11px] text-slate-500 font-bold mt-0.5">Order {(steadfastBookingOrder?.id || '').slice(-8).toUpperCase()}</p>
                   </div>
                 </div>
                 <button 
@@ -5038,7 +5049,7 @@ export default function AdminOrders(): React.JSX.Element {
                           <span className="text-xs text-slate-400 font-bold">COD Amount:</span>
                           <span className="text-sm font-black text-[#FF5A5F]">{formatPrice(steadfastBookingOrder.total)}</span>
                         </div>
-                        <span className="text-xs text-slate-400 font-bold">• Items: {steadfastBookingOrder.items.reduce((sum, item) => sum + (item.quantity || 1), 0)}</span>
+                        <span className="text-xs text-slate-400 font-bold">• Items: {Array.isArray(steadfastBookingOrder.items) ? steadfastBookingOrder.items.reduce((sum, item) => sum + (item.quantity || 1), 0) : 0}</span>
                       </div>
                     </div>
 

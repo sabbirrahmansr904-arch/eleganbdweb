@@ -109,6 +109,21 @@ const ProductDetails = () => {
     .filter(p => p.category === product?.category && p.id !== id)
     .slice(0, 4);
 
+  // Color variants for this product family (e.g. pants or shirts)
+  const colorVariants = useMemo(() => {
+    if (!product) return [];
+    return products.filter(p => {
+      if (p.id === product.id) return true;
+      const isSameCategory = Boolean(p.category && product.category && p.category.toLowerCase() === product.category.toLowerCase());
+      const isSameFamily = Boolean(
+        ((product.category || '').toLowerCase().includes('pant') && (p.category || '').toLowerCase().includes('pant')) ||
+        ((product.name || '').toLowerCase().includes('pant') && (p.name || '').toLowerCase().includes('pant')) ||
+        ((product.category || '').toLowerCase().includes('shirt') && (p.category || '').toLowerCase().includes('shirt'))
+      );
+      return (isSameCategory || isSameFamily) && (p.images && p.images.length > 0);
+    });
+  }, [products, product]);
+
   // Explore more (other categories)
   const otherCategoryProducts = products
     .filter(p => p.category !== product?.category)
@@ -344,6 +359,77 @@ const ProductDetails = () => {
                     ))}
                   </div>
                   <span className="text-xs font-bold text-gray-500">{rating} Rating</span>
+                </div>
+              )}
+            </div>
+
+            {/* Color & Material Details */}
+            <div className="space-y-3 pt-1 border-t border-gray-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-black uppercase tracking-widest text-black">
+                    Color:
+                  </span>
+                  <span className="text-xs font-extrabold text-blue-700 uppercase tracking-tight bg-blue-50 px-2.5 py-0.5 rounded border border-blue-100">
+                    {product.color || (product.name.toLowerCase().includes('black') ? 'Black' : product.name.toLowerCase().includes('blue') || product.name.toLowerCase().includes('navy') ? 'Navy Blue' : product.name.toLowerCase().includes('grey') || product.name.toLowerCase().includes('gray') ? 'Ash Grey' : product.name.toLowerCase().includes('olive') ? 'Olive Green' : 'Standard')}
+                  </span>
+                </div>
+
+                {(product.fabric || product.material) && (
+                  <div className="text-[11px] font-bold text-gray-600">
+                    <span className="text-gray-400 font-semibold">Fabric: </span>
+                    <span className="text-black font-extrabold">{product.fabric || product.material}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Color Variation Thumbnails */}
+              {colorVariants.length > 1 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                      Available Colors ({colorVariants.length})
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {colorVariants.map(variant => {
+                      const isSelected = variant.id === product.id;
+                      const thumb = variant.images?.[0];
+                      const colorName = variant.color || variant.name.replace(/^(Mens|Premium|Smart|Formal|Chino|Cotton)\s*/i, '');
+                      return (
+                        <button
+                          key={variant.id}
+                          type="button"
+                          onClick={() => {
+                            if (!isSelected) {
+                              navigate(`/product/${variant.id}`);
+                              window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }
+                          }}
+                          className={cn(
+                            "flex items-center gap-2 p-1.5 rounded-lg border transition-all cursor-pointer bg-white text-left",
+                            isSelected
+                              ? "border-black bg-gray-50 ring-2 ring-black/10 shadow-2xs"
+                              : "border-gray-200 hover:border-gray-400 opacity-80 hover:opacity-100"
+                          )}
+                          title={variant.name}
+                        >
+                          {thumb ? (
+                            <div className="w-8 h-8 rounded bg-gray-100 overflow-hidden shrink-0 border border-gray-100">
+                              <img src={thumb} alt="" className="w-full h-full object-contain" />
+                            </div>
+                          ) : (
+                            <div className="w-6 h-6 rounded-full bg-gray-200 shrink-0" />
+                          )}
+                          <div className="pr-1">
+                            <p className={cn("text-[10px] font-bold uppercase tracking-tight line-clamp-1", isSelected ? "text-black font-black" : "text-gray-600")}>
+                              {colorName}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>

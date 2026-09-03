@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import PixelTracker from './components/PixelTracker';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Contexts
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -183,7 +184,9 @@ function App() {
                             <Toaster position="top-center" reverseOrder={false} />
                             <PixelTracker />
                             <MetaPixel />
-                            <AppRoutes />
+                            <ErrorBoundary>
+                              <AppRoutes />
+                            </ErrorBoundary>
                           </div>
                         </Router>
                       </CartProvider>

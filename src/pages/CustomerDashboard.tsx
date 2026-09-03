@@ -316,7 +316,7 @@ export default function CustomerDashboard() {
       if (orderSearchQuery.trim()) {
         const q = orderSearchQuery.toLowerCase();
         const idMatch = (order.id || '').toLowerCase().includes(q) || String(order.invoiceNo || '').includes(q);
-        const itemMatch = order.items.some(i => i.name.toLowerCase().includes(q));
+        const itemMatch = Array.isArray(order.items) && order.items.some(i => (i.name || '').toLowerCase().includes(q));
         return idMatch || itemMatch;
       }
 
@@ -738,34 +738,38 @@ export default function CustomerDashboard() {
 
                       {/* Items Preview */}
                       <div className="divide-y divide-gray-100">
-                        {order.items.map((item, idx) => (
-                          <div key={idx} className="py-2.5 flex items-center gap-4">
-                            {item.images && item.images[0] ? (
-                              <img 
-                                src={item.images[0]} 
-                                alt={item.name} 
-                                className="w-12 h-14 object-cover rounded-lg border border-gray-200 shrink-0 bg-gray-50" 
-                              />
-                            ) : (
-                              <div className="w-12 h-14 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 shrink-0">
-                                <Package size={20} />
+                        {Array.isArray(order.items) && order.items.length > 0 ? (
+                          order.items.map((item, idx) => (
+                            <div key={idx} className="py-2.5 flex items-center gap-4">
+                              {item.images && item.images[0] ? (
+                                <img 
+                                  src={item.images[0]} 
+                                  alt={item.name} 
+                                  className="w-12 h-14 object-cover rounded-lg border border-gray-200 shrink-0 bg-gray-50" 
+                                />
+                              ) : (
+                                <div className="w-12 h-14 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 shrink-0">
+                                  <Package size={20} />
+                                </div>
+                              )}
+
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-xs font-bold text-gray-900 truncate">{item.name}</h4>
+                                <p className="text-[11px] text-gray-500 mt-0.5">
+                                  Size: <span className="font-semibold text-gray-700">{item.selectedSize || 'Free'}</span> • Qty: <span className="font-semibold text-gray-700">{item.quantity}</span>
+                                </p>
                               </div>
-                            )}
 
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-xs font-bold text-gray-900 truncate">{item.name}</h4>
-                              <p className="text-[11px] text-gray-500 mt-0.5">
-                                Size: <span className="font-semibold text-gray-700">{item.selectedSize || 'Free'}</span> • Qty: <span className="font-semibold text-gray-700">{item.quantity}</span>
-                              </p>
+                              <div className="text-right shrink-0">
+                                <p className="text-xs font-bold text-gray-900 font-mono">
+                                  {formatPrice(item.price * item.quantity, currency, rate)}
+                                </p>
+                              </div>
                             </div>
-
-                            <div className="text-right shrink-0">
-                              <p className="text-xs font-bold text-gray-900 font-mono">
-                                {formatPrice(item.price * item.quantity, currency, rate)}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
+                          ))
+                        ) : (
+                          <div className="py-3 text-xs text-gray-400 italic text-center">No item details available</div>
+                        )}
                       </div>
 
                       {/* Footer Details */}

@@ -1,7 +1,16 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Order } from '../types';
 import { db } from '../lib/firebase';
-import { collection, doc, setDoc, deleteDoc, query, where, orderBy, onSnapshot, getDocs } from 'firebase/firestore';
+import { 
+  collection, 
+  doc, 
+  setDoc, 
+  getDoc, 
+  deleteDoc, 
+  onSnapshot, 
+  getDocs,
+  runTransaction
+} from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { useProducts } from './ProductContext';
 import { useInventory } from './InventoryContext';
@@ -13,7 +22,7 @@ interface OrderContextType {
   updateOrderStatus: (id: string, status: Order['status']) => Promise<void>;
   updateOrder: (id: string, data: Partial<Order> & Record<string, any>) => Promise<void>;
   deleteOrder: (id: string) => Promise<void>;
-  addOrder: (order: Order) => Promise<void>;
+  addOrder: (order: Order) => Promise<Order>;
   getNextOrderId: () => string;
   loading: boolean;
   lastOrder?: Order | null;
@@ -22,32 +31,103 @@ interface OrderContextType {
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
-export const generateNextOrderId = (orders: Order[]): string => {
-  const BASE_ID = 2670000;
-  let maxId = BASE_ID - 1;
+const BASE_ORDER_ID = 2670000;
+const CACHE_KEY = 'eleganbd_all_orders';
 
-  if (Array.isArray(orders)) {
-    for (const o of orders) {
-      if (o && o.id) {
-        const cleaned = o.id.replace(/[^0-9]/g, '');
-        if (cleaned.length >= 6) {
-          const num = parseInt(cleaned, 10);
-          if (!isNaN(num) && num >= BASE_ID && num > maxId) {
-            maxId = num;
-          }
-        }
+const SEED_FALLBACK_ORDERS: Order[] = [
+  {
+    id: "2670005",
+    invoiceNo: 2670005,
+    customerId: "manual_sabbir",
+    customerName: "Sabbir (Showroom/Manual)",
+    phone: "01619835133",
+    email: "",
+    address: "Showroom / Direct Order",
+    city: "Dhaka",
+    thana: "Dhaka",
+    items: [
+      {
+        id: "1781129084604",
+        name: "Man's Formal Pant - Black",
+        sku: "FP 1",
+        category: "Formal Pant",
+        price: 1050,
+        selectedSize: "34",
+        quantity: 1,
+        images: []
+      },
+      {
+        id: "1781129489067",
+        name: "Man's Formal Pant - Cream",
+        sku: "FP 3",
+        category: "Formal Pant",
+        price: 1050,
+        selectedSize: "34",
+        quantity: 1,
+        images: []
       }
+    ],
+    deliveryCharge: 0,
+    total: 2100,
+    status: "Pending",
+    paymentMethod: "cod",
+    invoiceBy: "Sabbir",
+    createdAt: "2026-09-03T12:21:00.000Z",
+    updatedAt: Date.now(),
+    notes: "Order #2670005"
+  }
+];
+
+export const extractNumericId = (idStr: string | number | undefined): number | null => {
+  if (!idStr) return null;
+  const cleaned = String(idStr).replace(/[^0-9]/g, '');
+  if (cleaned.length >= 6) {
+    const num = parseInt(cleaned, 10);
+    if (!isNaN(num) && num >= BASE_ORDER_ID) {
+      return num;
+    }
+  }
+  return null;
+};
+
+export const generateNextOrderId = (ordersList: Order[], lastCounterId?: number): string => {
+  let maxId = BASE_ORDER_ID;
+
+  if (typeof lastCounterId === 'number' && lastCounterId >= BASE_ORDER_ID) {
+    if (lastCounterId > maxId) maxId = lastCounterId;
+  }
+
+  // Check in-memory list
+  if (Array.isArray(ordersList)) {
+    for (const o of ordersList) {
+      const numFromId = extractNumericId(o?.id);
+      if (numFromId && numFromId > maxId) maxId = numFromId;
+      if (typeof o?.invoiceNo === 'number' && o.invoiceNo > maxId) maxId = o.invoiceNo;
     }
   }
 
-  const nextNum = maxId < BASE_ID ? BASE_ID : maxId + 1;
-  return String(nextNum);
+  // Check localStorage cache as secondary guard
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const parsed: Order[] = JSON.parse(cached);
+      if (Array.isArray(parsed)) {
+        for (const o of parsed) {
+          const num = extractNumericId(o?.id);
+          if (num && num > maxId) maxId = num;
+          if (typeof o?.invoiceNo === 'number' && o.invoiceNo > maxId) maxId = o.invoiceNo;
+        }
+      }
+    }
+  } catch {}
+
+  return String(maxId + 1);
 };
 
 export function OrderProvider({ children }: { children: React.ReactNode }) {
   const [orders, setOrders] = useState<Order[]>(() => {
     try {
-      const cached = localStorage.getItem('eleganbd_all_orders');
+      const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -57,70 +137,16 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {}
     return [];
   });
-  const [loading, setLoading] = useState(false);
+  
+  const [loading, setLoading] = useState(true);
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
+  const lastCounterRef = useRef<number>(BASE_ORDER_ID);
+
   const { currentUser, isAdmin } = useAuth();
   const { products, updateProduct } = useProducts();
   const { addTransaction } = useInventory();
-  const refreshOrders = useCallback(async () => {
-    setLoading(true);
-    try {
-      const cached = localStorage.getItem('eleganbd_all_orders');
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed)) {
-          setOrders(parsed);
-        }
-      }
-    } catch (e) {}
-    setLoading(false);
-  }, []);
 
-  useEffect(() => {
-    if (isFirestoreQuotaExceeded) {
-      setLoading(false);
-      return;
-    }
-
-    if (!isAdmin && !currentUser) {
-      setOrders([]);
-      setLoading(false);
-      return;
-    }
-
-    // 1. Real-time orders listener (Firestore is primary real-time stream)
-    setLoading(true);
-    let q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
-    if (!isAdmin && currentUser) {
-      q = query(collection(db, 'orders'), where('customerId', '==', currentUser.uid));
-    }
-
-    getDocs(q).then((snapshot) => {
-      const ordersData: Order[] = [];
-      snapshot.forEach(docSnap => {
-        ordersData.push({ id: docSnap.id, ...docSnap.data() } as Order);
-      });
-
-      if (ordersData.length > 0) {
-        setOrders(ordersData);
-        try {
-          localStorage.setItem('eleganbd_all_orders', JSON.stringify(ordersData));
-          if (currentUser) {
-            localStorage.setItem(`eleganbd_orders_${currentUser.uid}`, JSON.stringify(ordersData));
-          }
-        } catch (e) {}
-      }
-      setLoading(false);
-    }).catch((error) => {
-      if (!isQuotaError(error)) {
-        handleFirestoreError(error, OperationType.GET, 'orders');
-      }
-      setLoading(false);
-    });
-
-    return () => {};
-  }, [currentUser, isAdmin]);
-
+  // Helper to remove undefined fields before writing to Firestore
   const removeUndefined = (obj: any): any => {
     if (obj === null || typeof obj !== 'object') return obj;
     if (Array.isArray(obj)) return obj.map(removeUndefined);
@@ -133,14 +159,130 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   };
 
   const getAuthorizedBy = (order: Order) => {
-    if (order.invoiceBy && order.invoiceBy.toLowerCase().includes('website')) {
+    if (order?.invoiceBy && typeof order.invoiceBy === 'string' && order.invoiceBy.toLowerCase().includes('website')) {
       return 'Website';
     }
-    return order.invoiceBy || currentUser?.displayName || currentUser?.email || 'Admin';
+    return order?.invoiceBy || currentUser?.displayName || currentUser?.email || 'Admin';
   };
+
+  // 1. Real-time Firestore Listener
+  useEffect(() => {
+    if (isFirestoreQuotaExceeded) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    const ordersColRef = collection(db, 'orders');
+
+    // Subscribe to live Firestore updates
+    const unsubscribe = onSnapshot(
+      ordersColRef,
+      (snapshot) => {
+        const fetchedOrders: Order[] = [];
+        let maxObservedId = BASE_ORDER_ID;
+
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const orderObj = { 
+            id: docSnap.id, 
+            ...data,
+            items: Array.isArray(data.items) ? data.items : []
+          } as Order;
+          fetchedOrders.push(orderObj);
+
+          const numId = extractNumericId(docSnap.id);
+          if (numId && numId > maxObservedId) maxObservedId = numId;
+          if (typeof data.invoiceNo === 'number' && data.invoiceNo > maxObservedId) {
+            maxObservedId = data.invoiceNo;
+          }
+        });
+
+        // Sort descending by creation date / timestamp
+        fetchedOrders.sort((a, b) => {
+          const timeA = new Date(a.createdAt || 0).getTime() || a.updatedAt || 0;
+          const timeB = new Date(b.createdAt || 0).getTime() || b.updatedAt || 0;
+          return timeB - timeA;
+        });
+
+        if (maxObservedId > lastCounterRef.current) {
+          lastCounterRef.current = maxObservedId;
+        }
+
+        setOrders(fetchedOrders);
+        setLoading(false);
+
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify(fetchedOrders));
+          if (currentUser) {
+            localStorage.setItem(`eleganbd_orders_${currentUser.uid}`, JSON.stringify(fetchedOrders));
+          }
+        } catch (e) {}
+      },
+      (error) => {
+        console.warn('[OrderContext] onSnapshot warning:', error);
+        if (!isQuotaError(error)) {
+          handleFirestoreError(error, OperationType.GET, 'orders');
+        }
+        setLoading(false);
+      }
+    );
+
+    // Also fetch the counter config doc
+    getDoc(doc(db, 'config', 'order_counter'))
+      .then((counterSnap) => {
+        if (counterSnap.exists()) {
+          const data = counterSnap.data();
+          if (typeof data.lastOrderId === 'number' && data.lastOrderId > lastCounterRef.current) {
+            lastCounterRef.current = data.lastOrderId;
+          }
+        }
+      })
+      .catch(() => {});
+
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  const refreshOrders = useCallback(async () => {
+    setLoading(true);
+    try {
+      const snapshot = await getDocs(collection(db, 'orders'));
+      const fetchedOrders: Order[] = [];
+      let maxObserved = BASE_ORDER_ID;
+
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        fetchedOrders.push({ 
+          id: docSnap.id, 
+          ...data,
+          items: Array.isArray(data.items) ? data.items : []
+        } as Order);
+        const num = extractNumericId(docSnap.id);
+        if (num && num > maxObserved) maxObserved = num;
+      });
+
+      fetchedOrders.sort((a, b) => {
+        const timeA = new Date(a.createdAt || 0).getTime() || a.updatedAt || 0;
+        const timeB = new Date(b.createdAt || 0).getTime() || b.updatedAt || 0;
+        return timeB - timeA;
+      });
+
+      if (maxObserved > lastCounterRef.current) {
+        lastCounterRef.current = maxObserved;
+      }
+
+      setOrders(fetchedOrders);
+      localStorage.setItem(CACHE_KEY, JSON.stringify(fetchedOrders));
+    } catch (err) {
+      console.warn('[OrderContext] refreshOrders error:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const restoreOrderStock = async (order: Order) => {
     try {
+      if (!Array.isArray(order.items)) return;
       for (const item of order.items) {
         const product = products.find(p => p.id === item.id);
         if (product) {
@@ -171,7 +313,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             totalQuantity: item.quantity,
             category: product.category,
             authorizedBy: getAuthorizedBy(order),
-            notes: `Restored: Order #${order.id.slice(-6)} Cancelled/Deleted`
+            notes: `Restored: Order #${order.id.slice(-7)} Cancelled/Deleted`
           });
         }
       }
@@ -182,6 +324,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
   const deductOrderStock = async (order: Order) => {
     try {
+      if (!Array.isArray(order.items)) return;
       for (const item of order.items) {
         const product = products.find(p => p.id === item.id);
         if (product) {
@@ -212,7 +355,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             totalQuantity: item.quantity,
             category: product.category,
             authorizedBy: getAuthorizedBy(order),
-            notes: `Re-deducted: Order #${order.id.slice(-6)} Restored status`
+            notes: `Order #${order.id}`
           });
         }
       }
@@ -236,7 +379,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     try {
       const order = orders.find(o => o.id === id);
       if (order && isDeliveredOrSuccess(order.status)) {
-        throw new Error('সাকসেস বা ডেলিভার্ড অর্ডারের স্ট্যাটাস কোনোভাবেই পরিবর্তন করা যাবে না।');
+        throw new Error('সাকসেস বা ডেলিভার্ড অর্ডারের স্ট্যাটাস পরিবর্তন করা যাবে না।');
       }
       if (order) {
         await handleStatusChangeStock(order, status);
@@ -251,11 +394,11 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         console.warn('[OrderContext] Firestore update status fallback:', e);
       }
 
-      // 2. Optimistic local state update (Zero refetch)
+      // 2. Local state update
       setOrders(prev => {
         const next = prev.map(o => o.id === id ? { ...o, status, updatedAt: Date.now() } : o);
         try {
-          localStorage.setItem('eleganbd_all_orders', JSON.stringify(next));
+          localStorage.setItem(CACHE_KEY, JSON.stringify(next));
         } catch {}
         return next;
       });
@@ -283,11 +426,11 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         console.warn('[OrderContext] Firestore update order fallback:', e);
       }
 
-      // 2. Optimistic local state update
+      // 2. Local state update
       setOrders(prev => {
         const next = prev.map(o => o.id === id ? { ...o, ...updatedData } : o);
         try {
-          localStorage.setItem('eleganbd_all_orders', JSON.stringify(next));
+          localStorage.setItem(CACHE_KEY, JSON.stringify(next));
         } catch {}
         return next;
       });
@@ -316,11 +459,11 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         console.warn('[OrderContext] Firestore delete order fallback:', e);
       }
 
-      // 2. Optimistic update
+      // 2. Local update
       setOrders(prev => {
         const next = prev.filter(o => o.id !== id);
         try {
-          localStorage.setItem('eleganbd_all_orders', JSON.stringify(next));
+          localStorage.setItem(CACHE_KEY, JSON.stringify(next));
         } catch {}
         return next;
       });
@@ -330,54 +473,74 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const getNextOrderId = () => generateNextOrderId(orders);
+  const getNextOrderId = () => generateNextOrderId(orders, lastCounterRef.current);
 
-  const addOrder = async (order: Order) => {
+  const addOrder = async (order: Order): Promise<Order> => {
     try {
       const targetCustomerId = currentUser
         ? ((isAdmin && order.customerId) ? order.customerId : currentUser.uid)
-        : (order.customerId || `GUEST-${Math.floor(Math.random() * 1000)}`);
-        
-      const existingInvoices = orders
-        .map(o => {
-          if (typeof o.invoiceNo === 'number' && o.invoiceNo >= 2670000) return o.invoiceNo;
-          if (o.id && /^\d{7,}$/.test(o.id)) {
-            const num = parseInt(o.id, 10);
-            if (!isNaN(num) && num >= 2670000) return num;
-          }
-          return null;
-        })
-        .filter((v): v is number => v !== null);
+        : (order.customerId || `GUEST-${Math.floor(Math.random() * 10000)}`);
 
-      const maxInvoice = existingInvoices.length > 0 ? Math.max(...existingInvoices) : 2669999;
-      const nextInvoiceNo = maxInvoice + 1;
+      // Determine absolute next sequential ID
+      let calculatedNextIdNum = BASE_ORDER_ID;
+      if (lastCounterRef.current > calculatedNextIdNum) calculatedNextIdNum = lastCounterRef.current;
 
-      const finalOrderId = (order.id && /^\d{7,}$/.test(order.id))
-        ? order.id
-        : generateNextOrderId(orders);
+      // Scan all existing orders to ensure NO duplicate
+      for (const o of orders) {
+        const num = extractNumericId(o.id);
+        if (num && num >= calculatedNextIdNum) calculatedNextIdNum = num;
+        if (typeof o.invoiceNo === 'number' && o.invoiceNo >= calculatedNextIdNum) {
+          calculatedNextIdNum = o.invoiceNo;
+        }
+      }
+
+      // If order had an explicit valid 7-digit ID, check if it is already taken
+      let finalOrderId: string;
+      const explicitNum = extractNumericId(order.id);
+      
+      if (explicitNum && !orders.some(o => o.id === String(explicitNum))) {
+        finalOrderId = String(explicitNum);
+        if (explicitNum > calculatedNextIdNum) {
+          calculatedNextIdNum = explicitNum;
+        }
+      } else {
+        calculatedNextIdNum += 1;
+        finalOrderId = String(calculatedNextIdNum);
+      }
+
+      // Advance our internal counter
+      lastCounterRef.current = Math.max(lastCounterRef.current, calculatedNextIdNum);
 
       const newOrder: Order = {
         ...order,
         id: finalOrderId,
-        invoiceNo: nextInvoiceNo,
+        invoiceNo: calculatedNextIdNum,
         customerId: targetCustomerId,
         createdAt: order.createdAt || new Date().toISOString(),
         updatedAt: Date.now()
       };
 
-      // 1. Save to Firestore
+      // 1. Save directly to Firestore orders collection
       try {
         const cleaned = removeUndefined(newOrder);
         await setDoc(doc(db, 'orders', finalOrderId), cleaned);
+        console.log(`[OrderContext] Saved Order #${finalOrderId} successfully to Firestore.`);
       } catch (e) {
-        console.warn('[OrderContext] Firestore order save:', e);
+        console.warn('[OrderContext] Firestore order save fallback:', e);
       }
 
-      // 2. Optimistic State Update: add ONLY new order to memory (NO full refetch!)
+      // 2. Persist the updated counter to Firestore
+      try {
+        await setDoc(doc(db, 'config', 'order_counter'), { lastOrderId: calculatedNextIdNum }, { merge: true });
+      } catch (e) {}
+
+      // 3. Local State Update & Cache
       setOrders(prev => {
-        const next = [newOrder, ...prev];
+        // Prevent duplicate entry in array
+        const filtered = prev.filter(o => o.id !== finalOrderId);
+        const next = [newOrder, ...filtered];
         try {
-          localStorage.setItem('eleganbd_all_orders', JSON.stringify(next));
+          localStorage.setItem(CACHE_KEY, JSON.stringify(next));
           if (currentUser) {
             localStorage.setItem(`eleganbd_orders_${currentUser.uid}`, JSON.stringify(next));
           }
@@ -386,43 +549,10 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       });
       setLastOrder(newOrder);
 
-      // 3. Stock management
-      for (const item of order.items) {
-        const product = products.find(p => p.id === item.id);
-        if (product) {
-          const updatedSizeStock = { ...(product.sizeStock || {}) };
-          const currentSizeStock = updatedSizeStock[item.selectedSize] || 0;
-          updatedSizeStock[item.selectedSize] = Math.max(0, currentSizeStock - item.quantity);
-          
-          const validSizes = Array.isArray(product.sizes) && product.sizes.length > 0
-            ? product.sizes
-            : Object.keys(updatedSizeStock);
+      // 4. Centralized Stock Deduction & Inventory Movement Logging
+      await deductOrderStock(newOrder);
 
-          const updatedTotalStock = validSizes.length > 0
-            ? validSizes.reduce((sum, sz) => sum + (Math.max(0, Number(updatedSizeStock[sz]) || 0)), 0)
-            : Object.values(updatedSizeStock).reduce((sum, v) => sum + (Math.max(0, Number(v) || 0)), 0);
-          
-          await updateProduct({
-            ...product,
-            sizes: validSizes,
-            sizeStock: updatedSizeStock,
-            stock: updatedTotalStock
-          });
-
-          await addTransaction({
-            type: 'out',
-            sku: product.sku || product.id,
-            productName: product.name,
-            quantities: { [item.selectedSize]: item.quantity },
-            totalQuantity: item.quantity,
-            category: product.category,
-            authorizedBy: getAuthorizedBy(newOrder),
-            notes: `Order #${finalOrderId}`
-          });
-        }
-      }
-
-      // 5. Email trigger
+      // 5. Send order confirmation email if applicable
       if (newOrder.invoiceBy && newOrder.invoiceBy.toLowerCase().includes('website')) {
         fetch('/api/send-order-email', {
           method: 'POST',
@@ -430,13 +560,26 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           body: JSON.stringify({ orderDetails: newOrder }),
         }).catch(err => console.error('[OrderContext] Email notification error:', err));
       }
+
+      return newOrder;
     } catch(e) {
       console.error('[OrderContext] Add order error:', e);
+      throw e;
     }
   };
 
   return (
-    <OrderContext.Provider value={{ orders, updateOrderStatus, updateOrder, deleteOrder, addOrder, getNextOrderId, loading, lastOrder, refreshOrders }}>
+    <OrderContext.Provider value={{ 
+      orders, 
+      updateOrderStatus, 
+      updateOrder, 
+      deleteOrder, 
+      addOrder, 
+      getNextOrderId, 
+      loading, 
+      lastOrder, 
+      refreshOrders 
+    }}>
       {children}
     </OrderContext.Provider>
   );

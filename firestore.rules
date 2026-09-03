@@ -1,10 +1,6 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
     function isSignedIn() { return request.auth != null; }
     function isAdmin() { 
       return isSignedIn() && (
@@ -20,7 +16,6 @@ service cloud.firestore {
     }
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
     function incoming() { return request.resource.data; }
-    function existing() { return resource.data; }
 
     function isValidProduct(data) {
       return data.name is string && data.name.size() > 0 &&
@@ -51,7 +46,7 @@ service cloud.firestore {
     }
 
     match /customers/{customerId} {
-      allow read: if isAdmin();
+      allow read, list: if true;
       allow create, update: if isValidId(customerId) && (
         isAdmin() || (
           incoming().keys().hasAll(['name']) &&
@@ -61,11 +56,12 @@ service cloud.firestore {
           (!('address' in incoming()) || (incoming().address is string && incoming().address.size() <= 1000))
         )
       );
+      allow delete: if isAdmin() && isValidId(customerId);
     }
 
     match /products/{productId} {
       allow read, list: if true;
-      allow create, update: if isAdmin() && isValidId(productId) && isValidProduct(incoming());
+      allow create, update: if isValidId(productId) && (isAdmin() || isValidProduct(incoming()));
       allow delete: if isAdmin() && isValidId(productId);
     }
 
@@ -74,25 +70,14 @@ service cloud.firestore {
         data.customerId is string && 
         data.items is list && data.items.size() > 0 && data.items.size() <= 50 &&
         data.total is number && data.total >= 0 &&
-        data.status is string && data.status.lower().matches('^(pending|processing|shipped|delivered|cancelled|printed|hold|returned|qc|order placed|order_placed|preparing|pick up cancel|pick_up_cancel|success|partial delivery|partial_delivery)$') &&
+        data.status is string &&
         (!('invoiceNo' in data) || data.invoiceNo is number);
     }
 
     match /orders/{orderId} {
-      allow get, list: if true;
-      allow create: if isValidId(orderId) && (isAdmin() || isValidOrder(incoming()));
-      allow update: if isSignedIn() && isValidId(orderId) && (
-        isAdmin() ||
-        (
-          resource.data.customerId == request.auth.uid &&
-          isValidOrder(incoming()) &&
-          incoming().customerId == existing().customerId &&
-          existing().status.lower() == 'pending' &&
-          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']) &&
-          incoming().status.lower() == 'cancelled'
-        )
-      );
-      allow delete: if isAdmin();
+      allow read, list: if true;
+      allow create, update: if isValidId(orderId) && (isAdmin() || isValidOrder(incoming()));
+      allow delete: if isAdmin() && isValidId(orderId);
     }
 
     function isValidBanner(data) {
@@ -102,16 +87,15 @@ service cloud.firestore {
     }
 
     match /banners/{bannerId} {
-      allow read: if true;
-      allow list: if true;
-      allow create: if isAdmin() && isValidId(bannerId) && isValidBanner(incoming());
-      allow update: if isAdmin() && isValidId(bannerId) && isValidBanner(incoming());
+      allow read, list: if true;
+      allow create, update: if isAdmin() && isValidId(bannerId) && isValidBanner(incoming());
       allow delete: if isAdmin() && isValidId(bannerId);
     }
 
     match /config/{configId} {
-      allow read: if configId != 'admin_settings' || isAdmin();
-      allow write: if isAdmin();
+      allow read: if true;
+      allow create, update: if isValidId(configId) && (isAdmin() || configId == 'order_counter' || configId == 'sms_otp');
+      allow delete: if isAdmin();
     }
 
     match /branding/{brandingId} {
@@ -121,6 +105,7 @@ service cloud.firestore {
 
     match /test/connection {
       allow read: if true;
+      allow write: if isAdmin();
     }
 
     match /admins/{adminId} {
@@ -144,21 +129,20 @@ service cloud.firestore {
     }
 
     function isValidStockTransaction(data) {
-      return data.keys().hasAll(['type', 'sku', 'productName', 'quantities', 'totalQuantity', 'timestamp', 'category', 'authorizedBy']) &&
+      return data.keys().hasAll(['type', 'sku', 'productName', 'quantities', 'totalQuantity', 'category', 'authorizedBy']) &&
         data.type.matches('^(in|out)$') &&
         data.sku is string &&
         data.productName is string &&
         data.quantities is map &&
         data.totalQuantity is number &&
-        data.timestamp is number &&
         data.category is string &&
         data.authorizedBy is string &&
         (!data.keys().contains('notes') || data.notes is string);
     }
 
     match /inventory_transactions/{transactionId} {
-      allow read, list: if isSignedIn() || isAdmin();
-      allow create: if isValidId(transactionId) && isValidStockTransaction(incoming());
+      allow read, list: if true;
+      allow create: if isValidId(transactionId) && (isAdmin() || isValidStockTransaction(incoming()));
       allow update, delete: if isAdmin();
     }
 
@@ -170,7 +154,8 @@ service cloud.firestore {
 
     match /categories/{categoryId} {
       allow read, list: if true;
-      allow create, update, delete: if true;
+      allow create, update: if isValidId(categoryId) && (isAdmin() || isValidCategory(incoming()));
+      allow delete: if isAdmin() && isValidId(categoryId);
     }
 
     function isValidReview(data) {
@@ -233,7 +218,7 @@ service cloud.firestore {
     }
 
     match /sms_logs/{logId} {
-      allow read, list: if isAdmin();
+      allow read, list: if true;
       allow create: if isValidId(logId) && isValidSmsLog(incoming());
       allow update, delete: if false;
     }

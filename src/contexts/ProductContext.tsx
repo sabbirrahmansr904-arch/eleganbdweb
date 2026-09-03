@@ -76,6 +76,38 @@ const normalizeProductCategory = (p: Product): Product => {
   };
 };
 
+const mergeProductsWithLocalCache = (incoming: Product[], local: Product[]): Product[] => {
+  const localMap = new Map<string, Product>();
+  local.forEach(p => {
+    if (p.id) localMap.set(p.id, p);
+  });
+
+  const mergedMap = new Map<string, Product>();
+
+  incoming.forEach(inc => {
+    const loc = localMap.get(inc.id);
+    if (!loc) {
+      mergedMap.set(inc.id, inc);
+    } else {
+      const locUpdatedAt = (loc as any).updatedAt || 0;
+      const incUpdatedAt = (inc as any).updatedAt || 0;
+      if (locUpdatedAt > incUpdatedAt) {
+        mergedMap.set(inc.id, loc);
+      } else {
+        mergedMap.set(inc.id, { ...loc, ...inc });
+      }
+    }
+  });
+
+  local.forEach(loc => {
+    if (!mergedMap.has(loc.id)) {
+      mergedMap.set(loc.id, loc);
+    }
+  });
+
+  return Array.from(mergedMap.values());
+};
+
 export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [products, setProducts] = useState<Product[]>(() => {
     try {
@@ -115,6 +147,39 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setLoading(false);
   }, []);
 
+  // Sync across browser tabs & windows in real-time
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'eleganbd_products' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) {
+            setProducts(deduplicateProducts(parsed.map(normalizeProductCategory)));
+          }
+        } catch (err) {}
+      }
+    };
+
+    const handleCustomSync = () => {
+      try {
+        const cached = localStorage.getItem('eleganbd_products');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) {
+            setProducts(deduplicateProducts(parsed.map(normalizeProductCategory)));
+          }
+        }
+      } catch (err) {}
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('eleganbd_products_updated', handleCustomSync);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('eleganbd_products_updated', handleCustomSync);
+    };
+  }, []);
+
   useEffect(() => {
     if (isFirestoreQuotaExceeded) {
       setLoading(false);
@@ -136,9 +201,9 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
     });
 
-    // 2. Real-time products listener (Firestore is primary real-time database)
+    // 2. Real-time products listener
     const productsCol = collection(db, 'products');
-    getDocs(productsCol).then((snapshot) => {
+    const unsubProducts = onSnapshot(productsCol, (snapshot) => {
       const prodData: Product[] = [];
       snapshot.forEach(docSnap => {
         prodData.push({
@@ -148,24 +213,27 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
 
       if (prodData.length > 0) {
-        const normalized = deduplicateProducts(prodData.map(normalizeProductCategory));
-        setProducts(normalized);
-        try {
-          localStorage.setItem('eleganbd_products', JSON.stringify(normalized));
-          localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
-        } catch (e) {}
+        setProducts(prev => {
+          const merged = mergeProductsWithLocalCache(prodData, prev);
+          const normalized = deduplicateProducts(merged.map(normalizeProductCategory));
+          try {
+            localStorage.setItem('eleganbd_products', JSON.stringify(normalized));
+            localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
+          } catch (e) {}
+          return normalized;
+        });
       }
       setLoading(false);
-    }).catch((err) => {
+    }, (err) => {
       if (!isQuotaError(err)) {
         handleFirestoreError(err, OperationType.GET, 'products');
       }
-      // If Firestore has temporary quota or network pause, keep local cache
       setLoading(false);
     });
 
     return () => {
       unsubOffers();
+      unsubProducts();
     };
   }, []);
 
@@ -189,6 +257,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const next = deduplicateProducts([productWithTimestamps, ...prev]);
       try {
         localStorage.setItem('eleganbd_products', JSON.stringify(next));
+        window.dispatchEvent(new Event('eleganbd_products_updated'));
       } catch (e) {}
       return next;
     });
@@ -214,6 +283,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const uniqueNext = deduplicateProducts(next);
       try {
         localStorage.setItem('eleganbd_products', JSON.stringify(uniqueNext));
+        window.dispatchEvent(new Event('eleganbd_products_updated'));
       } catch (e) {}
       return uniqueNext;
     });
@@ -233,6 +303,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const uniqueNext = deduplicateProducts(next);
       try {
         localStorage.setItem('eleganbd_products', JSON.stringify(uniqueNext));
+        window.dispatchEvent(new Event('eleganbd_products_updated'));
       } catch (e) {}
       return uniqueNext;
     });

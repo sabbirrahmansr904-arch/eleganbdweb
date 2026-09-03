@@ -12,7 +12,7 @@ interface InvoiceProps {
 export default function InvoiceTemplate({ order, preview = false }: InvoiceProps) {
   const { currency, rate } = useCurrency();
   
-  const subTotal = order.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+  const subTotal = Array.isArray(order?.items) ? order.items.reduce((acc, item) => acc + ((item.price || 0) * (item.quantity || 1)), 0) : 0;
   
   // Format order/invoice ID
   const rawInvoiceNo = (order.invoiceNo && Number(order.invoiceNo) >= 2670000)
@@ -185,25 +185,31 @@ export default function InvoiceTemplate({ order, preview = false }: InvoiceProps
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {order.items.map((item, index) => (
-                <tr key={index} className="align-top">
-                  <td className="py-2.5 pr-2 text-left">
-                    <p className="font-bold text-xs text-black leading-snug">{item.name}</p>
-                    <p className="text-[10px] font-medium text-gray-500 mt-0.5">
-                      Size: {item.selectedSize || 'Free'} | SKU: {item.sku || (item as any).code || '-'}
-                    </p>
-                  </td>
-                  <td className="py-2.5 text-center font-bold text-xs text-black font-mono-numbers">
-                    {item.quantity}
-                  </td>
-                  <td className="py-2.5 text-right font-semibold text-xs text-gray-600 font-mono-numbers">
-                    {formatPrice(item.price, currency, rate)}
-                  </td>
-                  <td className="py-2.5 text-right font-bold text-xs text-black font-mono-numbers">
-                    {formatPrice(item.price * item.quantity, currency, rate)}
-                  </td>
+              {Array.isArray(order?.items) && order.items.length > 0 ? (
+                order.items.map((item, index) => (
+                  <tr key={index} className="align-top">
+                    <td className="py-2.5 pr-2 text-left">
+                      <p className="font-bold text-xs text-black leading-snug">{item.name}</p>
+                      <p className="text-[10px] font-medium text-gray-500 mt-0.5">
+                        Size: {item.selectedSize || 'Free'} | SKU: {item.sku || (item as any).code || '-'}
+                      </p>
+                    </td>
+                    <td className="py-2.5 text-center font-bold text-xs text-black font-mono-numbers">
+                      {item.quantity || 1}
+                    </td>
+                    <td className="py-2.5 text-right font-semibold text-xs text-gray-600 font-mono-numbers">
+                      {formatPrice(item.price || 0, currency, rate)}
+                    </td>
+                    <td className="py-2.5 text-right font-bold text-xs text-black font-mono-numbers">
+                      {formatPrice((item.price || 0) * (item.quantity || 1), currency, rate)}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="py-4 text-center text-xs text-gray-400">No items on invoice</td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>

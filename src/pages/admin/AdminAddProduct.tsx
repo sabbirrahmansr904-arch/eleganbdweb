@@ -58,6 +58,43 @@ export default function AdminAddProduct() {
   const [isNewArrival, setIsNewArrival] = useState(true);
   const [coverFit, setCoverFit] = useState<'contain' | 'cover'>('contain');
   const [previewModalImage, setPreviewModalImage] = useState<string | null>(null);
+  const [selectedColor, setSelectedColor] = useState<string>('');
+  const [customColor, setCustomColor] = useState<string>('');
+  const [fabric, setFabric] = useState<string>('');
+  const [fitType, setFitType] = useState<string>('');
+
+  const PRESET_COLORS = [
+    { name: 'Black', hex: '#111827' },
+    { name: 'Navy Blue', hex: '#1e3a8a' },
+    { name: 'Ash Grey', hex: '#9ca3af' },
+    { name: 'Charcoal Grey', hex: '#374151' },
+    { name: 'Olive Green', hex: '#3f6212' },
+    { name: 'Khaki / Beige', hex: '#d4a373' },
+    { name: 'Coffee Brown', hex: '#5c3d2e' },
+    { name: 'White', hex: '#f8fafc' },
+    { name: 'Maroon', hex: '#881337' },
+    { name: 'Sky Blue', hex: '#38bdf8' },
+    { name: 'Off-White', hex: '#fef08a' }
+  ];
+
+  const POPULAR_FABRICS = [
+    'Woven Gabardine',
+    'Twill Cotton',
+    'Gabardine Stretch',
+    'Royal Oxford',
+    'Refine Cotton',
+    'Carbon Cotton',
+    'Silk Blend',
+    'Denim Cotton'
+  ];
+
+  const POPULAR_FITS = [
+    'Slim Fit',
+    'Regular Fit',
+    'Relaxed Fit',
+    'Straight Fit',
+    'Tapered Fit'
+  ];
 
   const handleDeleteCategory = async () => {
     if (selectedCategory === 'UNCATEGORIZED') return;
@@ -117,6 +154,9 @@ export default function AdminAddProduct() {
         setSelectedSizes(productToEdit.sizes || []);
         setQuantities(productToEdit.sizeStock || {});
         setSelectedCategory(productToEdit.category || '');
+        setSelectedColor(productToEdit.color || '');
+        setFabric(productToEdit.fabric || productToEdit.material || '');
+        setFitType(productToEdit.fitType || '');
         setIsBestSelling(!!(productToEdit.featured || productToEdit.bestSelling));
         setIsNewArrival(productToEdit.newArrival !== undefined ? productToEdit.newArrival : true);
       }
@@ -232,6 +272,10 @@ export default function AdminAddProduct() {
       sizeStock[s] = quantities[s] || 0;
     });
 
+    const colorVal = (formData.get('color') as string) || selectedColor || initialData.color || '';
+    const fabricVal = (formData.get('fabric') as string) || fabric || initialData.fabric || initialData.material || '';
+    const fitTypeVal = (formData.get('fitType') as string) || fitType || initialData.fitType || '';
+
     const productData: any = {
       ...initialData,
       id: editId || Date.now().toString(),
@@ -242,8 +286,10 @@ export default function AdminAddProduct() {
       rating: formData.get('rating') ? parseFloat(formData.get('rating') as string) : 0,
       isTopRated: formData.get('isTopRated') === 'on',
       category: (formData.get('category') as string) || selectedCategory,
-      fabric: (formData.get('fabric') as string) || '',
-      fitType: (formData.get('fitType') as string) || '',
+      color: colorVal.trim(),
+      fabric: fabricVal.trim(),
+      material: fabricVal.trim(),
+      fitType: fitTypeVal.trim(),
       stock: Object.values(sizeStock).reduce((a, b) => a + b, 0),
       sizeStock,
       description: (formData.get('description') as string) || '',
@@ -406,6 +452,122 @@ export default function AdminAddProduct() {
                   )}
                 </div>
               )}
+            </div>
+
+            {/* Color Selector */}
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between ml-1">
+                <label className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-500 block">
+                  Product Color (রং)
+                </label>
+                {selectedColor && (
+                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                    Selected: {selectedColor}
+                  </span>
+                )}
+              </div>
+
+              {/* Preset Color Swatches */}
+              <div className="flex flex-wrap gap-2 p-2 bg-[#fcfdfe] border border-gray-100 rounded-xl">
+                {PRESET_COLORS.map(c => {
+                  const isSelected = selectedColor.toLowerCase() === c.name.toLowerCase();
+                  return (
+                    <button
+                      key={c.name}
+                      type="button"
+                      onClick={() => {
+                        setSelectedColor(c.name);
+                        setCustomColor('');
+                      }}
+                      className={cn(
+                        "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all cursor-pointer",
+                        isSelected
+                          ? "border-blue-600 bg-blue-50/70 text-blue-900 shadow-2xs"
+                          : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                      )}
+                    >
+                      <span 
+                        className="w-3.5 h-3.5 rounded-full border border-black/10 shrink-0 shadow-3xs"
+                        style={{ backgroundColor: c.hex }}
+                      />
+                      <span>{c.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Custom Color Input */}
+              <div className="flex gap-2">
+                <input 
+                  type="text"
+                  name="color"
+                  value={selectedColor}
+                  onChange={(e) => setSelectedColor(e.target.value)}
+                  placeholder="Or type custom color (e.g. Olive Green, Navy, Ash Grey)..."
+                  className="w-full bg-[#fcfdfe] border border-gray-100 rounded-xl px-5 py-3 text-xs font-semibold text-gray-700 placeholder:text-gray-300 outline-none focus:border-blue-200 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Fabric & Fit Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Fabric */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-400 block ml-1">
+                  Fabric / Material
+                </label>
+                <input 
+                  name="fabric"
+                  value={fabric}
+                  onChange={(e) => setFabric(e.target.value)}
+                  placeholder="e.g. Woven Gabardine"
+                  className="w-full bg-[#fcfdfe] border border-gray-100 rounded-xl px-4 py-3 text-xs font-semibold text-gray-700 placeholder:text-gray-300 outline-none focus:border-blue-200 transition-all"
+                />
+                <div className="flex flex-wrap gap-1 pt-1">
+                  {POPULAR_FABRICS.slice(0, 4).map(f => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setFabric(f)}
+                      className={cn(
+                        "text-[9px] font-bold px-2 py-0.5 rounded border transition-all cursor-pointer",
+                        fabric === f ? "bg-blue-50 border-blue-200 text-blue-600" : "bg-gray-50 border-gray-100 text-gray-400 hover:text-gray-600"
+                      )}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Fit Silhouette */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-400 block ml-1">
+                  Fit Silhouette
+                </label>
+                <input 
+                  name="fitType"
+                  value={fitType}
+                  onChange={(e) => setFitType(e.target.value)}
+                  placeholder="e.g. Slim Fit / Regular Fit"
+                  className="w-full bg-[#fcfdfe] border border-gray-100 rounded-xl px-4 py-3 text-xs font-semibold text-gray-700 placeholder:text-gray-300 outline-none focus:border-blue-200 transition-all"
+                />
+                <div className="flex flex-wrap gap-1 pt-1">
+                  {POPULAR_FITS.slice(0, 4).map(ft => (
+                    <button
+                      key={ft}
+                      type="button"
+                      onClick={() => setFitType(ft)}
+                      className={cn(
+                        "text-[9px] font-bold px-2 py-0.5 rounded border transition-all cursor-pointer",
+                        fitType === ft ? "bg-blue-50 border-blue-200 text-blue-600" : "bg-gray-50 border-gray-100 text-gray-400 hover:text-gray-600"
+                      )}
+                    >
+                      {ft}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className="space-y-2">

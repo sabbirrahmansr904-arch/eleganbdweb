@@ -93,56 +93,67 @@ export default function NotificationSettings() {
       referenceId: string;
     }> = [];
 
-    orders.forEach(order => {
+    (orders || []).forEach(order => {
+      if (!order) return;
+      const orderId = order.id ? String(order.id) : '';
+      const orderShortId = orderId ? orderId.slice(-6).toUpperCase() : 'UNKNOWN';
+      const itemsCount = Array.isArray(order.items) ? order.items.length : 0;
+      const orderTotal = typeof order.total === 'number' ? order.total : 0;
+      const orderTime = order.createdAt ? new Date(order.createdAt) : new Date();
+
       items.push({
-        id: `order-${order.id}`,
+        id: `order-${orderId || Math.random()}`,
         title: `New Order Received`,
-        message: `Order #${order.id.slice(-6).toUpperCase()} placed for ${order.items.length} items totaling ${formatPrice(order.total, currency, rate)}.`,
-        time: new Date(order.createdAt),
+        message: `Order #${orderShortId} placed for ${itemsCount} items totaling ${formatPrice(orderTotal, currency, rate)}.`,
+        time: orderTime,
         icon: ShoppingBag,
         color: 'bg-blue-50 text-blue-600 border-blue-100',
         type: 'order',
-        referenceId: order.id,
+        referenceId: orderId,
       });
 
       if (order.status === 'QC') {
         items.push({
-          id: `order-qc-${order.id}`,
+          id: `order-qc-${orderId || Math.random()}`,
           title: `Order QC Passed`,
-          message: `Order #${order.id.slice(-6).toUpperCase()} (${order.customerName}) has successfully passed Quality Check (QC). Ready for shipment packaging.`,
-          time: order.updatedAt ? new Date(order.updatedAt) : new Date(order.createdAt),
+          message: `Order #${orderShortId} (${order.customerName || 'Customer'}) has successfully passed Quality Check (QC). Ready for shipment packaging.`,
+          time: order.updatedAt ? new Date(order.updatedAt) : orderTime,
           icon: CheckSquare,
           color: 'bg-emerald-50 text-emerald-600 border-emerald-100',
           type: 'qc',
-          referenceId: order.id,
+          referenceId: orderId,
         });
       }
 
       if (order.issueType) {
+        const latestReply = Array.isArray(order.issueReplies) && order.issueReplies.length > 0 
+          ? order.issueReplies[order.issueReplies.length - 1]?.message 
+          : 'No description provided';
         items.push({
-          id: `order-issue-${order.id}`,
+          id: `order-issue-${orderId || Math.random()}`,
           title: `Order Issue: ${order.issueType}`,
-          message: `Internal discussion raised for Order #${order.id.slice(-6).toUpperCase()} (${order.customerName}). Status: ${order.issueStatus?.toUpperCase() || 'OPEN'}. Latest: "${order.issueReplies?.[order.issueReplies.length - 1]?.message || 'No description provided'}"`,
-          time: order.updatedAt ? new Date(order.updatedAt) : new Date(order.createdAt),
+          message: `Internal discussion raised for Order #${orderShortId} (${order.customerName || 'Customer'}). Status: ${order.issueStatus?.toUpperCase() || 'OPEN'}. Latest: "${latestReply}"`,
+          time: order.updatedAt ? new Date(order.updatedAt) : orderTime,
           icon: AlertCircle,
           color: 'bg-rose-50 text-rose-600 border-rose-100',
           type: 'issue',
-          referenceId: order.id,
+          referenceId: orderId,
         });
       }
     });
 
-    products.forEach(product => {
+    (products || []).forEach(product => {
+      if (!product) return;
       const productTime = (product as any).createdAt ? new Date((product as any).createdAt) : new Date();
       items.push({
-        id: `product-${product.id}`,
+        id: `product-${product.id || Math.random()}`,
         title: `Product Added/Updated`,
-        message: `${product.name} was recently added or updated in the catalog.`,
+        message: `${product.name || 'Product'} was recently added or updated in the catalog.`,
         time: productTime,
         icon: Package,
         color: 'bg-amber-50 text-amber-600 border-amber-100',
         type: 'product',
-        referenceId: product.id,
+        referenceId: product.id || '',
       });
     });
 

@@ -402,12 +402,11 @@ export default function Checkout() {
     }
   };
 
-  const submitOrder = () => {
+  const submitOrder = async () => {
     setIsProcessing(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      const newOrder: Order = {
+    try {
+      const newOrderPayload: Order = {
         id: getNextOrderId(),
         customerId: `CUST-${Math.floor(Math.random() * 10000) + 1000}`,
         customerName: formData.fullName,
@@ -429,114 +428,72 @@ export default function Checkout() {
         invoiceBy: 'Website order'
       };
       
-      addOrder(newOrder);
+      const createdOrder = await addOrder(newOrderPayload);
+      const finalId = createdOrder?.id || newOrderPayload.id;
 
       // Save/Update customer information
-      const saveCustomer = async () => {
-        try {
-          const customerRef = doc(db, 'customers', formData.phone.trim());
-          await setDoc(customerRef, {
-            name: formData.fullName,
-            email: formData.email,
-            phone: formData.phone.trim(),
-            address: formData.address,
-            lastOrderDate: new Date().toISOString(),
-            totalSpent: total, // For now, setting it, later can be updated to accumulate
-            totalOrders: 1 // For now, setting it
-          }, { merge: true });
-        } catch (err) {
-          console.error("Error saving customer:", err);
-        }
-      };
-      saveCustomer();
+      try {
+        const customerRef = doc(db, 'customers', formData.phone.trim());
+        await setDoc(customerRef, {
+          name: formData.fullName,
+          email: formData.email,
+          phone: formData.phone.trim(),
+          address: formData.address,
+          lastOrderDate: new Date().toISOString(),
+          totalSpent: total,
+          totalOrders: 1
+        }, { merge: true });
+      } catch (err) {
+        console.error("Error saving customer:", err);
+      }
 
-      // SMS sending logic simulation
-      const sendSmsNotification = async () => {
-        try {
-          const smsRef = doc(db, 'config', 'sms_otp');
-          const smsSnap = await getDoc(smsRef);
-          if (smsSnap.exists()) {
-            const smsData = smsSnap.data();
-            if (smsData.confirmationEnabled) {
-              const now = new Date();
-              const dateString = now.toLocaleDateString('en-GB', {
-                day: 'numeric',
-                month: 'short',
-              }) + ', ' + now.toLocaleTimeString('en-GB', {
-                hour: '2-digit',
-                minute: '2-digit'
-              });
+      // SMS sending logic
+      try {
+        const smsRef = doc(db, 'config', 'sms_otp');
+        const smsSnap = await getDoc(smsRef);
+        if (smsSnap.exists()) {
+          const smsData = smsSnap.data();
+          if (smsData.confirmationEnabled) {
+            const now = new Date();
+            const dateString = now.toLocaleDateString('en-GB', {
+              day: 'numeric',
+              month: 'short',
+            }) + ', ' + now.toLocaleTimeString('en-GB', {
+              hour: '2-digit',
+              minute: '2-digit'
+            });
 
-              const msgText = `Dear ${formData.fullName}, your order ${newOrder.id} of ${formatPrice(total, currency, rate)} has been received. Thank you for shopping with Elegan BD!`;
+            const msgText = `Dear ${formData.fullName}, your order #${finalId} of ${formatPrice(total, currency, rate)} has been received. Thank you for shopping with Elegan BD!`;
 
-              if (smsData.balance > 0) {
-                const newBalance = smsData.balance - 1;
-                await setDoc(smsRef, { balance: newBalance }, { merge: true });
+            if (smsData.balance > 0) {
+              const newBalance = smsData.balance - 1;
+              await setDoc(smsRef, { balance: newBalance }, { merge: true });
 
-                const logData = {
-                  phone: formData.phone || 'N/A',
-                  message: msgText,
-                  status: 'Sent',
-                  sentAt: dateString,
-                  timestamp: Date.now()
-                };
+              const logData = {
+                phone: formData.phone || 'N/A',
+                message: msgText,
+                status: 'Sent',
+                sentAt: dateString,
+                timestamp: Date.now()
+              };
 
-                await setDoc(doc(collection(db, 'sms_logs')), logData);
-                console.log('Order SMS Sent successfully! New Balance:', newBalance);
-              } else {
-                // If balance is 0, log a simulated SMS so user has a clear feedback loop
-                const logData = {
-                  phone: formData.phone || 'N/A',
-                  message: `${msgText} (Simulated - Zero Balance)`,
-                  status: 'Sent (Simulated)',
-                  sentAt: dateString,
-                  timestamp: Date.now()
-                };
-
-                await setDoc(doc(collection(db, 'sms_logs')), logData);
-                console.log('Order SMS Simulated (No credits)!');
-              }
+              await setDoc(doc(collection(db, 'sms_logs')), logData);
             }
           }
-        } catch (err) {
-          console.error('Error sending confirmation SMS:', err);
         }
-      };
-
-      sendSmsNotification();
-      
-      // Update inventory
-      items.forEach(async (item) => {
-        const product = products.find(p => p.id === item.product.id);
-        if (product) {
-          const updatedSizeStock = { ...product.sizeStock };
-          updatedSizeStock[item.selectedSize] = Math.max(0, (updatedSizeStock[item.selectedSize] || 0) - item.quantity);
-          
-          await updateProduct({
-            ...product,
-            sizeStock: updatedSizeStock,
-            stock: Object.values(updatedSizeStock).reduce((sum: number, val: number) => sum + val, 0)
-          });
-
-          // Log transaction
-          await addTransaction({
-            type: 'out',
-            sku: product.sku || '',
-            productName: product.name,
-            quantities: { [item.selectedSize]: item.quantity },
-            totalQuantity: item.quantity,
-            category: product.category || 'Website Order',
-            authorizedBy: 'Website',
-            notes: `Order ${newOrder.id} - ${formData.fullName}`
-          });
-        }
-      });
+      } catch (err) {
+        console.error('Error sending confirmation SMS:', err);
+      }
 
       setIsProcessing(false);
       setIsComplete(true);
       clearCart();
       toast.success("Order Placed Successfully!");
-    }, 2000);
+    } catch (err: any) {
+      console.error("Checkout order placement error:", err);
+      setIsProcessing(false);
+      toast.error(`Order failed to place: ${err?.message || 'Please try again'}`);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {

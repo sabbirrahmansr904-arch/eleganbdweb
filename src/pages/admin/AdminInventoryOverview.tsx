@@ -221,7 +221,7 @@ export default function AdminInventoryOverview(): React.JSX.Element {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {filteredProducts.map((product) => {
-                  const hasVariantsSum = product.sizes && product.sizes.length > 0;
+                  const hasVariantsSum = Array.isArray(product.sizes) && product.sizes.length > 0;
                   return (
                     <div 
                       key={product.id} 
@@ -254,13 +254,13 @@ export default function AdminInventoryOverview(): React.JSX.Element {
                         <div className="flex flex-wrap gap-2 items-center mt-1.5">
                           {product.sku && (
                             <span className="text-[10px] font-black tracking-wide text-gray-500 bg-[#E8ECEF] px-2 py-0.5 rounded leading-none">
-                              {product.sku.toUpperCase()}
+                              {String(product.sku).toUpperCase()}
                             </span>
                           )}
                           {product.category && (
                             <span className="flex items-center text-[10px] font-black text-[#5D63D3] bg-[#EEF2FF] px-2 py-0.5 rounded leading-none">
                               <Tag size={10} className="mr-1 inline-block text-[#5D63D3] stroke-[2.5]" />
-                              {product.category.toUpperCase()}
+                              {String(product.category).toUpperCase()}
                             </span>
                           )}
                         </div>

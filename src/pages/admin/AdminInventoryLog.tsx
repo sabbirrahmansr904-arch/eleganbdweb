@@ -49,11 +49,11 @@ export default function AdminInventoryLog() {
       const query = searchQuery.trim().toLowerCase();
       const matchesSearch = 
         !query ||
-        t.productName.toLowerCase().includes(query) ||
-        t.sku.toLowerCase().includes(query) ||
+        (t.productName || '').toLowerCase().includes(query) ||
+        (t.sku || '').toLowerCase().includes(query) ||
         authorizedBy.toLowerCase().includes(query) ||
         notes.toLowerCase().includes(query) ||
-        t.category.toLowerCase().includes(query);
+        (t.category || '').toLowerCase().includes(query);
       const matchesType = selectedType === 'all' || t.type === selectedType;
       return matchesSearch && matchesType;
     });
@@ -79,10 +79,10 @@ export default function AdminInventoryLog() {
 
     const data = filteredTransactions.map(t => ({
       'Date & Time': new Date(t.timestamp).toLocaleString('en-GB'),
-      'Type': t.type.toUpperCase(),
-      'Product Name': t.productName,
-      'SKU': t.sku,
-      'Category': t.category,
+      'Type': String(t.type || '').toUpperCase(),
+      'Product Name': t.productName || 'Unnamed',
+      'SKU': t.sku || 'N/A',
+      'Category': t.category || 'N/A',
       'Total Quantity': t.totalQuantity,
       'Size Breakdown': Object.entries(t.quantities || {})
         .filter(([_, qty]) => Number(qty) > 0)

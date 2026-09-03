@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
+import ErrorBoundary from '../ErrorBoundary';
 import { 
   Home,
   Users,
@@ -142,26 +143,27 @@ export default function AdminLayout() {
   const activeDepartment = userProfile?.position || userProfile?.department || department || (isCEO ? 'CEO & Founder' : isSuperAdmin ? 'Super Admin' : 'Sales Executive Department');
   const userPhoto = userProfile?.photoURL || currentUser?.photoURL || '';
 
-  const getDepartmentBadgeStyle = (dept: string) => {
-    if (isCEO || dept.includes('CEO') || dept.includes('Founder')) {
+  const getDepartmentBadgeStyle = (dept?: string) => {
+    const d = String(dept || '');
+    if (isCEO || d.includes('CEO') || d.includes('Founder')) {
       return 'bg-gradient-to-r from-amber-100 to-amber-200 text-amber-900 border-amber-300 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-700 font-black shadow-2xs';
     }
-    if (dept.includes('Sales')) {
+    if (d.includes('Sales')) {
       return 'bg-blue-100 text-blue-900 border-blue-300 dark:bg-blue-950/60 dark:text-blue-200 dark:border-blue-700';
     }
-    if (dept.includes('Inventory') || dept.includes('Stock')) {
+    if (d.includes('Inventory') || d.includes('Stock')) {
       return 'bg-purple-100 text-purple-900 border-purple-300 dark:bg-purple-950/60 dark:text-purple-200 dark:border-purple-700';
     }
-    if (dept.includes('Issue') || dept.includes('Support')) {
+    if (d.includes('Issue') || d.includes('Support')) {
       return 'bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-950/60 dark:text-rose-200 dark:border-rose-700';
     }
-    if (dept.includes('QC') || dept.includes('Quality')) {
+    if (d.includes('QC') || d.includes('Quality')) {
       return 'bg-teal-100 text-teal-900 border-teal-300 dark:bg-teal-950/60 dark:text-teal-200 dark:border-teal-700';
     }
-    if (dept.includes('Delivery') || dept.includes('Logistics')) {
+    if (d.includes('Delivery') || d.includes('Logistics')) {
       return 'bg-indigo-100 text-indigo-900 border-indigo-300 dark:bg-indigo-950/60 dark:text-indigo-200 dark:border-indigo-700';
     }
-    if (dept.includes('Accounts') || dept.includes('Finance')) {
+    if (d.includes('Accounts') || d.includes('Finance')) {
       return 'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-700';
     }
     return 'bg-gray-100 text-gray-900 border-gray-300 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600';
@@ -224,12 +226,19 @@ export default function AdminLayout() {
       link: string;
     }> = [];
 
-    orders.forEach(order => {
+    (orders || []).forEach(order => {
+      if (!order) return;
+      const orderId = order.id ? String(order.id) : '';
+      const orderShortId = orderId ? orderId.slice(-6).toUpperCase() : 'UNKNOWN';
+      const itemsCount = Array.isArray(order.items) ? order.items.length : 0;
+      const orderTotal = typeof order.total === 'number' ? order.total : 0;
+      const orderTime = order.createdAt ? new Date(order.createdAt) : new Date();
+
       items.push({
-        id: `order-${order.id}`,
+        id: `order-${orderId || Math.random()}`,
         title: `New Order Received`,
-        message: `Order #${order.id.slice(-6).toUpperCase()} placed for ${order.items.length} items totaling ${formatPrice(order.total, currency, rate)}.`,
-        time: new Date(order.createdAt),
+        message: `Order #${orderShortId} placed for ${itemsCount} items totaling ${formatPrice(orderTotal, currency, rate)}.`,
+        time: orderTime,
         icon: ShoppingBag,
         color: 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400',
         link: '/admin/orders'
@@ -237,10 +246,10 @@ export default function AdminLayout() {
 
       if (order.status === 'QC') {
         items.push({
-          id: `order-qc-${order.id}`,
+          id: `order-qc-${orderId || Math.random()}`,
           title: `Order QC Passed`,
-          message: `Order #${order.id.slice(-6).toUpperCase()} (${order.customerName}) has passed Quality Check.`,
-          time: order.updatedAt ? new Date(order.updatedAt) : new Date(order.createdAt),
+          message: `Order #${orderShortId} (${order.customerName || 'Customer'}) has passed Quality Check.`,
+          time: order.updatedAt ? new Date(order.updatedAt) : orderTime,
           icon: CheckSquare,
           color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400',
           link: '/admin/orders'
@@ -249,10 +258,10 @@ export default function AdminLayout() {
 
       if (order.issueType) {
         items.push({
-          id: `order-issue-${order.id}`,
+          id: `order-issue-${orderId || Math.random()}`,
           title: `Order Issue: ${order.issueType}`,
-          message: `Internal issue raised for Order #${order.id.slice(-6).toUpperCase()} (${order.customerName}).`,
-          time: order.updatedAt ? new Date(order.updatedAt) : new Date(order.createdAt),
+          message: `Internal issue raised for Order #${orderShortId} (${order.customerName || 'Customer'}).`,
+          time: order.updatedAt ? new Date(order.updatedAt) : orderTime,
           icon: AlertCircle,
           color: 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400',
           link: '/admin/issues'
@@ -260,12 +269,13 @@ export default function AdminLayout() {
       }
     });
 
-    products.forEach(product => {
+    (products || []).forEach(product => {
+      if (!product) return;
       const productTime = (product as any).createdAt ? new Date((product as any).createdAt) : new Date();
       items.push({
-        id: `product-${product.id}`,
+        id: `product-${product.id || Math.random()}`,
         title: `Product Added/Updated`,
-        message: `${product.name} was recently added or updated in the catalog.`,
+        message: `${product.name || 'Product'} was recently added or updated in the catalog.`,
         time: productTime,
         icon: Package,
         color: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400',
@@ -277,7 +287,7 @@ export default function AdminLayout() {
   }, [orders, products, currency, rate]);
 
   const unreadCount = React.useMemo(() => {
-    return notifications.filter(n => !readIds.includes(n.id)).length;
+    return notifications.filter(n => !(readIds || []).includes(n.id)).length;
   }, [notifications, readIds]);
 
   const isAccountingKey = (key: string) => {
@@ -917,7 +927,13 @@ export default function AdminLayout() {
         {/* Content Area */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6 no-scrollbar scroll-smooth bg-[#EAEFF5] admin-page-container">
           {isCurrentRouteAllowed ? (
-            <Outlet />
+            <ErrorBoundary 
+              isSubView 
+              fallbackTitle="অ্যাডমিন মডিউল লোড হতে সমস্যা হয়েছে"
+              fallbackMessage="এই পেজের কোনো ডেটা রেন্ডার করতে ত্রুটি দেখা দিয়েছে। নিচের রিলোড বাটনে ক্লিক করে আবার চেষ্টা করুন।"
+            >
+              <Outlet />
+            </ErrorBoundary>
           ) : (
             <div className="flex-1 p-8 flex flex-col items-center justify-center text-center min-h-[60vh] bg-[#F8F9FD] dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm my-auto">
               <div className="w-16 h-16 rounded-2xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 flex items-center justify-center mb-4 shadow-md">

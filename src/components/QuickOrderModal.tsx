@@ -93,21 +93,15 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
       invoiceBy: 'Website order'
     };
 
-    setTimeout(() => {
-      addOrder(newOrder as any);
-      
-      // Update stock
-      const updatedSizeStock = { ...product.sizeStock };
-      updatedSizeStock[selectedSize] = Math.max(0, (updatedSizeStock[selectedSize] || 0) - 1);
-      updateProduct({
-        ...product,
-        sizeStock: updatedSizeStock,
-        stock: Object.values(updatedSizeStock).reduce((sum: number, val: number) => sum + val, 0)
-      });
-
+    try {
+      await addOrder(newOrder as any);
       setIsSubmitting(false);
       setStep('success');
-    }, 1500);
+    } catch (err: any) {
+      console.error("Quick order error:", err);
+      setIsSubmitting(false);
+      toast.error(`Order failed: ${err?.message || 'Please try again'}`);
+    }
   };
 
   return (

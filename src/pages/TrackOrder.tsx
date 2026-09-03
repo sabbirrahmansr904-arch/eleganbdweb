@@ -721,7 +721,7 @@ export default function TrackOrder() {
                     </span>
                   </div>
                   <span className="text-[10px] font-black uppercase tracking-wider text-black bg-white border border-gray-200 px-3 py-1.5 rounded-xl">
-                    {order.paymentMethod === 'cod' ? 'Cash on Delivery (COD)' : order.paymentMethod.toUpperCase()}
+                    {order.paymentMethod === 'cod' ? 'Cash on Delivery (COD)' : String(order.paymentMethod || 'Online Payment').toUpperCase()}
                   </span>
                 </div>
               </div>

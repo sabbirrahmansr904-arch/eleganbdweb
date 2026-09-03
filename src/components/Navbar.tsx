@@ -20,7 +20,7 @@ import { useCart } from '../contexts/CartContext';
 
 export default function Navbar() {
   const { items, setIsCartOpen } = useCart();
-  const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  const cartCount = Array.isArray(items) ? items.reduce((sum, item) => sum + (Number(item?.quantity) || 1), 0) : 0;
   const { currency, setCurrency } = useCurrency();
   const { logoUrl, showAnnouncementBar, announcementMessage } = useBranding();
   const { currentUser, customerUser, logoutCustomer, isAdmin, signInWithGoogle, signOut } = useAuth();

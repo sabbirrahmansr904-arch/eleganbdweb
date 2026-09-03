@@ -635,7 +635,9 @@ export default function AdminIssues() {
                   <div>
                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">ITEMS</span>
                     <span className="text-sm font-black text-indigo-600 uppercase tracking-tight">
-                      {selectedIssue.order.items.map(i => `${i.name} (${i.selectedSize || 'F'})`).join(', ')}
+                      {Array.isArray(selectedIssue.order?.items) && selectedIssue.order.items.length > 0
+                        ? selectedIssue.order.items.map(i => `${i.name} (${i.selectedSize || 'F'})`).join(', ')
+                        : 'No items recorded'}
                     </span>
                   </div>
                   <div>
@@ -805,22 +807,26 @@ export default function AdminIssues() {
                     <div className="bg-gray-50/50 dark:bg-gray-900/40 p-5 rounded-2xl border border-gray-100 dark:border-gray-800/85">
                       <h4 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-3">Items Breakdown</h4>
                       <div className="space-y-3">
-                        {selectedIssue.order.items.map((item, index) => (
-                          <div key={index} className="flex justify-between items-center text-xs">
-                            <div className="flex items-center gap-2">
-                              <span className="w-5 h-5 rounded bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-[10px]">
-                                {item.quantity}
-                              </span>
-                              <div>
-                                <span className="font-bold text-gray-900 dark:text-white">{item.name}</span>
-                                <span className="text-gray-400 dark:text-gray-500 ml-1 font-semibold">({item.selectedSize || 'F'})</span>
+                        {Array.isArray(selectedIssue.order?.items) && selectedIssue.order.items.length > 0 ? (
+                          selectedIssue.order.items.map((item, index) => (
+                            <div key={index} className="flex justify-between items-center text-xs">
+                              <div className="flex items-center gap-2">
+                                <span className="w-5 h-5 rounded bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-[10px]">
+                                  {item.quantity || 1}
+                                </span>
+                                <div>
+                                  <span className="font-bold text-gray-900 dark:text-white">{item.name}</span>
+                                  <span className="text-gray-400 dark:text-gray-500 ml-1 font-semibold">({item.selectedSize || 'F'})</span>
+                                </div>
                               </div>
+                              <span className="font-mono font-bold text-gray-700 dark:text-gray-300">
+                                {formatPrice((item.price || 0) * (item.quantity || 1), currency, rate)}
+                              </span>
                             </div>
-                            <span className="font-mono font-bold text-gray-700 dark:text-gray-300">
-                              {formatPrice(item.price * item.quantity, currency, rate)}
-                            </span>
-                          </div>
-                        ))}
+                          ))
+                        ) : (
+                          <div className="text-xs text-gray-400 font-medium py-2">No items listed</div>
+                        )}
                       </div>
                     </div>
 
@@ -828,19 +834,19 @@ export default function AdminIssues() {
                     <div className="bg-gray-50/50 dark:bg-gray-900/40 p-5 rounded-2xl border border-gray-100 dark:border-gray-800/85 divide-y divide-gray-100 dark:divide-gray-800 space-y-3">
                       <div className="flex justify-between text-xs font-bold text-gray-500 dark:text-gray-400 pb-2">
                         <span>Subtotal</span>
-                        <span className="font-mono">{formatPrice(selectedIssue.order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0), currency, rate)}</span>
+                        <span className="font-mono">{formatPrice(Array.isArray(selectedIssue.order?.items) ? selectedIssue.order.items.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0) : 0, currency, rate)}</span>
                       </div>
                       <div className="flex justify-between text-xs font-bold text-gray-500 dark:text-gray-400 py-2">
                         <span>Delivery Charge</span>
-                        <span className="font-mono">+{formatPrice(selectedIssue.order.deliveryCharge ?? 100, currency, rate)}</span>
+                        <span className="font-mono">+{formatPrice(selectedIssue.order?.deliveryCharge ?? 100, currency, rate)}</span>
                       </div>
-                      {((selectedIssue.order as any).discount || 0) > 0 && (
+                      {((selectedIssue.order as any)?.discount || 0) > 0 && (
                         <div className="flex justify-between text-xs font-bold text-rose-500 py-2">
                           <span>Discount</span>
                           <span className="font-mono">-{formatPrice((selectedIssue.order as any).discount, currency, rate)}</span>
                         </div>
                       )}
-                      {((selectedIssue.order as any).advancePayment || 0) > 0 && (
+                      {((selectedIssue.order as any)?.advancePayment || 0) > 0 && (
                         <div className="flex justify-between text-xs font-bold text-emerald-500 py-2">
                           <span>Advance Payment</span>
                           <span className="font-mono">-{formatPrice((selectedIssue.order as any).advancePayment, currency, rate)}</span>
@@ -849,7 +855,7 @@ export default function AdminIssues() {
                       <div className="flex justify-between text-sm font-black text-gray-950 dark:text-white pt-3">
                         <span className="uppercase tracking-wider text-xs">Total Collectable</span>
                         <span className="font-mono text-base text-rose-500">
-                          {formatPrice(selectedIssue.order.total, currency, rate)}
+                          {formatPrice(selectedIssue.order?.total ?? 0, currency, rate)}
                         </span>
                       </div>
                     </div>
@@ -1015,11 +1021,11 @@ export default function AdminIssues() {
                       <div>
                         <span className="font-bold text-indigo-700 dark:text-indigo-400 block uppercase tracking-wider text-[10px]">Calculated New Total</span>
                         <span className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 block">
-                          Subtotal (৳{selectedIssue.order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0)}) + Delivery (৳{editDeliveryCharge}) - Discount (৳{editDiscount})
+                          Subtotal (৳{Array.isArray(selectedIssue.order?.items) ? selectedIssue.order.items.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0) : 0}) + Delivery (৳{editDeliveryCharge}) - Discount (৳{editDiscount})
                         </span>
                       </div>
                       <span className="font-mono font-black text-indigo-600 dark:text-indigo-400 text-lg">
-                        {formatPrice(selectedIssue.order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0) + editDeliveryCharge - editDiscount, currency, rate)}
+                        {formatPrice((Array.isArray(selectedIssue.order?.items) ? selectedIssue.order.items.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0) : 0) + editDeliveryCharge - editDiscount, currency, rate)}
                       </span>
                     </div>
                   </div>
@@ -1060,7 +1066,7 @@ export default function AdminIssues() {
                           toast.error('ডেলিভার্ড বা সাকসেস অর্ডার এডিট করা যাবে না। (Delivered/Success order cannot be edited)');
                           return;
                         }
-                        const computedSubtotal = selectedIssue.order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                        const computedSubtotal = Array.isArray(selectedIssue.order?.items) ? selectedIssue.order.items.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0) : 0;
                         try {
                           toast.loading('Saving order changes...', { id: 'save-order-changes' });
                           await updateOrder(selectedIssue.id, {
