@@ -6,6 +6,8 @@ import {
   ArrowUpRight, 
   ArrowDownLeft, 
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   User,
   MessageSquare,
   Download,
@@ -14,7 +16,9 @@ import {
   Plus,
   Minus,
   RefreshCw,
-  X
+  X,
+  Layers,
+  MoreHorizontal
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useInventory } from '../../contexts/InventoryContext';
@@ -35,12 +39,18 @@ export default function AdminInventoryLog() {
   const [searchQuery, setSearchQuery] = useState(skuParam);
   const [selectedType, setSelectedType] = useState<'all' | 'in' | 'out'>(typeParam);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState<number>(10);
 
   useEffect(() => {
     if (skuParam) {
       setSearchQuery(skuParam);
     }
   }, [skuParam]);
+
+  // Always reset to initial 10 items when filters change
+  useEffect(() => {
+    setVisibleCount(10);
+  }, [searchQuery, selectedType]);
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
@@ -58,6 +68,11 @@ export default function AdminInventoryLog() {
       return matchesSearch && matchesType;
     });
   }, [transactions, searchQuery, selectedType]);
+
+  // Display only up to visibleCount (default 10)
+  const displayedTransactions = useMemo(() => {
+    return filteredTransactions.slice(0, visibleCount);
+  }, [filteredTransactions, visibleCount]);
 
   const totalIn = useMemo(() => {
     return transactions
@@ -274,7 +289,7 @@ export default function AdminInventoryLog() {
                     <td colSpan={6} className="px-6 py-6 h-16 bg-gray-50/40" />
                   </tr>
                 ))
-              ) : filteredTransactions.map((t) => {
+              ) : displayedTransactions.map((t) => {
                 const authorizedBy = t.authorizedBy || 'System';
                 const notes = t.notes || 'No reason specified.';
                 const isIn = t.type === 'in';
@@ -376,6 +391,55 @@ export default function AdminInventoryLog() {
             </div>
           )}
         </div>
+
+        {/* Pagination & Load More Controls */}
+        {filteredTransactions.length > 0 && (
+          <div className="p-4 sm:p-5 bg-gray-50/90 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2.5 text-xs text-gray-500 font-bold">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>
+                Showing <strong className="text-gray-900 font-black">{displayedTransactions.length}</strong> of{' '}
+                <strong className="text-gray-900 font-black">{filteredTransactions.length}</strong> records (Live 10-Item Default)
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {filteredTransactions.length > visibleCount ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setVisibleCount(prev => prev + 10)}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 cursor-pointer"
+                  >
+                    <Plus size={14} className="stroke-[3]" />
+                    <span>Load More (+10)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setVisibleCount(filteredTransactions.length)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                  >
+                    <Layers size={14} />
+                    <span>Show All ({filteredTransactions.length})</span>
+                  </button>
+                </>
+              ) : visibleCount > 10 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVisibleCount(10);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                >
+                  <ChevronUp size={14} />
+                  <span>Show Less (Default 10)</span>
+                </button>
+              ) : null}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Delete Confirmation Modal */}

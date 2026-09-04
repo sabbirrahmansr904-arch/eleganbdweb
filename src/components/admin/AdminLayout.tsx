@@ -415,6 +415,7 @@ export default function AdminLayout() {
         { name: 'Banners', path: '/admin/settings?tab=Banners', icon: Globe, perm: 'banners' },
         { name: 'Notifications', path: '/admin/settings?tab=Notifications', icon: Bell, perm: 'notifications' },
         { name: 'Media', path: '/admin/media', icon: Images, perm: 'media' },
+        { name: 'Supabase DB', path: '/admin/settings?tab=Supabase', icon: Database, perm: 'settings' },
       ]
     },
     {

@@ -448,7 +448,11 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         const s = (order.status || '').toString().trim().toLowerCase();
         const isAlreadyRestored = s === 'cancelled' || s === 'canceled' || s === 'returned' || s === 'return';
         if (!isAlreadyRestored) {
-          await restoreOrderStock(order);
+          try {
+            await restoreOrderStock(order);
+          } catch (stockErr) {
+            console.warn('[OrderContext] Non-fatal error restoring stock during deletion:', stockErr);
+          }
         }
       }
 

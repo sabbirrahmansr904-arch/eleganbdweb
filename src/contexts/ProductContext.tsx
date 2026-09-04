@@ -29,6 +29,21 @@ const deduplicateProducts = (list: Product[]): Product[] => {
   });
 };
 
+function cleanFirestoreData(data: Record<string, any>): Record<string, any> {
+  const cleaned: Record<string, any> = {};
+  Object.keys(data).forEach(key => {
+    const val = data[key];
+    if (val !== undefined) {
+      if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
+        cleaned[key] = cleanFirestoreData(val);
+      } else {
+        cleaned[key] = val;
+      }
+    }
+  });
+  return cleaned;
+}
+
 const normalizeProductCategory = (p: Product): Product => {
   let category = p.category || '';
   const lowerCategory = category.toLowerCase().trim();
@@ -238,11 +253,11 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   const addProduct = async (product: Product) => {
-    const productWithTimestamps = {
+    const productWithTimestamps = cleanFirestoreData({
       ...product,
       createdAt: Date.now(),
       updatedAt: Date.now()
-    };
+    }) as Product;
 
     // 1. Save to Firestore
     try {
@@ -264,10 +279,10 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const updateProduct = async (updatedProduct: Product) => {
-    const updatedData = {
+    const updatedData = cleanFirestoreData({
       ...updatedProduct,
       updatedAt: Date.now()
-    };
+    }) as Product;
 
     // 1. Update in Firestore
     try {

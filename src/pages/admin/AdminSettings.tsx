@@ -40,6 +40,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import BannerSettings from '../../components/admin/settings/BannerSettings';
 import CategorySettings from '../../components/admin/settings/CategorySettings';
 import NotificationSettings from '../../components/admin/settings/NotificationSettings';
+import SupabaseSettings from '../../components/admin/settings/SupabaseSettings';
 
 import { useBranding } from '../../contexts/BrandingContext';
 import { useProducts } from '../../contexts/ProductContext';
@@ -2103,6 +2104,10 @@ export default function AdminSettings() {
             <CategorySettings />
           )}
 
+          {activeTab === 'Supabase' && (
+            <SupabaseSettings />
+          )}
+
 
           
           {activeTab === 'Admin Access' && (
@@ -3916,7 +3921,7 @@ export default function AdminSettings() {
             </div>
           )}
           
-          {activeTab !== 'General' && activeTab !== 'Banners' && activeTab !== 'Categories' && activeTab !== 'Notifications' && activeTab !== 'Branding' && activeTab !== 'Admin Access' && activeTab !== 'Payments' && activeTab !== 'Pixel & Analytics' && activeTab !== 'Coupons' && activeTab !== 'SMS' && activeTab !== 'Courier' && activeTab !== 'Pathao' && (
+          {activeTab !== 'General' && activeTab !== 'Banners' && activeTab !== 'Categories' && activeTab !== 'Supabase' && activeTab !== 'Notifications' && activeTab !== 'Branding' && activeTab !== 'Admin Access' && activeTab !== 'Payments' && activeTab !== 'Pixel & Analytics' && activeTab !== 'Coupons' && activeTab !== 'SMS' && activeTab !== 'Courier' && activeTab !== 'Pathao' && (
              <div className="flex flex-col items-center justify-center py-32 text-center opacity-20 relative z-10 font-sans">
                 <Settings size={64} className="mb-6 animate-spin-slow text-brand-gold" />
                 <h3 className="serif text-3xl text-black italic tracking-tighter uppercase font-black">Under Construction</h3>

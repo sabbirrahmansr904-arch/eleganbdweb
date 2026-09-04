@@ -766,10 +766,12 @@ async function startServer() {
 
       const statusLower = (status || '').toLowerCase();
       let newOrderStatus: string | null = null;
-      if (statusLower.includes('deliver') || statusLower.includes('success') || statusLower === 'delivery_complete') {
+      if (statusLower.includes('deliver') || statusLower.includes('success') || statusLower === 'delivery_complete' || statusLower === 'delivered') {
         newOrderStatus = 'Delivered';
       } else if (statusLower.includes('cancel') || statusLower.includes('return')) {
         newOrderStatus = 'Returned';
+      } else if (statusLower.includes('assigned') || statusLower.includes('transit') || statusLower.includes('pickup') || statusLower.includes('shipped') || statusLower.includes('dispatch') || statusLower.includes('out') || statusLower.includes('collected')) {
+        newOrderStatus = 'Shipped';
       }
 
       // Query order by consignment_id or id

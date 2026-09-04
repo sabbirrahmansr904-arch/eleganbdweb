@@ -23,26 +23,27 @@ body {
   scrollbar-width: none;
 }
 
-/* Custom Scrollbar styled for high visibility as a scrolling line */
+/* Custom Scrollbar styled as a neat bottom line beneath the order box */
 .elegant-scrollbar::-webkit-scrollbar {
-  height: 8px;
-  width: 8px;
+  height: 5px;
+  width: 5px;
 }
 .elegant-scrollbar::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #E2E8F0;
   border-radius: 9999px;
+  margin-left: 12px;
+  margin-right: 12px;
 }
 .elegant-scrollbar::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #94A3B8;
   border-radius: 9999px;
-  border: 2px solid transparent;
 }
 .elegant-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #64748B;
 }
 .elegant-scrollbar {
-  scrollbar-width: auto;
-  scrollbar-color: #cbd5e1 #f1f5f9;
+  scrollbar-width: thin;
+  scrollbar-color: #94A3B8 #E2E8F0;
 }
 
 ::selection {

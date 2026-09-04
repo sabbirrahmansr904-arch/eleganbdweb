@@ -739,8 +739,10 @@ export default function AdminOrders(): React.JSX.Element {
               deliveredCount++;
             } else if (rawStatus.includes('cancel') || rawStatus.includes('return')) {
               newStatus = 'Returned';
-            } else if (rawStatus.includes('in_transit') || rawStatus.includes('pickup') || rawStatus.includes('shipped')) {
-              newStatus = 'Shipped';
+            } else {
+              if (!isDeliveredOrSuccess(ord.status) && ord.status !== 'Returned' && ord.status !== 'Cancelled') {
+                newStatus = 'Shipped';
+              }
             }
 
             const courierFee = (data.delivery_fee && data.delivery_fee > 0) ? data.delivery_fee : (ord.courierCharge || 120);
@@ -1772,7 +1774,7 @@ export default function AdminOrders(): React.JSX.Element {
 
 
         {/* Table/Card representation */}
-        <div className="overflow-x-auto elegant-scrollbar pb-3 min-h-[720px]">
+        <div className="overflow-x-auto elegant-scrollbar pb-3">
           {/* Mobile Card View */}
           <div className="md:hidden space-y-4 px-4">
             {filteredOrders.slice(0, visibleCount).map((order) => (

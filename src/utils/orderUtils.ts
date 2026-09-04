@@ -1,11 +1,15 @@
 export const isDeliveredOrSuccess = (status?: string): boolean => {
   if (!status) return false;
   const s = status.toLowerCase().trim();
-  return (
-    s === 'delivered' ||
-    s === 'success' ||
-    s === 'delivered / success' ||
-    s.includes('delivered') ||
-    s.includes('success')
-  );
+  if (
+    s.includes('assigned') ||
+    s.includes('hub') ||
+    s.includes('transit') ||
+    s.includes('pickup') ||
+    s.includes('hold') ||
+    s.includes('return')
+  ) {
+    return false;
+  }
+  return s === 'delivered' || s === 'success' || s === 'delivered / success' || s === 'delivery_complete';
 };

@@ -9,6 +9,7 @@ import { useFinance, sortBankAccounts, isUsdAccount, formatAccountBalance } from
 import { useOrders } from '../../contexts/OrderContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatPrice } from '../../lib/utils';
+import { formatTimeAgo } from '../../utils/timeUtils';
 import { 
   Plus, 
   Trash2, 
@@ -1106,7 +1107,7 @@ export default function AdminFinance(): React.JSX.Element {
                           {isDeposit ? 'ইনকাম এন্ট্রি' : isTransfer ? 'ট্রান্সফার' : 'খরচ এন্ট্রি'}
                         </span>
                         <p className="text-xs font-black text-gray-800 truncate">{acc?.bankName || 'Wallet Account'}</p>
-                        <span className="text-[9px] text-gray-400 font-bold block">{mockTime}</span>
+                        <span className="text-[9px] text-gray-400 font-bold block">{formatTimeAgo(tx.date)}</span>
                       </div>
                     </div>
                     <span className={`text-xs font-black whitespace-nowrap ${isDeposit ? 'text-emerald-600' : isTransfer ? 'text-indigo-600' : 'text-rose-600'}`}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Truck, RefreshCw, AlertCircle, Clock, PackageCheck, Send } from 'lucide-react';
+import { Truck, PackageCheck, Clock, Send, AlertCircle, RefreshCw } from 'lucide-react';
 import { Order } from '../../types';
 import { useOrders } from '../../contexts/OrderContext';
 import { isDeliveredOrSuccess } from '../../utils/orderUtils';
@@ -15,7 +15,6 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
   const { updateOrder, updateOrderStatus } = useOrders();
   const rawTrackingId = (order as any).pathaoConsignmentId || (order as any).trackingCode || order.trackingId || (order as any).steadfastConsignmentId;
   const cleanTrackingId = String(rawTrackingId || '').replace(/^#/, '').trim();
-
   const isSteadfastInitial = Boolean((order as any).steadfastConsignmentId) || (order.courier || '').toLowerCase().includes('steadfast');
   const [courierName, setCourierName] = useState<string>(isSteadfastInitial ? 'SF' : 'Pathao');
   const [status, setStatus] = useState<string | null>((order as any).courierStatus || null);
@@ -26,17 +25,14 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
     if (!cleanTrackingId) return;
     setLoading(true);
     setError(false);
-
     try {
       const { ok, data } = await trackCourierOrder(cleanTrackingId, order.courier || (isSteadfastInitial ? 'steadfast' : 'pathao'));
-
       if (ok && data.success && data.status) {
         setStatus(data.status);
         const resolvedCourier = data.courier === 'Steadfast' ? 'SF' : 'Pathao';
         setCourierName(resolvedCourier);
-
         const lower = (data.status || '').toLowerCase();
-        
+
         // Save live courierStatus to Firestore order record
         if (updateOrder) {
           try {
@@ -51,8 +47,29 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
           }
         }
 
-        // If parcel is delivered/completed by courier, automatically update order status to SUCCESS / Delivered
-        if (lower.includes('deliver') || lower.includes('success') || lower === 'delivery_complete') {
+        // Check if status is a return / cancel first so it never triggers delivery success
+        const isReturnOrCancel = lower.includes('return') || lower.includes('cancel') || lower === 'partial_delivery_return';
+
+        if (isReturnOrCancel) {
+          if (order.status !== 'Returned' && order.status !== 'Cancelled') {
+            try {
+              if (updateOrder) {
+                await updateOrder(order.id, {
+                  ...order,
+                  status: 'Returned',
+                  courierStatus: data.status
+                });
+              } else if (updateOrderStatus) {
+                await updateOrderStatus(order.id, 'Returned');
+              }
+              const shortId = order.invoiceNo || order.id.slice(-6);
+              toast.success(`অর্ডার #${shortId} রিটার্ন হওয়ায় স্ট্যাটাস Returned করা হয়েছে!`);
+            } catch (err) {
+              console.warn("Could not auto-update returned status:", err);
+            }
+          }
+        } else if (lower.includes('deliver') || lower.includes('success') || lower === 'delivery_complete' || lower === 'delivered') {
+          // Only if strictly delivered and NOT return/cancel
           if (!isDeliveredOrSuccess(order.status)) {
             try {
               if (updateOrder) {
@@ -71,18 +88,19 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
               console.warn("Could not auto-update delivered order status:", err);
             }
           }
-        } else if (lower.includes('return') || lower.includes('cancel') || lower === 'partial_delivery_return') {
-          if (order.status !== 'Returned' && order.status !== 'Cancelled' && !isDeliveredOrSuccess(order.status)) {
+        } else {
+          // For any other active/in-progress courier status
+          if (!isDeliveredOrSuccess(order.status) && order.status !== 'Returned' && order.status !== 'Cancelled' && order.status !== 'Shipped') {
             try {
               if (updateOrder) {
                 await updateOrder(order.id, {
                   ...order,
-                  status: 'Returned',
+                  status: 'Shipped',
                   courierStatus: data.status
                 });
               }
             } catch (err) {
-              console.warn("Could not auto-update returned status:", err);
+              console.warn("Could not auto-update shipped status:", err);
             }
           }
         }
@@ -112,10 +130,12 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
     return s.replace(/_/g, ' ').replace(/-/g, ' ').trim();
   };
 
-  // Format Status badge style
   const getStatusColor = (s: string) => {
     const lower = s.toLowerCase();
     const label = cleanLabel(s);
+    if (lower.includes('return') || lower.includes('cancel')) {
+      return { bg: 'bg-rose-50 text-rose-700 border-rose-200', icon: AlertCircle, label };
+    }
     if (lower.includes('deliver') || lower.includes('success')) {
       return { bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: PackageCheck, label };
     }
@@ -124,9 +144,6 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
     }
     if (lower.includes('transit') || lower.includes('way') || lower.includes('hub') || lower.includes('sort') || lower.includes('pending') || lower.includes('ship')) {
       return { bg: 'bg-blue-50 text-blue-700 border-blue-200', icon: Send, label };
-    }
-    if (lower.includes('return') || lower.includes('cancel')) {
-      return { bg: 'bg-rose-50 text-rose-700 border-rose-200', icon: AlertCircle, label };
     }
     return { bg: 'bg-indigo-50 text-indigo-700 border-indigo-200', icon: Truck, label };
   };
@@ -166,7 +183,6 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
           <RefreshCw size={9} className={`text-slate-400 shrink-0 ${loading ? 'animate-spin' : ''}`} />
         </button>
       )}
-
       {showDetails && cleanTrackingId && (
         <span className="text-[10px] text-slate-400 font-mono font-bold whitespace-nowrap shrink-0">
           #{cleanTrackingId}
@@ -175,5 +191,3 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
     </div>
   );
 };
-
-

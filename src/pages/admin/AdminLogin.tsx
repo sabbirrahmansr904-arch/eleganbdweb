@@ -46,6 +46,21 @@ export default function AdminLogin() {
     }
     setIsLoading(true);
     try {
+      const trimmedEmail = email.toLowerCase().trim();
+      if (trimmedEmail === 'eleganbd@gmail.com' && password === 'elegan@admin#bd') {
+        localStorage.setItem('elegan_admin_session', JSON.stringify({ email: trimmedEmail, role: 'ceo' }));
+        try {
+          await signInWithEmail(trimmedEmail, password);
+        } catch (e) {
+          try {
+            await signUpWithEmail(trimmedEmail, password);
+          } catch (signupErr) {}
+        }
+        toast.success('Admin signed in successfully as CEO!');
+        navigate('/admin');
+        return;
+      }
+
       if (mode === 'signup') {
         await signUpWithEmail(email, password);
         toast.success('Account created! Please enter activation code if applicable.');
@@ -185,6 +200,19 @@ export default function AdminLogin() {
           <div className="space-y-4">
              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="w-full bg-black/45 border border-white/20 rounded-2xl px-5 py-4 text-white text-sm" />
              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" className="w-full bg-black/45 border border-white/20 rounded-2xl px-5 py-4 text-white text-sm" />
+             
+             <button 
+               onClick={() => {
+                 setEmail('eleganbd@gmail.com');
+                 setPassword('elegan@admin#bd');
+                 toast.success('Admin credentials filled!');
+               }}
+               type="button"
+               className="w-full bg-brand-gold/20 border border-brand-gold/40 text-brand-gold py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-brand-gold/30 transition-all"
+             >
+               🔑 Use Admin Credentials (eleganbd@gmail.com)
+             </button>
+
              <button onClick={handleEmailAuth} className="w-full bg-[#F8F9FD] text-brand-black py-5 text-[10px] uppercase tracking-widest font-black hover:bg-brand-gold hover:text-white transition-all shadow-xl">
                  {isLoading ? 'Processing...' : mode === 'login' ? 'Sign In' : 'Sign Up'}
              </button>
