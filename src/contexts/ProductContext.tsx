@@ -19,6 +19,26 @@ interface ProductContextType {
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
+const DEMO_PRODUCT_IDS = new Set(['1', '2', '3', '4', '5', '6', '8', '9']);
+const DEMO_NAMES = [
+  'executive white formal shirt',
+  'sky blue royal oxford shirt',
+  'midnight black slim fit shirt',
+  'essential oversized t-shirt',
+  'vintage wash graphic tee',
+  'classic black formal pant',
+  'premium silk blend shirt',
+  'ash grey chino pant'
+];
+
+export const isDemoProduct = (p: Product | null | undefined): boolean => {
+  if (!p) return false;
+  if (p.id && DEMO_PRODUCT_IDS.has(p.id)) return true;
+  const name = (p.name || '').trim().toLowerCase();
+  if (DEMO_NAMES.some(dn => name === dn || name.includes('essential oversized') || name.includes('executive white') || name.includes('vintage wash graphic'))) return true;
+  return false;
+};
+
 const deduplicateProducts = (list: Product[]): Product[] => {
   const seen = new Set<string>();
   return list.filter(p => {
@@ -130,11 +150,12 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (locallySaved !== null) {
         const parsed = JSON.parse(locallySaved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return deduplicateProducts(parsed.map(normalizeProductCategory));
+          const nonDemo = parsed.filter(p => !isDemoProduct(p));
+          return deduplicateProducts(nonDemo.map(normalizeProductCategory));
         }
       }
     } catch (e) {}
-    return INITIAL_PRODUCTS;
+    return [];
   });
 
   const [loading, setLoading] = useState(false);
@@ -155,7 +176,8 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setProducts(deduplicateProducts(parsed.map(normalizeProductCategory)));
+          const nonDemo = parsed.filter(p => !isDemoProduct(p));
+          setProducts(deduplicateProducts(nonDemo.map(normalizeProductCategory)));
         }
       }
     } catch (e) {}
@@ -169,7 +191,8 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
         try {
           const parsed = JSON.parse(e.newValue);
           if (Array.isArray(parsed)) {
-            setProducts(deduplicateProducts(parsed.map(normalizeProductCategory)));
+            const nonDemo = parsed.filter(p => !isDemoProduct(p));
+            setProducts(deduplicateProducts(nonDemo.map(normalizeProductCategory)));
           }
         } catch (err) {}
       }
@@ -181,7 +204,8 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (cached) {
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed)) {
-            setProducts(deduplicateProducts(parsed.map(normalizeProductCategory)));
+            const nonDemo = parsed.filter(p => !isDemoProduct(p));
+            setProducts(deduplicateProducts(nonDemo.map(normalizeProductCategory)));
           }
         }
       } catch (err) {}
@@ -221,23 +245,22 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const unsubProducts = onSnapshot(productsCol, (snapshot) => {
       const prodData: Product[] = [];
       snapshot.forEach(docSnap => {
-        prodData.push({
-          ...(docSnap.data() as Product),
+        const data = docSnap.data() as Product;
+        const p = {
+          ...data,
           id: docSnap.id
-        });
+        };
+        if (!isDemoProduct(p)) {
+          prodData.push(p);
+        }
       });
 
-      if (prodData.length > 0) {
-        setProducts(prev => {
-          const merged = mergeProductsWithLocalCache(prodData, prev);
-          const normalized = deduplicateProducts(merged.map(normalizeProductCategory));
-          try {
-            localStorage.setItem('eleganbd_products', JSON.stringify(normalized));
-            localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
-          } catch (e) {}
-          return normalized;
-        });
-      }
+      const normalized = deduplicateProducts(prodData.map(normalizeProductCategory));
+      setProducts(normalized);
+      try {
+        localStorage.setItem('eleganbd_products', JSON.stringify(normalized));
+        localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
+      } catch (e) {}
       setLoading(false);
     }, (err) => {
       if (!isQuotaError(err)) {

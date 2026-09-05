@@ -132,24 +132,36 @@ const Home = () => {
     return () => clearInterval(timer);
   }, [isHoveredBestSelling, isHoveredNewArrival, isHoveredShopCategory]);
   
-  const activeHeroBannersFromDb = banners.filter(b => b.active && b.type === 'hero' && b.image && !b.image.includes('unsplash.com'));
-  
-  const promoHeroBanners = [heroBannerUrl, heroBanner2Url, heroBanner3Url]
-    .filter(Boolean)
-    .filter(url => !url.includes('unsplash.com'));
+  const activeHeroBanners = React.useMemo(() => {
+    // 1. From Banner Management
+    const fromDb = banners
+      .filter(b => b.active && b.type === 'hero' && b.image && !b.image.includes('unsplash.com'))
+      .map(b => ({
+        id: b.id,
+        active: true,
+        type: 'hero' as const,
+        image: b.image,
+        title: b.title || '',
+        link: b.link || ''
+      }));
 
-  // User requirement: "hero banner e sudhu 1 tai picture thakbe" (Only 1 image in hero banner)
-  const singleHeroImage = (promoHeroBanners.length > 0 ? promoHeroBanners[0] : null) || 
-    (activeHeroBannersFromDb.length > 0 ? activeHeroBannersFromDb[0].image : null);
+    // 2. From Branding Settings (heroBannerUrl, heroBanner2Url, heroBanner3Url)
+    const fromBranding: typeof fromDb = [];
+    [heroBannerUrl, heroBanner2Url, heroBanner3Url].forEach((url, idx) => {
+      if (url && !url.includes('unsplash.com') && !fromDb.some(b => b.image === url)) {
+        fromBranding.push({
+          id: `branding-hero-${idx}`,
+          active: true,
+          type: 'hero' as const,
+          image: url,
+          title: '',
+          link: ''
+        });
+      }
+    });
 
-  const activeHeroBanners = singleHeroImage ? [{
-    id: 'single-hero-1',
-    active: true,
-    type: 'hero',
-    image: singleHeroImage,
-    title: '',
-    link: ''
-  }] : [];
+    return [...fromDb, ...fromBranding];
+  }, [banners, heroBannerUrl, heroBanner2Url, heroBanner3Url]);
 
   const [currentBanner, setCurrentBanner] = React.useState(0);
 
@@ -187,7 +199,36 @@ const Home = () => {
 
   // Categories for Shop By Category section
   const displayCategories = React.useMemo(() => {
-    const list = [...categories];
+    const list: typeof categories = [];
+
+    const getCatImage = (catName: string, existingImg?: string) => {
+      if (existingImg && !existingImg.includes('photo-1602810318383-e386cc2a3ccf')) {
+        return existingImg;
+      }
+      const prod = products.find(p => p.category?.toLowerCase().trim() === catName.toLowerCase().trim());
+      if (prod?.images?.[0]) return prod.images[0];
+      if ((prod as any)?.image) return (prod as any).image;
+
+      const lower = catName.toLowerCase();
+      if (lower.includes('pant') || lower.includes('trouser') || lower.includes('chino')) {
+        return 'https://images.unsplash.com/photo-1624371414361-e6e0efc8c030?w=600&q=80';
+      }
+      if (lower.includes('polo') || lower.includes('t-shirt') || lower.includes('tee')) {
+        return 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=600&q=80';
+      }
+      if (lower.includes('premium')) {
+        return 'https://images.unsplash.com/photo-1603252109303-2751441dd157?w=600&q=80';
+      }
+      return 'https://images.unsplash.com/photo-1598033129183-c4f50c7176c8?w=600&q=80';
+    };
+
+    categories.forEach(cat => {
+      list.push({
+        ...cat,
+        image: getCatImage(cat.name, cat.image)
+      });
+    });
+
     if (products && products.length > 0) {
       products.forEach(p => {
         if (p.category && !list.some(c => c.name.toLowerCase() === p.category.toLowerCase() || c.slug.toLowerCase() === p.category.toLowerCase().replace(/\s+/g, '-'))) {
@@ -195,11 +236,13 @@ const Home = () => {
           list.push({
             id: slug,
             name: p.category,
-            slug: slug
+            slug: slug,
+            image: getCatImage(p.category)
           });
         }
       });
     }
+
     return sortCategories(list);
   }, [categories, products]);
 
@@ -510,7 +553,7 @@ const Home = () => {
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {displayCategories.map((cat) => {
-                const catImg = cat.image || 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600&q=80';
+                const catImg = cat.image || 'https://images.unsplash.com/photo-1598033129183-c4f50c7176c8?w=600&q=80';
                 return (
                   <Link
                     key={cat.id || cat.slug}
