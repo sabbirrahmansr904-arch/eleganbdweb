@@ -24,6 +24,19 @@ const ProductDetails = () => {
   const { shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter } = useBranding();
   
   const product = products.find(p => p.id === id);
+
+  if (!product) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">প্রোডাক্টটি পাওয়া যায়নি (Product Not Found)</h2>
+        <p className="text-gray-600 mb-6">প্রোডাক্টটি হয়তো রিমুভ করা হয়েছে অথবা সঠিক লিংক নয়।</p>
+        <Link to="/" className="bg-black text-white px-6 py-3 rounded-lg font-bold hover:bg-gray-800 transition-colors">
+          হোম পেজে ফিরে যান
+        </Link>
+      </div>
+    );
+  }
+
   const isBag = (product?.category || '').toLowerCase().includes('bag');
   const isFormalShirt = (product?.category || '').toLowerCase().includes('formal');
   const isPant = (product?.category || '').toLowerCase().includes('pant') || (product?.category || '').toLowerCase().includes('chino');
