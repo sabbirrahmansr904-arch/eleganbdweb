@@ -74,6 +74,8 @@ export function isQuotaError(error: unknown): boolean {
                   lowerStr.includes('free tier database') ||
                   lowerStr.includes('firestore.googleapis.com') ||
                   lowerStr.includes('project_number:905794080701') ||
+                  lowerStr.includes('retry after quota limits') ||
+                  lowerStr.includes('cannot exceed free quota') ||
                   lowerStr.includes('internal assertion failed') ||
                   lowerStr.includes('unexpected state') ||
                   lowerStr.includes('ca9') ||

@@ -31,6 +31,7 @@ import {
   MessageSquare,
   Printer,
   Tag,
+  Lock,
   ArrowLeftRight,
   Send,
   XCircle,
@@ -101,12 +102,16 @@ export default function AdminOrders(): React.JSX.Element {
 
   const changeStatus = async (status: Order['status']) => {
     if (!selectedOrder) return;
+    if (isDeliveredOrSuccess(selectedOrder.status)) {
+      toast.error('সাকসেস / ডেলিভার্ড অর্ডারের স্ট্যাটাস পরিবর্তন করা যাবে না (Delivered order status is locked).');
+      return;
+    }
     try {
       await updateOrderStatus(selectedOrder.id, status);
       setSelectedOrder(prev => prev ? { ...prev, status } : null);
       toast.success(`Order status updated to ${status}`);
-    } catch (err) {
-      toast.error('Failed to update status');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update status');
     }
   };
 
@@ -597,6 +602,11 @@ export default function AdminOrders(): React.JSX.Element {
   };
 
   const handleStatusChange = async (id: string, newStatus: Order['status']) => {
+    const targetOrder = orders.find(o => o.id === id);
+    if (targetOrder && isDeliveredOrSuccess(targetOrder.status)) {
+      toast.error('সাকসেস / ডেলিভার্ড অর্ডারের স্ট্যাটাস পরিবর্তন করা যাবে না (Delivered order status is locked).');
+      return;
+    }
     try {
       await updateOrderStatus(id, newStatus);
       const shortId = id.slice(-6);
@@ -1793,29 +1803,44 @@ export default function AdminOrders(): React.JSX.Element {
                     <span className="font-bold text-slate-800">{order.invoiceNo || order.id.slice(-6)}</span>
                   </div>
                   <div className="relative inline-flex items-center" onClick={(e) => e.stopPropagation()}>
-                    <select
-                      value={normalizeStatus(order.status)}
-                      onChange={(e) => {
-                        const newStatus = e.target.value as Order['status'];
-                        handleStatusChange(order.id, newStatus);
-                      }}
-                      className={cn(
-                        "appearance-none pr-5 pl-2.5 py-1 text-[9px] font-extrabold rounded-full border cursor-pointer select-none transition-all shadow-3xs uppercase tracking-wider outline-none",
-                        getStatusBadge(order.status).class
-                      )}
-                    >
-                      <option value="ORDER PLACED" className="bg-white text-slate-800 font-bold">ORDER PLACED</option>
-                      <option value="PRINTED" className="bg-white text-slate-800 font-bold">PRINTED</option>
-                      <option value="PREPARING" className="bg-white text-slate-800 font-bold">PREPARING</option>
-                      <option value="PICK UP CANCEL" className="bg-white text-slate-800 font-bold">PICK UP CANCEL</option>
-                      <option value="SHIPPED" className="bg-white text-slate-800 font-bold">SHIPPED</option>
-                      <option value="SUCCESS" className="bg-white text-slate-800 font-bold">SUCCESS</option>
-                      <option value="PARTIAL DELIVERY" className="bg-white text-slate-800 font-bold">PARTIAL DELIVERY</option>
-                      <option value="HOLD" className="bg-white text-slate-800 font-bold">HOLD</option>
-                      <option value="RETURNED" className="bg-white text-slate-800 font-bold">RETURNED</option>
-                      <option value="CANCELLED" className="bg-white text-slate-800 font-bold">CANCELLED</option>
-                    </select>
-                    <ChevronDown size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5] opacity-70" />
+                    {isDeliveredOrSuccess(order.status) ? (
+                      <div 
+                        title="Success / Delivered অর্ডারের স্ট্যাটাস পরিবর্তন করা যাবে না (Status Locked)"
+                        className={cn(
+                          "flex items-center gap-1 px-2.5 py-1 text-[9px] font-extrabold rounded-full border shadow-3xs uppercase tracking-wider select-none cursor-not-allowed",
+                          getStatusBadge(order.status).class
+                        )}
+                      >
+                        <Lock size={9} className="stroke-[2.5]" />
+                        <span>{normalizeStatus(order.status)}</span>
+                      </div>
+                    ) : (
+                      <>
+                        <select
+                          value={normalizeStatus(order.status)}
+                          onChange={(e) => {
+                            const newStatus = e.target.value as Order['status'];
+                            handleStatusChange(order.id, newStatus);
+                          }}
+                          className={cn(
+                            "appearance-none pr-5 pl-2.5 py-1 text-[9px] font-extrabold rounded-full border cursor-pointer select-none transition-all shadow-3xs uppercase tracking-wider outline-none",
+                            getStatusBadge(order.status).class
+                          )}
+                        >
+                          <option value="ORDER PLACED" className="bg-white text-slate-800 font-bold">ORDER PLACED</option>
+                          <option value="PRINTED" className="bg-white text-slate-800 font-bold">PRINTED</option>
+                          <option value="PREPARING" className="bg-white text-slate-800 font-bold">PREPARING</option>
+                          <option value="PICK UP CANCEL" className="bg-white text-slate-800 font-bold">PICK UP CANCEL</option>
+                          <option value="SHIPPED" className="bg-white text-slate-800 font-bold">SHIPPED</option>
+                          <option value="SUCCESS" className="bg-white text-slate-800 font-bold">SUCCESS</option>
+                          <option value="PARTIAL DELIVERY" className="bg-white text-slate-800 font-bold">PARTIAL DELIVERY</option>
+                          <option value="HOLD" className="bg-white text-slate-800 font-bold">HOLD</option>
+                          <option value="RETURNED" className="bg-white text-slate-800 font-bold">RETURNED</option>
+                          <option value="CANCELLED" className="bg-white text-slate-800 font-bold">CANCELLED</option>
+                        </select>
+                        <ChevronDown size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5] opacity-70" />
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="text-sm font-semibold text-slate-700">{order.customerName}</div>
@@ -1836,7 +1861,7 @@ export default function AdminOrders(): React.JSX.Element {
                   <div className="flex gap-2">
                     <button onClick={(e) => { e.stopPropagation(); setSelectedOrder(order); }} title="View Details" className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 rounded-lg"><Eye size={18} /></button>
                     <button onClick={(e) => { e.stopPropagation(); setIssueConversationOrder(order); }} title="Order Issues" className="p-2 text-slate-400 hover:text-rose-600 bg-slate-50 rounded-lg"><MessageSquare size={18} /></button>
-                    <button onClick={(e) => { e.stopPropagation(); setInvoiceOrder(order); setShowInvoiceModal(true); if (normalizeStatus(order.status) !== 'PRINTED') { updateOrderStatus(order.id, 'PRINTED'); } }} title="Print Invoice" className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 rounded-lg"><Printer size={18} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); setInvoiceOrder(order); setShowInvoiceModal(true); if (!isDeliveredOrSuccess(order.status) && order.status !== 'Returned' && order.status !== 'Cancelled' && normalizeStatus(order.status) !== 'PRINTED') { updateOrderStatus(order.id, 'PRINTED'); } }} title="Print Invoice" className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 rounded-lg"><Printer size={18} /></button>
                     <button 
                       onClick={(e) => { 
                         e.stopPropagation(); 
@@ -1977,29 +2002,44 @@ export default function AdminOrders(): React.JSX.Element {
                       <td className="py-4 px-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-1.5 flex-nowrap whitespace-nowrap">
                           <div className="relative inline-flex items-center">
-                            <select
-                              value={normalizeStatus(order.status)}
-                              onChange={(e) => {
-                                const newStatus = e.target.value as Order['status'];
-                                handleStatusChange(order.id, newStatus);
-                              }}
-                              className={cn(
-                                "appearance-none pr-6 pl-3 py-1.5 text-[10px] font-extrabold rounded-full border cursor-pointer select-none transition-all shadow-3xs uppercase tracking-wider outline-none focus:ring-2 focus:ring-[#2563EB]/20",
-                                getStatusBadge(order.status).class
-                              )}
-                            >
-                              <option value="ORDER PLACED" className="bg-white text-slate-800 font-bold py-1.5">ORDER PLACED</option>
-                              <option value="PRINTED" className="bg-white text-slate-800 font-bold py-1.5">PRINTED</option>
-                              <option value="PREPARING" className="bg-white text-slate-800 font-bold py-1.5">PREPARING</option>
-                              <option value="PICK UP CANCEL" className="bg-white text-slate-800 font-bold py-1.5">PICK UP CANCEL</option>
-                              <option value="SHIPPED" className="bg-white text-slate-800 font-bold py-1.5">SHIPPED</option>
-                              <option value="SUCCESS" className="bg-white text-slate-800 font-bold py-1.5">SUCCESS</option>
-                              <option value="PARTIAL DELIVERY" className="bg-white text-slate-800 font-bold py-1.5">PARTIAL DELIVERY</option>
-                              <option value="HOLD" className="bg-white text-slate-800 font-bold py-1.5">HOLD</option>
-                              <option value="RETURNED" className="bg-white text-slate-800 font-bold py-1.5">RETURNED</option>
-                              <option value="CANCELLED" className="bg-white text-slate-800 font-bold py-1.5">CANCELLED</option>
-                            </select>
-                            <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5] opacity-70" />
+                            {isDeliveredOrSuccess(order.status) ? (
+                              <div 
+                                title="Success / Delivered অর্ডারের স্ট্যাটাস পরিবর্তন করা যাবে না (Status Locked)"
+                                className={cn(
+                                  "inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-extrabold rounded-full border shadow-3xs uppercase tracking-wider select-none cursor-not-allowed",
+                                  getStatusBadge(order.status).class
+                                )}
+                              >
+                                <Lock size={10} className="stroke-[2.5]" />
+                                <span>{normalizeStatus(order.status)}</span>
+                              </div>
+                            ) : (
+                              <>
+                                <select
+                                  value={normalizeStatus(order.status)}
+                                  onChange={(e) => {
+                                    const newStatus = e.target.value as Order['status'];
+                                    handleStatusChange(order.id, newStatus);
+                                  }}
+                                  className={cn(
+                                    "appearance-none pr-6 pl-3 py-1.5 text-[10px] font-extrabold rounded-full border cursor-pointer select-none transition-all shadow-3xs uppercase tracking-wider outline-none focus:ring-2 focus:ring-[#2563EB]/20",
+                                    getStatusBadge(order.status).class
+                                  )}
+                                >
+                                  <option value="ORDER PLACED" className="bg-white text-slate-800 font-bold py-1.5">ORDER PLACED</option>
+                                  <option value="PRINTED" className="bg-white text-slate-800 font-bold py-1.5">PRINTED</option>
+                                  <option value="PREPARING" className="bg-white text-slate-800 font-bold py-1.5">PREPARING</option>
+                                  <option value="PICK UP CANCEL" className="bg-white text-slate-800 font-bold py-1.5">PICK UP CANCEL</option>
+                                  <option value="SHIPPED" className="bg-white text-slate-800 font-bold py-1.5">SHIPPED</option>
+                                  <option value="SUCCESS" className="bg-white text-slate-800 font-bold py-1.5">SUCCESS</option>
+                                  <option value="PARTIAL DELIVERY" className="bg-white text-slate-800 font-bold py-1.5">PARTIAL DELIVERY</option>
+                                  <option value="HOLD" className="bg-white text-slate-800 font-bold py-1.5">HOLD</option>
+                                  <option value="RETURNED" className="bg-white text-slate-800 font-bold py-1.5">RETURNED</option>
+                                  <option value="CANCELLED" className="bg-white text-slate-800 font-bold py-1.5">CANCELLED</option>
+                                </select>
+                                <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5] opacity-70" />
+                              </>
+                            )}
                           </div>
 
                           <ParcelLiveStatusBadge order={order} />
@@ -2204,7 +2244,7 @@ export default function AdminOrders(): React.JSX.Element {
                                 e.stopPropagation();
                                 setInvoiceOrder(order);
                                 setShowInvoiceModal(true);
-                                if (normalizeStatus(order.status) !== 'PRINTED') {
+                                if (!isDeliveredOrSuccess(order.status) && order.status !== 'Returned' && order.status !== 'Cancelled' && normalizeStatus(order.status) !== 'PRINTED') {
                                   updateOrderStatus(order.id, 'PRINTED');
                                 }
                               }} 
@@ -4019,11 +4059,22 @@ export default function AdminOrders(): React.JSX.Element {
 
                       <div className="grid grid-cols-4 gap-2">
                         <div className="space-y-1 col-span-2">
-                          <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Order Status</label>
+                          <div className="flex items-center justify-between">
+                            <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Order Status</label>
+                            {selectedOrder && isDeliveredOrSuccess(selectedOrder.status) && (
+                              <span className="text-[9px] font-bold text-emerald-600 flex items-center gap-1">
+                                <Lock size={9} /> Status Locked
+                              </span>
+                            )}
+                          </div>
                           <select 
                             value={normalizeStatus(editStatus)}
+                            disabled={selectedOrder ? isDeliveredOrSuccess(selectedOrder.status) : false}
                             onChange={(e) => setEditStatus(e.target.value as any)}
-                            className="w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD] cursor-pointer uppercase"
+                            className={cn(
+                              "w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD] uppercase",
+                              selectedOrder && isDeliveredOrSuccess(selectedOrder.status) ? "opacity-60 cursor-not-allowed bg-slate-100" : "cursor-pointer"
+                            )}
                           >
                             <option value="ORDER PLACED">ORDER PLACED</option>
                             <option value="PRINTED">PRINTED</option>
@@ -4307,30 +4358,45 @@ export default function AdminOrders(): React.JSX.Element {
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Status</span>
                             <div className="flex items-center gap-2 flex-wrap">
                               <div className="relative inline-flex items-center">
-                                <select
-                                  value={normalizeStatus(selectedOrder.status)}
-                                  onChange={async (e) => {
-                                    const newStatus = e.target.value as Order['status'];
-                                    await handleStatusChange(selectedOrder.id, newStatus);
-                                    setSelectedOrder({ ...selectedOrder, status: newStatus });
-                                  }}
-                                  className={cn(
-                                    "appearance-none pr-6 pl-3 py-1 text-[10px] font-extrabold rounded-full border cursor-pointer select-none transition-all shadow-3xs uppercase tracking-wider outline-none focus:ring-2 focus:ring-[#2563EB]/20",
-                                    getStatusBadge(selectedOrder.status).class
-                                  )}
-                                >
-                                  <option value="ORDER PLACED" className="bg-white text-slate-800 font-bold">ORDER PLACED</option>
-                                  <option value="PRINTED" className="bg-white text-slate-800 font-bold">PRINTED</option>
-                                  <option value="PREPARING" className="bg-white text-slate-800 font-bold">PREPARING</option>
-                                  <option value="PICK UP CANCEL" className="bg-white text-slate-800 font-bold">PICK UP CANCEL</option>
-                                  <option value="SHIPPED" className="bg-white text-slate-800 font-bold">SHIPPED</option>
-                                  <option value="SUCCESS" className="bg-white text-slate-800 font-bold">SUCCESS</option>
-                                  <option value="PARTIAL DELIVERY" className="bg-white text-slate-800 font-bold">PARTIAL DELIVERY</option>
-                                  <option value="HOLD" className="bg-white text-slate-800 font-bold">HOLD</option>
-                                  <option value="RETURNED" className="bg-white text-slate-800 font-bold">RETURNED</option>
-                                  <option value="CANCELLED" className="bg-white text-slate-800 font-bold">CANCELLED</option>
-                                </select>
-                                <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5] opacity-70" />
+                                {isDeliveredOrSuccess(selectedOrder.status) ? (
+                                  <div 
+                                    title="Success / Delivered অর্ডারের স্ট্যাটাস পরিবর্তন করা যাবে না (Status Locked)"
+                                    className={cn(
+                                      "inline-flex items-center gap-1.5 px-3 py-1 text-[10px] font-extrabold rounded-full border shadow-3xs uppercase tracking-wider select-none cursor-not-allowed",
+                                      getStatusBadge(selectedOrder.status).class
+                                    )}
+                                  >
+                                    <Lock size={10} className="stroke-[2.5]" />
+                                    <span>{normalizeStatus(selectedOrder.status)} (Locked)</span>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <select
+                                      value={normalizeStatus(selectedOrder.status)}
+                                      onChange={async (e) => {
+                                        const newStatus = e.target.value as Order['status'];
+                                        await handleStatusChange(selectedOrder.id, newStatus);
+                                        setSelectedOrder({ ...selectedOrder, status: newStatus });
+                                      }}
+                                      className={cn(
+                                        "appearance-none pr-6 pl-3 py-1 text-[10px] font-extrabold rounded-full border cursor-pointer select-none transition-all shadow-3xs uppercase tracking-wider outline-none focus:ring-2 focus:ring-[#2563EB]/20",
+                                        getStatusBadge(selectedOrder.status).class
+                                      )}
+                                    >
+                                      <option value="ORDER PLACED" className="bg-white text-slate-800 font-bold">ORDER PLACED</option>
+                                      <option value="PRINTED" className="bg-white text-slate-800 font-bold">PRINTED</option>
+                                      <option value="PREPARING" className="bg-white text-slate-800 font-bold">PREPARING</option>
+                                      <option value="PICK UP CANCEL" className="bg-white text-slate-800 font-bold">PICK UP CANCEL</option>
+                                      <option value="SHIPPED" className="bg-white text-slate-800 font-bold">SHIPPED</option>
+                                      <option value="SUCCESS" className="bg-white text-slate-800 font-bold">SUCCESS</option>
+                                      <option value="PARTIAL DELIVERY" className="bg-white text-slate-800 font-bold">PARTIAL DELIVERY</option>
+                                      <option value="HOLD" className="bg-white text-slate-800 font-bold">HOLD</option>
+                                      <option value="RETURNED" className="bg-white text-slate-800 font-bold">RETURNED</option>
+                                      <option value="CANCELLED" className="bg-white text-slate-800 font-bold">CANCELLED</option>
+                                    </select>
+                                    <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5] opacity-70" />
+                                  </>
+                                )}
                               </div>
                               <ParcelLiveStatusBadge order={selectedOrder} showDetails />
                             </div>
@@ -4442,7 +4508,7 @@ export default function AdminOrders(): React.JSX.Element {
                           onClick={() => {
                             setInvoiceOrder(selectedOrder);
                             setShowInvoiceModal(true);
-                            if (normalizeStatus(selectedOrder.status) !== 'PRINTED') {
+                            if (!isDeliveredOrSuccess(selectedOrder.status) && selectedOrder.status !== 'Returned' && selectedOrder.status !== 'Cancelled' && normalizeStatus(selectedOrder.status) !== 'PRINTED') {
                               updateOrderStatus(selectedOrder.id, 'PRINTED');
                             }
                           }}
@@ -4509,7 +4575,7 @@ export default function AdminOrders(): React.JSX.Element {
                         return;
                       }
 
-                      if (invoiceOrder && normalizeStatus(invoiceOrder.status) !== 'PRINTED') {
+                      if (invoiceOrder && !isDeliveredOrSuccess(invoiceOrder.status) && invoiceOrder.status !== 'Returned' && invoiceOrder.status !== 'Cancelled' && normalizeStatus(invoiceOrder.status) !== 'PRINTED') {
                         updateOrderStatus(invoiceOrder.id, 'PRINTED');
                       }
 

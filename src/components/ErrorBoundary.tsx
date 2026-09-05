@@ -1,6 +1,8 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home, ArrowLeft } from 'lucide-react';
 
+import { isQuotaError } from '../lib/firestoreUtils';
+
 interface Props {
   children: ReactNode;
   fallbackTitle?: string;
@@ -22,10 +24,16 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   public static getDerivedStateFromError(error: Error): State {
+    if (isQuotaError(error)) {
+      return { hasError: false, error: null, errorInfo: null };
+    }
     return { hasError: true, error, errorInfo: null };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    if (isQuotaError(error)) {
+      return;
+    }
     console.error('Uncaught error caught by ErrorBoundary:', error, errorInfo);
     this.setState({ error, errorInfo });
   }

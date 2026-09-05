@@ -388,6 +388,10 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const updateOrderStatus = async (id: string, status: Order['status']) => {
     try {
       const order = orders.find(o => o.id === id);
+      if (order && isDeliveredOrSuccess(order.status) && !isDeliveredOrSuccess(status)) {
+        console.warn(`[OrderContext] Blocked status modification for Success/Delivered order ${id}. Status cannot be edited.`);
+        throw new Error('সাকসেস / ডেলিভার্ড অর্ডারের স্ট্যাটাস পরিবর্তন করা যাবে না (Delivered order status is locked).');
+      }
       if (order) {
         await handleStatusChangeStock(order, status);
       }
@@ -417,13 +421,16 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
   const updateOrder = async (id: string, data: Partial<Order> & Record<string, any>) => {
     try {
-      if (data.status) {
-        const order = orders.find(o => o.id === id);
-        if (order) {
-          await handleStatusChangeStock(order, data.status);
-        }
+      const order = orders.find(o => o.id === id);
+      const safeData = { ...data };
+      if (safeData.status && order && isDeliveredOrSuccess(order.status) && !isDeliveredOrSuccess(safeData.status)) {
+        console.warn(`[OrderContext] Blocked changing status of Delivered/Success order ${id}`);
+        delete safeData.status;
       }
-      const updatedData = { ...data, updatedAt: Date.now() };
+      if (safeData.status && order) {
+        await handleStatusChangeStock(order, safeData.status);
+      }
+      const updatedData = { ...safeData, updatedAt: Date.now() };
 
       // 1. Update in Firestore
       try {
