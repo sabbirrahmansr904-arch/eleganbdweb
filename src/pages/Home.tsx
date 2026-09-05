@@ -312,8 +312,8 @@ const Home = () => {
     <div className="flex flex-col min-h-screen bg-white">
       
       {/* TOP SECTION: HERO BANNER */}
-      <section className="w-full m-0 p-0 pb-2 sm:pb-4">
-        {activeHeroBanners.length > 0 && showHeroBanner ? (
+      {activeHeroBanners.length > 0 && showHeroBanner && (
+        <section className="w-full m-0 p-0 pb-2 sm:pb-4">
           <div className="relative w-full overflow-hidden bg-black flex items-center justify-center m-0 p-0">
             <AnimatePresence mode="wait">
               <motion.div
@@ -361,40 +361,8 @@ const Home = () => {
               </div>
             )}
           </div>
-        ) : (
-          <div className="bg-[#EAEAEA] w-full p-5 sm:p-8 md:p-10 relative overflow-hidden flex flex-col justify-between aspect-[2/1] sm:aspect-[2.5/1] shadow-xs">
-            {/* Fallback Hero Banner matching exact image template */}
-            <div className="relative z-10 max-w-xs sm:max-w-sm md:max-w-md my-auto">
-              <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-[#B8860B] mb-1 sm:mb-2 block">
-                NEW COLLECTION 2024
-              </span>
-              <h1 className="text-xl sm:text-3xl md:text-4xl font-black text-gray-950 tracking-tight leading-[1.15] mb-2 sm:mb-3">
-                Elevate Your Formal Style
-              </h1>
-              <p className="text-[11px] sm:text-xs md:text-sm text-gray-600 font-medium mb-4 sm:mb-6 leading-relaxed max-w-xs">
-                Premium Quality, Perfect Fit For Every Occasion.
-              </p>
-              <Link 
-                to="/category/all" 
-                className="inline-flex items-center gap-2 bg-black hover:bg-gray-800 text-white font-black text-[10px] sm:text-xs uppercase tracking-wider px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-md transition-all shadow-md active:scale-95"
-              >
-                <span>SHOP NOW</span>
-                <ArrowRight size={14} />
-              </Link>
-            </div>
-
-            {/* Hero Model Image on right */}
-            <div className="absolute right-0 bottom-0 top-0 w-1/2 hidden md:block z-0 pointer-events-none">
-              <img 
-                src="https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?w=800&q=80" 
-                alt="Formal Fashion Model" 
-                className="w-full h-full object-cover object-top"
-                referrerPolicy="no-referrer"
-              />
-            </div>
-          </div>
-        )}
-      </section>
+        </section>
+      )}
 
       {/* TOP FEATURE BADGES BAR */}
       <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-6 sm:pb-8">
