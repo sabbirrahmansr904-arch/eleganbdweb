@@ -198,11 +198,16 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           }
         });
 
-        // Sort descending by creation date / timestamp
+        // Sort descending by creation date / timestamp / numeric id so new orders always appear at top
         fetchedOrders.sort((a, b) => {
-          const timeA = new Date(a.createdAt || 0).getTime() || a.updatedAt || 0;
-          const timeB = new Date(b.createdAt || 0).getTime() || b.updatedAt || 0;
-          return timeB - timeA;
+          const timeA = new Date(a.createdAt || 0).getTime() || (typeof a.updatedAt === 'number' ? a.updatedAt : 0) || 0;
+          const timeB = new Date(b.createdAt || 0).getTime() || (typeof b.updatedAt === 'number' ? b.updatedAt : 0) || 0;
+          if (timeB !== timeA) {
+            return timeB - timeA;
+          }
+          const idA = extractNumericId(a.id) || (typeof a.invoiceNo === 'number' ? a.invoiceNo : 0);
+          const idB = extractNumericId(b.id) || (typeof b.invoiceNo === 'number' ? b.invoiceNo : 0);
+          return idB - idA;
         });
 
         if (maxObservedId > lastCounterRef.current) {
@@ -262,9 +267,14 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       });
 
       fetchedOrders.sort((a, b) => {
-        const timeA = new Date(a.createdAt || 0).getTime() || a.updatedAt || 0;
-        const timeB = new Date(b.createdAt || 0).getTime() || b.updatedAt || 0;
-        return timeB - timeA;
+        const timeA = new Date(a.createdAt || 0).getTime() || (typeof a.updatedAt === 'number' ? a.updatedAt : 0) || 0;
+        const timeB = new Date(b.createdAt || 0).getTime() || (typeof b.updatedAt === 'number' ? b.updatedAt : 0) || 0;
+        if (timeB !== timeA) {
+          return timeB - timeA;
+        }
+        const idA = extractNumericId(a.id) || (typeof a.invoiceNo === 'number' ? a.invoiceNo : 0);
+        const idB = extractNumericId(b.id) || (typeof b.invoiceNo === 'number' ? b.invoiceNo : 0);
+        return idB - idA;
       });
 
       if (maxObserved > lastCounterRef.current) {
@@ -378,9 +388,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const updateOrderStatus = async (id: string, status: Order['status']) => {
     try {
       const order = orders.find(o => o.id === id);
-      if (order && isDeliveredOrSuccess(order.status)) {
-        throw new Error('সাকসেস বা ডেলিভার্ড অর্ডারের স্ট্যাটাস পরিবর্তন করা যাবে না।');
-      }
       if (order) {
         await handleStatusChangeStock(order, status);
       }
@@ -556,13 +563,19 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       // 4. Centralized Stock Deduction & Inventory Movement Logging
       await deductOrderStock(newOrder);
 
-      // 5. Send order confirmation email if applicable
+      // 5. Send order confirmation email and Telegram notification if applicable
       if (newOrder.invoiceBy && newOrder.invoiceBy.toLowerCase().includes('website')) {
         fetch('/api/send-order-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ orderDetails: newOrder }),
         }).catch(err => console.error('[OrderContext] Email notification error:', err));
+
+        fetch('/api/send-telegram-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderDetails: newOrder }),
+        }).catch(err => console.error('[OrderContext] Telegram notification error:', err));
       }
 
       return newOrder;

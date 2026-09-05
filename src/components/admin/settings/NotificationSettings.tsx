@@ -36,6 +36,13 @@ export default function NotificationSettings() {
   const [isConfigSaving, setIsConfigSaving] = useState(false);
   const [isConfigLoading, setIsConfigLoading] = useState(true);
 
+  // Telegram states
+  const [telegramEnabled, setTelegramEnabled] = useState(true);
+  const [telegramBotToken, setTelegramBotToken] = useState('8960670685:AAFk4BurwHSvoO-Ydga9A_iAbGGehboXMPs');
+  const [telegramChatId, setTelegramChatId] = useState('7986746414');
+  const [isTelegramTesting, setIsTelegramTesting] = useState(false);
+  const [isTelegramSaving, setIsTelegramSaving] = useState(false);
+
   // Load configuration from Firestore on mount
   useEffect(() => {
     const fetchConfig = async () => {
@@ -47,6 +54,15 @@ export default function NotificationSettings() {
           setEmailAlertsEnabled(data.emailAlertsEnabled !== false);
           setPrimaryEmail(data.primaryEmail || 'eleganbd.ltd@gmail.com');
           setSecondaryEmail(data.secondaryEmail || 'sabbirrahmansr904@gmail.com');
+        }
+
+        const tgRef = doc(db, 'config', 'telegram');
+        const tgDoc = await getDoc(tgRef);
+        if (tgDoc.exists()) {
+          const data = tgDoc.data();
+          setTelegramEnabled(data.enabled !== false);
+          if (data.botToken) setTelegramBotToken(data.botToken);
+          if (data.chatId) setTelegramChatId(data.chatId);
         }
       } catch (error) {
         console.error('Error fetching notification configuration:', error);
@@ -74,6 +90,50 @@ export default function NotificationSettings() {
       toast.error('Failed to save settings.');
     } finally {
       setIsConfigSaving(false);
+    }
+  };
+
+  const handleSaveTelegramConfig = async () => {
+    setIsTelegramSaving(true);
+    try {
+      const tgRef = doc(db, 'config', 'telegram');
+      await setDoc(tgRef, {
+        enabled: telegramEnabled,
+        botToken: telegramBotToken.trim(),
+        chatId: telegramChatId.trim(),
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      toast.success('Telegram configuration saved successfully!');
+    } catch (error) {
+      console.error('Error saving telegram config:', error);
+      toast.error('Failed to save Telegram settings.');
+    } finally {
+      setIsTelegramSaving(false);
+    }
+  };
+
+  const handleTestTelegram = async () => {
+    if (!telegramBotToken || !telegramChatId) {
+      toast.error('Please enter Bot Token and Chat ID first.');
+      return;
+    }
+    setIsTelegramTesting(true);
+    try {
+      const res = await safeApiFetch('/api/telegram/test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ botToken: telegramBotToken, chatId: telegramChatId })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success('Test message sent successfully to Telegram!');
+      } else {
+        toast.error(data.error || 'Failed to send test message.');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Connection test failed.');
+    } finally {
+      setIsTelegramTesting(false);
     }
   };
 
@@ -322,6 +382,107 @@ export default function NotificationSettings() {
                     <p><span className="text-indigo-600 font-black">EMAIL_USER</span>=eleganbd.ltd@gmail.com <span className="text-gray-400"># Your sender Gmail</span></p>
                     <p><span className="text-indigo-600 font-black">EMAIL_PASS</span>=abcd efgh ijkl mnop <span className="text-gray-400"># The 16-character generated app password</span></p>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Telegram Bot Integration Settings Control Panel */}
+        <div className="bg-white border border-gray-100 rounded-[32px] shadow-sm overflow-hidden p-8 space-y-6">
+          <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4 pb-4 border-b border-gray-50">
+            <div className="space-y-1">
+              <span className="text-[10px] uppercase font-black text-sky-600 tracking-[0.2em] flex items-center gap-1.5">
+                <MessageSquare size={12} className="text-sky-600 animate-pulse" />
+                Telegram Bot API Dispatcher Node
+              </span>
+              <h2 className="serif text-xl italic font-black text-black uppercase tracking-tight">Telegram Instant Order Alerts</h2>
+              <p className="text-xs text-gray-400">Instantly receive order details (Customer Name, Address, Phone, Product Qty & Size) to your Telegram Bot when an order is placed.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold text-gray-500 uppercase">Telegram Status:</span>
+              <button
+                type="button"
+                onClick={() => setTelegramEnabled(!telegramEnabled)}
+                className={cn(
+                  "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                  telegramEnabled ? "bg-black" : "bg-gray-200"
+                )}
+              >
+                <span
+                  className={cn(
+                    "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                    telegramEnabled ? "translate-x-5" : "translate-x-0"
+                  )}
+                />
+              </button>
+              <span className={cn("text-xs font-black uppercase tracking-wider", telegramEnabled ? "text-emerald-600 animate-pulse" : "text-gray-400")}>
+                {telegramEnabled ? "ACTIVE" : "DISABLED"}
+              </span>
+            </div>
+          </div>
+
+          {isConfigLoading ? (
+            <div className="py-4 text-center text-xs text-gray-400 font-bold uppercase tracking-wider">Loading telegram settings...</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase tracking-[0.15em] font-black text-gray-400 block">Telegram Bot Token</label>
+                <input
+                  type="text"
+                  value={telegramBotToken}
+                  onChange={(e) => setTelegramBotToken(e.target.value)}
+                  placeholder="e.g. 123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
+                  className="w-full bg-gray-50/50 border border-gray-200 rounded-2xl px-5 py-3 outline-none focus:bg-white focus:border-black transition-all text-xs font-mono font-bold text-black"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase tracking-[0.15em] font-black text-gray-400 block">Telegram Chat ID / Group ID</label>
+                <input
+                  type="text"
+                  value={telegramChatId}
+                  onChange={(e) => setTelegramChatId(e.target.value)}
+                  placeholder="e.g. -1001234567890 or 987654321"
+                  className="w-full bg-gray-50/50 border border-gray-200 rounded-2xl px-5 py-3 outline-none focus:bg-white focus:border-black transition-all text-xs font-mono font-bold text-black"
+                />
+              </div>
+
+              <div className="md:col-span-2 pt-2 flex flex-wrap justify-between items-center gap-4">
+                <button
+                  type="button"
+                  onClick={handleTestTelegram}
+                  disabled={isTelegramTesting || !telegramBotToken || !telegramChatId}
+                  className="bg-sky-600 text-white px-6 py-3.5 text-xs font-black uppercase tracking-[0.15em] hover:bg-sky-700 transition-all rounded-xl shadow-md cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                >
+                  <Bell size={14} />
+                  {isTelegramTesting ? "Sending Test..." : "Test Telegram Alert"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSaveTelegramConfig}
+                  disabled={isTelegramSaving}
+                  className="bg-black text-white px-8 py-3.5 text-xs font-black uppercase tracking-[0.2em] hover:bg-gray-800 transition-all rounded-xl shadow-md cursor-pointer shrink-0 disabled:opacity-50"
+                >
+                  {isTelegramSaving ? "Saving..." : "Save Telegram Config"}
+                </button>
+              </div>
+
+              {/* Telegram Bot Setup Guide */}
+              <div className="md:col-span-2 bg-sky-50/50 rounded-2xl p-6 border border-sky-100 space-y-3">
+                <h4 className="text-xs font-black text-black uppercase tracking-wider flex items-center gap-2">
+                  <ExternalLink size={14} className="text-sky-600 shrink-0" />
+                  Telegram Bot Setup Guide (কিভাবে Telegram API ও Bot Token পাবেন)
+                </h4>
+                <div className="text-[11px] text-gray-600 leading-relaxed space-y-2">
+                  <ol className="list-decimal list-inside space-y-1.5 pl-1 font-medium">
+                    <li>Telegram অ্যাপে গিয়ে সার্চ করুন <b className="text-sky-700">@BotFather</b> লিখে এবং চ্যাট শুরু করুন।</li>
+                    <li><code className="bg-white px-1.5 py-0.5 rounded border border-sky-200 font-mono text-xs">/newbot</code> কমান্ড পাঠান এবং আপনার বটের নাম ও ইউজারনেম (যেমন: <code className="text-xs font-mono">MyStoreOrderBot</code>) সেট করুন।</li>
+                    <li>BotFather আপনাকে একটি <b className="text-black">HTTP API Token</b> দেবে (যেমন: <code className="text-xs font-mono">712345678:AAH...</code>)। সেটি উপরে <b>Telegram Bot Token</b> বক্সে দিন।</li>
+                    <li>আপনার বটের সাথে একটি চ্যাট করুন অথবা বটটিকে আপনার টেলিগ্রাম গ্রুপে অ্যাড করুন।</li>
+                    <li>আপনার ব্যক্তিগত Chat ID অথবা Group Chat ID পাওয়ার জন্য <b className="text-sky-700">@userinfobot</b> বা <b className="text-sky-700">@RawDataBot</b> ব্যবহার করুন এবং Chat ID সংগ্রহ করে উপরে দিন।</li>
+                  </ol>
                 </div>
               </div>
             </div>

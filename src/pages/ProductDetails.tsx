@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ShoppingCart, Heart, Share2, Maximize2, ChevronRight, ChevronDown, Truck, RotateCcw, ShieldCheck, Star, MessageSquare, Send, User, Banknote, Sparkles, X } from 'lucide-react';
 import { useParams, Link, useNavigate } from 'react-router-dom';

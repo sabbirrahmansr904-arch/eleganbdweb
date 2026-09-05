@@ -249,7 +249,98 @@ async function startServer() {
     }
   });
 
-  // Helper to authenticate with Pathao
+  // API route to send Telegram order notification
+  app.post("/api/send-telegram-order", async (req, res) => {
+    const { orderDetails } = req.body;
+    if (!orderDetails) {
+      return res.status(400).json({ error: "Order details missing" });
+    }
+
+    let botToken = process.env.TELEGRAM_BOT_TOKEN || '8960670685:AAFk4BurwHSvoO-Ydga9A_iAbGGehboXMPs';
+    let chatId = process.env.TELEGRAM_CHAT_ID || '7986746414';
+
+    try {
+      const tgConfigSnap = await getDoc(doc(db, 'config', 'telegram'));
+      if (tgConfigSnap.exists()) {
+        const data = tgConfigSnap.data();
+        if (data.enabled === false) {
+          return res.json({ success: true, message: "Telegram alerts are disabled" });
+        }
+        if (data.botToken) botToken = data.botToken;
+        if (data.chatId) chatId = data.chatId;
+      }
+    } catch (e) {
+      console.warn("Could not load Telegram config from Firestore", e);
+    }
+
+    if (!botToken || !chatId) {
+      return res.status(500).json({ error: "Telegram Bot Token or Chat ID not configured" });
+    }
+
+    const itemsList = (orderDetails.items || []).map((i: any) => 
+      `• ${i.name} ${i.selectedSize ? `(Size: ${i.selectedSize})` : ''} - Qty: ${i.quantity} - ৳${(i.price || 0) * (i.quantity || 1)}`
+    ).join('\n');
+
+    const message = `🛒 *নতুন অর্ডার এসেছে!* (Order #${String(orderDetails.id).slice(-6)})\n\n` +
+      `👤 *কাস্টমার নাম:* ${orderDetails.customerName}\n` +
+      `📞 *ফোন নম্বর:* ${orderDetails.phone}\n` +
+      `📍 *ঠিকানা:* ${orderDetails.address}\n` +
+      `💳 *পেমেন্ট পদ্ধতি:* ${orderDetails.paymentMethod}\n\n` +
+      `📦 *প্রোডাক্টসমূহ:*\n${itemsList}\n\n` +
+      `💵 *সাবটোটাল:* ৳${(orderDetails.total || 0) - (orderDetails.deliveryCharge || 0)}\n` +
+      `🚚 *ডেলিভারি চার্জ:* ৳${orderDetails.deliveryCharge || 0}\n` +
+      `✨ *মোট টাকা:* ৳${orderDetails.total}\n\n` +
+      `🌐 *Elegan BD Automated Order System*`;
+
+    try {
+      const tgRes = await fetch(`https://api.telegram.org/bot${String(botToken).trim()}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: String(chatId).trim(),
+          text: message,
+          parse_mode: 'Markdown'
+        })
+      });
+      const tgData: any = await tgRes.json();
+      if (tgRes.ok && tgData.ok) {
+        return res.json({ success: true });
+      } else {
+        return res.status(400).json({ error: tgData.description || "Failed to send Telegram message" });
+      }
+    } catch (error: any) {
+      console.error("Telegram send error:", error);
+      return res.status(500).json({ error: error.message || "Failed to connect to Telegram API" });
+    }
+  });
+
+  // API route to test Telegram Bot connection
+  app.post("/api/telegram/test-connection", async (req, res) => {
+    const { botToken, chatId } = req.body;
+    if (!botToken || !chatId) {
+      return res.status(400).json({ success: false, error: "Bot Token and Chat ID are required." });
+    }
+    try {
+      const testMsg = `🧪 *Elegan BD Test Notification*\nTelegram API is successfully connected! 🎉`;
+      const tgRes = await fetch(`https://api.telegram.org/bot${String(botToken).trim()}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: String(chatId).trim(),
+          text: testMsg,
+          parse_mode: 'Markdown'
+        })
+      });
+      const tgData: any = await tgRes.json();
+      if (tgRes.ok && tgData.ok) {
+        return res.json({ success: true });
+      } else {
+        return res.status(400).json({ success: false, error: tgData.description || "Telegram API test failed" });
+      }
+    } catch (error: any) {
+      return res.status(500).json({ success: false, error: error.message || "Connection failed" });
+    }
+  });
   let cachedPathaoToken: { token: string; expiresAt: number; apiBase: string } | null = null;
   let cachedPathaoCities: any[] | null = null;
   let cachedPathaoZones: Record<number, any[]> = {};

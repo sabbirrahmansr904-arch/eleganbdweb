@@ -31,7 +31,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem('eleganbd_cart', JSON.stringify(items));
+    try {
+      localStorage.setItem('eleganbd_cart', JSON.stringify(items));
+    } catch (e) {
+      console.warn("localStorage quota exceeded:", e);
+    }
   }, [items]);
 
   const addToCart = (product: Product, size: string, qty: number) => {

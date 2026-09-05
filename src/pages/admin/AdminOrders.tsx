@@ -159,7 +159,7 @@ export default function AdminOrders(): React.JSX.Element {
   const [isCameraScannerActive, setIsCameraScannerActive] = useState(false);
   
   // Pagination State
-  const [visibleCount, setVisibleCount] = useState(50);
+  const [visibleCount, setVisibleCount] = useState(10);
   
   // Bulk Selection
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
@@ -597,14 +597,10 @@ export default function AdminOrders(): React.JSX.Element {
   };
 
   const handleStatusChange = async (id: string, newStatus: Order['status']) => {
-    const order = orders.find(o => o.id === id);
-    if (order && isDeliveredOrSuccess(order.status)) {
-      toast.error('সাকসেস বা ডেলিভার্ড অর্ডারের স্ট্যাটাস কোনোভাবেই পরিবর্তন করা যাবে না।');
-      return;
-    }
     try {
       await updateOrderStatus(id, newStatus);
-      toast.success(`Order #${id} status updated to: ${newStatus}`);
+      const shortId = id.slice(-6);
+      toast.success(`Order #${shortId} status updated to: ${newStatus}`);
     } catch (err: any) {
       toast.error(err?.message || 'Failed to update status');
     }
@@ -1796,7 +1792,31 @@ export default function AdminOrders(): React.JSX.Element {
                     />
                     <span className="font-bold text-slate-800">{order.invoiceNo || order.id.slice(-6)}</span>
                   </div>
-                  <span className="text-[10px] font-black px-2 py-1 rounded-full bg-indigo-50 text-indigo-600 uppercase">{order.status}</span>
+                  <div className="relative inline-flex items-center" onClick={(e) => e.stopPropagation()}>
+                    <select
+                      value={normalizeStatus(order.status)}
+                      onChange={(e) => {
+                        const newStatus = e.target.value as Order['status'];
+                        handleStatusChange(order.id, newStatus);
+                      }}
+                      className={cn(
+                        "appearance-none pr-5 pl-2.5 py-1 text-[9px] font-extrabold rounded-full border cursor-pointer select-none transition-all shadow-3xs uppercase tracking-wider outline-none",
+                        getStatusBadge(order.status).class
+                      )}
+                    >
+                      <option value="ORDER PLACED" className="bg-white text-slate-800 font-bold">ORDER PLACED</option>
+                      <option value="PRINTED" className="bg-white text-slate-800 font-bold">PRINTED</option>
+                      <option value="PREPARING" className="bg-white text-slate-800 font-bold">PREPARING</option>
+                      <option value="PICK UP CANCEL" className="bg-white text-slate-800 font-bold">PICK UP CANCEL</option>
+                      <option value="SHIPPED" className="bg-white text-slate-800 font-bold">SHIPPED</option>
+                      <option value="SUCCESS" className="bg-white text-slate-800 font-bold">SUCCESS</option>
+                      <option value="PARTIAL DELIVERY" className="bg-white text-slate-800 font-bold">PARTIAL DELIVERY</option>
+                      <option value="HOLD" className="bg-white text-slate-800 font-bold">HOLD</option>
+                      <option value="RETURNED" className="bg-white text-slate-800 font-bold">RETURNED</option>
+                      <option value="CANCELLED" className="bg-white text-slate-800 font-bold">CANCELLED</option>
+                    </select>
+                    <ChevronDown size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5] opacity-70" />
+                  </div>
                 </div>
                 <div className="text-sm font-semibold text-slate-700">{order.customerName}</div>
                 <div className="text-xs text-slate-500 mb-2">{order.phone}</div>
@@ -1954,69 +1974,36 @@ export default function AdminOrders(): React.JSX.Element {
                       </td>
 
                       {/* Status Dropdown Pill */}
-                      <td className="py-4 px-4 relative whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <td className="py-4 px-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-1.5 flex-nowrap whitespace-nowrap">
-                          <button 
-                            onClick={() => {
-                              if (isDeliveredOrSuccess(order.status)) {
-                                toast.error('সাকসেস বা ডেলিভার্ড অর্ডারের স্ট্যাটাস কোনোভাবেই পরিবর্তন করা যাবে না।');
-                                return;
-                              }
-                              setActiveStatusDropdownOrderId(activeStatusDropdownOrderId === order.id ? null : order.id);
-                            }}
-                            className={cn(
-                              "inline-flex items-center justify-between gap-1.5 px-3 py-1.5 text-[10px] font-extrabold rounded-full border cursor-pointer select-none transition-all shadow-3xs shrink-0 whitespace-nowrap",
-                              getStatusBadge(order.status).class
-                            )}
-                          >
-                            <span className="uppercase tracking-wider whitespace-nowrap">{normalizeStatus(order.status)}</span>
-                            <ChevronDown size={11} className="stroke-[2.5] shrink-0" />
-                          </button>
+                          <div className="relative inline-flex items-center">
+                            <select
+                              value={normalizeStatus(order.status)}
+                              onChange={(e) => {
+                                const newStatus = e.target.value as Order['status'];
+                                handleStatusChange(order.id, newStatus);
+                              }}
+                              className={cn(
+                                "appearance-none pr-6 pl-3 py-1.5 text-[10px] font-extrabold rounded-full border cursor-pointer select-none transition-all shadow-3xs uppercase tracking-wider outline-none focus:ring-2 focus:ring-[#2563EB]/20",
+                                getStatusBadge(order.status).class
+                              )}
+                            >
+                              <option value="ORDER PLACED" className="bg-white text-slate-800 font-bold py-1.5">ORDER PLACED</option>
+                              <option value="PRINTED" className="bg-white text-slate-800 font-bold py-1.5">PRINTED</option>
+                              <option value="PREPARING" className="bg-white text-slate-800 font-bold py-1.5">PREPARING</option>
+                              <option value="PICK UP CANCEL" className="bg-white text-slate-800 font-bold py-1.5">PICK UP CANCEL</option>
+                              <option value="SHIPPED" className="bg-white text-slate-800 font-bold py-1.5">SHIPPED</option>
+                              <option value="SUCCESS" className="bg-white text-slate-800 font-bold py-1.5">SUCCESS</option>
+                              <option value="PARTIAL DELIVERY" className="bg-white text-slate-800 font-bold py-1.5">PARTIAL DELIVERY</option>
+                              <option value="HOLD" className="bg-white text-slate-800 font-bold py-1.5">HOLD</option>
+                              <option value="RETURNED" className="bg-white text-slate-800 font-bold py-1.5">RETURNED</option>
+                              <option value="CANCELLED" className="bg-white text-slate-800 font-bold py-1.5">CANCELLED</option>
+                            </select>
+                            <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5] opacity-70" />
+                          </div>
 
                           <ParcelLiveStatusBadge order={order} />
                         </div>
-                        
-                        {activeStatusDropdownOrderId === order.id && (
-                          <>
-                            <div 
-                              className="fixed inset-0 z-30" 
-                              onClick={() => setActiveStatusDropdownOrderId(null)}
-                            />
-                            <div className="absolute left-4 mt-1 w-52 bg-[#F8F9FD] border border-[#E2E8F0] shadow-xl py-0.5 z-40 rounded-xl overflow-hidden">
-                              {[
-                                { key: 'ORDER PLACED', label: 'ORDER PLACED' },
-                                { key: 'PRINTED', label: 'PRINTED' },
-                                { key: 'PREPARING', label: 'PREPARING' },
-                                { key: 'PICK UP CANCEL', label: 'PICK UP CANCEL' },
-                                { key: 'SHIPPED', label: 'SHIPPED' },
-                                { key: 'SUCCESS', label: 'SUCCESS' },
-                                { key: 'PARTIAL DELIVERY', label: 'PARTIAL DELIVERY' },
-                                { key: 'HOLD', label: 'HOLD' },
-                                { key: 'RETURNED', label: 'RETURNED' },
-                                { key: 'CANCELLED', label: 'CANCELLED' },
-                              ].map(opt => {
-                                const isSelected = normalizeStatus(order.status) === opt.key;
-                                return (
-                                  <button
-                                    key={opt.key}
-                                    onClick={() => {
-                                      handleStatusChange(order.id, opt.key as Order['status']);
-                                      setActiveStatusDropdownOrderId(null);
-                                    }}
-                                    className={cn(
-                                      "w-full text-left px-4 py-2 text-[10px] uppercase tracking-wide transition-all cursor-pointer",
-                                      isSelected 
-                                        ? "bg-[#1976d2] text-white font-black" 
-                                        : "text-[#0f172a] hover:bg-slate-50 font-bold"
-                                    )}
-                                  >
-                                    {opt.label}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </>
-                        )}
                       </td>
 
                       {/* Courier */}
@@ -2339,17 +2326,17 @@ export default function AdminOrders(): React.JSX.Element {
           </table>
         </div>
 
-        {/* Centered Show More button outside the scroll container, matching screenshot style */}
+        {/* Centered More button outside the scroll container, matching requested behavior */}
         {filteredOrders.length > visibleCount && (
           <div className="flex justify-center pt-5 pb-2">
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setVisibleCount(prev => prev + 50);
+                setVisibleCount(prev => prev + 10);
               }}
               className="px-8 py-3.5 bg-[#F8F9FD] border border-gray-200 hover:border-blue-400 text-blue-600 hover:text-blue-700 font-bold text-sm rounded-[14px] transition-all shadow-xs hover:shadow-md cursor-pointer flex items-center justify-center gap-2 active:scale-98"
             >
-              <span>Show more</span>
+              <span>More</span>
             </button>
           </div>
         )}
@@ -4319,16 +4306,32 @@ export default function AdminOrders(): React.JSX.Element {
                           <div className="col-span-2">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Status</span>
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className={cn(
-                                "inline-block px-4 py-1 text-[10px] font-black rounded-full uppercase tracking-wider",
-                                selectedOrder.status === 'Delivered' ? 'bg-[#E6F4EA] text-[#137333]' :
-                                selectedOrder.status === 'Cancelled' ? 'bg-[#FCE8E6] text-[#C5221F]' :
-                                selectedOrder.status === 'Hold' ? 'bg-[#FFF9E6] text-[#B06000]' :
-                                selectedOrder.status === 'QC' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                                'bg-[#ECEAFE] text-[#554BF0]' // Pending / Placing
-                              )}>
-                                {selectedOrder.status === 'QC' ? 'QC PASSED' : (selectedOrder.status === 'Pending' ? 'ORDER PLACED' : String(selectedOrder.status || '').toUpperCase())}
-                              </span>
+                              <div className="relative inline-flex items-center">
+                                <select
+                                  value={normalizeStatus(selectedOrder.status)}
+                                  onChange={async (e) => {
+                                    const newStatus = e.target.value as Order['status'];
+                                    await handleStatusChange(selectedOrder.id, newStatus);
+                                    setSelectedOrder({ ...selectedOrder, status: newStatus });
+                                  }}
+                                  className={cn(
+                                    "appearance-none pr-6 pl-3 py-1 text-[10px] font-extrabold rounded-full border cursor-pointer select-none transition-all shadow-3xs uppercase tracking-wider outline-none focus:ring-2 focus:ring-[#2563EB]/20",
+                                    getStatusBadge(selectedOrder.status).class
+                                  )}
+                                >
+                                  <option value="ORDER PLACED" className="bg-white text-slate-800 font-bold">ORDER PLACED</option>
+                                  <option value="PRINTED" className="bg-white text-slate-800 font-bold">PRINTED</option>
+                                  <option value="PREPARING" className="bg-white text-slate-800 font-bold">PREPARING</option>
+                                  <option value="PICK UP CANCEL" className="bg-white text-slate-800 font-bold">PICK UP CANCEL</option>
+                                  <option value="SHIPPED" className="bg-white text-slate-800 font-bold">SHIPPED</option>
+                                  <option value="SUCCESS" className="bg-white text-slate-800 font-bold">SUCCESS</option>
+                                  <option value="PARTIAL DELIVERY" className="bg-white text-slate-800 font-bold">PARTIAL DELIVERY</option>
+                                  <option value="HOLD" className="bg-white text-slate-800 font-bold">HOLD</option>
+                                  <option value="RETURNED" className="bg-white text-slate-800 font-bold">RETURNED</option>
+                                  <option value="CANCELLED" className="bg-white text-slate-800 font-bold">CANCELLED</option>
+                                </select>
+                                <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5] opacity-70" />
+                              </div>
                               <ParcelLiveStatusBadge order={selectedOrder} showDetails />
                             </div>
                           </div>
