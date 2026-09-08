@@ -124,6 +124,53 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  // API route to inspect and clear banners
+  app.get("/api/debug-orders", async (req, res) => {
+    try {
+      const orderSnaps = await getDocs(collection(db, 'orders'));
+      const ordersList = orderSnaps.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      const custSnaps = await getDocs(collection(db, 'customers'));
+      const custList = custSnaps.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      res.json({ ordersCount: ordersList.length, orders: ordersList, customers: custList });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/debug-banners", async (req, res) => {
+    try {
+      const bannerSnaps = await getDocs(collection(db, 'banners'));
+      const bannersList = bannerSnaps.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      const configKeys = ['banner_hero', 'banner_hero_2', 'banner_hero_3', 'banner_sub_hero', 'banner_collections', 'banner_feature', 'banner_polo', 'banner_combo_offer', 'branding'];
+      const configs: Record<string, any> = {};
+      for (const k of configKeys) {
+        try {
+          const s = await getDoc(doc(db, 'config', k));
+          if (s.exists()) configs[k] = s.data();
+        } catch {}
+      }
+
+      res.json({ bannersList, configs });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/banners/clear-banner", async (req, res) => {
+    try {
+      const { bannerKey } = req.body; // e.g. 'sub_hero' or 'banner_sub_hero'
+      const key = (bannerKey || 'sub_hero').replace(/^banner_/, '');
+      const docRef = doc(db, 'config', `banner_${key}`);
+      await setDoc(docRef, { url: '', updatedAt: new Date().toISOString() }, { merge: true });
+      res.json({ success: true, message: `Banner ${key} cleared` });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // API route to send Meta Conversion API event
   app.post("/api/meta-conversion-event", async (req, res) => {
     const { eventName, eventData, userData } = req.body;
@@ -1196,51 +1243,62 @@ async function startServer() {
         newOrderStatus = 'Shipped';
       }
 
-      // Query order by consignment_id or id
-      const ordersRef = collection(db, 'orders');
-      let targetOrderDocId: string | null = null;
+      // Query order by consignment_id or id in Supabase
+      const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://wnnnjroxyuxsbolbcdil.supabase.co';
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_p2B8pChEnm9esPFTCLGYXg_Ype4-7NI';
+      const { createClient } = await import('@supabase/supabase-js');
+      const sb = createClient(supabaseUrl, supabaseKey);
+
+      let targetOrderId: string | null = null;
 
       if (consignmentId) {
-        const q = query(ordersRef, where('pathaoConsignmentId', '==', consignmentId));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          targetOrderDocId = snap.docs[0].id;
-        } else {
-          const q2 = query(ordersRef, where('trackingId', '==', consignmentId));
-          const snap2 = await getDocs(q2);
-          if (!snap2.empty) {
-            targetOrderDocId = snap2.docs[0].id;
-          }
+        const { data: matchedRows } = await sb
+          .from('orders')
+          .select('id')
+          .ilike('notes', `%${consignmentId}%`)
+          .limit(1);
+        if (matchedRows && matchedRows.length > 0) {
+          targetOrderId = matchedRows[0].id;
         }
       }
 
-      if (!targetOrderDocId && merchantOrderId) {
+      if (!targetOrderId && merchantOrderId) {
         const cleanId = String(merchantOrderId).replace(/^ORD-?/i, '');
-        const directDoc = await getDoc(doc(db, 'orders', merchantOrderId));
-        if (directDoc.exists()) {
-          targetOrderDocId = directDoc.id;
-        } else {
-          const q3 = query(ordersRef, where('invoiceNo', '==', Number(cleanId) || cleanId));
-          const snap3 = await getDocs(q3);
-          if (!snap3.empty) {
-            targetOrderDocId = snap3.docs[0].id;
-          }
+        const { data: matchedRows } = await sb
+          .from('orders')
+          .select('id')
+          .or(`id.eq.${merchantOrderId},id.eq.${cleanId},invoice_no.eq.${parseInt(cleanId, 10) || 0}`)
+          .limit(1);
+        if (matchedRows && matchedRows.length > 0) {
+          targetOrderId = matchedRows[0].id;
         }
       }
 
-      if (targetOrderDocId) {
-        const updatePayload: any = {
-          courierStatus: status,
-          updatedAt: Date.now()
+      if (targetOrderId) {
+        const sbUpdate: any = {
+          updated_at: new Date().toISOString()
         };
         if (newOrderStatus) {
-          updatePayload.status = newOrderStatus;
-          if (newOrderStatus === 'Delivered') {
-            updatePayload.deliveredAt = Date.now();
-          }
+          sbUpdate.status = newOrderStatus;
         }
-        await updateDoc(doc(db, 'orders', targetOrderDocId), updatePayload);
-        return res.status(200).json({ success: true, updated: targetOrderDocId, status: newOrderStatus || status });
+        await sb.from('orders').update(sbUpdate).eq('id', targetOrderId);
+
+        // Also update Firestore doc if present
+        try {
+          const updatePayload: any = {
+            courierStatus: status,
+            updatedAt: Date.now()
+          };
+          if (newOrderStatus) {
+            updatePayload.status = newOrderStatus;
+            if (newOrderStatus === 'Delivered') {
+              updatePayload.deliveredAt = Date.now();
+            }
+          }
+          await updateDoc(doc(db, 'orders', targetOrderId), updatePayload);
+        } catch {}
+
+        return res.status(200).json({ success: true, updated: targetOrderId, status: newOrderStatus || status });
       }
 
       return res.status(200).json({ received: true, note: "Order matched none in database" });

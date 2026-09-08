@@ -46,8 +46,37 @@ const ProductList = () => {
     filtered = filtered.filter(p => p.price >= priceRange[0] && p.price <= priceRange[1]);
 
     // Sorting
-    if (sortBy === 'price-low') filtered = [...filtered].sort((a, b) => a.price - b.price);
-    if (sortBy === 'price-high') filtered = [...filtered].sort((a, b) => b.price - a.price);
+    if (sortBy === 'price-low') {
+      filtered = [...filtered].sort((a, b) => a.price - b.price);
+    } else if (sortBy === 'price-high') {
+      filtered = [...filtered].sort((a, b) => b.price - a.price);
+    } else {
+      // Natural serial code sorting for products (especially Pants & Formal wear)
+      const getCodeKey = (p: typeof products[0]) => {
+        const sku = (p.sku || '').trim();
+        const name = (p.name || '').trim();
+        const full = `${sku} ${name}`;
+        const match = full.match(/\bcode\s*[:#-]?\s*(\d+)/i) || 
+                      full.match(/\b(?:fp|pant|p|ep|item)[\s-_#]*(\d+)/i) || 
+                      sku.match(/(\d+)/) || 
+                      name.match(/\b(\d+)\b/) || 
+                      name.match(/(\d+)/);
+        if (match) return { hasCode: true, num: parseInt(match[1], 10), raw: sku || name };
+        return { hasCode: false, num: 999999, raw: sku || name };
+      };
+
+      filtered = [...filtered].sort((a, b) => {
+        const keyA = getCodeKey(a);
+        const keyB = getCodeKey(b);
+        if (keyA.hasCode && keyB.hasCode) {
+          if (keyA.num !== keyB.num) return keyA.num - keyB.num;
+          return keyA.raw.localeCompare(keyB.raw, undefined, { numeric: true, sensitivity: 'base' });
+        }
+        if (keyA.hasCode && !keyB.hasCode) return -1;
+        if (!keyA.hasCode && keyB.hasCode) return 1;
+        return (a.sku || a.name || '').localeCompare(b.sku || b.name || '', undefined, { numeric: true, sensitivity: 'base' });
+      });
+    }
 
     return filtered;
   }, [products, category, selectedSizes, priceRange, sortBy]);

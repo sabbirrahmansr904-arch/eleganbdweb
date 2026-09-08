@@ -5,6 +5,7 @@ import * as XLSX from 'xlsx';
 import InvoiceTemplate from '../../components/admin/InvoiceTemplate';
 import { ParcelLiveStatusBadge } from '../../components/admin/ParcelLiveStatusBadge';
 import { GoogleSheetImporterModal } from '../../components/admin/GoogleSheetImporterModal';
+import { PathaoSyncModal } from '../../components/admin/PathaoSyncModal';
 import { useInvoiceByOptions } from '../../hooks/useInvoiceByOptions';
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
@@ -165,7 +166,7 @@ export default function AdminOrders(): React.JSX.Element {
   const [isCameraScannerActive, setIsCameraScannerActive] = useState(false);
   
   // Pagination State
-  const [visibleCount, setVisibleCount] = useState(100);
+  const [visibleCount, setVisibleCount] = useState(50);
   
   // Bulk Selection
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
@@ -204,6 +205,7 @@ export default function AdminOrders(): React.JSX.Element {
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showBulkInvoiceModal, setShowBulkInvoiceModal] = useState(false);
   const [showGoogleSheetModal, setShowGoogleSheetModal] = useState(false);
+  const [showPathaoSyncModal, setShowPathaoSyncModal] = useState(false);
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
 
   // Issue Conversation Modal States
@@ -416,12 +418,12 @@ export default function AdminOrders(): React.JSX.Element {
     }
   }, []);
 
-  // Helper deterministic "Issue active" flag to highlight pink rows in the table list matching the snapshot exactly!
+  // Helper issue flag
   const hasActiveIssue = React.useCallback((order: Order) => {
-    // Cancelled orders, or pending orders with odd totals or deterministic triggers act as active issues
-    if (order.status === 'Cancelled') return true;
-    const digitTotal = order.total % 10;
-    return digitTotal === 0 || digitTotal === 1 || digitTotal === 2 || digitTotal === 6;
+    if (!order) return false;
+    if (order.issueType && order.issueStatus !== 'resolved') return true;
+    if (order.status === 'Cancelled' || order.status === 'Hold') return true;
+    return false;
   }, []);
 
   // Helper to render procedural QR code visualization with its custom text scan code
@@ -714,75 +716,8 @@ export default function AdminOrders(): React.JSX.Element {
     }
   };
 
-  const handleSyncPathao = async () => {
-    const ordersToSync = orders.filter(o => 
-      (o.pathaoConsignmentId || o.trackingId || (o as any).steadfastConsignmentId) && 
-      !isDeliveredOrSuccess(o.status)
-    );
-
-    if (ordersToSync.length === 0) {
-      toast.info("No active parcels found to sync.");
-      return;
-    }
-
-    const toastId = toast.loading(`Syncing ${ordersToSync.length} courier parcels...`);
-    let updatedCount = 0;
-    let deliveredCount = 0;
-
-    try {
-      for (const ord of ordersToSync) {
-        const isSteadfast = Boolean((ord as any).steadfastConsignmentId) || (ord.courier || '').toLowerCase().includes('steadfast');
-        const rawId = (ord as any).pathaoConsignmentId || (ord as any).steadfastConsignmentId || ord.trackingId || (ord as any).trackingCode;
-        const consignmentId = String(rawId || '').replace(/^#/, '').trim();
-        if (!consignmentId) continue;
-
-        try {
-          const { ok, data } = await trackCourierOrder(consignmentId, ord.courier || (isSteadfast ? 'steadfast' : 'pathao'));
-          if (ok && data.success && data.status) {
-            const rawStatus = (data.status || '').toLowerCase();
-            let newStatus: Order['status'] = ord.status;
-
-            if (rawStatus.includes('deliver') || rawStatus.includes('success') || rawStatus === 'delivered' || rawStatus === 'delivery_complete') {
-              newStatus = 'Delivered';
-              deliveredCount++;
-            } else if (rawStatus.includes('cancel') || rawStatus.includes('return')) {
-              newStatus = 'Returned';
-            } else {
-              if (!isDeliveredOrSuccess(ord.status) && ord.status !== 'Returned' && ord.status !== 'Cancelled') {
-                newStatus = 'Shipped';
-              }
-            }
-
-            const courierFee = (data.delivery_fee && data.delivery_fee > 0) ? data.delivery_fee : (ord.courierCharge || 120);
-            const payout = Math.max(0, (ord.total || 0) - courierFee);
-
-            await updateOrder(ord.id, {
-              ...ord,
-              status: newStatus,
-              courierStatus: data.status,
-              trackingId: consignmentId,
-              trackingCode: consignmentId,
-              pathaoConsignmentId: data.courier !== 'Steadfast' ? consignmentId : ord.pathaoConsignmentId,
-              steadfastConsignmentId: data.courier === 'Steadfast' ? consignmentId : (ord as any).steadfastConsignmentId,
-              courierCharge: courierFee,
-              courierPayoutAmount: payout,
-              ...(newStatus === 'Delivered' ? { deliveredAt: Date.now() } : {})
-            });
-            updatedCount++;
-          }
-        } catch (e) {
-          console.warn(`Sync failed for ${ord.id}`, e);
-        }
-      }
-
-      if (deliveredCount > 0) {
-        toast.success(`Synced ${updatedCount} parcels! ${deliveredCount} parcels are Delivered (marked as SUCCESS).`, { id: toastId });
-      } else {
-        toast.success(`Synced ${updatedCount} parcels live!`, { id: toastId });
-      }
-    } catch (e: any) {
-      toast.error(`Sync failed: ${e.message}`, { id: toastId });
-    }
+  const handleSyncPathao = () => {
+    setShowPathaoSyncModal(true);
   };
 
   const handleScanOrderSubmit = (orderIdToScan: string) => {
@@ -5422,6 +5357,14 @@ export default function AdminOrders(): React.JSX.Element {
           }
           return count;
         }}
+      />
+
+      {/* Pathao & Courier Real-Time Live Sync Modal */}
+      <PathaoSyncModal
+        isOpen={showPathaoSyncModal}
+        onClose={() => setShowPathaoSyncModal(false)}
+        orders={orders}
+        selectedOrderIds={selectedOrderIds}
       />
     </div>
   );

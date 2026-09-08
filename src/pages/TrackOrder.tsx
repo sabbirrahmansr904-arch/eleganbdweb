@@ -5,8 +5,7 @@
 
 import React, { useState, useEffect, FormEvent } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { db } from '../lib/firebase';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { supabase, supabaseRowToOrder } from '../lib/supabase';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { formatPrice, cn } from '../lib/utils';
 import { Order } from '../types';
@@ -118,62 +117,63 @@ export default function TrackOrder() {
     try {
       let foundOrders: Order[] = [];
 
-      // 1. Try direct doc ID lookup
+      // 1. Search directly in Supabase orders table
       try {
-        const docRef = doc(db, 'orders', cleanInput);
-        const snapshot = await getDoc(docRef);
-        if (snapshot.exists()) {
-          foundOrders.push({ id: snapshot.id, ...snapshot.data() } as Order);
-        }
-      } catch (e) {
-        console.warn('Doc lookup fail:', e);
-      }
-
-      // 2. If numeric, search by invoiceNo
-      if (isNumeric && foundOrders.length === 0) {
-        const numVal = Number(cleanInput);
-        const qInvoiceNum = query(collection(db, 'orders'), where('invoiceNo', '==', numVal));
-        const snapInvoice = await getDocs(qInvoiceNum);
-        snapInvoice.forEach((d) => {
-          if (!foundOrders.some(o => o.id === d.id)) {
-            foundOrders.push({ id: d.id, ...d.data() } as Order);
+        if (isNumeric) {
+          const numVal = Number(cleanInput);
+          const { data: sbNumeric } = await supabase
+            .from('orders')
+            .select('*')
+            .or(`id.eq.${cleanInput},invoice_no.eq.${numVal}`);
+          
+          if (sbNumeric && Array.isArray(sbNumeric) && sbNumeric.length > 0) {
+            sbNumeric.forEach(row => {
+              const o = supabaseRowToOrder(row);
+              if (!foundOrders.some(existing => existing.id === o.id)) {
+                foundOrders.push(o);
+              }
+            });
           }
-        });
-      }
+        } else {
+          const { data: sbId } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('id', cleanInput);
+          
+          if (sbId && Array.isArray(sbId) && sbId.length > 0) {
+            sbId.forEach(row => {
+              const o = supabaseRowToOrder(row);
+              if (!foundOrders.some(existing => existing.id === o.id)) {
+                foundOrders.push(o);
+              }
+            });
+          }
+        }
 
-      // 3. Search by Phone Number (check variants with or without leading zero or +88)
-      if (foundOrders.length === 0) {
-        const phoneVariants = [
-          cleanInput,
-          cleanInput.startsWith('0') ? cleanInput.substring(1) : '0' + cleanInput,
-          '+88' + cleanInput,
-          '88' + cleanInput,
-        ];
+        // Search by phone in Supabase if not found
+        if (foundOrders.length === 0) {
+          const cleanPhoneDigits = cleanInput.replace(/\D/g, '');
+          if (cleanPhoneDigits.length >= 8) {
+            const { data: sbPhone } = await supabase
+              .from('orders')
+              .select('*')
+              .ilike('phone', `%${cleanPhoneDigits.slice(-10)}%`);
 
-        for (const phoneVar of phoneVariants) {
-          const qPhone = query(collection(db, 'orders'), where('phone', '==', phoneVar));
-          const snapPhone = await getDocs(qPhone);
-          snapPhone.forEach((d) => {
-            if (!foundOrders.some(o => o.id === d.id)) {
-              foundOrders.push({ id: d.id, ...d.data() } as Order);
+            if (sbPhone && Array.isArray(sbPhone) && sbPhone.length > 0) {
+              sbPhone.forEach(row => {
+                const o = supabaseRowToOrder(row);
+                if (!foundOrders.some(existing => existing.id === o.id)) {
+                  foundOrders.push(o);
+                }
+              });
             }
-          });
-          if (foundOrders.length > 0) break;
-        }
-      }
-
-      // 4. Search by custom ID field if stored as string
-      if (foundOrders.length === 0) {
-        const qId = query(collection(db, 'orders'), where('id', '==', cleanInput));
-        const snapId = await getDocs(qId);
-        snapId.forEach((d) => {
-          if (!foundOrders.some(o => o.id === d.id)) {
-            foundOrders.push({ id: d.id, ...d.data() } as Order);
           }
-        });
+        }
+      } catch (sbErr) {
+        console.warn('[TrackOrder] Supabase lookup notice:', sbErr);
       }
 
-      // 5. Local cache fallback if Firestore query returned nothing or had an error
+      // 2. Local cache fallback
       if (foundOrders.length === 0) {
         try {
           const cached = localStorage.getItem('eleganbd_all_orders');

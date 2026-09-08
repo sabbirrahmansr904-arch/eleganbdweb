@@ -50,53 +50,77 @@ export interface SupabaseOrderRow {
   city?: string | null;
   thana?: string | null;
   items: any;
-  subtotal?: number | null;
-  shipping_cost?: number | null;
   discount?: number | null;
   total: number;
   status: string;
   payment_method?: string | null;
-  payment_status?: string | null;
-  courier?: string | null;
-  tracking_id?: string | null;
-  courier_status?: string | null;
   notes?: string | null;
   created_at?: string;
   updated_at?: string;
 }
 
 export function orderToSupabaseRow(order: any): SupabaseOrderRow {
+  const customerIdVal = order.customerId || (order.phone ? `CUST-${order.phone.replace(/[^0-9]/g, '')}` : `CUST-${Math.floor(Math.random() * 100000)}`);
+  
+  // Package any auxiliary fields into notes metadata so Supabase stores 100% of order details
+  const meta: Record<string, any> = {};
+  if (order.deliveryCharge !== undefined) meta.deliveryCharge = order.deliveryCharge;
+  if (order.shippingCost !== undefined) meta.shippingCost = order.shippingCost;
+  if (order.subtotal !== undefined) meta.subtotal = order.subtotal;
+  if (order.paymentStatus) meta.paymentStatus = order.paymentStatus;
+  if (order.courier) meta.courier = order.courier;
+  if (order.trackingId) meta.trackingId = order.trackingId;
+  if (order.courierStatus) meta.courierStatus = order.courierStatus;
+  if (order.invoiceBy) meta.invoiceBy = order.invoiceBy;
+  if (order.userNote) meta.userNote = order.userNote;
+
+  let cleanNotes = order.notes || '';
+  if (cleanNotes.includes('__META__:') && cleanNotes.includes('__ENDMETA__')) {
+    cleanNotes = cleanNotes.replace(/__META__:.*?__ENDMETA__\s*/, '').trim();
+  }
+
+  let notesVal = cleanNotes;
+  if (Object.keys(meta).length > 0) {
+    notesVal = `__META__:${JSON.stringify(meta)}__ENDMETA__ ${cleanNotes}`.trim();
+  }
+
   return {
     id: String(order.id),
-    invoice_no: typeof order.invoiceNo === 'number' ? order.invoiceNo : (Number(order.invoiceNo) || null),
-    customer_id: order.customerId || null,
+    invoice_no: typeof order.invoiceNo === 'number' ? order.invoiceNo : (parseInt(String(order.id).replace(/[^0-9]/g, ''), 10) || null),
+    customer_id: customerIdVal,
     customer_name: order.customerName || (order.shippingAddress?.fullName) || 'Valued Customer',
-    phone: order.phone || (order.shippingAddress?.phone) || null,
+    phone: order.phone || (order.shippingAddress?.phone) || '',
     email: order.email || null,
-    address: order.address || (order.shippingAddress?.address) || null,
-    city: order.city || (order.shippingAddress?.city) || null,
-    thana: order.thana || (order.shippingAddress?.thana) || null,
+    address: order.address || (order.shippingAddress?.address) || '',
+    city: order.city || (order.shippingAddress?.city) || 'Dhaka',
+    thana: order.thana || (order.shippingAddress?.thana) || '',
     items: Array.isArray(order.items) ? order.items : [],
-    subtotal: typeof order.subtotal === 'number' ? order.subtotal : (Number(order.subtotal) || null),
-    shipping_cost: typeof order.deliveryCharge === 'number' ? order.deliveryCharge : (typeof order.shippingCost === 'number' ? order.shippingCost : 0),
     discount: typeof order.discount === 'number' ? order.discount : 0,
     total: Number(order.total) || 0,
     status: order.status || 'Pending',
     payment_method: order.paymentMethod || 'cod',
-    payment_status: order.paymentStatus || 'Unpaid',
-    courier: order.courier || null,
-    tracking_id: order.trackingId || (order.steadfastTracking?.consignment_id ? String(order.steadfastTracking.consignment_id) : null),
-    courier_status: order.courierStatus || (order.steadfastTracking?.status) || null,
-    notes: order.notes || null,
+    notes: notesVal || null,
     created_at: order.createdAt || new Date().toISOString(),
     updated_at: new Date().toISOString()
   };
 }
 
 export function supabaseRowToOrder(row: SupabaseOrderRow): any {
+  let rawNotes = row.notes || '';
+  let meta: any = {};
+  if (rawNotes.includes('__META__:') && rawNotes.includes('__ENDMETA__')) {
+    try {
+      const match = rawNotes.match(/__META__:(.*?)__ENDMETA__/);
+      if (match && match[1]) {
+        meta = JSON.parse(match[1]);
+        rawNotes = rawNotes.replace(/__META__:.*?__ENDMETA__\s*/, '').trim();
+      }
+    } catch {}
+  }
+
   return {
     id: row.id,
-    invoiceNo: row.invoice_no || parseInt(row.id, 10) || undefined,
+    invoiceNo: row.invoice_no || parseInt(String(row.id).replace(/[^0-9]/g, ''), 10) || undefined,
     customerId: row.customer_id || undefined,
     customerName: row.customer_name || 'Customer',
     phone: row.phone || '',
@@ -105,18 +129,19 @@ export function supabaseRowToOrder(row: SupabaseOrderRow): any {
     city: row.city || '',
     thana: row.thana || '',
     items: Array.isArray(row.items) ? row.items : [],
-    subtotal: row.subtotal || undefined,
-    deliveryCharge: row.shipping_cost || 0,
-    shippingCost: row.shipping_cost || 0,
-    discount: row.discount || 0,
+    subtotal: meta.subtotal !== undefined ? meta.subtotal : undefined,
+    deliveryCharge: meta.deliveryCharge !== undefined ? meta.deliveryCharge : 0,
+    shippingCost: meta.shippingCost !== undefined ? meta.shippingCost : (meta.deliveryCharge || 0),
+    discount: typeof row.discount === 'number' ? row.discount : 0,
     total: Number(row.total) || 0,
     status: row.status || 'Pending',
     paymentMethod: row.payment_method || 'cod',
-    paymentStatus: row.payment_status || 'Unpaid',
-    courier: row.courier || undefined,
-    trackingId: row.tracking_id || undefined,
-    courierStatus: row.courier_status || undefined,
-    notes: row.notes || '',
+    paymentStatus: meta.paymentStatus || 'Unpaid',
+    courier: meta.courier || undefined,
+    trackingId: meta.trackingId || undefined,
+    courierStatus: meta.courierStatus || undefined,
+    invoiceBy: meta.invoiceBy || undefined,
+    notes: rawNotes,
     createdAt: row.created_at || new Date().toISOString(),
     updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : Date.now()
   };

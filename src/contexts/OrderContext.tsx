@@ -1,20 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Order } from '../types';
-import { db } from '../lib/firebase';
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  getDoc, 
-  deleteDoc, 
-  onSnapshot, 
-  getDocs,
-} from 'firebase/firestore';
 import { supabase, orderToSupabaseRow, supabaseRowToOrder } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { useProducts } from './ProductContext';
 import { useInventory } from './InventoryContext';
-import { handleFirestoreError, OperationType, isQuotaError, isFirestoreQuotaExceeded } from '../lib/firestoreUtils';
 import { isDeliveredOrSuccess } from '../utils/orderUtils';
 
 interface OrderContextType {
@@ -104,18 +93,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const { products, updateProduct } = useProducts();
   const { addTransaction } = useInventory();
 
-  // Helper to remove undefined fields before writing to Firestore
-  const removeUndefined = (obj: any): any => {
-    if (obj === null || typeof obj !== 'object') return obj;
-    if (Array.isArray(obj)) return obj.map(removeUndefined);
-    const cleaned: any = {};
-    for (const key of Object.keys(obj)) {
-      const val = obj[key];
-      if (val !== undefined) cleaned[key] = removeUndefined(val);
-    }
-    return cleaned;
-  };
-
   const getAuthorizedBy = (order: Order) => {
     if (order?.invoiceBy && typeof order.invoiceBy === 'string' && order.invoiceBy.toLowerCase().includes('website')) {
       return 'Website';
@@ -123,11 +100,62 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     return order?.invoiceBy || currentUser?.displayName || currentUser?.email || 'Admin';
   };
 
-  // 1. Initial Load & Real-time Supabase + Firestore Listener
+  // 1. Initial Load & Real-time Supabase Listener
   useEffect(() => {
     let isMounted = true;
 
-    // A. Fetch all orders from Supabase on start
+    const mergeAndSetOrders = (newIncoming: Order[]) => {
+      if (!isMounted || !Array.isArray(newIncoming) || newIncoming.length === 0) return;
+      
+      setOrders(prev => {
+        const map = new Map<string, Order>();
+        // Add existing orders first
+        if (Array.isArray(prev)) {
+          prev.forEach(o => { if (o && o.id) map.set(String(o.id), o); });
+        }
+        // Merge incoming orders (updating or adding)
+        newIncoming.forEach(o => {
+          if (o && o.id) {
+            const existing = map.get(String(o.id));
+            if (existing) {
+              map.set(String(o.id), { ...existing, ...o, items: (Array.isArray(o.items) && o.items.length > 0) ? o.items : existing.items });
+            } else {
+              map.set(String(o.id), o);
+            }
+          }
+        });
+
+        const merged = Array.from(map.values());
+        let maxObservedId = BASE_ORDER_ID;
+
+        merged.forEach((o) => {
+          const numId = extractNumericId(o.id);
+          if (numId && numId > maxObservedId) maxObservedId = numId;
+          if (typeof o.invoiceNo === 'number' && o.invoiceNo > maxObservedId) {
+            maxObservedId = o.invoiceNo;
+          }
+        });
+
+        if (maxObservedId > lastCounterRef.current) {
+          lastCounterRef.current = maxObservedId;
+        }
+
+        merged.sort((a, b) => {
+          const timeA = new Date(a.createdAt || 0).getTime() || (typeof a.updatedAt === 'number' ? a.updatedAt : 0) || 0;
+          const timeB = new Date(b.createdAt || 0).getTime() || (typeof b.updatedAt === 'number' ? b.updatedAt : 0) || 0;
+          return timeB - timeA;
+        });
+
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify(merged));
+        } catch {}
+
+        return merged;
+      });
+      setLoading(false);
+    };
+
+    // A. Fetch all orders exclusively from Supabase
     const fetchFromSupabase = async () => {
       try {
         const { data, error } = await supabase
@@ -136,37 +164,18 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           .order('created_at', { ascending: false });
 
         if (error) {
-          console.warn('[OrderContext] Supabase fetch error (table might need creation):', error.message);
+          console.warn('[OrderContext] Supabase fetch notice:', error.message);
         } else if (data && Array.isArray(data) && isMounted) {
           const mapped: Order[] = data.map(supabaseRowToOrder);
-          let maxObservedId = BASE_ORDER_ID;
-
-          mapped.forEach((o) => {
-            const numId = extractNumericId(o.id);
-            if (numId && numId > maxObservedId) maxObservedId = numId;
-            if (typeof o.invoiceNo === 'number' && o.invoiceNo > maxObservedId) {
-              maxObservedId = o.invoiceNo;
-            }
-          });
-
-          if (maxObservedId > lastCounterRef.current) {
-            lastCounterRef.current = maxObservedId;
+          if (mapped.length > 0) {
+            mergeAndSetOrders(mapped);
+          } else {
+            setLoading(false);
           }
-
-          mapped.sort((a, b) => {
-            const timeA = new Date(a.createdAt || 0).getTime() || (typeof a.updatedAt === 'number' ? a.updatedAt : 0) || 0;
-            const timeB = new Date(b.createdAt || 0).getTime() || (typeof b.updatedAt === 'number' ? b.updatedAt : 0) || 0;
-            return timeB - timeA;
-          });
-
-          setOrders(mapped);
-          try { 
-            localStorage.setItem(CACHE_KEY, JSON.stringify(mapped)); 
-          } catch {}
-          setLoading(false);
         }
       } catch (err) {
         console.warn('[OrderContext] Supabase load exception:', err);
+        setLoading(false);
       }
     };
 
@@ -181,21 +190,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           if (!isMounted) return;
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             const newOrder = supabaseRowToOrder(payload.new as any);
-            setOrders(prev => {
-              const map = new Map<string, Order>();
-              if (Array.isArray(prev)) {
-                prev.forEach(o => { if (o && o.id) map.set(String(o.id), o); });
-              }
-              map.set(String(newOrder.id), newOrder);
-              const merged = Array.from(map.values());
-              merged.sort((a, b) => {
-                const timeA = new Date(a.createdAt || 0).getTime() || 0;
-                const timeB = new Date(b.createdAt || 0).getTime() || 0;
-                return timeB - timeA;
-              });
-              try { localStorage.setItem(CACHE_KEY, JSON.stringify(merged)); } catch {}
-              return merged;
-            });
+            mergeAndSetOrders([newOrder]);
           } else if (payload.eventType === 'DELETE' && payload.old && (payload.old as any).id) {
             const deletedId = String((payload.old as any).id);
             setOrders(prev => {
@@ -210,65 +205,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       console.warn('[OrderContext] Supabase channel error:', e);
     }
 
-    // C. Subscribe to live Firestore updates (fallback/dual sync)
-    let firestoreUnsub: (() => void) | null = null;
-    try {
-      if (!isFirestoreQuotaExceeded) {
-        const ordersColRef = collection(db, 'orders');
-        firestoreUnsub = onSnapshot(
-          ordersColRef,
-          (snapshot) => {
-            if (!isMounted) return;
-            const fetchedOrders: Order[] = [];
-            let maxObservedId = BASE_ORDER_ID;
-
-            snapshot.forEach((docSnap) => {
-              const data = docSnap.data();
-              const orderObj = { 
-                id: docSnap.id, 
-                ...data,
-                items: Array.isArray(data.items) ? data.items : []
-              } as Order;
-              fetchedOrders.push(orderObj);
-
-              const numId = extractNumericId(docSnap.id);
-              if (numId && numId > maxObservedId) maxObservedId = numId;
-              if (typeof data.invoiceNo === 'number' && data.invoiceNo > maxObservedId) {
-                maxObservedId = data.invoiceNo;
-              }
-            });
-
-            if (maxObservedId > lastCounterRef.current) {
-              lastCounterRef.current = maxObservedId;
-            }
-
-            fetchedOrders.sort((a, b) => {
-              const timeA = new Date(a.createdAt || 0).getTime() || (typeof a.updatedAt === 'number' ? a.updatedAt : 0) || 0;
-              const timeB = new Date(b.createdAt || 0).getTime() || (typeof b.updatedAt === 'number' ? b.updatedAt : 0) || 0;
-              return timeB - timeA;
-            });
-
-            setOrders(fetchedOrders);
-            try {
-              localStorage.setItem(CACHE_KEY, JSON.stringify(fetchedOrders));
-            } catch (e) {}
-
-            setLoading(false);
-          },
-          (error) => {
-            setLoading(false);
-          }
-        );
-      }
-    } catch (e) {
-      setLoading(false);
-    }
-
     return () => {
       isMounted = false;
-      if (typeof firestoreUnsub === 'function') {
-        try { firestoreUnsub(); } catch {}
-      }
       if (supabaseChannel) {
         try { supabase.removeChannel(supabaseChannel); } catch {}
       }
@@ -278,49 +216,23 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const refreshOrders = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Fetch from Supabase
       const { data, error } = await supabase
         .from('orders')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (!error && data && data.length > 0) {
+      if (!error && data && Array.isArray(data)) {
         const mapped = data.map(supabaseRowToOrder);
+        mapped.sort((a, b) => {
+          const timeA = new Date(a.createdAt || 0).getTime() || 0;
+          const timeB = new Date(b.createdAt || 0).getTime() || 0;
+          return timeB - timeA;
+        });
         setOrders(mapped);
-        localStorage.setItem(CACHE_KEY, JSON.stringify(mapped));
-        return;
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify(mapped)); } catch {}
       }
-
-      // 2. Fallback to Firestore
-      const snapshot = await getDocs(collection(db, 'orders'));
-      const fetchedOrders: Order[] = [];
-      let maxObserved = BASE_ORDER_ID;
-
-      snapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        fetchedOrders.push({ 
-          id: docSnap.id, 
-          ...data,
-          items: Array.isArray(data.items) ? data.items : []
-        } as Order);
-        const num = extractNumericId(docSnap.id);
-        if (num && num > maxObserved) maxObserved = num;
-      });
-
-      fetchedOrders.sort((a, b) => {
-        const timeA = new Date(a.createdAt || 0).getTime() || (typeof a.updatedAt === 'number' ? a.updatedAt : 0) || 0;
-        const timeB = new Date(b.createdAt || 0).getTime() || (typeof b.updatedAt === 'number' ? b.updatedAt : 0) || 0;
-        return timeB - timeA;
-      });
-
-      if (maxObserved > lastCounterRef.current) {
-        lastCounterRef.current = maxObserved;
-      }
-
-      setOrders(fetchedOrders);
-      localStorage.setItem(CACHE_KEY, JSON.stringify(fetchedOrders));
-    } catch (err) {
-      console.warn('[OrderContext] refreshOrders error:', err);
+    } catch (error) {
+      console.error('[OrderContext] Supabase Refresh error:', error);
     } finally {
       setLoading(false);
     }
@@ -431,7 +343,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       if (order) {
         await handleStatusChangeStock(order, status);
       }
-      const updatedData = { status, updatedAt: Date.now() };
 
       // 1. Update in Supabase
       try {
@@ -446,15 +357,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         console.warn('[OrderContext] Supabase update status notice:', sbErr);
       }
 
-      // 2. Update in Firestore
-      try {
-        const cleaned = removeUndefined(updatedData);
-        await setDoc(doc(db, 'orders', id), cleaned, { merge: true });
-      } catch (e) {
-        console.warn('[OrderContext] Firestore update status fallback:', e);
-      }
-
-      // 3. Local state update
+      // 2. Local state update
       setOrders(prev => {
         const next = prev.map(o => o.id === id ? { ...o, status, updatedAt: Date.now() } : o);
         try {
@@ -492,15 +395,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         console.warn('[OrderContext] Supabase update order notice:', sbErr);
       }
 
-      // 2. Update in Firestore
-      try {
-        const cleaned = removeUndefined(updatedData);
-        await setDoc(doc(db, 'orders', id), cleaned, { merge: true });
-      } catch (e) {
-        console.warn('[OrderContext] Firestore update order fallback:', e);
-      }
-
-      // 3. Local state update
+      // 2. Local state update
       setOrders(prev => {
         const next = prev.map(o => o.id === id ? { ...o, ...updatedData } : o);
         try {
@@ -553,7 +448,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         return next;
       });
 
-      // 2. Server API direct deletion (deletes permanently from both Firestore and Supabase backend)
+      // 2. Server API direct deletion
       try {
         await fetch('/api/orders/delete', {
           method: 'POST',
@@ -564,14 +459,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         console.warn('[OrderContext] Server delete order notice:', apiErr);
       }
 
-      // 3. Client-side Firestore delete
-      try {
-        await deleteDoc(doc(db, 'orders', cleanId));
-      } catch (e) {
-        console.warn('[OrderContext] Client Firestore delete order notice:', e);
-      }
-
-      // 4. Client-side Supabase delete
+      // 3. Client-side Supabase delete
       try {
         await supabase
           .from('orders')
@@ -625,14 +513,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         console.warn('[OrderContext] Server bulk delete notice:', apiErr);
       }
 
-      // 3. Client Firestore delete
-      for (const id of ids) {
-        try {
-          await deleteDoc(doc(db, 'orders', String(id)));
-        } catch {}
-      }
-
-      // 4. Client Supabase delete
+      // 3. Client Supabase delete
       try {
         await supabase.from('orders').delete().in('id', Array.from(targetSet));
       } catch {}
@@ -656,7 +537,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         }
       } catch {}
 
-      // 2. Server-side complete wipe of orders
+      // 2. Server-side complete wipe of orders from Supabase
       await fetch('/api/orders/delete-all', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
@@ -714,50 +595,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         updatedAt: Date.now()
       };
 
-      // 1. Save directly to Supabase orders table
-      try {
-        const sbRow = orderToSupabaseRow(newOrder);
-        const { error: sbError } = await supabase.from('orders').upsert(sbRow);
-        if (sbError) {
-          console.warn('[OrderContext] Supabase order insert notice:', sbError.message);
-        } else {
-          console.log(`[OrderContext] Order #${finalOrderId} synced to Supabase successfully!`);
-        }
-
-        // Also sync customer profile in Supabase customers table
-        const customerPhone = newOrder.phone;
-        if (customerPhone) {
-          await supabase.from('customers').upsert({
-            id: customerPhone,
-            phone: customerPhone,
-            name: newOrder.customerName || 'Customer',
-            email: newOrder.email || null,
-            address: newOrder.address || null,
-            city: newOrder.city || null,
-            thana: newOrder.thana || null,
-            updated_at: new Date().toISOString()
-          }).catch(() => {});
-        }
-      } catch (sbErr) {
-        console.warn('[OrderContext] Supabase order save fallback:', sbErr);
-      }
-
-      // 2. Save directly to Firestore orders collection
-      try {
-        const cleaned = removeUndefined(newOrder);
-        await setDoc(doc(db, 'orders', finalOrderId), cleaned);
-      } catch (e) {
-        console.warn('[OrderContext] Firestore order save fallback:', e);
-      }
-
-      // 3. Persist the updated counter to Firestore
-      try {
-        await setDoc(doc(db, 'config', 'order_counter'), { lastOrderId: calculatedNextIdNum }, { merge: true });
-      } catch (e) {}
-
-      // 4. Local State Update & Cache
+      // 1. Local State Update & Cache FIRST (Guaranteed Persistence & Display)
       setOrders(prev => {
-        // Prevent duplicate entry in array
         const filtered = prev.filter(o => o.id !== finalOrderId);
         const next = [newOrder, ...filtered];
         try {
@@ -770,10 +609,37 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       });
       setLastOrder(newOrder);
 
-      // 5. Centralized Stock Deduction & Inventory Movement Logging
+      // 2. Background Supabase Upsert (Non-blocking)
+      const sbRow = orderToSupabaseRow(newOrder);
+      supabase.from('orders').upsert(sbRow).then(({ error: sbError }) => {
+        if (sbError) {
+          console.warn('[OrderContext] Supabase order background insert notice:', sbError.message);
+        } else {
+          console.log(`[OrderContext] Order #${finalOrderId} synced to Supabase successfully!`);
+        }
+      }).catch(err => {
+        console.warn('[OrderContext] Supabase background sync exception:', err);
+      });
+
+      // Also sync customer profile in Supabase customers table in background
+      const customerPhone = newOrder.phone;
+      if (customerPhone) {
+        supabase.from('customers').upsert({
+          id: customerPhone,
+          phone: customerPhone,
+          name: newOrder.customerName || 'Customer',
+          email: newOrder.email || null,
+          address: newOrder.address || null,
+          city: newOrder.city || null,
+          thana: newOrder.thana || null,
+          updated_at: new Date().toISOString()
+        }).then(() => {}).catch(() => {});
+      }
+
+      // 3. Centralized Stock Deduction & Inventory Movement Logging
       await deductOrderStock(newOrder);
 
-      // 6. Send order confirmation email and Telegram notification if applicable
+      // 4. Send order confirmation email and Telegram notification if applicable
       if (newOrder.invoiceBy && newOrder.invoiceBy.toLowerCase().includes('website')) {
         fetch('/api/send-order-email', {
           method: 'POST',
@@ -822,3 +688,4 @@ export function useOrders() {
   }
   return context;
 }
+

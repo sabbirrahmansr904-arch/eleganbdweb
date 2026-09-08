@@ -18,6 +18,7 @@ interface Review {
   text: string;
   rating: number;
   date: string;
+  photo: string;
 }
 
 // Curated lists to generate 100 highly realistic, authentic Bengali reviews with unique names, photos, and texts.
@@ -34,7 +35,7 @@ const lastNames = [
 const reviewTexts = [
   "মানসম্মত পণ্য—যারা নিতে চান তারা নিশ্চিন্তে নিতে পারেন। আমি তাদের ডিসপ্লে সেন্টার থেকে শার্টগুলো নিয়েছি। খুবই সুন্দর এবং আরামদায়ক। ধন্যবাদ, Elegan BD 🥰",
   "কাপড়ের কোয়ালিটি অসাধারণ, ফিটিং একদম পারফেক্ট হয়েছে। ডেলিভারিও খুব দ্রুত পেয়েছি। ধন্যবাদ সেলারকে!",
-  "প্যান্টের ফেব্রিক এবং সেলাই সত্যিই প্রিমিয়াম। ৯৫০ টাকায় এত ভালো ফরমাল প্যান্ট আশা করিনি। আবার অর্ডার করবো।",
+  "প্যান্টের ফেব্রিক এবং সেলাই সত্যিই প্রিমিয়াম। ৯ টাকায় এত ভালো ফরমাল প্যান্ট আশা করিনি। আবার অর্ডার করবো।",
   "কালার একদম ছবির মতোই সেম টু সেম পেয়েছি। ওয়াশ করার পরেও কালার নষ্ট হয়নি। অত্যন্ত সন্তুষ্ট!",
   "ডেলিভারি ভাইয়ের ব্যবহার খুব ভালো ছিল এবং প্রোডাক্ট সময়মতো পেয়েছি। Elegan BD এর কাস্টমার সার্ভিস সত্যিই প্রশংসনীয়।",
   "শার্টের ফেব্রিক খুবই সফট এবং আরামদায়ক। বিশেষ করে গরমের দিনে পরার জন্য দারুণ। রিকমেন্ডেড!",
@@ -88,11 +89,11 @@ const generateReviews = (): Review[] => {
     name: "POLLOB DAS",
     text: "মানসম্মত পণ্য—যারা নিতে চান তারা নিশ্চিন্তে নিতে পারেন। আমি তাদের ডিসপ্লে সেন্টার থেকে শার্টগুলো নিয়েছি। খুবই সুন্দর এবং আরামদায়ক। ধন্যবাদ, Elegan BD 🥰",
     rating: 5,
-    date: "10 hours ago"
+    date: "10 hours ago",
+    photo: `https://images.unsplash.com/photo-${portraitIds[0]}?w=150&auto=format&fit=crop&q=80`
   });
 
   for (let i = 2; i <= 100; i++) {
-    // Generate unique combinations deterministically using index
     const fName = firstNames[(i * 3) % firstNames.length];
     const lName = lastNames[(i * 7) % lastNames.length];
     const name = `${fName} ${lName}`.toUpperCase();
@@ -102,15 +103,17 @@ const generateReviews = (): Review[] => {
     const emoji = emojis[i % emojis.length];
     const text = textTemplate.replace("Elegan BD", "Elegan BD " + emoji);
     
-    const rating = (i % 20 === 0) ? 4 : 5; // Mostly 5 stars, occasional 4 stars
+    const rating = (i % 20 === 0) ? 4 : 5;
     const date = `${(i % 15) + 1} days ago`;
+    const photoId = portraitIds[i % portraitIds.length];
 
     reviews.push({
       id: i,
       name,
       text,
       rating,
-      date
+      date,
+      photo: `https://images.unsplash.com/photo-${photoId}?w=150&auto=format&fit=crop&q=80`
     });
   }
   return reviews;
@@ -171,9 +174,14 @@ export default function ReviewsCarousel() {
               transition={{ duration: 0.4 }}
               className="max-w-2xl px-12 md:px-16 flex flex-col items-center"
             >
-              {/* Profile Name Initials Badge (No customer photos) */}
-              <div className="w-20 h-20 rounded-full bg-white text-blue-600 border-2 border-blue-600 flex items-center justify-center font-black text-2xl shadow-md mb-6 tracking-wider shadow-blue-500/10">
-                {getInitials(currentReview.name)}
+              {/* Real Reviewer Profile Picture */}
+              <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-blue-600 shadow-xl mb-6 shadow-blue-500/20 bg-gray-100">
+                <img 
+                  src={currentReview.photo} 
+                  alt={currentReview.name} 
+                  className="w-full h-full object-cover object-center"
+                  referrerPolicy="no-referrer"
+                />
               </div>
 
               {/* Star Ratings */}

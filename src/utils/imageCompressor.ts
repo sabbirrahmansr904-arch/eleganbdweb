@@ -3,7 +3,8 @@ export const compressImage = (
   maxWidth = 1600, 
   maxHeight = 1600, 
   quality = 0.85,
-  preserveTransparency = false
+  preserveTransparency = false,
+  maxByteSize = 350000
 ): Promise<string> => {
   return new Promise((resolve, reject) => {
     const isTransparent = preserveTransparency || 
@@ -18,7 +19,7 @@ export const compressImage = (
     reader.readAsDataURL(file);
     reader.onload = (event) => {
       const dataUrl = event.target?.result as string;
-      compressDataUrl(dataUrl, maxWidth, maxHeight, quality, isTransparent)
+      compressDataUrl(dataUrl, maxWidth, maxHeight, quality, isTransparent, maxByteSize)
         .then(resolve)
         .catch(reject);
     };
@@ -26,12 +27,25 @@ export const compressImage = (
   });
 };
 
+/**
+ * Specialized Ultra-HD Crisp Banner Compressor (Preserves 1080p / 1920px sharpness without degradation)
+ */
+export const compressBannerImage = (
+  file: File,
+  maxWidth = 1920,
+  maxHeight = 1080,
+  quality = 0.92
+): Promise<string> => {
+  return compressImage(file, maxWidth, maxHeight, quality, false, 750000);
+};
+
 export const compressDataUrl = (
   dataUrl: string, 
   maxWidth = 1600, 
   maxHeight = 1600, 
   quality = 0.85,
-  preserveTransparency = false
+  preserveTransparency = false,
+  maxByteSize = 350000
 ): Promise<string> => {
   return new Promise((resolve, reject) => {
     if (!dataUrl || !dataUrl.startsWith('data:image')) {
@@ -72,11 +86,13 @@ export const compressDataUrl = (
       // Use webp for transparent images to retain alpha transparency with great compression
       const format = isTransparent ? 'image/webp' : 'image/jpeg';
       
-      while (passes < 12) {
+      while (passes < 8) {
         canvas.width = currentWidth;
         canvas.height = currentHeight;
         const ctx = canvas.getContext('2d');
         if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
           ctx.clearRect(0, 0, currentWidth, currentHeight);
           if (!isTransparent) {
             ctx.fillStyle = '#FFFFFF';
@@ -94,14 +110,16 @@ export const compressDataUrl = (
             : canvas.toDataURL('image/jpeg', currentQuality);
         }
         
-        if (finalDataUrl.length < 250000) {
+        if (finalDataUrl.length < maxByteSize || currentQuality <= 0.65) {
           break;
         }
         
         passes++;
-        currentQuality = Math.max(0.3, currentQuality - 0.15);
-        currentWidth = Math.max(1, Math.round(currentWidth * 0.8));
-        currentHeight = Math.max(1, Math.round(currentHeight * 0.8));
+        currentQuality = Math.max(0.65, currentQuality - 0.08);
+        if (currentWidth > 1200) {
+          currentWidth = Math.max(1200, Math.round(currentWidth * 0.9));
+          currentHeight = Math.max(1, Math.round(currentHeight * 0.9));
+        }
       }
 
       resolve(finalDataUrl);

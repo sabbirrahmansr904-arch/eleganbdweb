@@ -25,7 +25,7 @@ import { useBranding } from '../../../contexts/BrandingContext';
 import { Banner } from '../../../types';
 import toast from 'react-hot-toast';
 import { cn } from '../../../lib/utils';
-import { compressImage } from '../../../utils/imageCompressor';
+import { compressImage, compressBannerImage } from '../../../utils/imageCompressor';
 import { autoSaveToMediaLibrary } from '../../../utils/mediaLibrary';
 
 export default function BannerSettings() {
@@ -114,16 +114,16 @@ export default function BannerSettings() {
   const handleStaticBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>, key: string, setter: (url: string) => void, isPortrait?: boolean) => {
     const file = e.target.files?.[0];
     if (file) {
-      const loadingToast = toast.loading(`Uploading ${key}...`);
+      const loadingToast = toast.loading(`Uploading & optimizing ${key}...`);
       try {
         const result = isPortrait 
-          ? await compressImage(file, 600, 800, 0.75)
-          : await compressImage(file, 1200, 675, 0.75);
+          ? await compressImage(file, 800, 1000, 0.85)
+          : await compressBannerImage(file, 1920, 1080, 0.92);
         setter(result);
         autoSaveToMediaLibrary(result, { name: `Banner: ${key}`, category: 'Banners & Sliders', source: 'banner' });
-        toast.success(`${key} updated successfully and saved to Media Library.`, { id: loadingToast });
+        toast.success(`${key} updated in Ultra-HD quality & saved to Media Library!`, { id: loadingToast });
       } catch (err) {
-        toast.error(`Failed to compress and upload banner.`, { id: loadingToast });
+        toast.error(`Failed to process and upload banner.`, { id: loadingToast });
       }
     }
   };
@@ -137,7 +137,7 @@ export default function BannerSettings() {
     const file = e.target.files?.[0];
     if (file) {
       try {
-        const result = await compressImage(file, 1600, 900, 0.8);
+        const result = await compressBannerImage(file, 1920, 1080, 0.92);
         setFormData(prev => ({ ...prev, image: result }));
         autoSaveToMediaLibrary(result, { name: `Hero Banner Slider: ${file.name.replace(/\.[^/.]+$/, "") || 'Slider'}`, category: 'Banners & Sliders', source: 'banner' });
       } catch (err) {
@@ -459,21 +459,56 @@ export default function BannerSettings() {
 
       {activeTab === 'promo' && (
         <div className="space-y-8 animate-in fade-in duration-500">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 p-5 rounded-2xl flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black">
+                <Sparkles size={20} />
+              </div>
+              <div>
+                <h4 className="text-sm font-black uppercase tracking-wider text-blue-950">Hero Banner Slider (২টি ব্যানার স্লাইডার)</h4>
+                <p className="text-xs text-blue-800 font-medium">Hero Banner 1 এবং Hero Banner 2 আপলোড করলে হোমপেজে স্বয়ংক্রিয়ভাবে ২টি ব্যানারের স্লাইডার চালু হয়ে যাবে।</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <span className="px-3 py-1 bg-white text-blue-700 text-xs font-black uppercase rounded-lg border border-blue-200 shadow-2xs">
+                Slide 1 + Slide 2
+              </span>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {[
               {
                 id: 'heroBannerUrl',
-                title: 'Hero Banner 1 (Slider Slide 1)',
-                description: 'First slide in the home page hero slider carousel.',
+                title: 'Hero Banner 1 (স্লাইড ১ - মূল ব্যানার)',
+                description: 'হোম পেজের হিরো স্লাইডারের ১ম ব্যানার ইমেজ। (Recommended: 1920x600px)',
                 url: heroBannerUrl,
                 setter: setHeroBannerUrl,
+                badge: 'Slide 1',
+              },
+              {
+                id: 'heroBanner2Url',
+                title: 'Hero Banner 2 (স্লাইড ২ - দ্বিতীয় ব্যানার)',
+                description: 'হোম পেজের হিরো স্লাইডারের ২য় ব্যানার ইমেজ। (Recommended: 1920x600px)',
+                url: heroBanner2Url,
+                setter: setHeroBanner2Url,
+                badge: 'Slide 2',
+              },
+              {
+                id: 'heroBanner3Url',
+                title: 'Hero Banner 3 (স্লাইড ৩ - অতিরিক্ত ব্যানার)',
+                description: 'হোম পেজের হিরো স্লাইডারের ৩য় ব্যানার ইমেজ (অপশনাল)।',
+                url: heroBanner3Url,
+                setter: setHeroBanner3Url,
+                badge: 'Optional Slide 3',
               },
               {
                 id: 'subHeroBannerUrl',
-                title: 'Sub-Hero Banner',
-                description: 'Secondary large width banner displayed on the home page below the hero slider.',
+                title: 'Sub-Hero Banner (প্রমোশনাল ব্যানার)',
+                description: 'হোম পেজের প্রোডাক্ট সেকশনের নিচে প্রদর্শিত বড় প্রোমো ব্যানার।',
                 url: subHeroBannerUrl,
                 setter: setSubHeroBannerUrl,
+                badge: 'Promo Banner',
               },
               {
                 id: 'collectionsBannerUrl',
@@ -481,11 +516,19 @@ export default function BannerSettings() {
                 description: 'Promotional graphic featured in the collections layout.',
                 url: collectionsBannerUrl,
                 setter: setCollectionsBannerUrl,
+                badge: 'Collections',
               },
             ].map((pBanner) => (
-              <div key={pBanner.id} className="bg-white border border-gray-100 p-8 rounded-[32px] shadow-sm flex flex-col justify-between space-y-6 group hover:border-black/30 transition-all">
+              <div key={pBanner.id} className="bg-white border border-gray-100 p-6 sm:p-8 rounded-[32px] shadow-sm flex flex-col justify-between space-y-5 group hover:border-black/30 transition-all">
                 <div className="space-y-2">
-                  <h4 className="text-sm font-black uppercase tracking-wider text-black">{pBanner.title}</h4>
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-black uppercase tracking-wider text-black">{pBanner.title}</h4>
+                    {pBanner.badge && (
+                      <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 border border-gray-200">
+                        {pBanner.badge}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-gray-400 font-medium leading-relaxed">{pBanner.description}</p>
                 </div>
                 
@@ -500,31 +543,43 @@ export default function BannerSettings() {
                   ) : (
                     <div className="text-center p-6 space-y-2">
                       <ImageIcon className="mx-auto text-gray-300" size={32} />
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-300">No Photo Set (Default Used)</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-300">কোন ব্যানার সেট করা নেই</p>
                     </div>
                   )}
                 </div>
 
-                <div className="flex gap-4">
-                  <label className="flex-1 py-3 text-[10px] uppercase tracking-wider font-black bg-black text-white hover:bg-gray-800 transition-all rounded-xl shadow-sm text-center cursor-pointer flex items-center justify-center gap-2">
-                    <Upload size={14} />
-                    <span>Upload {pBanner.isPortrait ? 'Passport Photo' : 'Banner'}</span>
+                <div className="space-y-3">
+                  <div className="flex gap-2">
                     <input 
-                      type="file" 
-                      accept="image/*" 
-                      className="hidden" 
-                      onChange={(e) => handleStaticBannerUpload(e, pBanner.title, pBanner.setter, pBanner.isPortrait)} 
+                      type="url"
+                      placeholder="বা সরাসরি ইমেজ লিংক পেস্ট করুন..."
+                      value={pBanner.url || ''}
+                      onChange={(e) => pBanner.setter(e.target.value)}
+                      className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs text-gray-800 outline-none focus:border-black font-medium"
                     />
-                  </label>
-                  {pBanner.url && (
-                    <button 
-                      onClick={() => handleRemoveStaticBanner(pBanner.title, pBanner.setter)}
-                      className="px-4 bg-red-50 text-red-500 border border-red-100 hover:bg-red-500 hover:text-white transition-all rounded-xl flex items-center justify-center cursor-pointer shadow-3xs"
-                      title="Remove/Hide Banner"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  )}
+                  </div>
+
+                  <div className="flex gap-3">
+                    <label className="flex-1 py-3 text-[10px] uppercase tracking-wider font-black bg-black text-white hover:bg-gray-800 transition-all rounded-xl shadow-sm text-center cursor-pointer flex items-center justify-center gap-2">
+                      <Upload size={14} />
+                      <span>Upload {pBanner.isPortrait ? 'Photo' : 'Banner'}</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={(e) => handleStaticBannerUpload(e, pBanner.title, pBanner.setter, pBanner.isPortrait)} 
+                      />
+                    </label>
+                    {pBanner.url && (
+                      <button 
+                        onClick={() => handleRemoveStaticBanner(pBanner.title, pBanner.setter)}
+                        className="px-4 bg-red-50 text-red-500 border border-red-100 hover:bg-red-500 hover:text-white transition-all rounded-xl flex items-center justify-center cursor-pointer shadow-3xs"
+                        title="Remove/Hide Banner"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

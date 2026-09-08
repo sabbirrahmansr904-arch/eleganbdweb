@@ -13,7 +13,6 @@ import { useBranding } from '../contexts/BrandingContext';
 import { useCategories, sortCategories } from '../contexts/CategoryContext';
 import ProductCard from '../components/ProductCard';
 import { ProductGridSkeleton, ProductScrollSkeleton } from '../components/ProductSkeleton';
-import ReviewsCarousel from '../components/ReviewsCarousel';
 import { cn } from '../lib/utils';
 
 const Home = () => {
@@ -73,6 +72,9 @@ const Home = () => {
 
   // Best Selling Filter Tab state ('pant' | 'shirt')
   const [bestSellingTab, setBestSellingTab] = React.useState<'pant' | 'shirt'>('pant');
+
+  // New Arrival Filter Tab state ('pant' | 'shirt')
+  const [newArrivalTab, setNewArrivalTab] = React.useState<'pant' | 'shirt'>('pant');
 
   React.useEffect(() => {
     const timer = setInterval(() => {
@@ -179,7 +181,7 @@ const Home = () => {
     }
   }, [activeHeroBanners.length]);
 
-  // Sort products: Formal Pants FIRST, then Formal Shirts SECOND, then others
+  // Sort products: Formal Pants FIRST (Ordered serially by code/SKU), then Formal Shirts SECOND, then others
   const sortedProducts = React.useMemo(() => {
     if (!products || products.length === 0) return [];
     
@@ -195,9 +197,70 @@ const Home = () => {
       return cat.includes('shirt') || name.includes('shirt') || cat.includes('polo') || name.includes('polo');
     };
 
-    const pants = products.filter(p => isPant(p));
-    const shirts = products.filter(p => isShirt(p) && !isPant(p));
-    const others = products.filter(p => !isPant(p) && !isShirt(p));
+    // Helper function to extract numeric code or alphanumeric sequence from product for serial ordering
+    const getProductCodeSortKey = (p: typeof products[0]) => {
+      const sku = (p.sku || '').trim();
+      const name = (p.name || '').trim();
+      const fullText = `${sku} ${name}`;
+
+      // 1. Check for explicit "code: XX" or "code-XX" or "code XX" or "code #XX"
+      const codeMatch = fullText.match(/\bcode\s*[:#-]?\s*(\d+)/i);
+      if (codeMatch) {
+        return { hasCode: true, num: parseInt(codeMatch[1], 10), raw: sku || name };
+      }
+
+      // 2. Check for prefix with numbers like FP-01, FP01, PANT-01, P-01, P01, EP-01, P-102
+      const prefixMatch = fullText.match(/\b(?:fp|pant|p|ep|item|art|artical|article)[\s-_#]*(\d+)/i);
+      if (prefixMatch) {
+        return { hasCode: true, num: parseInt(prefixMatch[1], 10), raw: sku || name };
+      }
+
+      // 3. If SKU starts or ends with digits, or is just digits
+      const skuDigits = sku.match(/(\d+)/);
+      if (skuDigits) {
+        return { hasCode: true, num: parseInt(skuDigits[1], 10), raw: sku || name };
+      }
+
+      // 4. Check for standalone digits in the product name
+      const nameDigits = name.match(/\b(\d+)\b/);
+      if (nameDigits) {
+        return { hasCode: true, num: parseInt(nameDigits[1], 10), raw: sku || name };
+      }
+
+      // 5. Any digits anywhere in the name
+      const anyDigits = name.match(/(\d+)/);
+      if (anyDigits) {
+        return { hasCode: true, num: parseInt(anyDigits[1], 10), raw: sku || name };
+      }
+
+      return { hasCode: false, num: 999999, raw: sku || name };
+    };
+
+    const sortProductsByCode = (productList: typeof products) => {
+      return [...productList].sort((a, b) => {
+        const keyA = getProductCodeSortKey(a);
+        const keyB = getProductCodeSortKey(b);
+
+        if (keyA.hasCode && keyB.hasCode) {
+          if (keyA.num !== keyB.num) {
+            return keyA.num - keyB.num;
+          }
+          return keyA.raw.localeCompare(keyB.raw, undefined, { numeric: true, sensitivity: 'base' });
+        }
+
+        if (keyA.hasCode && !keyB.hasCode) return -1;
+        if (!keyA.hasCode && keyB.hasCode) return 1;
+
+        // If neither has explicit numeric code, natural alphanumeric sort by sku or name
+        const strA = a.sku || a.name || '';
+        const strB = b.sku || b.name || '';
+        return strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
+      });
+    };
+
+    const pants = sortProductsByCode(products.filter(p => isPant(p)));
+    const shirts = sortProductsByCode(products.filter(p => isShirt(p) && !isPant(p)));
+    const others = sortProductsByCode(products.filter(p => !isPant(p) && !isShirt(p)));
 
     return [...pants, ...shirts, ...others];
   }, [products]);
@@ -342,22 +405,38 @@ const Home = () => {
     return result;
   }, [products]);
 
-  // New Arrival Products section
+  // New Arrival Filtered Products for [ FORMAL PANT ] [ FORMAL SHIRT ] Switcher
   const newArrivalProducts = React.useMemo(() => {
     if (!products || products.length === 0) return [];
 
-    // Check if any products have newArrival marked explicitly true
-    const explicitNewArrivals = products.filter(p => p.newArrival === true);
+    const isPant = (p: typeof products[0]) => {
+      const cat = (p.category || '').toLowerCase();
+      const name = (p.name || '').toLowerCase();
+      return cat.includes('pant') || cat.includes('trouser') || name.includes('pant') || name.includes('trouser');
+    };
+
+    const isShirt = (p: typeof products[0]) => {
+      const cat = (p.category || '').toLowerCase();
+      const name = (p.name || '').toLowerCase();
+      return cat.includes('shirt') || name.includes('shirt') || cat.includes('polo') || name.includes('polo');
+    };
+
+    const filteredPool = newArrivalTab === 'pant' 
+      ? products.filter(isPant) 
+      : products.filter(p => isShirt(p) && !isPant(p));
+
+    // Check if any in filteredPool have newArrival marked explicitly true
+    const explicitNewArrivals = filteredPool.filter(p => p.newArrival === true);
     if (explicitNewArrivals.length > 0) {
       return explicitNewArrivals;
     }
 
-    return [...products].sort((a, b) => {
+    return [...filteredPool].sort((a, b) => {
       const da = (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0;
       const db = (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0;
       return db - da;
-    }).slice(0, 8);
-  }, [products]);
+    });
+  }, [products, newArrivalTab]);
 
   // FAQ Items List
   const faqList = [
@@ -386,10 +465,10 @@ const Home = () => {
   return (
     <div className="flex flex-col min-h-screen bg-white">
       
-      {/* TOP SECTION: HERO BANNER */}
+      {/* TOP SECTION: HERO BANNER (SLIDER SUPPORT FOR 2 OR MORE BANNERS) */}
       {activeHeroBanners.length > 0 && showHeroBanner && (
         <section className="w-full m-0 p-0 pb-2 sm:pb-4">
-          <div className="relative w-full overflow-hidden bg-black flex items-center justify-center m-0 p-0">
+          <div className="relative w-full overflow-hidden bg-black flex items-center justify-center m-0 p-0 md:max-h-[360px] lg:max-h-[400px] xl:max-h-[440px] group">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentBanner}
@@ -397,43 +476,63 @@ const Home = () => {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.5 }}
-                className="w-full relative flex items-center justify-center overflow-hidden bg-black"
+                className="w-full relative flex items-center justify-center overflow-hidden bg-black md:max-h-[360px] lg:max-h-[400px] xl:max-h-[440px]"
               >
-                {/* Main Hero Banner Image - Fully visible with object-contain */}
+                {/* Main Hero Banner Image - Crisp, un-distorted and fully visible */}
                 {activeHeroBanners[currentBanner].link ? (
                   <Link to={activeHeroBanners[currentBanner].link} className="relative z-10 block w-full">
                     <img 
                       src={activeHeroBanners[currentBanner].image} 
-                      alt="Hero Banner" 
-                      className="w-full h-auto object-contain object-center block"
+                      alt={`Hero Banner ${currentBanner + 1}`} 
+                      className="w-full h-auto max-h-[360px] md:max-h-[420px] lg:max-h-[480px] object-contain object-center block mx-auto"
                       referrerPolicy="no-referrer"
                     />
                   </Link>
                 ) : (
                   <img 
                     src={activeHeroBanners[currentBanner].image} 
-                    alt="Hero Banner" 
-                    className="relative z-10 w-full h-auto object-contain object-center block"
+                    alt={`Hero Banner ${currentBanner + 1}`} 
+                    className="relative z-10 w-full h-auto max-h-[360px] md:max-h-[420px] lg:max-h-[480px] object-contain object-center block mx-auto"
                     referrerPolicy="no-referrer"
                   />
                 )}
               </motion.div>
             </AnimatePresence>
 
-            {/* Slider Dots if multiple hero banners */}
+            {/* Slider Navigation Arrows (When 2 or more banners) */}
             {activeHeroBanners.length > 1 && (
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex gap-2 bg-black/40 backdrop-blur-xs px-3 py-1.5 rounded-full">
-                {activeHeroBanners.map((_, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setCurrentBanner(idx)}
-                    className={cn(
-                      "w-2 h-2 rounded-full transition-all cursor-pointer",
-                      currentBanner === idx ? "bg-white w-5" : "bg-white/50"
-                    )}
-                  />
-                ))}
-              </div>
+              <>
+                <button
+                  onClick={() => setCurrentBanner(prev => (prev - 1 + activeHeroBanners.length) % activeHeroBanners.length)}
+                  className="absolute left-3 md:left-5 top-1/2 -translate-y-1/2 z-20 w-9 h-9 md:w-11 md:h-11 rounded-full bg-black/40 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md transition-all opacity-70 hover:opacity-100 hover:scale-105 shadow-lg border border-white/20 cursor-pointer"
+                  title="Previous Banner"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+
+                <button
+                  onClick={() => setCurrentBanner(prev => (prev + 1) % activeHeroBanners.length)}
+                  className="absolute right-3 md:right-5 top-1/2 -translate-y-1/2 z-20 w-9 h-9 md:w-11 md:h-11 rounded-full bg-black/40 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md transition-all opacity-70 hover:opacity-100 hover:scale-105 shadow-lg border border-white/20 cursor-pointer"
+                  title="Next Banner"
+                >
+                  <ChevronRight size={20} />
+                </button>
+
+                {/* Slider Dots Indicator */}
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-black/50 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15">
+                  {activeHeroBanners.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setCurrentBanner(idx)}
+                      className={cn(
+                        "h-2 rounded-full transition-all cursor-pointer",
+                        currentBanner === idx ? "bg-white w-6" : "bg-white/40 hover:bg-white/70 w-2"
+                      )}
+                      title={`Slide ${idx + 1}`}
+                    />
+                  ))}
+                </div>
+              </>
             )}
           </div>
         </section>
@@ -614,7 +713,7 @@ const Home = () => {
       {(newArrivalProducts.length > 0 || productsLoading) && (
         <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-10">
           {/* Section Header: NEW ARRIVAL PRODUCTS (Larger & Centered) */}
-          <div className="relative flex items-center justify-center border-b border-gray-100 pb-4 mb-5 px-1">
+          <div className="relative flex items-center justify-center border-b border-gray-100 pb-4 mb-3 sm:mb-4 px-1">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase text-gray-900 tracking-tight text-center">
               NEW ARRIVAL PRODUCTS
             </h2>
@@ -625,6 +724,34 @@ const Home = () => {
               <span className="hidden sm:inline">See All</span>
               <ArrowRight size={14} />
             </Link>
+          </div>
+
+          {/* New Arrival Filter Pills */}
+          <div className="flex justify-center mt-2 mb-5 sm:mb-6">
+            <div className="inline-flex p-1 bg-[#F2F3F5] rounded-full gap-1.5 w-full max-w-[340px] sm:max-w-[400px] shadow-2xs">
+              <button
+                onClick={() => setNewArrivalTab('pant')}
+                className={cn(
+                  "flex-1 py-2 sm:py-2.5 rounded-full font-black text-xs sm:text-sm uppercase tracking-wider transition-all cursor-pointer text-center",
+                  newArrivalTab === 'pant'
+                    ? "bg-blue-600 text-white shadow-xs"
+                    : "text-gray-500 hover:text-gray-900"
+                )}
+              >
+                FORMAL PANT
+              </button>
+              <button
+                onClick={() => setNewArrivalTab('shirt')}
+                className={cn(
+                  "flex-1 py-2 sm:py-2.5 rounded-full font-black text-xs sm:text-sm uppercase tracking-wider transition-all cursor-pointer text-center",
+                  newArrivalTab === 'shirt'
+                    ? "bg-blue-600 text-white shadow-xs"
+                    : "text-gray-500 hover:text-gray-900"
+                )}
+              >
+                FORMAL SHIRT
+              </button>
+            </div>
           </div>
 
           {productsLoading ? (
@@ -700,51 +827,6 @@ const Home = () => {
             ))}
           </div>
         )}
-      </section>
-
-      {/* TOP FEATURE BADGES BAR */}
-      <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-6 sm:pb-8">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-blue-50/60 p-4 sm:p-5 rounded-2xl border border-blue-100/80">
-          <div className="flex items-center gap-3 p-2">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-              <Truck size={20} />
-            </div>
-            <div>
-              <h4 className="font-extrabold text-xs sm:text-sm text-gray-900 uppercase">সারাদেশে ক্যাশ অন ডেলিভারি</h4>
-              <p className="text-[11px] text-gray-500 font-medium">প্যাকেট খুলে দেখে পেমেন্ট করুন</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 p-2">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-              <ShieldCheck size={20} />
-            </div>
-            <div>
-              <h4 className="font-extrabold text-xs sm:text-sm text-gray-900 uppercase">১০০% প্রিমিয়াম ফেব্রিক</h4>
-              <p className="text-[11px] text-gray-500 font-medium">কোয়ালিটি গ্যারান্টিড</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 p-2">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-              <ArrowLeftRight size={20} />
-            </div>
-            <div>
-              <h4 className="font-extrabold text-xs sm:text-sm text-gray-900 uppercase">সহজ এক্সচেঞ্জ সুবিধা</h4>
-              <p className="text-[11px] text-gray-500 font-medium">৭ দিনের মধ্যে ফ্রি সাইজ পরিবর্তন</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 p-2">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-              <Headphones size={20} />
-            </div>
-            <div>
-              <h4 className="font-extrabold text-xs sm:text-sm text-gray-900 uppercase">২৪/৭ কাস্টমার সাপোর্ট</h4>
-              <p className="text-[11px] text-gray-500 font-medium">কল বা মেসেজে সার্বক্ষণিক সহায়তা</p>
-            </div>
-          </div>
-        </div>
       </section>
 
       {/* FLASH SALE / OFFER BANNER */}
@@ -940,235 +1022,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* NUMBERS / STATS SECTION */}
-      <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
-        <div className="bg-white rounded-3xl p-6 md:p-10 text-blue-600 shadow-lg border border-blue-100">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center divide-y md:divide-y-0 md:divide-x divide-blue-100">
-            
-            {/* Stat 1 */}
-            <div className="flex flex-col items-center justify-center p-3 pt-0 md:pt-3">
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center mb-3 border border-blue-100">
-                <Users className="w-6 h-6 text-blue-600" />
-              </div>
-              <span className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-blue-600">
-                5000+
-              </span>
-              <span className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-blue-600 mt-1">
-                Happy Customers
-              </span>
-            </div>
 
-            {/* Stat 2 */}
-            <div className="flex flex-col items-center justify-center p-3 pt-4 md:pt-3">
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center mb-3 border border-blue-100">
-                <ShoppingBag className="w-6 h-6 text-blue-600" />
-              </div>
-              <span className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-blue-600">
-                10000+
-              </span>
-              <span className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-blue-600 mt-1">
-                Orders Delivered
-              </span>
-            </div>
-
-            {/* Stat 3 */}
-            <div className="flex flex-col items-center justify-center p-3 pt-4 md:pt-3">
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center mb-3 border border-blue-100">
-                <Star className="w-6 h-6 text-amber-400 fill-amber-400" />
-              </div>
-              <span className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-blue-600">
-                4.9★
-              </span>
-              <span className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-blue-600 mt-1">
-                Average Rating
-              </span>
-            </div>
-
-            {/* Stat 4 */}
-            <div className="flex flex-col items-center justify-center p-3 pt-4 md:pt-3">
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center mb-3 border border-blue-100">
-                <Headphones className="w-6 h-6 text-blue-600" />
-              </div>
-              <span className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-blue-600">
-                24/7
-              </span>
-              <span className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-blue-600 mt-1">
-                Support
-              </span>
-            </div>
-
-          </div>
-        </div>
-      </section>
-
-      {/* REVIEWS & TESTIMONIALS SECTION */}
-      <ReviewsCarousel />
-
-      {/* FAQ SECTION */}
-      <section className="max-w-4xl mx-auto w-full px-4 pb-16 pt-8">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-600 px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-widest border border-blue-100 mb-2">
-            <HelpCircle size={14} />
-            <span>FREQUENTLY ASKED QUESTIONS</span>
-          </div>
-          <h2 className="text-xl md:text-3xl font-black uppercase tracking-tight text-gray-900">
-            সাধারণ কিছু প্রশ্নের উত্তর
-          </h2>
-        </div>
-
-        <div className="space-y-3">
-          {faqList.map((item, idx) => (
-            <div 
-              key={idx}
-              className="bg-white border border-gray-200/80 rounded-2xl overflow-hidden transition-all shadow-xs"
-            >
-              <button
-                onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
-                className="w-full text-left p-4 sm:p-5 flex items-center justify-between gap-4 font-extrabold text-sm sm:text-base text-gray-900 hover:text-blue-600 transition-colors cursor-pointer"
-              >
-                <span>{item.q}</span>
-                <ChevronDown size={18} className={cn("transition-transform text-gray-400 shrink-0", openFaq === idx && "rotate-180 text-blue-600")} />
-              </button>
-              
-              {openFaq === idx && (
-                <div className="px-4 pb-5 sm:px-5 text-xs sm:text-sm text-gray-600 font-medium leading-relaxed border-t border-gray-100 pt-3">
-                  {item.a}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* FABRIC & PREMIUM QUALITY SHOWCASE SECTION - PLACED DIRECTLY ABOVE FOOTER */}
-      <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
-        <div className="bg-gradient-to-br from-slate-900 via-gray-900 to-blue-950 text-white rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden border border-slate-800">
-          <div className="text-center max-w-2xl mx-auto mb-8">
-            <div className="inline-flex items-center gap-1.5 bg-blue-500/20 text-blue-400 px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-widest border border-blue-500/30 mb-3">
-              <Sparkles size={14} />
-              <span>FABRIC & MATERIAL EXCELLENCE</span>
-            </div>
-            <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white">
-              কেন ELEGAN BD-র কাপড় সবচেয়ে আলাদা?
-            </h2>
-            <p className="text-xs md:text-sm text-slate-300 font-medium mt-2 leading-relaxed">
-              উন্নত সুতা, নিখুঁত স্টিচিং এবং দীর্ঘস্থায়ী রঙের নিশ্চয়তায় তৈরি প্রতিটি প্রোডাক্ট
-            </p>
-
-            {/* Tab Switcher */}
-            <div className="flex justify-center gap-2 mt-6">
-              <button
-                onClick={() => setActiveFabricTab('pants')}
-                className={cn(
-                  "px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer",
-                  activeFabricTab === 'pants' 
-                    ? "bg-blue-600 text-white shadow-lg" 
-                    : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                )}
-              >
-                ফর্মাল প্যান্ট ফেব্রিক
-              </button>
-              <button
-                onClick={() => setActiveFabricTab('shirts')}
-                className={cn(
-                  "px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer",
-                  activeFabricTab === 'shirts' 
-                    ? "bg-blue-600 text-white shadow-lg" 
-                    : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                )}
-              >
-                অক্সফোর্ড ও কটন শার্ট ফেব্রিক
-              </button>
-            </div>
-          </div>
-
-          {activeFabricTab === 'pants' ? (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
-                  🧵
-                </div>
-                <h3 className="font-extrabold text-sm text-white uppercase mb-1">Export Woven Cotton স্ট্রেচ</h3>
-                <p className="text-xs text-slate-300 font-medium leading-relaxed">
-                  উন্নত Export Woven Cotton কাপড়ে ৩% স্প্যানডেক্স মিক্সড যা আপনাকে বসা বা হাঁটার সময় সর্বোচ্চ আরাম দেয়।
-                </p>
-              </div>
-
-              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
-                  🎨
-                </div>
-                <h3 className="font-extrabold text-sm text-white uppercase mb-1">১০০% কালার ফাস্টনেস</h3>
-                <p className="text-xs text-slate-300 font-medium leading-relaxed">
-                  পছন্দের রঙ কখনো উঠবে না বা ফেইড হবে না। বারবার ধোয়ার পরও নতুনের মতো উজ্জ্বল থাকবে।
-                </p>
-              </div>
-
-              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
-                  ✂️
-                </div>
-                <h3 className="font-extrabold text-sm text-white uppercase mb-1">প্রিমিয়াম পকেট ও চেইন</h3>
-                <p className="text-xs text-slate-300 font-medium leading-relaxed">
-                  অরিজিনাল YKK চেইন ও শক্ত কটন পকেটিং কাপড় যা দৈনন্দিন ব্যবহারের জন্য টেকসই।
-                </p>
-              </div>
-
-              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
-                  🛡️
-                </div>
-                <h3 className="font-extrabold text-sm text-white uppercase mb-1">প্রি-শ্রাঙ্ক ফেব্রিক</h3>
-                <p className="text-xs text-slate-300 font-medium leading-relaxed">
-                  ধোয়ার পর প্যান্ট ছোট বা খাটো হয়ে যাওয়ার কোনো চান্স নেই। মেজারমেন্ট থাকবে ১০০% পারফেক্ট।
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
-                  👔
-                </div>
-                <h3 className="font-extrabold text-sm text-white uppercase mb-1">১০০% কটন অক্সফোর্ড</h3>
-                <p className="text-xs text-slate-300 font-medium leading-relaxed">
-                  নরম ও আরামদায়ক ১০০% পিওর কটন ফেব্রিক, যা সারাদিনের ব্যবহারে কোনো গরম বা অস্বস্তি তৈরি করে না।
-                </p>
-              </div>
-
-              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
-                  ✨
-                </div>
-                <h3 className="font-extrabold text-sm text-white uppercase mb-1">সহজ আয়রন ও রিনকেল ফ্রি</h3>
-                <p className="text-xs text-slate-300 font-medium leading-relaxed">
-                  দ্রুত কুঁচকে যায় না, হালকা প্রেস করলেই তৈরি হয়ে যায় নিখুঁত প্রফেশনাল ভাইব।
-                </p>
-              </div>
-
-              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
-                  🪡
-                </div>
-                <h3 className="font-extrabold text-sm text-white uppercase mb-1">ডাবল স্টিচিং ফিনিশিং</h3>
-                <p className="text-xs text-slate-300 font-medium leading-relaxed">
-                  উন্নত সেলাই ও কলার পেস্টিং যা শার্টের কলারকে রাখে সবসময় সোজা ও গর্জিয়াস।
-                </p>
-              </div>
-
-              <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 hover:border-blue-500 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-lg mb-3">
-                  💎
-                </div>
-                <h3 className="font-extrabold text-sm text-white uppercase mb-1">প্রিমিয়াম মেটাল বাটন</h3>
-                <p className="text-xs text-slate-300 font-medium leading-relaxed">
-                  মজবুত বাটন ও নিখুঁত বাটনহোল যা দীর্ঘদিন ব্যবহারের পরও খুলে বা আলগা হয় না।
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
 
       {/* FLOATING WHATSAPP WHOLESALE BUTTON */}
       <div className="fixed bottom-6 right-6 z-50 flex items-center">

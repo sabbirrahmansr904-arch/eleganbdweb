@@ -280,14 +280,14 @@ export default function Navbar() {
                 animate={{ x: 0 }}
                 exit={{ x: "-100%" }}
                 transition={{ type: "spring", damping: 26, stiffness: 260 }}
-                className="fixed top-0 left-0 bottom-0 w-[85%] max-w-[340px] h-full bg-white text-gray-900 z-[70] shadow-2xl border-r border-gray-200 flex flex-col justify-between overflow-hidden"
+                className="fixed top-0 left-0 w-[85%] max-w-[340px] max-h-[96vh] h-auto bg-white text-gray-900 z-[70] shadow-2xl rounded-br-3xl border-r border-b border-gray-200 flex flex-col overflow-hidden"
               >
                 {/* Drawer Header */}
-                <div className="p-5 border-b border-gray-100 bg-white shrink-0">
-                  <div className="flex items-center justify-between mb-4">
+                <div className="p-4 sm:p-5 border-b border-gray-100 bg-white shrink-0">
+                  <div className="flex items-center justify-between mb-3.5">
                     <Link to="/" onClick={() => setIsOpen(false)} className="flex items-center gap-2 group">
                       {logoUrl ? (
-                        <img src={logoUrl} alt="Logo" className="h-10 w-auto object-contain" />
+                        <img src={logoUrl} alt="Logo" className="h-9 w-auto object-contain" />
                       ) : (
                         <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-black text-sm">
                           E
@@ -326,7 +326,7 @@ export default function Navbar() {
                 </div>
 
                 {/* Drawer Main Scrollable Area */}
-                <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6 no-scrollbar bg-white">
+                <div className="overflow-y-auto px-5 pt-3 pb-5 space-y-4 no-scrollbar bg-white">
                   
                   {/* Quick Shortcuts Bar */}
                   <div className="grid grid-cols-3 gap-2">
@@ -458,86 +458,22 @@ export default function Navbar() {
                         Contact & Support
                       </Link>
 
-                      {isAdmin && (
-                        <Link
-                          to="/admin"
-                          onClick={() => setIsOpen(false)}
-                          className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs font-black uppercase tracking-wider text-amber-900 transition-all mt-2"
-                        >
-                          <span className="flex items-center gap-2.5">
-                            <User size={15} />
-                            Admin Panel
-                          </span>
-                          <span className="text-[9px] bg-amber-400 text-black font-black px-1.5 py-0.5 rounded">
-                            STAFF
-                          </span>
-                        </Link>
-                      )}
+                      <Link
+                        to="/admin"
+                        onClick={() => setIsOpen(false)}
+                        className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-amber-50/80 border border-amber-200 text-xs font-black uppercase tracking-wider text-amber-900 hover:bg-amber-100 transition-all mt-2"
+                      >
+                        <span className="flex items-center gap-2.5">
+                          <User size={15} className="text-amber-700" />
+                          Admin Panel
+                        </span>
+                        <span className="text-[9px] bg-amber-400 text-black font-black px-1.5 py-0.5 rounded">
+                          STAFF
+                        </span>
+                      </Link>
                     </div>
                   </div>
 
-                </div>
-
-                {/* Drawer Footer & Account Section */}
-                <div className="p-4 border-t border-gray-200 bg-gray-50 shrink-0 space-y-3">
-                  {currentUser ? (
-                    <div className="p-3 bg-white rounded-2xl border border-gray-200 shadow-xs space-y-2">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-amber-400 text-black font-black flex items-center justify-center text-xs">
-                          {currentUser.email ? currentUser.email.slice(0, 2).toUpperCase() : 'AD'}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 block">System Administrator</span>
-                          <span className="text-[11px] font-mono font-bold text-gray-900 truncate block">{currentUser.email}</span>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => {
-                          signOut();
-                          setIsOpen(false);
-                        }}
-                        className="w-full py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs uppercase tracking-wider rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer border border-rose-200"
-                      >
-                        <LogOut size={14} /> Sign Out Admin
-                      </button>
-                    </div>
-                  ) : customerUser ? (
-                    <div className="p-3 bg-white rounded-2xl border border-gray-200 shadow-xs space-y-2">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-black flex items-center justify-center text-xs">
-                          <User size={16} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600 block">Verified Client</span>
-                          <span className="text-[11px] font-mono font-bold text-gray-900 truncate block">{customerUser.email}</span>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => {
-                          logoutCustomer();
-                          setIsOpen(false);
-                        }}
-                        className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-rose-600 font-bold text-xs uppercase tracking-wider rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                      >
-                        <LogOut size={14} /> Logout Session
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        signInWithGoogle();
-                        setIsOpen(false);
-                      }}
-                      className="w-full py-2.5 bg-black text-white hover:bg-gray-800 font-extrabold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
-                    >
-                      <User size={16} /> Login / Register
-                    </button>
-                  )}
-
-                  <div className="pt-1 flex items-center justify-between text-[9px] text-gray-400 uppercase tracking-wider font-bold">
-                    <span>© Elegan BD</span>
-                    <span>Exclusive Fashion</span>
-                  </div>
                 </div>
               </motion.aside>
             </>

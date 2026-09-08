@@ -11,7 +11,7 @@ interface ParcelLiveStatusBadgeProps {
   showDetails?: boolean;
 }
 
-export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ order, showDetails = false }) => {
+export const ParcelLiveStatusBadgeComponent: React.FC<ParcelLiveStatusBadgeProps> = ({ order, showDetails = false }) => {
   const { updateOrder, updateOrderStatus } = useOrders();
   const rawTrackingId = (order as any).pathaoConsignmentId || (order as any).trackingCode || order.trackingId || (order as any).steadfastConsignmentId;
   const cleanTrackingId = String(rawTrackingId || '').replace(/^#/, '').trim();
@@ -21,8 +21,15 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<boolean>(false);
 
+  // Sync state if order prop changes
+  useEffect(() => {
+    if ((order as any).courierStatus && (order as any).courierStatus !== status) {
+      setStatus((order as any).courierStatus);
+    }
+  }, [(order as any).courierStatus]);
+
   const fetchLiveStatus = async () => {
-    if (!cleanTrackingId) return;
+    if (!cleanTrackingId || loading) return;
     setLoading(true);
     setError(false);
     try {
@@ -33,8 +40,8 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
         setCourierName(resolvedCourier);
         const lower = (data.status || '').toLowerCase();
 
-        // Save live courierStatus to Firestore order record
-        if (updateOrder) {
+        // Save live courierStatus to Firestore order record only if status actually changed
+        if (updateOrder && data.status !== (order as any).courierStatus) {
           try {
             await updateOrder(order.id, {
               ...order,
@@ -88,21 +95,6 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
               console.warn("Could not auto-update delivered order status:", err);
             }
           }
-        } else {
-          // For any other active/in-progress courier status
-          if (!isDeliveredOrSuccess(order.status) && order.status !== 'Returned' && order.status !== 'Cancelled' && order.status !== 'Shipped') {
-            try {
-              if (updateOrder) {
-                await updateOrder(order.id, {
-                  ...order,
-                  status: 'Shipped',
-                  courierStatus: data.status
-                });
-              }
-            } catch (err) {
-              console.warn("Could not auto-update shipped status:", err);
-            }
-          }
         }
       } else {
         setError(true);
@@ -115,11 +107,12 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
     }
   };
 
+  // Only auto-fetch when specifically requested inside single order detail modal (showDetails = true)
   useEffect(() => {
-    if (cleanTrackingId && !status) {
+    if (showDetails && cleanTrackingId && !status) {
       fetchLiveStatus();
     }
-  }, [cleanTrackingId]);
+  }, [showDetails, cleanTrackingId]);
 
   if (!cleanTrackingId) {
     return null;
@@ -165,6 +158,7 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
             {courierName}: {statusInfo.label}
           </span>
           <button 
+            type="button"
             onClick={(e) => { e.stopPropagation(); fetchLiveStatus(); }}
             className="ml-0.5 opacity-60 hover:opacity-100 transition-opacity cursor-pointer shrink-0"
             title="Refresh Live Status"
@@ -174,6 +168,7 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
         </span>
       ) : (
         <button 
+          type="button"
           onClick={(e) => { e.stopPropagation(); fetchLiveStatus(); }}
           className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[9.5px] font-bold rounded-full bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 cursor-pointer shadow-3xs whitespace-nowrap shrink-0 transition-colors"
           title={`Click to fetch live ${courierName} status`}
@@ -191,3 +186,5 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
     </div>
   );
 };
+
+export const ParcelLiveStatusBadge = React.memo(ParcelLiveStatusBadgeComponent);
