@@ -948,14 +948,7 @@ export default function AdminDashboard(): React.JSX.Element {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-[450px] flex flex-col items-center justify-center gap-2 bg-transparent py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-800"></div>
-        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Loading Live Dashboard...</p>
-      </div>
-    );
-  }
+
 
   // Dynamic Total calculations purely based on real-time orders live data
   const dynamicTotalSalesAmount = useMemo(() => {

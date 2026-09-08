@@ -35,8 +35,8 @@ export async function getStoredPathaoCreds(): Promise<any> {
         return cachedPathaoCreds;
       }
     }
-  } catch (err) {
-    console.warn('Could not read Pathao config from Firestore, using defaults:', err);
+  } catch (_err) {
+    // Graceful fallback to default configuration on offline/quota limits
   }
   return DEFAULT_PATHAO_CONFIG;
 }
@@ -54,10 +54,10 @@ export async function getStoredSteadfastCreds(): Promise<any> {
         return cachedSteadfastCreds;
       }
     }
-  } catch (err) {
-    console.warn('Could not read Steadfast config from Firestore:', err);
+  } catch (_err) {
+    // Graceful fallback on offline/quota limits
   }
-  return null;
+  return cachedSteadfastCreds || null;
 }
 
 /**

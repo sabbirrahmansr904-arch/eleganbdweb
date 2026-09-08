@@ -11,8 +11,17 @@
   --brand-accent: #1b49c4;
 }
 
+html {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
 body {
   @apply bg-white text-black font-sans antialiased transition-colors duration-200;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  transform: translateZ(0);
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -337,6 +346,12 @@ div[class*="fixed"][class*="inset-0"] textarea:focus {
   }
   .no-print {
     display: none !important;
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
   }
 }
 

@@ -10,6 +10,8 @@ import { formatPrice, cn } from '../lib/utils';
 import toast from 'react-hot-toast';
 import QuickOrderModal from '../components/QuickOrderModal';
 import ProductCard from '../components/ProductCard';
+import ProductDetailsSkeleton from '../components/ProductDetailsSkeleton';
+import { ProductGridSkeleton } from '../components/ProductSkeleton';
 import AllProductsImageScroll from '../components/AllProductsImageScroll';
 import { db } from '../lib/firebase';
 import { collection, query, where, orderBy, onSnapshot, addDoc } from 'firebase/firestore';
@@ -18,24 +20,12 @@ import { Review } from '../types';
 const ProductDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { products } = useProducts();
+  const { products, loading } = useProducts();
   const { addToCart } = useCart();
   const { currency, rate } = useCurrency();
   const { shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter } = useBranding();
   
   const product = products.find(p => p.id === id);
-
-  if (!product) {
-    return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">প্রোডাক্টটি পাওয়া যায়নি (Product Not Found)</h2>
-        <p className="text-gray-600 mb-6">প্রোডাক্টটি হয়তো রিমুভ করা হয়েছে অথবা সঠিক লিংক নয়।</p>
-        <Link to="/" className="bg-black text-white px-6 py-3 rounded-lg font-bold hover:bg-gray-800 transition-colors">
-          হোম পেজে ফিরে যান
-        </Link>
-      </div>
-    );
-  }
 
   const isBag = (product?.category || '').toLowerCase().includes('bag');
   const isFormalShirt = (product?.category || '').toLowerCase().includes('formal');
@@ -122,21 +112,6 @@ const ProductDetails = () => {
     .filter(p => p.category === product?.category && p.id !== id)
     .slice(0, 4);
 
-  // Color variants for this product family (e.g. pants or shirts)
-  const colorVariants = useMemo(() => {
-    if (!product) return [];
-    return products.filter(p => {
-      if (p.id === product.id) return true;
-      const isSameCategory = Boolean(p.category && product.category && p.category.toLowerCase() === product.category.toLowerCase());
-      const isSameFamily = Boolean(
-        ((product.category || '').toLowerCase().includes('pant') && (p.category || '').toLowerCase().includes('pant')) ||
-        ((product.name || '').toLowerCase().includes('pant') && (p.name || '').toLowerCase().includes('pant')) ||
-        ((product.category || '').toLowerCase().includes('shirt') && (p.category || '').toLowerCase().includes('shirt'))
-      );
-      return (isSameCategory || isSameFamily) && (p.images && p.images.length > 0);
-    });
-  }, [products, product]);
-
   // Explore more (other categories)
   const otherCategoryProducts = products
     .filter(p => p.category !== product?.category)
@@ -219,10 +194,16 @@ const ProductDetails = () => {
   }, [product]);
 
   if (!product) {
+    if (loading) {
+      return <ProductDetailsSkeleton />;
+    }
     return (
-      <div className="h-screen flex flex-col items-center justify-center gap-4">
-        <p className="text-gray-400 uppercase tracking-widest text-sm">Product not found</p>
-        <Link to="/" className="text-brand-gold font-bold uppercase tracking-widest text-xs border-b-2 border-brand-gold pb-1">Return Home</Link>
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">প্রোডাক্টটি পাওয়া যায়নি (Product Not Found)</h2>
+        <p className="text-gray-600 mb-6">প্রোডাক্টটি হয়তো রিমুভ করা হয়েছে অথবা সঠিক লিংক নয়।</p>
+        <Link to="/" className="bg-black text-white px-6 py-3 rounded-lg font-bold hover:bg-gray-800 transition-colors">
+          হোম পেজে ফিরে যান
+        </Link>
       </div>
     );
   }
@@ -270,14 +251,14 @@ const ProductDetails = () => {
                   key={idx}
                   onClick={() => setSelectedImage(idx)}
                   className={cn(
-                    "w-20 h-24 shrink-0 rounded border-2 transition-all overflow-hidden",
+                    "w-20 shrink-0 aspect-[3/4.2] rounded border-2 transition-all overflow-hidden",
                     selectedImage === idx ? "border-brand-gold" : "border-transparent opacity-60"
                   )}
                 >
                   <img 
                     src={img} 
                     alt="" 
-                    className="w-full h-full object-contain bg-white p-1" 
+                    className="w-full h-full object-cover object-top bg-[#f4f5f7]" 
                     loading="lazy"
                     decoding="async"
                     referrerPolicy="no-referrer"
@@ -288,15 +269,7 @@ const ProductDetails = () => {
 
             {/* Main Image */}
             <div 
-              className={cn(
-                "order-1 md:order-2 flex-1 relative group bg-gray-50 rounded-sm overflow-hidden border border-gray-100 cursor-zoom-in",
-                Boolean(
-                  (product.category || '').toLowerCase().includes('pant') ||
-                  (product.category || '').toLowerCase().includes('trouser') ||
-                  (product.name || '').toLowerCase().includes('pant') ||
-                  (product.name || '').toLowerCase().includes('trouser')
-                ) ? "aspect-square" : "aspect-[3/4]"
-              )}
+              className="order-1 md:order-2 flex-1 relative group bg-[#f4f5f7] rounded-sm overflow-hidden cursor-zoom-in aspect-[3/4.2]"
               onMouseMove={handleMouseMove}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
@@ -310,7 +283,7 @@ const ProductDetails = () => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="w-full h-full object-contain bg-white p-4"
+                  className="w-full h-full object-cover object-top"
                   loading="lazy"
                   decoding="async"
                   referrerPolicy="no-referrer"
@@ -395,56 +368,6 @@ const ProductDetails = () => {
                   </div>
                 )}
               </div>
-
-              {/* Color Variation Thumbnails */}
-              {colorVariants.length > 1 && (
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                      Available Colors ({colorVariants.length})
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {colorVariants.map(variant => {
-                      const isSelected = variant.id === product.id;
-                      const thumb = variant.images?.[0];
-                      const colorName = variant.color || variant.name.replace(/^(Mens|Premium|Smart|Formal|Chino|Cotton)\s*/i, '');
-                      return (
-                        <button
-                          key={variant.id}
-                          type="button"
-                          onClick={() => {
-                            if (!isSelected) {
-                              navigate(`/product/${variant.id}`);
-                              window.scrollTo({ top: 0, behavior: 'smooth' });
-                            }
-                          }}
-                          className={cn(
-                            "flex items-center gap-2 p-1.5 rounded-lg border transition-all cursor-pointer bg-white text-left",
-                            isSelected
-                              ? "border-black bg-gray-50 ring-2 ring-black/10 shadow-2xs"
-                              : "border-gray-200 hover:border-gray-400 opacity-80 hover:opacity-100"
-                          )}
-                          title={variant.name}
-                        >
-                          {thumb ? (
-                            <div className="w-8 h-8 rounded bg-gray-100 overflow-hidden shrink-0 border border-gray-100">
-                              <img src={thumb} alt="" className="w-full h-full object-contain" />
-                            </div>
-                          ) : (
-                            <div className="w-6 h-6 rounded-full bg-gray-200 shrink-0" />
-                          )}
-                          <div className="pr-1">
-                            <p className={cn("text-[10px] font-bold uppercase tracking-tight line-clamp-1", isSelected ? "text-black font-black" : "text-gray-600")}>
-                              {colorName}
-                            </p>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Size Selector */}
@@ -530,7 +453,7 @@ const ProductDetails = () => {
             </div>
 
             {/* Delivery Cost & Information Calculator */}
-            <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl text-left space-y-3">
+            <div className="px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-left space-y-2 mb-3">
               <p className="text-[10px] font-black uppercase tracking-widest text-[#0c1421] flex items-center gap-2">
                 <Truck size={14} className="text-blue-600" />
                 ডেলিভারি চার্জ চেক করুন (Check Shipping)
@@ -541,7 +464,7 @@ const ProductDetails = () => {
                   type="button"
                   onClick={() => setSelectedShippingArea('dhaka')}
                   className={cn(
-                    "py-2 text-[9px] font-black uppercase tracking-tighter rounded-lg border transition-all cursor-pointer",
+                    "py-1.5 text-[9px] font-black uppercase tracking-tighter rounded-lg border transition-all cursor-pointer",
                     selectedShippingArea === 'dhaka' 
                       ? "border-blue-600 bg-blue-50/40 text-blue-600 font-bold" 
                       : "border-gray-200 bg-white text-gray-500 hover:border-gray-350"
@@ -553,7 +476,7 @@ const ProductDetails = () => {
                   type="button"
                   onClick={() => setSelectedShippingArea('sub')}
                   className={cn(
-                    "py-2 text-[9px] font-black uppercase tracking-tighter rounded-lg border transition-all cursor-pointer",
+                    "py-1.5 text-[9px] font-black uppercase tracking-tighter rounded-lg border transition-all cursor-pointer",
                     selectedShippingArea === 'sub' 
                       ? "border-blue-600 bg-blue-50/40 text-blue-600 font-bold" 
                       : "border-gray-200 bg-white text-gray-500 hover:border-gray-350"
@@ -565,7 +488,7 @@ const ProductDetails = () => {
                   type="button"
                   onClick={() => setSelectedShippingArea('outside')}
                   className={cn(
-                    "py-2 text-[9px] font-black uppercase tracking-tighter rounded-lg border transition-all cursor-pointer",
+                    "py-1.5 text-[9px] font-black uppercase tracking-tighter rounded-lg border transition-all cursor-pointer",
                     selectedShippingArea === 'outside' 
                       ? "border-blue-600 bg-blue-50/40 text-blue-600 font-bold" 
                       : "border-gray-200 bg-white text-gray-500 hover:border-gray-350"
@@ -613,32 +536,32 @@ const ProductDetails = () => {
 
             {/* Fabric & Technical Specifications Box */}
             {!isBag && (
-              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-5 mb-4 shadow-2xs">
-                <h3 className="text-[11px] font-black uppercase tracking-widest text-black mb-3.5 flex items-center gap-2">
-                  <Sparkles size={16} className="text-blue-600" />
+              <div className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 mb-3 shadow-2xs">
+                <h3 className="text-[11px] font-black uppercase tracking-widest text-black mb-2 flex items-center gap-1.5">
+                  <Sparkles size={14} className="text-blue-600" />
                   Fabric & Technical Specifications
                 </h3>
-                <div className="grid grid-cols-2 gap-y-3.5 gap-x-6">
+                <div className="grid grid-cols-2 gap-y-2 gap-x-4">
                   <div className="space-y-0.5">
                     <p className="text-[9px] text-gray-400 font-black uppercase tracking-[0.2em]">Fabric / Material</p>
-                    <p className="text-[12px] font-extrabold text-blue-700 uppercase tracking-tight">
+                    <p className="text-[11px] sm:text-[12px] font-extrabold text-blue-700 uppercase tracking-tight">
                       {product.fabric || product.material || defaultFabric}
                     </p>
                   </div>
                   <div className="space-y-0.5">
                     <p className="text-[9px] text-gray-400 font-black uppercase tracking-[0.2em]">Category</p>
-                    <p className="text-[12px] font-bold text-gray-900 uppercase tracking-tight">{product.category}</p>
+                    <p className="text-[11px] sm:text-[12px] font-bold text-gray-900 uppercase tracking-tight">{product.category}</p>
                   </div>
                   {product.fitType && (
                     <div className="space-y-0.5">
                       <p className="text-[9px] text-gray-400 font-black uppercase tracking-[0.2em]">Fit Silhouette</p>
-                      <p className="text-[12px] font-bold text-gray-900 uppercase tracking-tight">{product.fitType}</p>
+                      <p className="text-[11px] sm:text-[12px] font-bold text-gray-900 uppercase tracking-tight">{product.fitType}</p>
                     </div>
                   )}
                   {product.sku && (
                     <div className="space-y-0.5">
                       <p className="text-[9px] text-gray-400 font-black uppercase tracking-[0.2em]">Reference SKU</p>
-                      <p className="text-[12px] font-bold text-gray-900 uppercase tracking-tight">{product.sku}</p>
+                      <p className="text-[11px] sm:text-[12px] font-bold text-gray-900 uppercase tracking-tight">{product.sku}</p>
                     </div>
                   )}
                 </div>
@@ -835,7 +758,16 @@ const ProductDetails = () => {
         </div>
 
         {/* Related Products */}
-        {relatedProducts.length > 0 && (
+        {loading && relatedProducts.length === 0 ? (
+          <div className="mt-32">
+            <div className="flex flex-col items-center text-center mb-16">
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-500 mb-3">You Might Also Like</span>
+              <h2 className="text-4xl font-black italic tracking-tighter uppercase text-black">Related Masterpieces</h2>
+              <div className="w-20 h-1 bg-black mt-6"></div>
+            </div>
+            <ProductGridSkeleton count={4} />
+          </div>
+        ) : relatedProducts.length > 0 && (
           <div className="mt-32">
             <div className="flex flex-col items-center text-center mb-16">
               <span className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-500 mb-3">You Might Also Like</span>

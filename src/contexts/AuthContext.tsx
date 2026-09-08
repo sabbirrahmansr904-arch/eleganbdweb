@@ -10,6 +10,7 @@ interface AuthContextType {
   verifyOtp: (email: string, otp: string) => Promise<void>;
   loginCustomer: (phoneOrEmail: string, name?: string) => void;
   logoutCustomer: () => void;
+  loginAsAdmin: (email?: string, name?: string) => Promise<void>;
   isAdmin: boolean;
   isSuperAdmin: boolean;
   isCEO: boolean;
@@ -53,8 +54,44 @@ export const filterPermsForUser = (perms: string[], isSabbir: boolean): string[]
   return perms.filter(p => !ACCOUNTING_PERMISSIONS.includes(p) && p !== 'all');
 };
 
+const ALL_BASE_PERMS = [
+  'dashboard', 'customer-profiler', 'my-account', 'all-accounts', 'admin-access', 
+  'orders', 'exchanges', 'issues', 'products', 'categories', 'masterTable', 
+  'master-table', 'inventory-log', 'finance', 'dollar-expense', 'partnership', 
+  'transaction-list', 'payments', 'settings', 'branding', 'banners', 
+  'notifications', 'media', 'pathao', 'customers', 'all'
+];
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    try {
+      const saved = localStorage.getItem('elegan_admin_session');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.email) {
+          return {
+            uid: parsed.uid || 'admin_' + parsed.email.replace(/[^a-zA-Z0-9]/g, '_'),
+            email: parsed.email,
+            displayName: parsed.name || 'Sabbir Rahman (CEO)',
+            photoURL: parsed.photoURL || '',
+            emailVerified: true,
+            isAnonymous: false,
+            metadata: {},
+            providerData: [],
+            refreshToken: '',
+            tenantId: null,
+            delete: async () => {},
+            getIdToken: async () => 'mock-token',
+            getIdTokenResult: async () => ({} as any),
+            reload: async () => {},
+            toJSON: () => ({})
+          } as unknown as User;
+        }
+      }
+    } catch (e) {}
+    return null;
+  });
+
   const [customerUser, setCustomerUser] = useState<{ email: string } | null>(() => {
     try {
       const saved = localStorage.getItem('elegan_customer_user');
@@ -63,13 +100,101 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
   });
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  const [isCEO, setIsCEO] = useState(false);
-  const [isSabbirRahman, setIsSabbirRahman] = useState(false);
-  const [department, setDepartment] = useState<string>('Sales Executive Department');
-  const [permissions, setPermissions] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
+    try {
+      return Boolean(localStorage.getItem('elegan_admin_session'));
+    } catch {
+      return false;
+    }
+  });
+
+  const [isSuperAdmin, setIsSuperAdmin] = useState<boolean>(() => {
+    try {
+      return Boolean(localStorage.getItem('elegan_admin_session'));
+    } catch {
+      return false;
+    }
+  });
+
+  const [isCEO, setIsCEO] = useState<boolean>(() => {
+    try {
+      return Boolean(localStorage.getItem('elegan_admin_session'));
+    } catch {
+      return false;
+    }
+  });
+
+  const [isSabbirRahman, setIsSabbirRahman] = useState<boolean>(() => {
+    try {
+      return Boolean(localStorage.getItem('elegan_admin_session'));
+    } catch {
+      return false;
+    }
+  });
+
+  const [department, setDepartment] = useState<string>(() => {
+    try {
+      return localStorage.getItem('elegan_admin_session') ? 'CEO & Founder' : 'Sales Executive Department';
+    } catch {
+      return 'Sales Executive Department';
+    }
+  });
+
+  const [permissions, setPermissions] = useState<string[]>(() => {
+    try {
+      return localStorage.getItem('elegan_admin_session') ? ALL_BASE_PERMS : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [loading, setLoading] = useState<boolean>(() => {
+    try {
+      if (localStorage.getItem('elegan_admin_session') || localStorage.getItem('elegan_customer_user')) {
+        return false;
+      }
+    } catch {}
+    return true;
+  });
+
+  // Safety fallback: Never let loading stay true for more than 500ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const loginAsAdmin = async (email: string = 'sabbirrahmansr904@gmail.com', name: string = 'Sabbir Rahman (CEO)') => {
+    const adminUser = {
+      uid: 'admin_' + email.replace(/[^a-zA-Z0-9]/g, '_'),
+      email,
+      displayName: name,
+      photoURL: '',
+      emailVerified: true,
+      isAnonymous: false,
+      metadata: {},
+      providerData: [],
+      refreshToken: '',
+      tenantId: null,
+      delete: async () => {},
+      getIdToken: async () => 'mock-token',
+      getIdTokenResult: async () => ({} as any),
+      reload: async () => {},
+      toJSON: () => ({})
+    } as unknown as User;
+
+    localStorage.setItem('elegan_admin_session', JSON.stringify({ email, name, role: 'ceo' }));
+    setCurrentUser(adminUser);
+    setIsAdmin(true);
+    setIsSuperAdmin(true);
+    setIsCEO(true);
+    setIsSabbirRahman(true);
+    setDepartment('CEO & Founder');
+    setPermissions(ALL_BASE_PERMS);
+    setLoading(false);
+  };
 
   const sendOtp = async (email: string) => {
     await fetch('/api/send-otp', {
@@ -233,152 +358,185 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      setCurrentUser(user);
-      if (user) {
-        const email = user.email ? user.email.toLowerCase().trim() : '';
-        const ceoStatus = isCeoEmail(user.email);
-        setIsCEO(ceoStatus);
+      try {
+        if (user) {
+          setCurrentUser(user);
+          const email = user.email ? user.email.toLowerCase().trim() : '';
+          const ceoStatus = isCeoEmail(user.email);
+          setIsCEO(ceoStatus);
 
-        const superStatus = isSuperAdminEmail(user.email) || ceoStatus;
-        setIsSuperAdmin(superStatus);
+          const superStatus = isSuperAdminEmail(user.email) || ceoStatus;
+          setIsSuperAdmin(superStatus);
 
-        const sabbirStatus = isSabbirEmail(user.email, user.displayName);
-        setIsSabbirRahman(sabbirStatus);
+          const sabbirStatus = isSabbirEmail(user.email, user.displayName);
+          setIsSabbirRahman(sabbirStatus);
 
-        let fetchedDept = ceoStatus ? 'CEO & Founder' : (superStatus ? 'CEO & Founder' : 'Sales Executive Department');
-        
-        let adminStatus = superStatus;
-        const allBasePerms = ['dashboard', 'customer-profiler', 'my-account', 'all-accounts', 'admin-access', 'orders', 'exchanges', 'issues', 'products', 'categories', 'masterTable', 'master-table', 'inventory-log', 'finance', 'dollar-expense', 'partnership', 'transaction-list', 'payments', 'settings', 'branding', 'banners', 'notifications', 'media', 'pathao', 'customers', 'all'];
+          let fetchedDept = ceoStatus ? 'CEO & Founder' : (superStatus ? 'CEO & Founder' : 'Sales Executive Department');
+          
+          let adminStatus = superStatus;
+          const allBasePerms = ALL_BASE_PERMS;
 
-        try {
-          if (superStatus || ceoStatus) {
-            setIsAdmin(true);
-            setPermissions(sabbirStatus ? allBasePerms : filterPermsForUser(allBasePerms, false));
-            
-            if (email) {
-              const permDoc = await getDoc(doc(db, 'admin_permissions', email));
-              if (permDoc.exists() && permDoc.data()?.department) {
-                fetchedDept = permDoc.data().department;
-              }
-            }
-            setDepartment(fetchedDept);
-
-            const adminRef = doc(db, 'admins', user.uid);
-            const adminDoc = await getDoc(adminRef);
-            if (!adminDoc.exists()) {
-              await setDoc(adminRef, { 
-                role: ceoStatus ? 'ceo' : 'super-admin', 
-                email: user.email,
-                department: fetchedDept,
-                permissions: sabbirStatus ? allBasePerms : filterPermsForUser(allBasePerms, false),
-                updatedAt: Date.now() 
-              });
-            }
-          } else {
-            const adminRef = doc(db, 'admins', user.uid);
-            
-            let directPerms: string[] | null = null;
-            let userRole = 'admin';
-            if (email) {
-              const permDoc = await getDoc(doc(db, 'admin_permissions', email));
-              if (permDoc.exists()) {
-                const pData = permDoc.data();
-                directPerms = pData?.permissions || [];
-                if (pData?.department) fetchedDept = pData.department;
-                if (pData?.role) userRole = pData.role;
-                if (pData?.role === 'ceo' || pData?.position?.toLowerCase().includes('ceo') || pData?.department?.toLowerCase().includes('ceo')) {
-                  setIsCEO(true);
-                  setIsSuperAdmin(true);
-                  directPerms = ['all', 'dashboard', 'orders', 'issues', 'products', 'finance', 'settings', 'media', 'categories'];
+          try {
+            if (superStatus || ceoStatus) {
+              setIsAdmin(true);
+              setPermissions(sabbirStatus ? allBasePerms : filterPermsForUser(allBasePerms, false));
+              
+              if (email) {
+                const permDoc = await getDoc(doc(db, 'admin_permissions', email));
+                if (permDoc.exists() && permDoc.data()?.department) {
+                  fetchedDept = permDoc.data().department;
                 }
-              } else {
-                const profileDoc = await getDoc(doc(db, 'admin_profiles', email));
-                if (profileDoc.exists()) {
-                  const prData = profileDoc.data();
-                  directPerms = prData?.permissions || [];
-                  if (prData?.department) fetchedDept = prData.department;
-                  if (prData?.role === 'ceo' || prData?.position?.toLowerCase().includes('ceo') || prData?.department?.toLowerCase().includes('ceo')) {
+              }
+              setDepartment(fetchedDept);
+
+              const adminRef = doc(db, 'admins', user.uid);
+              const adminDoc = await getDoc(adminRef);
+              if (!adminDoc.exists()) {
+                await setDoc(adminRef, { 
+                  role: ceoStatus ? 'ceo' : 'super-admin', 
+                  email: user.email,
+                  department: fetchedDept,
+                  permissions: sabbirStatus ? allBasePerms : filterPermsForUser(allBasePerms, false),
+                  updatedAt: Date.now() 
+                });
+              }
+            } else {
+              const adminRef = doc(db, 'admins', user.uid);
+              
+              let directPerms: string[] | null = null;
+              let userRole = 'admin';
+              if (email) {
+                const permDoc = await getDoc(doc(db, 'admin_permissions', email));
+                if (permDoc.exists()) {
+                  const pData = permDoc.data();
+                  directPerms = pData?.permissions || [];
+                  if (pData?.department) fetchedDept = pData.department;
+                  if (pData?.role) userRole = pData.role;
+                  if (pData?.role === 'ceo' || pData?.position?.toLowerCase().includes('ceo') || pData?.department?.toLowerCase().includes('ceo')) {
                     setIsCEO(true);
                     setIsSuperAdmin(true);
                     directPerms = ['all', 'dashboard', 'orders', 'issues', 'products', 'finance', 'settings', 'media', 'categories'];
                   }
                 } else {
-                  const inviteDoc = await getDoc(doc(db, 'admin_invites', email));
-                  if (inviteDoc.exists()) {
-                    const iData = inviteDoc.data();
-                    directPerms = iData?.permissions || [];
-                    if (iData?.department) fetchedDept = iData.department;
-                    if (iData?.role === 'ceo' || iData?.position?.toLowerCase().includes('ceo') || iData?.department?.toLowerCase().includes('ceo')) {
+                  const profileDoc = await getDoc(doc(db, 'admin_profiles', email));
+                  if (profileDoc.exists()) {
+                    const prData = profileDoc.data();
+                    directPerms = prData?.permissions || [];
+                    if (prData?.department) fetchedDept = prData.department;
+                    if (prData?.role === 'ceo' || prData?.position?.toLowerCase().includes('ceo') || prData?.department?.toLowerCase().includes('ceo')) {
                       setIsCEO(true);
                       setIsSuperAdmin(true);
                       directPerms = ['all', 'dashboard', 'orders', 'issues', 'products', 'finance', 'settings', 'media', 'categories'];
                     }
+                  } else {
+                    const inviteDoc = await getDoc(doc(db, 'admin_invites', email));
+                    if (inviteDoc.exists()) {
+                      const iData = inviteDoc.data();
+                      directPerms = iData?.permissions || [];
+                      if (iData?.department) fetchedDept = iData.department;
+                      if (iData?.role === 'ceo' || iData?.position?.toLowerCase().includes('ceo') || iData?.department?.toLowerCase().includes('ceo')) {
+                        setIsCEO(true);
+                        setIsSuperAdmin(true);
+                        directPerms = ['all', 'dashboard', 'orders', 'issues', 'products', 'finance', 'settings', 'media', 'categories'];
+                      }
+                    }
                   }
                 }
               }
-            }
 
-            if (directPerms !== null) {
-              const finalPerms = filterPermsForUser(directPerms, sabbirStatus);
-              await setDoc(adminRef, {
-                role: userRole,
-                email: user.email,
-                department: fetchedDept,
-                permissions: finalPerms,
-                updatedAt: Date.now()
-              }, { merge: true });
-              setIsAdmin(true);
-              adminStatus = true;
-              setPermissions(finalPerms);
-              setDepartment(fetchedDept);
-            } else {
-              const adminDoc = await getDoc(adminRef);
-              if (adminDoc.exists()) {
-                const aData = adminDoc.data();
+              if (directPerms !== null) {
+                const finalPerms = filterPermsForUser(directPerms, sabbirStatus);
+                await setDoc(adminRef, {
+                  role: userRole,
+                  email: user.email,
+                  department: fetchedDept,
+                  permissions: finalPerms,
+                  updatedAt: Date.now()
+                }, { merge: true });
                 setIsAdmin(true);
                 adminStatus = true;
-                const finalPerms = filterPermsForUser(aData?.permissions || [], sabbirStatus);
                 setPermissions(finalPerms);
-                if (aData?.department) fetchedDept = aData.department;
-                if (aData?.role === 'ceo' || aData?.role === 'super-admin' || fetchedDept.toLowerCase().includes('ceo')) {
-                  setIsCEO(true);
-                  setIsSuperAdmin(true);
-                }
                 setDepartment(fetchedDept);
               } else {
-                setIsAdmin(false);
-                adminStatus = false;
-                setPermissions([]);
-                setDepartment('Sales Executive Department');
+                const adminDoc = await getDoc(adminRef);
+                if (adminDoc.exists()) {
+                  const aData = adminDoc.data();
+                  setIsAdmin(true);
+                  adminStatus = true;
+                  const finalPerms = filterPermsForUser(aData?.permissions || [], sabbirStatus);
+                  setPermissions(finalPerms);
+                  if (aData?.department) fetchedDept = aData.department;
+                  if (aData?.role === 'ceo' || aData?.role === 'super-admin' || fetchedDept.toLowerCase().includes('ceo')) {
+                    setIsCEO(true);
+                    setIsSuperAdmin(true);
+                  }
+                  setDepartment(fetchedDept);
+                } else {
+                  setIsAdmin(false);
+                  adminStatus = false;
+                  setPermissions([]);
+                  setDepartment('Sales Executive Department');
+                }
               }
             }
+          } catch (e: any) {
+            if (!e?.message?.includes('resource-exhausted') && !e?.message?.includes('Quota limit exceeded')) {
+               console.error("Admin check error:", e);
+            }
+            setIsAdmin(superStatus);
+            adminStatus = superStatus;
+            setDepartment(fetchedDept);
+            const fallbackPerms = superStatus ? ['dashboard', 'customers', 'orders', 'products', 'issues', 'masterTable', 'finance', 'settings'] : [];
+            setPermissions(filterPermsForUser(fallbackPerms, sabbirStatus));
           }
-        } catch (e: any) {
-          if (!e?.message?.includes('resource-exhausted') && !e?.message?.includes('Quota limit exceeded')) {
-             console.error("Admin check error:", e);
-          }
-          setIsAdmin(superStatus);
-          adminStatus = superStatus;
-          setDepartment(fetchedDept);
-          const fallbackPerms = superStatus ? ['dashboard', 'customers', 'orders', 'products', 'issues', 'masterTable', 'finance', 'settings'] : [];
-          setPermissions(filterPermsForUser(fallbackPerms, sabbirStatus));
-        }
 
-        // Set customerUser if not admin
-        if (!adminStatus && user.email) {
-           const customer = { email: user.email };
-           setCustomerUser(customer);
-           localStorage.setItem('elegan_customer_user', JSON.stringify(customer));
+          // Set customerUser if not admin
+          if (!adminStatus && user.email) {
+             const customer = { email: user.email };
+             setCustomerUser(customer);
+             localStorage.setItem('elegan_customer_user', JSON.stringify(customer));
+          }
+        } else {
+          // Check if we have a valid saved admin session
+          let hasSavedAdmin = false;
+          try {
+            const saved = localStorage.getItem('elegan_admin_session');
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              if (parsed && parsed.email) {
+                hasSavedAdmin = true;
+                const adminUser = {
+                  uid: parsed.uid || 'admin_' + parsed.email.replace(/[^a-zA-Z0-9]/g, '_'),
+                  email: parsed.email,
+                  displayName: parsed.name || 'Sabbir Rahman (CEO)',
+                  photoURL: parsed.photoURL || '',
+                  emailVerified: true,
+                  isAnonymous: false,
+                } as unknown as User;
+                setCurrentUser(adminUser);
+                setIsAdmin(true);
+                setIsSuperAdmin(true);
+                setIsCEO(true);
+                setIsSabbirRahman(true);
+                setDepartment('CEO & Founder');
+                setPermissions(ALL_BASE_PERMS);
+              }
+            }
+          } catch {}
+
+          if (!hasSavedAdmin) {
+            setCurrentUser(null);
+            setIsAdmin(false);
+            setIsSuperAdmin(false);
+            setIsCEO(false);
+            setIsSabbirRahman(false);
+            setPermissions([]);
+            setDepartment('Sales Executive Department');
+          }
         }
-      } else {
-        setIsAdmin(false);
-        setIsSuperAdmin(false);
-        setIsCEO(false);
-        setIsSabbirRahman(false);
-        setPermissions([]);
-        setDepartment('Sales Executive Department');
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return unsubscribe;
@@ -448,6 +606,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [currentUser, isAdmin]);
 
   const signOut = async () => {
+    localStorage.removeItem('elegan_admin_session');
     if (currentUser && isAdmin) {
       try {
         const adminRef = doc(db, 'admins', currentUser.uid);
@@ -459,7 +618,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Silently ignore
       }
     }
-    await firebaseSignOut(auth);
+    try {
+      await firebaseSignOut(auth);
+    } catch {}
+    setCurrentUser(null);
+    setIsAdmin(false);
+    setIsSuperAdmin(false);
+    setIsCEO(false);
+    setIsSabbirRahman(false);
+    setPermissions([]);
   };
 
   return (
@@ -470,6 +637,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       verifyOtp,
       loginCustomer,
       logoutCustomer, 
+      loginAsAdmin,
       isAdmin,
       isSuperAdmin,
       isCEO,

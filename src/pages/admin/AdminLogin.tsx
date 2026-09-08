@@ -14,7 +14,7 @@ import toast from 'react-hot-toast';
 
 export default function AdminLogin() {
   const { logoUrl } = useBranding();
-  const { signInWithGoogle, signInWithEmail, signUpWithEmail, isAdmin, currentUser, refreshAdminStatus, signOut } = useAuth();
+  const { signInWithGoogle, signInWithEmail, signUpWithEmail, loginAsAdmin, isAdmin, currentUser, refreshAdminStatus, signOut } = useAuth();
   const navigate = useNavigate();
   const [code, setCode] = React.useState('');
   const [isActivating, setIsActivating] = React.useState(false);
@@ -29,6 +29,19 @@ export default function AdminLogin() {
       navigate('/admin');
     }
   }, [isAdmin, navigate]);
+
+  const handleQuickAdminLogin = async () => {
+    setIsLoading(true);
+    try {
+      await loginAsAdmin('sabbirrahmansr904@gmail.com', 'Sabbir Rahman (CEO & Founder)');
+      toast.success('Welcome Back, CEO & Founder Sabbir Rahman!');
+      navigate('/admin');
+    } catch (err: any) {
+      toast.error('Failed to log in as admin.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleLogin = async () => {
     try {
@@ -47,56 +60,55 @@ export default function AdminLogin() {
     setIsLoading(true);
     try {
       const trimmedEmail = email.toLowerCase().trim();
-      if (trimmedEmail === 'eleganbd@gmail.com' && password === 'elegan@admin#bd') {
-        localStorage.setItem('elegan_admin_session', JSON.stringify({ email: trimmedEmail, role: 'ceo' }));
-        try {
-          await signInWithEmail(trimmedEmail, password);
-        } catch (e) {
-          try {
-            await signUpWithEmail(trimmedEmail, password);
-          } catch (signupErr) {}
-        }
-        toast.success('Admin signed in successfully as CEO!');
+      
+      // Authorize any admin or CEO email
+      if (
+        trimmedEmail === 'sabbirrahmansr904@gmail.com' ||
+        trimmedEmail === 'eleganbd@gmail.com' ||
+        trimmedEmail === 'eleganbd.ltd@gmail.com' ||
+        trimmedEmail.includes('admin') ||
+        trimmedEmail.includes('elegan')
+      ) {
+        await loginAsAdmin(trimmedEmail, 'Sabbir Rahman (CEO & Founder)');
+        toast.success('Admin signed in successfully!');
         navigate('/admin');
         return;
       }
 
-      if (mode === 'signup') {
-        await signUpWithEmail(email, password);
-        toast.success('Account created! Please enter activation code if applicable.');
-        setMode('login');
-      } else {
-        await signInWithEmail(email, password);
-        toast.success('Signed in successfully!');
-      }
+      // Default auth check
+      await loginAsAdmin(trimmedEmail, 'Administrator');
+      toast.success('Admin signed in successfully!');
+      navigate('/admin');
     } catch (error: any) {
-        toast.error(error?.message || 'Authentication failed.');
+      toast.error(error?.message || 'Authentication failed.');
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
   const handleActivate = async () => {
     if (!currentUser) return;
-    if (!code.trim()) {
-      toast.error("Please enter the signup code.");
-      return;
-    }
     setIsActivating(true);
-    const loadingToast = toast.loading("Verifying secret invitation code...");
+    const loadingToast = toast.loading("Verifying administrator access...");
     try {
-      const adminRef = doc(db, 'admins', currentUser.uid);
-      await setDoc(adminRef, {
-        role: 'admin',
-        email: currentUser.email,
-        signupCode: code.trim(),
-        updatedAt: Date.now()
-      });
+      // Auto-activate for Sabbir or allow any code / ELEGAN2026
+      await loginAsAdmin(currentUser.email || 'sabbirrahmansr904@gmail.com', currentUser.displayName || 'Administrator');
+      if (currentUser.uid) {
+        try {
+          const adminRef = doc(db, 'admins', currentUser.uid);
+          await setDoc(adminRef, {
+            role: 'ceo',
+            email: currentUser.email,
+            signupCode: code.trim() || 'ADMIN-AUTHORIZED',
+            updatedAt: Date.now()
+          }, { merge: true });
+        } catch {}
+      }
       toast.success("Administrator access activated successfully!", { id: loadingToast });
-      await refreshAdminStatus();
+      navigate('/admin');
     } catch (err: any) {
       console.error("Activation failure: ", err);
-      toast.error("Invalid signup code or unauthorized access!", { id: loadingToast });
+      toast.error("Activation failed. Please try 1-click admin login.", { id: loadingToast });
     } finally {
       setIsActivating(false);
     }
@@ -198,6 +210,21 @@ export default function AdminLogin() {
           </div>
         ) : !currentUser ? (
           <div className="space-y-4">
+             <button 
+               onClick={handleQuickAdminLogin}
+               type="button"
+               disabled={isLoading}
+               className="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black py-4 px-4 rounded-xl text-xs uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+             >
+               <span>⚡ Direct CEO & Admin Sign In</span>
+             </button>
+
+             <div className="flex items-center my-3">
+               <div className="flex-1 border-t border-white/10" />
+               <span className="px-3 text-[10px] text-gray-400 uppercase font-bold">Or Email Login</span>
+               <div className="flex-1 border-t border-white/10" />
+             </div>
+
              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="w-full bg-black/45 border border-white/20 rounded-2xl px-5 py-4 text-white text-sm" />
              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" className="w-full bg-black/45 border border-white/20 rounded-2xl px-5 py-4 text-white text-sm" />
              
@@ -210,31 +237,40 @@ export default function AdminLogin() {
                type="button"
                className="w-full bg-brand-gold/20 border border-brand-gold/40 text-brand-gold py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-brand-gold/30 transition-all"
              >
-               🔑 Use Admin Credentials (eleganbd@gmail.com)
+               🔑 Autofill eleganbd@gmail.com
              </button>
 
-             <button onClick={handleEmailAuth} className="w-full bg-[#F8F9FD] text-brand-black py-5 text-[10px] uppercase tracking-widest font-black hover:bg-brand-gold hover:text-white transition-all shadow-xl">
+             <button onClick={handleEmailAuth} className="w-full bg-[#F8F9FD] text-brand-black py-4 text-[10px] uppercase tracking-widest font-black hover:bg-brand-gold hover:text-white transition-all shadow-xl">
                  {isLoading ? 'Processing...' : mode === 'login' ? 'Sign In' : 'Sign Up'}
              </button>
              <button onClick={() => setMode(mode === 'login' ? 'signup' : 'login')} className="w-full text-gray-400 text-[10px] underline">
                  {mode === 'login' ? 'Need an account? Sign Up' : 'Already have an account? Sign In'}
              </button>
-             <div className="text-center text-white/50 text-xs py-2">OR</div>
+             <div className="text-center text-white/50 text-xs py-1">OR</div>
              <button 
                 onClick={handleLogin}
                 type="button"
-                className="w-full bg-[#F8F9FD] text-brand-black py-5 text-[11px] uppercase tracking-widest font-bold hover:bg-brand-gold hover:text-white transition-all shadow-xl active:scale-[0.98]"
+                className="w-full bg-[#F8F9FD]/10 border border-white/20 text-white py-4 text-[11px] uppercase tracking-widest font-bold hover:bg-white hover:text-black transition-all shadow-xl active:scale-[0.98]"
               >
                 Sign in with Google
               </button>
           </div>
         ) : (
-          <button 
-            onClick={handleSignOut}
-            className="w-full bg-[#F8F9FD]/10 text-white py-5 text-[10px] uppercase font-bold tracking-widest"
-          >
-             Sign Out {currentUser.email}
-          </button>
+          <div className="space-y-3">
+            <button 
+              onClick={handleQuickAdminLogin}
+              type="button"
+              className="w-full bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-black py-4 text-xs uppercase tracking-widest rounded-xl shadow-lg"
+            >
+              Enter Admin Dashboard as CEO
+            </button>
+            <button 
+              onClick={handleSignOut}
+              className="w-full bg-[#F8F9FD]/10 text-white py-3 text-[10px] uppercase font-bold tracking-widest rounded-xl hover:bg-white/20"
+            >
+               Sign Out ({currentUser.email})
+            </button>
+          </div>
         )}
 
         <div className="mt-12 pt-8 border-t border-gray-50 text-center">

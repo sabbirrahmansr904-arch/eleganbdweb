@@ -106,17 +106,7 @@ export default function Checkout() {
             rocketLogo: data.rocketLogo || ''
           };
           setPaymentsConfig(config);
-
-          // Update default payment method if cod is disabled
-          if (!config.codEnabled) {
-            if (config.bkashEnabled) {
-              setFormData(prev => ({ ...prev, paymentMethod: 'bkash' }));
-            } else if (config.nagadEnabled) {
-              setFormData(prev => ({ ...prev, paymentMethod: 'nagad' }));
-            } else if (config.rocketEnabled) {
-              setFormData(prev => ({ ...prev, paymentMethod: 'rocket' }));
-            }
-          }
+          setFormData(prev => ({ ...prev, paymentMethod: 'cod' }));
         }
       } catch (err) {
         console.error("Error loading payments config:", err);
@@ -715,220 +705,47 @@ export default function Checkout() {
             </div>
 
             {/* Step 2: Payment Method */}
-            <div className="border border-gray-100/80 bg-white p-5 md:p-10 rounded-3xl shadow-sm space-y-6">
+            <div className="border border-gray-100/80 bg-white p-5 md:p-8 rounded-3xl shadow-sm space-y-5">
               <div className="flex items-center gap-3">
                 <span className="w-7 h-7 rounded-full bg-[#0C1421] text-white flex items-center justify-center font-black text-xs shrink-0 shadow-sm font-mono">2</span>
                 <h2 className="text-sm font-black uppercase tracking-[0.15em] text-[#0C1421]">PAYMENT METHOD</h2>
               </div>
 
-              {/* Beautiful 4-column/2-column responsive selector matching bKash, Nagad, Rocket, COD */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
-                
-                {/* Option: Cash on Delivery (COD) */}
-                {paymentsConfig.codEnabled && (
-                  <label className={cn(
-                    "flex items-center justify-between cursor-pointer p-4.5 rounded-2xl border transition-all shadow-3xs relative overflow-hidden",
-                    formData.paymentMethod === 'cod' 
-                      ? "border-[#0C1421] bg-gray-50/30 ring-1 ring-[#0C1421]" 
-                      : "border-gray-200 hover:border-gray-300 bg-white"
-                  )}>
-                    <input 
-                      type="radio" 
-                      name="paymentMethod" 
-                      value="cod" 
-                      checked={formData.paymentMethod === 'cod'} 
-                      onChange={handleInputChange}
-                      className="absolute opacity-0"
-                    />
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-white shrink-0 border border-gray-100 shadow-3xs flex items-center justify-center relative overflow-hidden">
-                        {paymentsConfig.codLogo ? (
-                          <img 
-                            src={paymentsConfig.codLogo} 
-                            alt="Cash on Delivery" 
-                            referrerPolicy="no-referrer"
-                            className="w-full h-full object-contain p-1"
-                          />
-                        ) : (
-                          <Coins size={20} className="text-emerald-600 shrink-0" />
-                        )}
-                      </div>
-                      <div className="flex flex-col text-left">
-                        <span className="text-[10.5px] font-black uppercase tracking-wider text-[#0C1421] flex items-center gap-0.5 flex-wrap">
-                          CASH ON 
-                          <span className="text-emerald-600 font-extrabold text-[11px] font-sans tracking-normal">COD</span>
+              {/* Only Cash on Delivery (COD) */}
+              <div className="pt-1">
+                <div className="flex items-center justify-between p-4 sm:p-5 rounded-2xl border-2 border-[#0C1421] bg-gray-50/60 shadow-xs relative overflow-hidden">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-11 h-11 rounded-xl bg-white shrink-0 border border-gray-200/80 shadow-3xs flex items-center justify-center relative overflow-hidden">
+                      {paymentsConfig.codLogo ? (
+                        <img 
+                          src={paymentsConfig.codLogo} 
+                          alt="Cash on Delivery" 
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-contain p-1"
+                        />
+                      ) : (
+                        <Coins size={22} className="text-emerald-600 shrink-0" />
+                      )}
+                    </div>
+                    <div className="flex flex-col text-left">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-[#0C1421]">
+                          CASH ON DELIVERY (COD)
+                        </span>
+                        <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
+                          Active
                         </span>
                       </div>
+                      <span className="text-[11px] sm:text-xs font-semibold text-gray-500 mt-0.5">
+                        পণ্য হাতে পেয়ে দেখে মূল্য পরিশোধ করুন (Pay with cash upon delivery)
+                      </span>
                     </div>
-                  </label>
-                )}
-
-                {/* Option: bKash (Manual bkash payments) */}
-                {paymentsConfig.bkashEnabled && (
-                  <label className={cn(
-                    "flex items-center justify-between cursor-pointer p-4.5 rounded-2xl border transition-all shadow-3xs relative overflow-hidden",
-                    formData.paymentMethod === 'bkash' 
-                      ? "border-[#0C1421] bg-gray-50/30 ring-1 ring-[#0C1421]" 
-                      : "border-gray-200 hover:border-gray-300 bg-white"
-                  )}>
-                    <input 
-                      type="radio" 
-                      name="paymentMethod" 
-                      value="bkash" 
-                      checked={formData.paymentMethod === 'bkash'} 
-                      onChange={handleInputChange}
-                      className="absolute opacity-0"
-                    />
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-white shrink-0 border border-gray-100 shadow-3xs flex items-center justify-center relative overflow-hidden">
-                        <img 
-                          src={paymentsConfig.bkashLogo || "https://upload.wikimedia.org/wikipedia/commons/7/7a/BKash_Logo.svg"} 
-                          alt="bKash" 
-                          referrerPolicy="no-referrer"
-                          className="w-full h-full object-contain p-1"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                            const fb = e.currentTarget.parentElement?.querySelector('.fallback-bkash') as HTMLElement;
-                            if (fb) fb.style.display = 'flex';
-                          }}
-                        />
-                        <div className="fallback-bkash hidden absolute inset-0 bg-[#D12053] items-center justify-center text-white text-[10px] font-black">bK</div>
-                      </div>
-                      <div className="flex flex-col text-left">
-                        <span className="text-[10.5px] font-black uppercase tracking-wider text-[#0C1421]">bKash</span>
-                      </div>
-                    </div>
-                  </label>
-                )}
-
-                {/* Option: Nagad (Manual nagad payments) */}
-                {paymentsConfig.nagadEnabled && (
-                  <label className={cn(
-                    "flex items-center justify-between cursor-pointer p-4.5 rounded-2xl border transition-all shadow-3xs relative overflow-hidden",
-                    formData.paymentMethod === 'nagad' 
-                      ? "border-[#0C1421] bg-gray-50/30 ring-1 ring-[#0C1421]" 
-                      : "border-gray-200 hover:border-gray-300 bg-white"
-                  )}>
-                    <input 
-                      type="radio" 
-                      name="paymentMethod" 
-                      value="nagad" 
-                      checked={formData.paymentMethod === 'nagad'} 
-                      onChange={handleInputChange}
-                      className="absolute opacity-0"
-                    />
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-white shrink-0 border border-gray-100 shadow-3xs flex items-center justify-center relative overflow-hidden">
-                        <img 
-                          src={paymentsConfig.nagadLogo || "https://upload.wikimedia.org/wikipedia/commons/1/1b/Nagad_logo.png"} 
-                          alt="Nagad" 
-                          referrerPolicy="no-referrer"
-                          className="w-full h-full object-contain p-1"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                            const fb = e.currentTarget.parentElement?.querySelector('.fallback-nagad') as HTMLElement;
-                            if (fb) fb.style.display = 'flex';
-                          }}
-                        />
-                        <div className="fallback-nagad hidden absolute inset-0 bg-[#F47216] items-center justify-center text-white text-[10px] font-black">Ng</div>
-                      </div>
-                      <div className="flex flex-col text-left">
-                        <span className="text-[10.5px] font-black uppercase tracking-wider text-[#0C1421]">Nagad</span>
-                      </div>
-                    </div>
-                  </label>
-                )}
-
-                {/* Option: Rocket (Manual rocket payments) */}
-                {paymentsConfig.rocketEnabled && (
-                  <label className={cn(
-                    "flex items-center justify-between cursor-pointer p-4.5 rounded-2xl border transition-all shadow-3xs relative overflow-hidden",
-                    formData.paymentMethod === 'rocket' 
-                      ? "border-[#0C1421] bg-gray-50/30 ring-1 ring-[#0C1421]" 
-                      : "border-gray-200 hover:border-gray-300 bg-white"
-                  )}>
-                    <input 
-                      type="radio" 
-                      name="paymentMethod" 
-                      value="rocket" 
-                      checked={formData.paymentMethod === 'rocket'} 
-                      onChange={handleInputChange}
-                      className="absolute opacity-0"
-                    />
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-white shrink-0 border border-gray-100 shadow-3xs flex items-center justify-center relative overflow-hidden">
-                        <img 
-                          src={paymentsConfig.rocketLogo || "https://upload.wikimedia.org/wikipedia/commons/8/82/Rocket_logo.svg"} 
-                          alt="Rocket" 
-                          referrerPolicy="no-referrer"
-                          className="w-full h-full object-contain p-1"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                            const fb = e.currentTarget.parentElement?.querySelector('.fallback-rocket') as HTMLElement;
-                            if (fb) fb.style.display = 'flex';
-                          }}
-                        />
-                        <div className="fallback-rocket hidden absolute inset-0 bg-[#8c0c5c] items-center justify-center text-white text-[10px] font-black">Rk</div>
-                      </div>
-                      <div className="flex flex-col text-left">
-                        <span className="text-[10.5px] font-black uppercase tracking-wider text-[#0C1421]">Rocket</span>
-                      </div>
-                    </div>
-                  </label>
-                )}
-
+                  </div>
+                  <div className="w-6 h-6 rounded-full bg-[#0C1421] text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <CheckCircle2 size={15} className="text-white" />
+                  </div>
+                </div>
               </div>
-              
-              {/* Secure Manual Mobile Banking Instructions (Clean Monochrome High Contrast Aesthetics) */}
-              <AnimatePresence>
-                {((formData.paymentMethod === 'bkash' && paymentsConfig.bkashEnabled) || 
-                  (formData.paymentMethod === 'nagad' && paymentsConfig.nagadEnabled) ||
-                  (formData.paymentMethod === 'rocket' && paymentsConfig.rocketEnabled)) && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="p-6 md:p-8 bg-zinc-50 border border-zinc-200/80 rounded-2xl text-left space-y-4"
-                  >
-                    <p className="text-[10px] uppercase tracking-widest font-black text-[#0C1421] flex items-center gap-2">
-                      <CreditCard size={12} />
-                      Payment Instructions ({formData.paymentMethod === 'bkash' ? 'bKash' : formData.paymentMethod === 'nagad' ? 'Nagad' : 'Rocket'} Manual Send Money)
-                    </p>
-                    <div className="text-[12.5px] space-y-3.5 text-[#0C1421] leading-relaxed font-sans font-bold">
-                      <p>১. নিচের নাম্বারে <span className="font-extrabold underline">{formData.paymentMethod === 'bkash' ? 'bKash' : formData.paymentMethod === 'nagad' ? 'Nagad' : 'Rocket'} {formData.paymentMethod === 'bkash' ? paymentsConfig.bkashType : formData.paymentMethod === 'nagad' ? paymentsConfig.nagadType : paymentsConfig.rocketType}</span> এ <span className="font-extrabold">Send Money</span> করুন।</p>
-                      <p>২. নাম্বার: <span className="text-[#0C1421] font-black text-base tracking-wider bg-white border border-gray-200 px-2.5 py-1 rounded-md shadow-3xs ml-1 font-mono">{formData.paymentMethod === 'bkash' ? paymentsConfig.bkashNumber : formData.paymentMethod === 'nagad' ? paymentsConfig.nagadNumber : paymentsConfig.rocketNumber}</span></p>
-                      <p>৩. টাকা পাঠানো হয়ে গেলে ট্রানজেকশন আইডি ও পাঠানো টাকার পরিমাণ নিচের বক্সে লিখে অর্ডার সম্পন্ন করুন।</p>
-                      
-                      <div className="space-y-2 pt-3">
-                        <label className="block text-[9.5px] font-extrabold uppercase tracking-widest text-[#62758A]">৪. TRANSACTION ID (ট্রানজেকশন আইডি)</label>
-                        <input
-                          required={formData.paymentMethod === 'bkash' || formData.paymentMethod === 'nagad' || formData.paymentMethod === 'rocket'}
-                          type="text"
-                          name="transactionId"
-                          value={formData.transactionId}
-                          onChange={handleInputChange}
-                          className="w-full bg-white border border-gray-200 py-3 px-4.5 rounded-xl outline-none focus:outline-none focus:ring-2 focus:ring-[#0C1421]/10 focus:border-[#0C1421] transition-all font-mono text-sm font-bold uppercase placeholder-gray-400"
-                          placeholder="TRX123456789"
-                        />
-                      </div>
-
-                      <div className="space-y-2 pt-2">
-                        <label className="block text-[9.5px] font-extrabold uppercase tracking-widest text-[#62758A]">৫. AMOUNT SENT / প্রেরিত টাকার পরিমাণ (TK)</label>
-                        <input
-                          required={formData.paymentMethod === 'bkash' || formData.paymentMethod === 'nagad' || formData.paymentMethod === 'rocket'}
-                          type="number"
-                          name="paidAmount"
-                          value={formData.paidAmount || ''}
-                          onChange={handleInputChange}
-                          className="w-full bg-white border border-gray-200 py-3 px-4.5 rounded-xl outline-none focus:outline-none focus:ring-2 focus:ring-[#0C1421]/10 focus:border-[#0C1421] transition-all font-sans text-sm font-bold placeholder-gray-400"
-                          placeholder={`e.g. ${total}`}
-                          min="1"
-                        />
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
         </div>
         

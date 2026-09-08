@@ -5,7 +5,7 @@ import { useProducts } from '../contexts/ProductContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { Product } from '../types';
-import ProductSkeleton from './ProductSkeleton';
+import { SearchItemSkeleton } from './ProductSkeleton';
 
 interface SearchOverlayProps {
   isOpen: boolean;
@@ -138,7 +138,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                     </h3>
                     {isSearching ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {[1, 2, 3, 4].map((i) => <ProductSkeleton key={i} />)}
+                        {[1, 2, 3, 4].map((i) => <SearchItemSkeleton key={i} />)}
                       </div>
                     ) : (
                       <motion.div 

@@ -62,7 +62,7 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
               } else if (updateOrderStatus) {
                 await updateOrderStatus(order.id, 'Returned');
               }
-              const shortId = order.invoiceNo || order.id.slice(-6);
+              const shortId = order.invoiceNo || String(order.id || '').slice(-6) || 'N/A';
               toast.success(`অর্ডার #${shortId} রিটার্ন হওয়ায় স্ট্যাটাস Returned করা হয়েছে!`);
             } catch (err) {
               console.warn("Could not auto-update returned status:", err);
@@ -82,7 +82,7 @@ export const ParcelLiveStatusBadge: React.FC<ParcelLiveStatusBadgeProps> = ({ or
               } else if (updateOrderStatus) {
                 await updateOrderStatus(order.id, 'Delivered');
               }
-              const shortId = order.invoiceNo || order.id.slice(-6);
+              const shortId = order.invoiceNo || String(order.id || '').slice(-6) || 'N/A';
               toast.success(`অর্ডার #${shortId} পার্সেল ডেলিভার্ড হওয়ায় স্ট্যাটাস অটো SUCCESS করা হয়েছে!`);
             } catch (err) {
               console.warn("Could not auto-update delivered order status:", err);

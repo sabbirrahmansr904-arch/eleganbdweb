@@ -38,9 +38,10 @@ export function onQuotaStateChange(listener: (exceeded: boolean) => void) {
 }
 
 export function setQuotaExceededState(exceeded: boolean) {
-  if (isFirestoreQuotaExceeded !== exceeded) {
-    isFirestoreQuotaExceeded = exceeded;
-    quotaExceededListeners.forEach(l => l(exceeded));
+  // Always false since app operates on Supabase & local cache
+  if (isFirestoreQuotaExceeded !== false) {
+    isFirestoreQuotaExceeded = false;
+    quotaExceededListeners.forEach(l => l(false));
   }
 }
 

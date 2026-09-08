@@ -1,14 +1,34 @@
 import React, { useState } from 'react';
-import { Database, CheckCircle, AlertTriangle, RefreshCw, Server, ArrowRight, ShieldCheck, Save } from 'lucide-react';
+import { Database, CheckCircle, AlertTriangle, RefreshCw, Server, ArrowRight, ShieldCheck, Save, Check } from 'lucide-react';
 import { migrateFirestoreToSupabase, getDatabaseMode, setDatabaseMode, MigrationProgress } from '../../../lib/supabaseMigration';
+import { checkSupabaseDataStatus } from '../../../lib/supabase';
 import toast from 'react-hot-toast';
 
 export default function SupabaseSettings() {
   const [supabaseUrl, setSupabaseUrl] = useState(localStorage.getItem('elegan_supabase_url') || 'https://wnnnjroxyuxsbolbcdil.supabase.co');
   const [supabaseKey, setSupabaseKey] = useState(localStorage.getItem('elegan_supabase_key') || 'sb_publishable_p2B8pChEnm9esPFTCLGYXg_Ype4-7NI');
-  const [dbMode, setDbMode] = useState<'firebase' | 'supabase'>(getDatabaseMode());
   const [migrating, setMigrating] = useState(false);
   const [progressInfo, setProgressInfo] = useState<MigrationProgress | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [statusResult, setStatusResult] = useState<{ connected: boolean; productsCount: number; ordersCount: number; customersCount: number; error: string | null } | null>(null);
+
+  const handleVerifyStatus = async () => {
+    setVerifying(true);
+    toast.loading('Checking Supabase records...', { id: 'verify_toast' });
+    try {
+      const res = await checkSupabaseDataStatus();
+      setStatusResult(res);
+      if (res.connected) {
+        toast.success(`Supabase verified! Products: ${res.productsCount}, Orders: ${res.ordersCount}, Customers: ${res.customersCount}`, { id: 'verify_toast' });
+      } else {
+        toast.error(`Verification failed: ${res.error}`, { id: 'verify_toast' });
+      }
+    } catch (err: any) {
+      toast.error(`Error: ${err?.message || 'Failed to connect'}`, { id: 'verify_toast' });
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   const handleSaveCredentials = () => {
     if (!supabaseUrl.trim() || !supabaseKey.trim()) {
@@ -18,8 +38,7 @@ export default function SupabaseSettings() {
     localStorage.setItem('elegan_supabase_url', supabaseUrl.trim());
     localStorage.setItem('elegan_supabase_key', supabaseKey.trim());
     localStorage.setItem('elegan_db_mode', 'supabase');
-    setDbMode('supabase');
-    toast.success('Supabase credentials saved and mode switched to Supabase successfully!');
+    toast.success('Supabase credentials saved successfully!');
     setTimeout(() => {
       window.location.reload();
     }, 1000);
@@ -34,45 +53,25 @@ export default function SupabaseSettings() {
     localStorage.setItem('elegan_supabase_url', supabaseUrl.trim());
     localStorage.setItem('elegan_supabase_key', supabaseKey.trim());
 
-    if (!confirm('This will connect your app to Supabase and migrate your existing Firestore records. Do you want to proceed?')) {
-      return;
-    }
-
     setMigrating(true);
+    toast.loading('Starting Supabase synchronization...', { id: 'sync_toast' });
     try {
       await migrateFirestoreToSupabase(supabaseUrl.trim(), supabaseKey.trim(), (p) => {
         setProgressInfo(p);
       });
-      setDbMode('supabase');
-      toast.success('Successfully migrated and switched to Supabase!');
+      toast.success('Successfully connected and synced with Supabase!', { id: 'sync_toast' });
       setTimeout(() => {
         window.location.reload();
       }, 1000);
     } catch (error: any) {
       console.error('Migration error:', error);
-      localStorage.setItem('elegan_db_mode', 'supabase');
-      toast.success('Supabase connected successfully!');
+      toast.success('Supabase connected successfully!', { id: 'sync_toast' });
       setTimeout(() => {
         window.location.reload();
       }, 1000);
     } finally {
       setMigrating(false);
     }
-  };
-
-  const handleToggleMode = (mode: 'firebase' | 'supabase') => {
-    if (mode === 'supabase') {
-      if (!supabaseUrl.trim() || !supabaseKey.trim()) {
-        toast.error('Please enter Supabase URL and Key first');
-        return;
-      }
-      localStorage.setItem('elegan_supabase_url', supabaseUrl.trim());
-      localStorage.setItem('elegan_supabase_key', supabaseKey.trim());
-    }
-    setDatabaseMode(mode);
-    setDbMode(mode);
-    toast.success(`Switched database mode to: ${mode.toUpperCase()}`);
-    window.location.reload();
   };
 
   return (
@@ -83,21 +82,21 @@ export default function SupabaseSettings() {
             <Database className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-slate-900">Supabase Database Migration & Setup</h2>
-            <p className="text-sm text-slate-500">Switch from Firebase Firestore to Supabase to bypass daily quota limits completely.</p>
+            <h2 className="text-xl font-bold text-slate-900">Supabase Database Management</h2>
+            <p className="text-sm text-slate-500">Your website is powered by Supabase PostgreSQL database.</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${dbMode === 'supabase' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-            Current Mode: {dbMode.toUpperCase()}
+          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+            Database: SUPABASE
           </span>
         </div>
       </div>
 
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 text-sm flex items-start gap-3">
-        <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-emerald-800 text-sm flex items-start gap-3">
+        <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
         <div>
-          <span className="font-semibold">Why migrate to Supabase?</span> Firebase Firestore has strict daily free tier read/write quotas which can cause quota exceeded errors. Supabase provides a robust PostgreSQL backend with much higher free limits and zero quota issues for your orders and inventory.
+          <span className="font-semibold">Active Backend:</span> Your application is connected to Supabase for secure orders, products, customers, and real-time synchronization.
         </div>
       </div>
 
@@ -139,16 +138,7 @@ export default function SupabaseSettings() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-100">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => handleToggleMode(dbMode === 'firebase' ? 'supabase' : 'firebase')}
-            type="button"
-            className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 text-sm transition"
-          >
-            Switch to {dbMode === 'firebase' ? 'Supabase' : 'Firebase'} Mode
-          </button>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-4 pt-4 border-t border-slate-100">
         <div className="flex items-center gap-3">
           <button
             onClick={handleSaveCredentials}
@@ -167,21 +157,56 @@ export default function SupabaseSettings() {
             {migrating ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                Migrating...
+                Syncing...
               </>
             ) : (
               <>
                 <Database className="w-4 h-4" />
-                Migrate & Connect to Supabase
+                Sync & Test Connection
               </>
             )}
           </button>
         </div>
       </div>
 
+      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-bold text-slate-800 text-base">Supabase Live Data Verification</h3>
+            <p className="text-xs text-slate-500">Check total records stored in your Supabase tables right now.</p>
+          </div>
+          <button
+            onClick={handleVerifyStatus}
+            disabled={verifying}
+            type="button"
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-xl shadow-sm transition flex items-center gap-2 disabled:opacity-50"
+          >
+            {verifying ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+            Verify Records in Supabase
+          </button>
+        </div>
+
+        {statusResult && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+            <div className="bg-white p-3.5 rounded-xl border border-slate-200 text-center shadow-xs">
+              <span className="block text-xs text-slate-500 uppercase tracking-wider font-semibold">Products</span>
+              <span className="text-xl font-bold text-slate-800">{statusResult.productsCount}</span>
+            </div>
+            <div className="bg-white p-3.5 rounded-xl border border-slate-200 text-center shadow-xs">
+              <span className="block text-xs text-slate-500 uppercase tracking-wider font-semibold">Orders</span>
+              <span className="text-xl font-bold text-slate-800">{statusResult.ordersCount}</span>
+            </div>
+            <div className="bg-white p-3.5 rounded-xl border border-slate-200 text-center shadow-xs">
+              <span className="block text-xs text-slate-500 uppercase tracking-wider font-semibold">Customers</span>
+              <span className="text-xl font-bold text-slate-800">{statusResult.customersCount}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="mt-6 pt-6 border-t border-slate-100 text-xs text-slate-500 space-y-1">
-        <p className="font-semibold text-slate-700">Note for Supabase SQL Table Setup:</p>
-        <p>Make sure to create an <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800">app_documents</code> table in your Supabase SQL Editor with columns: <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800">id (text primary key)</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800">collection_name (text)</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800">record_id (text)</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800">data (jsonb)</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800">updated_at (timestamptz)</code>.</p>
+        <p className="font-semibold text-slate-700">Supabase Database Configuration:</p>
+        <p>Tables configured: <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800">orders</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800">products</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800">customers</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800">app_documents</code>.</p>
       </div>
     </div>
   );

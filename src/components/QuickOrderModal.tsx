@@ -238,8 +238,8 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
                     </div>
                   </div>
 
-                  <div className="text-[10px] text-center p-3 bg-brand-gold/10 border border-brand-gold/20 rounded-sm text-brand-black font-bold uppercase tracking-wider">
-                    Bkash/Nagad Merchant: 01619835133
+                  <div className="text-[10px] text-center p-3 bg-emerald-50 border border-emerald-200/80 rounded-sm text-emerald-800 font-bold uppercase tracking-wider">
+                    ক্যাশ অন ডেলিভারি (Cash on Delivery Available)
                   </div>
 
                   <button

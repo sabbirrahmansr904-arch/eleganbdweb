@@ -1,9 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Product } from '../types';
-import { PRODUCTS as INITIAL_PRODUCTS } from '../constants';
 import { db } from '../lib/firebase';
-import { collection, onSnapshot, doc, setDoc, deleteDoc, getDoc, getDocs } from 'firebase/firestore';
-import { useAuth } from './AuthContext';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import { supabase, productToSupabaseRow, supabaseRowToProduct } from '../lib/supabase';
 import { handleFirestoreError, OperationType, isQuotaError, isFirestoreQuotaExceeded } from '../lib/firestoreUtils';
 
 interface ProductContextType {
@@ -31,8 +30,38 @@ const DEMO_NAMES = [
   'ash grey chino pant'
 ];
 
+// Deleted products memory/localStorage tracking to avoid race condition resurrection
+const getDeletedIds = (): Set<string> => {
+  try {
+    const raw = localStorage.getItem('eleganbd_deleted_product_ids');
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) return new Set(arr);
+    }
+  } catch {}
+  return new Set();
+};
+
+const addDeletedId = (id: string) => {
+  try {
+    const set = getDeletedIds();
+    set.add(String(id));
+    localStorage.setItem('eleganbd_deleted_product_ids', JSON.stringify(Array.from(set)));
+  } catch {}
+};
+
+const removeDeletedId = (id: string) => {
+  try {
+    const set = getDeletedIds();
+    set.delete(String(id));
+    localStorage.setItem('eleganbd_deleted_product_ids', JSON.stringify(Array.from(set)));
+  } catch {}
+};
+
 export const isDemoProduct = (p: Product | null | undefined): boolean => {
   if (!p) return false;
+  const deletedSet = getDeletedIds();
+  if (p.id && deletedSet.has(String(p.id))) return true;
   if (p.id && DEMO_PRODUCT_IDS.has(p.id)) return true;
   const name = (p.name || '').trim().toLowerCase();
   if (DEMO_NAMES.some(dn => name === dn || name.includes('essential oversized') || name.includes('executive white') || name.includes('vintage wash graphic'))) return true;
@@ -41,10 +70,13 @@ export const isDemoProduct = (p: Product | null | undefined): boolean => {
 
 const deduplicateProducts = (list: Product[]): Product[] => {
   const seen = new Set<string>();
+  const deletedSet = getDeletedIds();
   return list.filter(p => {
     if (!p.id) return false;
-    if (seen.has(p.id)) return false;
-    seen.add(p.id);
+    const strId = String(p.id);
+    if (deletedSet.has(strId)) return false;
+    if (seen.has(strId)) return false;
+    seen.add(strId);
     return true;
   });
 };
@@ -158,7 +190,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return [];
   });
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(true);
   const [offerProductIds, setOfferProductIds] = useState<string[]>(() => {
     try {
       const cached = localStorage.getItem('eleganbd_offers');
@@ -167,7 +199,6 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return [];
     }
   });
-  const { isAdmin } = useAuth();
 
   const refreshProducts = useCallback(async () => {
     setLoading(true);
@@ -220,9 +251,78 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
+    // A. Fetch from Supabase
+    const loadFromSupabase = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!error && data && Array.isArray(data) && data.length > 0 && isMounted) {
+          const mapped: Product[] = data.map(supabaseRowToProduct);
+          const nonDemo = mapped.filter(p => !isDemoProduct(p));
+          const normalized = deduplicateProducts(nonDemo.map(normalizeProductCategory));
+          setProducts(normalized);
+          try {
+            localStorage.setItem('eleganbd_products', JSON.stringify(normalized));
+            localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
+          } catch (e) {}
+        }
+      } catch (err) {
+        console.warn('[ProductContext] Supabase load notice:', err);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadFromSupabase();
+
+    // B. Real-time Supabase subscription
+    let supabaseChannel: any = null;
+    try {
+      supabaseChannel = supabase
+        .channel('realtime_products_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload) => {
+          if (!isMounted) return;
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const p = supabaseRowToProduct(payload.new as any);
+            if (!isDemoProduct(p)) {
+              const norm = normalizeProductCategory(p);
+              setProducts(prev => {
+                const filtered = prev.filter(item => item.id !== norm.id);
+                const next = deduplicateProducts([norm, ...filtered]);
+                try { localStorage.setItem('eleganbd_products', JSON.stringify(next)); } catch {}
+                return next;
+              });
+            }
+          } else if (payload.eventType === 'DELETE' && payload.old && (payload.old as any).id) {
+            const deletedId = String((payload.old as any).id);
+            setProducts(prev => {
+              const next = deduplicateProducts(prev.filter(p => p.id !== deletedId));
+              try { localStorage.setItem('eleganbd_products', JSON.stringify(next)); } catch {}
+              return next;
+            });
+          }
+        })
+        .subscribe();
+    } catch (e) {
+      console.warn('[ProductContext] Supabase channel notice:', e);
+    }
+
     if (isFirestoreQuotaExceeded) {
       setLoading(false);
-      return;
+      return () => {
+        isMounted = false;
+        if (supabaseChannel) {
+          try { supabase.removeChannel(supabaseChannel); } catch {}
+        }
+      };
     }
 
     // 1. Real-time offers listener
@@ -240,7 +340,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
     });
 
-    // 2. Real-time products listener
+    // 2. Real-time products listener (Firestore fallback)
     const productsCol = collection(db, 'products');
     const unsubProducts = onSnapshot(productsCol, (snapshot) => {
       const prodData: Product[] = [];
@@ -269,53 +369,89 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setLoading(false);
     });
 
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) {
+        setLoading(false);
+      }
+    }, 4000);
+
     return () => {
+      isMounted = false;
+      clearTimeout(safetyTimer);
       unsubOffers();
       unsubProducts();
+      if (supabaseChannel) {
+        try { supabase.removeChannel(supabaseChannel); } catch {}
+      }
     };
   }, []);
 
   const addProduct = async (product: Product) => {
+    // If this ID was previously marked deleted, unmark it
+    if (product.id) {
+      removeDeletedId(product.id);
+    }
+
     const productWithTimestamps = cleanFirestoreData({
       ...product,
-      createdAt: Date.now(),
+      createdAt: (product as any).createdAt || Date.now(),
       updatedAt: Date.now()
     }) as Product;
 
-    // 1. Save to Firestore
-    try {
-      const docRef = doc(db, 'products', product.id);
-      await setDoc(docRef, productWithTimestamps);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, `products/${product.id}`);
-    }
-
-    // 2. Optimistic local state & cache update
+    // 1. Optimistic local state & cache update immediately
     setProducts(prev => {
-      const next = deduplicateProducts([productWithTimestamps, ...prev]);
+      const next = deduplicateProducts([productWithTimestamps, ...prev.filter(p => p.id !== productWithTimestamps.id)]);
       try {
         localStorage.setItem('eleganbd_products', JSON.stringify(next));
         window.dispatchEvent(new Event('eleganbd_products_updated'));
       } catch (e) {}
       return next;
     });
+
+    // 2. Direct Server API save (bypasses client security rules & ensures backend persistence)
+    try {
+      await fetch('/api/products/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product: productWithTimestamps })
+      });
+    } catch (apiErr) {
+      console.warn('[ProductContext] Server API save notice:', apiErr);
+    }
+
+    // 3. Save to Supabase directly
+    try {
+      const sbRow = productToSupabaseRow(productWithTimestamps);
+      const { error: sbError } = await supabase.from('products').upsert(sbRow);
+      if (sbError) {
+        console.warn('[ProductContext] Supabase product add notice:', sbError.message);
+      } else {
+        console.log(`[ProductContext] Product "${product.name}" synced to Supabase successfully!`);
+      }
+    } catch (sbErr) {
+      console.warn('[ProductContext] Supabase add product error:', sbErr);
+    }
+
+    // 4. Save to Firestore directly
+    try {
+      const docRef = doc(db, 'products', product.id);
+      await setDoc(docRef, productWithTimestamps);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `products/${product.id}`);
+    }
   };
 
   const updateProduct = async (updatedProduct: Product) => {
+    if (updatedProduct.id) {
+      removeDeletedId(updatedProduct.id);
+    }
+
     const updatedData = cleanFirestoreData({
       ...updatedProduct,
       updatedAt: Date.now()
     }) as Product;
 
-    // 1. Update in Firestore
-    try {
-      const docRef = doc(db, 'products', updatedProduct.id);
-      await setDoc(docRef, updatedData, { merge: true });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `products/${updatedProduct.id}`);
-    }
-
-    // 2. Optimistic local state update
+    // 1. Optimistic local state update immediately
     setProducts(prev => {
       const next = prev.map(p => p.id === updatedProduct.id ? { ...p, ...updatedData } : p);
       const uniqueNext = deduplicateProducts(next);
@@ -325,19 +461,47 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       } catch (e) {}
       return uniqueNext;
     });
+
+    // 2. Direct Server API save
+    try {
+      await fetch('/api/products/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product: updatedData })
+      });
+    } catch (apiErr) {
+      console.warn('[ProductContext] Server API save notice:', apiErr);
+    }
+
+    // 3. Update in Supabase
+    try {
+      const sbRow = productToSupabaseRow(updatedData);
+      const { error: sbError } = await supabase.from('products').upsert(sbRow);
+      if (sbError) {
+        console.warn('[ProductContext] Supabase product update notice:', sbError.message);
+      }
+    } catch (sbErr) {
+      console.warn('[ProductContext] Supabase update product error:', sbErr);
+    }
+
+    // 4. Update in Firestore
+    try {
+      const docRef = doc(db, 'products', updatedProduct.id);
+      await setDoc(docRef, updatedData, { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `products/${updatedProduct.id}`);
+    }
   };
 
   const deleteProduct = async (id: string) => {
-    // 1. Delete in Firestore
-    try {
-      await deleteDoc(doc(db, 'products', id));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `products/${id}`);
-    }
+    const cleanId = String(id);
+    
+    // Add to deleted blacklist immediately
+    addDeletedId(cleanId);
 
-    // 2. Optimistic local state update
+    // 1. Optimistic local state update immediately
     setProducts(prev => {
-      const next = prev.filter(p => p.id !== id);
+      const next = prev.filter(p => p.id !== cleanId);
       const uniqueNext = deduplicateProducts(next);
       try {
         localStorage.setItem('eleganbd_products', JSON.stringify(uniqueNext));
@@ -345,6 +509,31 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       } catch (e) {}
       return uniqueNext;
     });
+
+    // 2. Direct Server API delete (bypasses client security rules & eliminates database record)
+    try {
+      await fetch('/api/products/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: cleanId })
+      });
+    } catch (apiErr) {
+      console.warn('[ProductContext] Server API delete notice:', apiErr);
+    }
+
+    // 3. Delete in Supabase
+    try {
+      await supabase.from('products').delete().eq('id', cleanId);
+    } catch (sbErr) {
+      console.warn('[ProductContext] Supabase delete product error:', sbErr);
+    }
+
+    // 4. Delete in Firestore
+    try {
+      await deleteDoc(doc(db, 'products', cleanId));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `products/${cleanId}`);
+    }
   };
 
   const updateOfferProducts = async (ids: string[]) => {

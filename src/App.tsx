@@ -1,3 +1,4 @@
+import React, { useMemo, type ReactNode } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import PixelTracker from './components/PixelTracker';
@@ -74,18 +75,26 @@ import AdminMyAccount from './pages/admin/AdminMyAccount';
 const ProtectedRoute = ({ children, requireAdmin = true }: { children: React.ReactNode, requireAdmin?: boolean }) => {
   const { currentUser, customerUser, isAdmin, loading } = useAuth();
 
-  if (loading) return (
-    <div className="h-screen flex items-center justify-center bg-white text-black font-bold uppercase tracking-widest text-xs">
-       Loading Elegance...
-    </div>
-  );
+  const hasLocalSession = React.useMemo(() => {
+    try {
+      return Boolean(localStorage.getItem('elegan_admin_session') || localStorage.getItem('elegan_customer_user'));
+    } catch {
+      return false;
+    }
+  }, []);
+
+  if (loading && !hasLocalSession) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-[#070b14] text-white gap-3 font-sans">
+        <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+        <span className="text-[11px] tracking-widest uppercase font-mono text-gray-400 font-bold">Verifying Access...</span>
+      </div>
+    );
+  }
 
   if (requireAdmin) {
-    if (!currentUser) {
+    if (!currentUser || !isAdmin) {
       return <Navigate to="/admin/login" replace />;
-    }
-    if (!isAdmin) {
-      return <Navigate to="/" replace />;
     }
   } else {
     if (!currentUser && !customerUser) {
@@ -135,8 +144,6 @@ function AppRoutes() {
           <Route path="edit-product/:id" element={<AdminAddProduct />} />
           <Route path="customers" element={<AdminCustomers />} />
           <Route path="customer-profiler" element={<AdminCustomerProfiler />} />
-          <Route path="all-accounts" element={<AdminAccounts />} />
-          <Route path="all-account" element={<AdminAccounts />} />
           <Route path="stock-check" element={<AdminStockCheck />} />
           <Route path="my-account" element={<AdminMyAccount />} />
           <Route path="account" element={<AdminMyAccount />} />

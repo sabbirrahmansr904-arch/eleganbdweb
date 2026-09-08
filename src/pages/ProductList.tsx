@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useProducts } from '../contexts/ProductContext';
 import ProductCard from '../components/ProductCard';
+import { ProductGridSkeleton } from '../components/ProductSkeleton';
 import { Filter, ChevronDown, SlidersHorizontal, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -77,24 +78,24 @@ const ProductList = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5 md:gap-4 mt-6">
-          {loading ? (
-            Array(8).fill(0).map((_, i) => (
-              <div key={i} className="aspect-[3/4] bg-gray-100 animate-pulse rounded-sm" />
-            ))
-          ) : filteredProducts.length > 0 ? (
-            filteredProducts.map((product) => (
+        {loading ? (
+          <div className="mt-6">
+            <ProductGridSkeleton count={8} />
+          </div>
+        ) : filteredProducts.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5 md:gap-4 mt-6">
+            {filteredProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
-            ))
-          ) : (
-            <div className="col-span-full py-20 text-center">
-              <p className="text-gray-400 uppercase tracking-widest text-sm mb-4">No products found in this category.</p>
-              <Link to="/" className="text-brand-gold font-bold uppercase tracking-widest text-xs border-b-2 border-brand-gold pb-1">
-                Back to Home
-              </Link>
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="py-20 text-center">
+            <p className="text-gray-400 uppercase tracking-widest text-sm mb-4">No products found in this category.</p>
+            <Link to="/" className="text-brand-gold font-bold uppercase tracking-widest text-xs border-b-2 border-brand-gold pb-1">
+              Back to Home
+            </Link>
+          </div>
+        )}
       </div>
 
     </div>

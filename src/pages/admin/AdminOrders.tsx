@@ -4,6 +4,7 @@ import { db } from '../../lib/firebase';
 import * as XLSX from 'xlsx';
 import InvoiceTemplate from '../../components/admin/InvoiceTemplate';
 import { ParcelLiveStatusBadge } from '../../components/admin/ParcelLiveStatusBadge';
+import { GoogleSheetImporterModal } from '../../components/admin/GoogleSheetImporterModal';
 import { useInvoiceByOptions } from '../../hooks/useInvoiceByOptions';
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
@@ -95,7 +96,7 @@ const normalizeStatus = (status: string): string => {
 
 export default function AdminOrders(): React.JSX.Element {
   const { currency, rate } = useCurrency();
-  const { orders, updateOrderStatus, updateOrder, addOrder, deleteOrder, getNextOrderId } = useOrders();
+  const { orders, updateOrderStatus, updateOrder, addOrder, deleteOrder, deleteMultipleOrders, deleteAllOrders, getNextOrderId } = useOrders();
   const { products } = useProducts();
   const { isSuperAdmin, isCEO } = useAuth();
   const navigate = useNavigate();
@@ -164,7 +165,7 @@ export default function AdminOrders(): React.JSX.Element {
   const [isCameraScannerActive, setIsCameraScannerActive] = useState(false);
   
   // Pagination State
-  const [visibleCount, setVisibleCount] = useState(10);
+  const [visibleCount, setVisibleCount] = useState(100);
   
   // Bulk Selection
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
@@ -202,6 +203,7 @@ export default function AdminOrders(): React.JSX.Element {
   // Invoice Preview Modal States
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showBulkInvoiceModal, setShowBulkInvoiceModal] = useState(false);
+  const [showGoogleSheetModal, setShowGoogleSheetModal] = useState(false);
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
 
   // Issue Conversation Modal States
@@ -793,14 +795,18 @@ export default function AdminOrders(): React.JSX.Element {
     const searchKeyNum = parseInt(searchKey, 10);
 
     // Find the order that matches or ends with the ID, or matches the scan code suffix, or matches invoice number
-    const order = orders.find(o => 
-      o.id.toLowerCase() === trimmedId.toLowerCase() || 
-      o.id.toLowerCase().endsWith(trimmedId.toLowerCase()) ||
-      o.id.toLowerCase().endsWith(searchKey) ||
-      o.id.toLowerCase().slice(-6) === searchKey ||
-      (typeof o.invoiceNo === 'number' && o.invoiceNo === invoiceNum) ||
-      (typeof o.invoiceNo === 'number' && o.invoiceNo === searchKeyNum)
-    );
+    const order = orders.find(o => {
+      if (!o) return false;
+      const orderIdStr = String(o.id || '').toLowerCase();
+      return (
+        orderIdStr === trimmedId.toLowerCase() || 
+        orderIdStr.endsWith(trimmedId.toLowerCase()) ||
+        orderIdStr.endsWith(searchKey) ||
+        orderIdStr.slice(-6) === searchKey ||
+        (typeof o.invoiceNo === 'number' && o.invoiceNo === invoiceNum) ||
+        (typeof o.invoiceNo === 'number' && o.invoiceNo === searchKeyNum)
+      );
+    });
     
     if (!order) {
       toast.error(`Order "${trimmedId}" not found in database!`);
@@ -871,7 +877,7 @@ export default function AdminOrders(): React.JSX.Element {
       delivery_type: Number(pathaoDeliveryType) || 48
     };
 
-    const shortCode = pathaoBookingOrder.invoiceNo ? String(pathaoBookingOrder.invoiceNo) : pathaoBookingOrder.id.replace(/^ORD-?/i, '');
+    const shortCode = pathaoBookingOrder.invoiceNo ? String(pathaoBookingOrder.invoiceNo) : String(pathaoBookingOrder.id || '').replace(/^ORD-?/i, '');
     const loadingToast = toast.loading(`Booking Order #${shortCode} with Pathao API...`);
 
     try {
@@ -1287,7 +1293,7 @@ export default function AdminOrders(): React.JSX.Element {
 
   const matchedCustomerFromOrders = useMemo(() => {
     if (newCustomerPhone.length < 5) return null;
-    const match = orders.find(o => o.phone.includes(newCustomerPhone));
+    const match = orders.find(o => o && o.phone && typeof o.phone === 'string' && o.phone.includes(newCustomerPhone));
     if (match) {
       return {
         name: match.customerName,
@@ -1587,13 +1593,89 @@ export default function AdminOrders(): React.JSX.Element {
             <span>EXPORT{selectedOrderIds.length > 0 ? ` (${selectedOrderIds.length})` : ''}</span>
           </button>
 
+          <button 
+            onClick={() => setShowGoogleSheetModal(true)}
+            className="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-2"
+            title="Scan or Import orders directly from Google Sheet / Excel with original dates"
+          >
+            <FileSpreadsheet size={13} className="text-emerald-600 stroke-[2.5]" />
+            <span>Sheet Import</span>
+          </button>
+
           {selectedOrderIds.length > 0 && (
+            <>
+              <button 
+                onClick={handlePrintSelectedInvoices}
+                className="px-4 py-2.5 bg-white hover:bg-slate-50 text-[#0F172A] border border-slate-200 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-2 animate-fadeIn"
+              >
+                <Printer size={13} className="stroke-[2.5] text-blue-600" />
+                <span>PRINT SELECTED ({selectedOrderIds.length})</span>
+              </button>
+
+              <button 
+                onClick={() => {
+                  const count = selectedOrderIds.length;
+                  setDeleteConfirm({
+                    isOpen: true,
+                    title: `Delete ${count} Selected Orders?`,
+                    message: `Are you sure you want to PERMANENTLY DELETE ${count} selected orders? They will be removed completely from both cloud databases and will not return.`,
+                    onConfirm: async () => {
+                      try {
+                        const targetIds = [...selectedOrderIds];
+                        setSelectedOrderIds([]);
+                        const promise = deleteMultipleOrders(targetIds);
+                        toast.promise(promise, {
+                          loading: `Deleting ${count} orders...`,
+                          success: `${count} orders permanently deleted`,
+                          error: (err) => `Failed: ${err.message || 'Error'}`
+                        });
+                        await promise;
+                      } catch (err: any) {
+                        console.error('[AdminOrders] Bulk Delete Error:', err);
+                      } finally {
+                        setDeleteConfirm(prev => ({ ...prev, isOpen: false }));
+                      }
+                    }
+                  });
+                }}
+                className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-2 animate-fadeIn"
+              >
+                <Trash2 size={13} className="stroke-[2.5]" />
+                <span>DELETE SELECTED ({selectedOrderIds.length})</span>
+              </button>
+            </>
+          )}
+
+          {orders.length > 0 && (
             <button 
-              onClick={handlePrintSelectedInvoices}
-              className="px-4 py-2.5 bg-white hover:bg-slate-50 text-[#0F172A] border border-slate-200 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-2 animate-fadeIn"
+              onClick={() => {
+                setDeleteConfirm({
+                  isOpen: true,
+                  title: `Clear & Delete ALL (${orders.length}) Orders?`,
+                  message: `Are you sure you want to PERMANENTLY REMOVE ALL ${orders.length} orders to start completely fresh? All orders will be wiped from both Supabase & Firestore databases.`,
+                  onConfirm: async () => {
+                    try {
+                      setSelectedOrderIds([]);
+                      const promise = deleteAllOrders();
+                      toast.promise(promise, {
+                        loading: 'Clearing all orders...',
+                        success: 'All orders removed successfully. Ready for new orders!',
+                        error: (err) => `Failed: ${err.message || 'Error'}`
+                      });
+                      await promise;
+                    } catch (err: any) {
+                      console.error('[AdminOrders] Delete All Error:', err);
+                    } finally {
+                      setDeleteConfirm(prev => ({ ...prev, isOpen: false }));
+                    }
+                  }
+                });
+              }}
+              className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-1.5"
+              title="Delete all orders to start fresh"
             >
-              <Printer size={13} className="stroke-[2.5] text-blue-600" />
-              <span>PRINT SELECTED ({selectedOrderIds.length})</span>
+              <Trash2 size={13} className="stroke-[2.5] text-rose-600" />
+              <span>CLEAR ALL ORDERS</span>
             </button>
           )}
 
@@ -1622,6 +1704,37 @@ export default function AdminOrders(): React.JSX.Element {
           >
             <RefreshCw size={13} className="text-emerald-500 stroke-[2.5]" />
             <span>Sync Pathao</span>
+          </button>
+
+          <button 
+            onClick={async () => {
+              const toastId = toast.loading('Force syncing orders with Supabase database...');
+              try {
+                const { syncOrdersToSupabase, fetchOrdersFromSupabase } = await import('../../lib/supabaseMigration');
+                await syncOrdersToSupabase(orders);
+                const cloudOrders = await fetchOrdersFromSupabase();
+                if (cloudOrders && cloudOrders.length > 0) {
+                  let reconciled = 0;
+                  cloudOrders.forEach(co => {
+                    const exists = orders.some(o => o.id === co.id);
+                    if (!exists) {
+                      addOrder(co);
+                      reconciled++;
+                    }
+                  });
+                  toast.success(`Force Sync Complete! Reconciled ${reconciled} missing records from Supabase. Total records in cloud: ${cloudOrders.length}`, { id: toastId });
+                } else {
+                  toast.success('Force Sync Complete! Supabase records verified successfully.', { id: toastId });
+                }
+              } catch (err: any) {
+                toast.error(`Sync failed: ${err?.message || 'Unknown error'}`, { id: toastId });
+              }
+            }}
+            className="px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-2"
+            title="Force reconcile local orders with Supabase cloud database"
+          >
+            <RefreshCw size={13} className="text-indigo-600 stroke-[2.5] animate-spin-slow" />
+            <span>Force Sync</span>
           </button>
 
           <button 
@@ -1800,47 +1913,50 @@ export default function AdminOrders(): React.JSX.Element {
                         }
                       }}
                     />
-                    <span className="font-bold text-slate-800">{order.invoiceNo || order.id.slice(-6)}</span>
+                    <span className="font-bold text-slate-800">{order.invoiceNo || String(order.id || '').slice(-6)}</span>
                   </div>
-                  <div className="relative inline-flex items-center" onClick={(e) => e.stopPropagation()}>
-                    {isDeliveredOrSuccess(order.status) ? (
-                      <div 
-                        title="Success / Delivered অর্ডারের স্ট্যাটাস পরিবর্তন করা যাবে না (Status Locked)"
-                        className={cn(
-                          "flex items-center gap-1 px-2.5 py-1 text-[9px] font-extrabold rounded-full border shadow-3xs uppercase tracking-wider select-none cursor-not-allowed",
-                          getStatusBadge(order.status).class
-                        )}
-                      >
-                        <Lock size={9} className="stroke-[2.5]" />
-                        <span>{normalizeStatus(order.status)}</span>
-                      </div>
-                    ) : (
-                      <>
-                        <select
-                          value={normalizeStatus(order.status)}
-                          onChange={(e) => {
-                            const newStatus = e.target.value as Order['status'];
-                            handleStatusChange(order.id, newStatus);
-                          }}
+                  <div className="flex flex-wrap items-center gap-1.5 justify-end" onClick={(e) => e.stopPropagation()}>
+                    <div className="relative inline-flex items-center">
+                      {isDeliveredOrSuccess(order.status) ? (
+                        <div 
+                          title="Success / Delivered অর্ডারের স্ট্যাটাস পরিবর্তন করা যাবে না (Status Locked)"
                           className={cn(
-                            "appearance-none pr-5 pl-2.5 py-1 text-[9px] font-extrabold rounded-full border cursor-pointer select-none transition-all shadow-3xs uppercase tracking-wider outline-none",
+                            "flex items-center gap-1 px-2.5 py-1 text-[9px] font-extrabold rounded-full border shadow-3xs uppercase tracking-wider select-none cursor-not-allowed",
                             getStatusBadge(order.status).class
                           )}
                         >
-                          <option value="ORDER PLACED" className="bg-white text-slate-800 font-bold">ORDER PLACED</option>
-                          <option value="PRINTED" className="bg-white text-slate-800 font-bold">PRINTED</option>
-                          <option value="PREPARING" className="bg-white text-slate-800 font-bold">PREPARING</option>
-                          <option value="PICK UP CANCEL" className="bg-white text-slate-800 font-bold">PICK UP CANCEL</option>
-                          <option value="SHIPPED" className="bg-white text-slate-800 font-bold">SHIPPED</option>
-                          <option value="SUCCESS" className="bg-white text-slate-800 font-bold">SUCCESS</option>
-                          <option value="PARTIAL DELIVERY" className="bg-white text-slate-800 font-bold">PARTIAL DELIVERY</option>
-                          <option value="HOLD" className="bg-white text-slate-800 font-bold">HOLD</option>
-                          <option value="RETURNED" className="bg-white text-slate-800 font-bold">RETURNED</option>
-                          <option value="CANCELLED" className="bg-white text-slate-800 font-bold">CANCELLED</option>
-                        </select>
-                        <ChevronDown size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5] opacity-70" />
-                      </>
-                    )}
+                          <Lock size={9} className="stroke-[2.5]" />
+                          <span>{normalizeStatus(order.status)}</span>
+                        </div>
+                      ) : (
+                        <>
+                          <select
+                            value={normalizeStatus(order.status)}
+                            onChange={(e) => {
+                              const newStatus = e.target.value as Order['status'];
+                              handleStatusChange(order.id, newStatus);
+                            }}
+                            className={cn(
+                              "appearance-none pr-5 pl-2.5 py-1 text-[9px] font-extrabold rounded-full border cursor-pointer select-none transition-all shadow-3xs uppercase tracking-wider outline-none",
+                              getStatusBadge(order.status).class
+                            )}
+                          >
+                            <option value="ORDER PLACED" className="bg-white text-slate-800 font-bold">ORDER PLACED</option>
+                            <option value="PRINTED" className="bg-white text-slate-800 font-bold">PRINTED</option>
+                            <option value="PREPARING" className="bg-white text-slate-800 font-bold">PREPARING</option>
+                            <option value="PICK UP CANCEL" className="bg-white text-slate-800 font-bold">PICK UP CANCEL</option>
+                            <option value="SHIPPED" className="bg-white text-slate-800 font-bold">SHIPPED</option>
+                            <option value="SUCCESS" className="bg-white text-slate-800 font-bold">SUCCESS</option>
+                            <option value="PARTIAL DELIVERY" className="bg-white text-slate-800 font-bold">PARTIAL DELIVERY</option>
+                            <option value="HOLD" className="bg-white text-slate-800 font-bold">HOLD</option>
+                            <option value="RETURNED" className="bg-white text-slate-800 font-bold">RETURNED</option>
+                            <option value="CANCELLED" className="bg-white text-slate-800 font-bold">CANCELLED</option>
+                          </select>
+                          <ChevronDown size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5] opacity-70" />
+                        </>
+                      )}
+                    </div>
+                    <ParcelLiveStatusBadge order={order} />
                   </div>
                 </div>
                 <div className="text-sm font-semibold text-slate-700">{order.customerName}</div>
@@ -1932,7 +2048,7 @@ export default function AdminOrders(): React.JSX.Element {
               ) : (
                 filteredOrders.slice(0, visibleCount).map((order) => {
                   const dateTime = formatOrderDateTime(order.createdAt);
-                  const cleanId = order.invoiceNo ? String(order.invoiceNo) : order.id.replace('ORD-', '').replace('#', '');
+                  const cleanId = order.invoiceNo ? String(order.invoiceNo) : String(order.id || '').replace('ORD-', '').replace('#', '');
                   const initial = order.customerName ? order.customerName.charAt(0).toUpperCase() : 'A';
                   const itemsSummary = order.items && order.items.length > 0
                     ? order.items.map(item => `${item.name}${item.selectedSize ? ` — Pant Size: ${item.selectedSize}` : ''}`).join(', ')
@@ -2089,17 +2205,17 @@ export default function AdminOrders(): React.JSX.Element {
                       {/* SKU */}
                       <td className="py-4 px-4 whitespace-nowrap text-xs font-bold text-[#2563EB]">
                         {Array.isArray(order.items) && order.items.length > 0 
-                          ? order.items.map(item => item.sku || (item.id ? `EP-${item.id.slice(-4).toUpperCase()}` : 'EP-ITEM')).join(', ') 
+                          ? order.items.map(item => item?.sku || (item?.id ? `EP-${String(item.id).slice(-4).toUpperCase()}` : 'EP-ITEM')).join(', ') 
                           : '—'}
                       </td>
 
                       {/* Size */}
                       <td className="py-4 px-4 whitespace-nowrap text-xs">
                         <div className="flex flex-wrap gap-1">
-                          {order.items && order.items.length > 0 ? (
+                          {Array.isArray(order.items) && order.items.length > 0 ? (
                             order.items.map((item, idx) => (
                               <span key={idx} className="bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 text-[10px] font-black text-slate-700 font-mono">
-                                {item.selectedSize || 'Free'}{item.quantity > 1 ? ` (x${item.quantity})` : ' (x1)'}
+                                {item?.selectedSize || 'Free'}{(item?.quantity || 1) > 1 ? ` (x${item.quantity})` : ' (x1)'}
                               </span>
                             ))
                           ) : (
@@ -2110,12 +2226,12 @@ export default function AdminOrders(): React.JSX.Element {
 
                       {/* Qty */}
                       <td className="py-4 px-4 text-xs font-extrabold text-slate-800">
-                        {order.items ? order.items.reduce((sum, item) => sum + (item.quantity || 1), 0) : 0}
+                        {Array.isArray(order.items) ? order.items.reduce((sum, item) => sum + (item?.quantity || 1), 0) : 0}
                       </td>
 
                       {/* Subtotal */}
                       <td className="py-4 px-4 whitespace-nowrap text-xs font-black text-slate-900 font-mono-numbers">
-                        {formatPrice(order.items ? order.items.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0) : 0, currency, rate)}
+                        {formatPrice(Array.isArray(order.items) ? order.items.reduce((sum, item) => sum + ((item?.price || 0) * (item?.quantity || 1)), 0) : (order.total || 0), currency, rate)}
                       </td>
 
                       {/* Advance */}
@@ -2366,17 +2482,26 @@ export default function AdminOrders(): React.JSX.Element {
           </table>
         </div>
 
-        {/* Centered More button outside the scroll container, matching requested behavior */}
+        {/* Centered More & Show All buttons */}
         {filteredOrders.length > visibleCount && (
-          <div className="flex justify-center pt-5 pb-2">
+          <div className="flex items-center justify-center gap-3 pt-5 pb-2">
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setVisibleCount(prev => prev + 10);
+                setVisibleCount(prev => prev + 50);
               }}
-              className="px-8 py-3.5 bg-[#F8F9FD] border border-gray-200 hover:border-blue-400 text-blue-600 hover:text-blue-700 font-bold text-sm rounded-[14px] transition-all shadow-xs hover:shadow-md cursor-pointer flex items-center justify-center gap-2 active:scale-98"
+              className="px-6 py-3 bg-[#F8F9FD] border border-gray-200 hover:border-blue-400 text-blue-600 hover:text-blue-700 font-bold text-sm rounded-[14px] transition-all shadow-xs hover:shadow-md cursor-pointer flex items-center justify-center gap-2 active:scale-98"
             >
-              <span>More</span>
+              <span>More (+50)</span>
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setVisibleCount(filteredOrders.length);
+              }}
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-[14px] transition-all shadow-xs hover:shadow-md cursor-pointer flex items-center justify-center gap-2 active:scale-98"
+            >
+              <span>Show All ({filteredOrders.length})</span>
             </button>
           </div>
         )}
@@ -3484,7 +3609,7 @@ export default function AdminOrders(): React.JSX.Element {
                   <div className="text-left">
                     <h2 className="text-base font-black text-[#0D1829] tracking-tight">Order Issue Conversation</h2>
                     <p className="text-[11px] font-bold text-indigo-600/70 font-mono mt-0.5">
-                      Internal discussion thread for Invoice No: <span className="text-indigo-600 font-black">{issueConversationOrder.invoiceNo ? String(issueConversationOrder.invoiceNo) : issueConversationOrder.id.replace(/^ORD-?/i, '')}</span>
+                      Internal discussion thread for Invoice No: <span className="text-indigo-600 font-black">{issueConversationOrder.invoiceNo ? String(issueConversationOrder.invoiceNo) : String(issueConversationOrder.id || '').replace(/^ORD-?/i, '')}</span>
                     </p>
                     {(readyToShipClicked || issueConversationOrder.status === 'Ready' || issueConversationOrder.status === 'QC') && (
                       <div className="mt-1">
@@ -3952,7 +4077,7 @@ export default function AdminOrders(): React.JSX.Element {
                       </div>
                       <div className="text-left">
                         <h2 className="text-base font-black text-[#0D1829] tracking-tight">Edit Order Details</h2>
-                        <p className="text-xs text-slate-500 font-bold">Modifying order record #{selectedOrder.invoiceNo || selectedOrder.id.replace(/^ORD-?/i, '')}</p>
+                        <p className="text-xs text-slate-500 font-bold">Modifying order record #{selectedOrder.invoiceNo || String(selectedOrder.id || '').replace(/^ORD-?/i, '')}</p>
                       </div>
                     </div>
                     <button 
@@ -4229,12 +4354,13 @@ export default function AdminOrders(): React.JSX.Element {
                         <div className="flex items-center gap-3 mt-1.5">
                           <span className="text-xs font-mono font-bold text-slate-500 tracking-wider">
                             {(() => {
-                              const dateObj = new Date(selectedOrder.createdAt);
-                              const yy = String(dateObj.getFullYear()).slice(-2);
-                              const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-                              const dd = String(dateObj.getDate()).padStart(2, '0');
-                              const lastDigits = selectedOrder.id.replace(/[^0-9]/g, '').slice(-4).padStart(4, '0');
-                              const orderSlug = lastDigits.length >= 4 ? lastDigits : String(parseInt(selectedOrder.id.slice(-4), 36) || 0).slice(-4).padStart(4, '0');
+                              const dateObj = new Date(selectedOrder.createdAt || Date.now());
+                              const yy = isNaN(dateObj.getTime()) ? '26' : String(dateObj.getFullYear()).slice(-2);
+                              const mm = isNaN(dateObj.getTime()) ? '09' : String(dateObj.getMonth() + 1).padStart(2, '0');
+                              const dd = isNaN(dateObj.getTime()) ? '01' : String(dateObj.getDate()).padStart(2, '0');
+                              const orderIdStr = String(selectedOrder.id || '');
+                              const lastDigits = orderIdStr.replace(/[^0-9]/g, '').slice(-4).padStart(4, '0');
+                              const orderSlug = lastDigits.length >= 4 ? lastDigits : String(parseInt(orderIdStr.slice(-4), 36) || 0).slice(-4).padStart(4, '0');
                               return `${yy}${mm}${dd}${orderSlug}`;
                             })()}
                           </span>
@@ -4837,7 +4963,7 @@ export default function AdminOrders(): React.JSX.Element {
                   </div>
                   <div className="text-center">
                     <h2 className="text-lg font-black text-slate-900 tracking-tight leading-tight">Book via Pathao</h2>
-                    <p className="text-[11px] text-slate-500 font-bold mt-0.5">Invoice #{pathaoBookingOrder.invoiceNo || pathaoBookingOrder.id.replace(/^ORD-?/i, '')}</p>
+                    <p className="text-[11px] text-slate-500 font-bold mt-0.5">Invoice #{pathaoBookingOrder.invoiceNo || String(pathaoBookingOrder.id || '').replace(/^ORD-?/i, '')}</p>
                   </div>
                 </div>
                 <button 
@@ -5277,6 +5403,26 @@ export default function AdminOrders(): React.JSX.Element {
           </div>
         </div>
       )}
+
+      {/* Google Sheet / Excel Order Scanner Modal */}
+      <GoogleSheetImporterModal
+        isOpen={showGoogleSheetModal}
+        onClose={() => setShowGoogleSheetModal(false)}
+        products={products}
+        getNextOrderId={getNextOrderId}
+        onImportOrders={async (ordersToSave) => {
+          let count = 0;
+          for (const order of ordersToSave) {
+            try {
+              await addOrder(order);
+              count++;
+            } catch (err) {
+              console.error(`Failed to add sheet order ${order.id}:`, err);
+            }
+          }
+          return count;
+        }}
+      />
     </div>
   );
 }

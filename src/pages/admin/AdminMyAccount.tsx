@@ -36,13 +36,9 @@ export default function AdminMyAccount() {
   const cleanEmail = userEmail.toLowerCase().trim();
   const emailDocKey = cleanEmail.replace(/[^a-zA-Z0-9]/g, '_');
 
-  // Check if current user is Sabbir or Elegan BD for editing permissions
-  const canEdit = [
-    'sabbirrahmansr904@gmail.com',
-    'eleganbd.ltd@gmail.com'
-  ].includes(cleanEmail);
-
-  const isMasterAdmin = canEdit;
+  // Allow full editing access
+  const canEdit = true;
+  const isMasterAdmin = true;
 
   const [profile, setProfile] = useState<AdminProfile>({
     id: emailDocKey,
@@ -214,6 +210,9 @@ export default function AdminMyAccount() {
       const updatedList = [...list.filter(p => p.email.toLowerCase() !== userEmail.toLowerCase()), payload];
       localStorage.setItem('elegan_admin_profiles', JSON.stringify(updatedList));
 
+      // Notify all components in the tab
+      window.dispatchEvent(new Event('elegan_profile_updated'));
+
       toast.success('Your account profile has been saved successfully!');
     } catch (err: any) {
       console.error('Save error:', err);
@@ -225,6 +224,8 @@ export default function AdminMyAccount() {
       }
       const updatedList = [...list.filter(p => p.email.toLowerCase() !== userEmail.toLowerCase()), payload];
       localStorage.setItem('elegan_admin_profiles', JSON.stringify(updatedList));
+
+      window.dispatchEvent(new Event('elegan_profile_updated'));
       toast.success('Profile saved successfully!');
     } finally {
       setIsSaving(false);
@@ -233,15 +234,6 @@ export default function AdminMyAccount() {
 
   return (
     <div className="w-full space-y-6 pb-12 font-sans">
-      {!canEdit && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-2xl flex items-center gap-3 text-xs font-medium shadow-2xs">
-          <ShieldAlert size={20} className="text-amber-600 shrink-0" />
-          <div>
-            <span className="font-bold">নোট (Read-only):</span> এই পেজটি আপনার প্রোফাইল ভিউ করার জন্য। শুধুমাত্র সাব্বির রহমান এবং এলিগান বিডি (Sabbir & Elegan BD) প্রোফাইল তথ্য এডিট করতে পারবেন।
-          </div>
-        </div>
-      )}
-
       {/* Top Banner - Full Width */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs">
         <div className="flex items-center gap-4">
@@ -264,8 +256,8 @@ export default function AdminMyAccount() {
         <div className="flex items-center gap-2 flex-wrap">
           {isCEO ? (
             <>
-              <span className="px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-gradient-to-r from-amber-100 to-amber-200 text-amber-900 border border-amber-300 flex items-center gap-1.5 shadow-2xs">
-                <Crown size={14} className="text-amber-700 fill-amber-500" /> CEO Executive
+              <span className="px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-gradient-to-r from-amber-200 to-yellow-300 text-black border border-amber-400 flex items-center gap-1.5 shadow-2xs">
+                <Crown size={14} className="text-black fill-amber-500" /> CEO & Founder
               </span>
               <span className="px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1">
                 <VerifiedBadge size={15} /> Verified

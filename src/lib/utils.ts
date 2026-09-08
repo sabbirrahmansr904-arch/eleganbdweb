@@ -6,10 +6,8 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatPrice(price: number, currency: 'USD' | 'BDT' = 'BDT', rate: number = 117.5) {
-  // If baseline is BDT, price in USD should be divided by rate.
-  // If baseline is USD, price in BDT should be multiplied by rate.
-  // To satisfy the user (treating input as BDT), we change it to divide for USD.
-  const displayPrice = currency === 'USD' ? price / rate : price;
+  const safePrice = (typeof price === 'number' && !isNaN(price)) ? price : (Number(price) || 0);
+  const displayPrice = currency === 'USD' ? safePrice / rate : safePrice;
   
   if (currency === 'BDT') {
     const isNegative = displayPrice < 0;

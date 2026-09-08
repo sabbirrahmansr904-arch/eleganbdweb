@@ -173,6 +173,32 @@ export default function TrackOrder() {
         });
       }
 
+      // 5. Local cache fallback if Firestore query returned nothing or had an error
+      if (foundOrders.length === 0) {
+        try {
+          const cached = localStorage.getItem('eleganbd_all_orders');
+          if (cached) {
+            const allCached: Order[] = JSON.parse(cached);
+            if (Array.isArray(allCached)) {
+              allCached.forEach(o => {
+                if (!o) return;
+                const matchesId = String(o.id || '').toLowerCase() === cleanInput.toLowerCase() ||
+                  String(o.id || '').replace(/^ORD-?/i, '') === cleanInput ||
+                  (typeof o.invoiceNo === 'number' && String(o.invoiceNo) === cleanInput);
+                const oPhone = String(o.phone || '').replace(/\D/g, '');
+                const cleanPhone = cleanInput.replace(/\D/g, '');
+                const matchesPhone = Boolean(cleanPhone.length >= 8 && oPhone && (oPhone.endsWith(cleanPhone) || cleanPhone.endsWith(oPhone)));
+                if (matchesId || matchesPhone) {
+                  if (!foundOrders.some(existing => existing.id === o.id)) {
+                    foundOrders.push(o);
+                  }
+                }
+              });
+            }
+          }
+        } catch {}
+      }
+
       if (foundOrders.length === 1) {
         setOrder(foundOrders[0]);
       } else if (foundOrders.length > 1) {

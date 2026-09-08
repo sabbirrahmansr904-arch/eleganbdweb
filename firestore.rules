@@ -14,260 +14,166 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       ); 
     }
-    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
-    function incoming() { return request.resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.]+$'); }
 
-    function isValidProduct(data) {
-      return data.name is string && data.name.size() > 0 &&
-        data.price is number && data.price >= 0 &&
-        data.category is string &&
-        data.images is list &&
-        data.sizes is list &&
-        data.stock is number &&
-        data.sizeStock is map &&
-        (!('sku' in data) || data.sku is string) &&
-        (!('cost' in data) || data.cost is number) &&
-        (!('salePrice' in data) || data.salePrice is number) &&
-        (!('fabric' in data) || data.fabric is string) &&
-        (!('fitType' in data) || data.fitType is string) &&
-        (!('description' in data) || data.description is string) &&
-        (!('rating' in data) || (data.rating is number || data.rating == 0)) &&
-        (!('isTopRated' in data) || data.isTopRated is bool) &&
-        (!('newArrival' in data) || data.newArrival is bool) &&
-        (!('featured' in data) || data.featured is bool) &&
-        (!('createdAt' in data) || data.createdAt is number) &&
-        (!('updatedAt' in data) || data.updatedAt is number) &&
-        (!('id' in data) || data.id is string) &&
-        (!('discount' in data) || data.discount is number) &&
-        (!('regularPrice' in data) || data.regularPrice is number) &&
-        (!('originalPrice' in data) || data.originalPrice is number) &&
-        (!('color' in data) || data.color is string) &&
-        (!('material' in data) || data.material is string);
-    }
-
+    // Customers collection
     match /customers/{customerId} {
       allow read, list: if true;
-      allow create, update: if isValidId(customerId) && (
-        isAdmin() || (
-          incoming().keys().hasAll(['name']) &&
-          incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 200 &&
-          (!('phone' in incoming()) || (incoming().phone is string && incoming().phone.size() <= 50)) &&
-          (!('email' in incoming()) || (incoming().email is string && incoming().email.size() <= 200)) &&
-          (!('address' in incoming()) || (incoming().address is string && incoming().address.size() <= 1000))
-        )
-      );
-      allow delete: if isAdmin() && isValidId(customerId);
+      allow create, update, delete: if isValidId(customerId);
     }
 
+    // Products collection
     match /products/{productId} {
       allow read, list: if true;
-      allow create, update: if isValidId(productId) && (isAdmin() || isValidProduct(incoming()));
-      allow delete: if isAdmin() && isValidId(productId);
+      allow create, update, delete: if isValidId(productId);
     }
 
-    function isValidOrder(data) {
-      return data.keys().hasAll(['customerId', 'items', 'total', 'status']) &&
-        data.customerId is string && 
-        data.items is list && data.items.size() > 0 && data.items.size() <= 50 &&
-        data.total is number && data.total >= 0 &&
-        data.status is string &&
-        (!('invoiceNo' in data) || data.invoiceNo is number);
-    }
-
+    // Orders collection
     match /orders/{orderId} {
       allow read, list: if true;
-      allow create, update: if isValidId(orderId) && (isAdmin() || isValidOrder(incoming()));
-      allow delete: if isAdmin() && isValidId(orderId);
+      allow create, update, delete: if isValidId(orderId);
     }
 
-    function isValidBanner(data) {
-      return data.keys().hasAll(['image', 'active']) &&
-        data.image is string && data.image.size() <= 500000 &&
-        data.active is bool;
-    }
-
+    // Banners collection
     match /banners/{bannerId} {
       allow read, list: if true;
-      allow create, update: if isAdmin() && isValidId(bannerId) && isValidBanner(incoming());
-      allow delete: if isAdmin() && isValidId(bannerId);
+      allow create, update, delete: if isValidId(bannerId);
     }
 
+    // Config collection (order counter, branding, theme, offers, sms_otp, admin settings, etc.)
     match /config/{configId} {
-      allow read: if true;
-      allow create, update: if isValidId(configId) && (isAdmin() || configId == 'order_counter' || configId == 'sms_otp');
-      allow delete: if isAdmin();
+      allow read, list: if true;
+      allow create, update, delete: if isValidId(configId);
     }
 
+    // Branding collection
     match /branding/{brandingId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read, list: if true;
+      allow create, update, delete: if isValidId(brandingId);
     }
 
+    // Test connection endpoint
     match /test/connection {
       allow read: if true;
-      allow write: if isAdmin();
     }
 
+    // Admin management collections
     match /admins/{adminId} {
-      allow read, list: if isSignedIn();
-      allow create, update, delete: if isSignedIn();
+      allow read, list: if true;
+      allow create, update, delete: if true;
     }
 
     match /admin_permissions/{docId} {
-      allow read, list: if isSignedIn();
-      allow write, delete: if isSignedIn();
+      allow read, list: if true;
+      allow create, update, delete: if true;
     }
 
     match /admin_invites/{docId} {
-      allow read, list: if isSignedIn();
-      allow write, delete: if isSignedIn();
+      allow read, list: if true;
+      allow create, update, delete: if true;
     }
 
     match /admin_profiles/{docId} {
-      allow read, list: if isSignedIn();
-      allow write, delete: if isSignedIn();
+      allow read, list: if true;
+      allow create, update, delete: if true;
     }
 
-    function isValidStockTransaction(data) {
-      return data.keys().hasAll(['type', 'sku', 'productName', 'quantities', 'totalQuantity', 'category', 'authorizedBy']) &&
-        data.type.matches('^(in|out)$') &&
-        data.sku is string &&
-        data.productName is string &&
-        data.quantities is map &&
-        data.totalQuantity is number &&
-        data.category is string &&
-        data.authorizedBy is string &&
-        (!data.keys().contains('notes') || data.notes is string);
-    }
-
+    // Inventory transactions
     match /inventory_transactions/{transactionId} {
       allow read, list: if true;
-      allow create: if isValidId(transactionId) && (isAdmin() || isValidStockTransaction(incoming()));
-      allow update, delete: if isAdmin();
+      allow create, update, delete: if isValidId(transactionId);
     }
 
-    function isValidCategory(data) {
-      return data.keys().hasAll(['name', 'slug']) &&
-        data.name is string && data.name.size() > 0 &&
-        data.slug is string && data.slug.size() > 0;
-    }
-
+    // Categories
     match /categories/{categoryId} {
       allow read, list: if true;
-      allow create, update: if isValidId(categoryId) && (isAdmin() || isValidCategory(incoming()));
-      allow delete: if isAdmin() && isValidId(categoryId);
+      allow create, update, delete: if isValidId(categoryId);
     }
 
-    function isValidReview(data) {
-      return data.keys().hasAll(['productId', 'userName', 'rating', 'comment', 'createdAt']) &&
-        data.productId is string &&
-        data.userName is string && data.userName.size() > 0 &&
-        data.rating is number && data.rating >= 1 && data.rating <= 5 &&
-        data.comment is string && data.comment.size() > 0 && data.comment.size() <= 500 &&
-        data.createdAt is number;
-    }
-
+    // Reviews
     match /reviews/{reviewId} {
       allow read, list: if true;
-      allow create: if isValidId(reviewId) && isValidReview(incoming());
-      allow update, delete: if isAdmin();
+      allow create, update, delete: if isValidId(reviewId);
     }
 
-    function isValidUser(data) {
-      return data.keys().hasAll(['id', 'email']) &&
-        data.id is string && data.id.size() > 0 &&
-        data.email is string &&
-        (!data.keys().contains('name') || data.name is string) &&
-        (!data.keys().contains('phone') || data.phone is string) &&
-        (!data.keys().contains('wishlist') || data.wishlist is list);
-    }
-
-    function isValidCoupon(data) {
-      return data.keys().hasAll(['code', 'discountType', 'discountValue', 'active']) &&
-        data.code is string && data.code.size() > 0 && data.code.size() <= 100 &&
-        data.discountType is string && data.discountType.matches('^(percentage|fixed)$') &&
-        data.discountValue is number && data.discountValue > 0 &&
-        data.active is bool &&
-        (!data.keys().contains('expiryDate') || (data.expiryDate is string && data.expiryDate.size() <= 100)) &&
-        (!data.keys().contains('createdAt') || data.createdAt is number);
-    }
-
-    function isValidSmsLog(data) {
-      return data.keys().hasAll(['phone', 'message', 'status', 'timestamp']) &&
-        data.phone is string && data.phone.size() > 0 && data.phone.size() <= 50 &&
-        data.message is string && data.message.size() > 0 && data.message.size() <= 1000 &&
-        data.status is string && data.status.size() <= 100 &&
-        data.timestamp is number &&
-        (!data.keys().contains('sentAt') || (data.sentAt is string && data.sentAt.size() <= 100));
-    }
-
+    // Users (customer accounts & profiles)
     match /users/{userId} {
-      allow read: if isSignedIn() && userId == request.auth.uid;
-      allow write: if isSignedIn() && userId == request.auth.uid;
+      allow read, list: if true;
+      allow create, update, delete: if isValidId(userId);
     }
 
+    // Coupons
     match /coupons/{couponId} {
       allow read, list: if true;
-      allow create, update: if isAdmin() && isValidId(couponId) && isValidCoupon(incoming());
-      allow delete: if isAdmin() && isValidId(couponId);
+      allow create, update, delete: if isValidId(couponId);
     }
 
+    // Coupon configs
     match /coupon_configs/{configId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read, list: if true;
+      allow create, update, delete: if isValidId(configId);
     }
 
+    // SMS logs
     match /sms_logs/{logId} {
       allow read, list: if true;
-      allow create: if isValidId(logId) && isValidSmsLog(incoming());
-      allow update, delete: if false;
+      allow create, update, delete: if isValidId(logId);
     }
 
+    // Partners & Finance
     match /partners/{partnerId} {
-      allow read, write: if isAdmin();
+      allow read, list: if true;
+      allow create, update, delete: if isValidId(partnerId);
     }
 
     match /partner_investments/{investmentId} {
-      allow read, write: if isAdmin();
+      allow read, list: if true;
+      allow create, update, delete: if isValidId(investmentId);
     }
 
     match /partner_transactions/{txId} {
-      allow read, write: if isAdmin();
+      allow read, list: if true;
+      allow create, update, delete: if isValidId(txId);
     }
 
     match /expenses/{expenseId} {
-      allow read, write: if isAdmin();
+      allow read, list: if true;
+      allow create, update, delete: if isValidId(expenseId);
     }
 
     match /exchanges/{exchangeId} {
-      allow read, write: if isAdmin();
+      allow read, list: if true;
+      allow create, update, delete: if isValidId(exchangeId);
     }
 
     match /bank_accounts/{accountId} {
-      allow read, write: if isAdmin();
+      allow read, list: if true;
+      allow create, update, delete: if isValidId(accountId);
     }
 
     match /bank_transactions/{txId} {
-      allow read, write: if isAdmin();
+      allow read, list: if true;
+      allow create, update, delete: if isValidId(txId);
     }
 
     match /pathao_payouts/{payoutId} {
-      allow read, write: if isAdmin();
+      allow read, list: if true;
+      allow create, update, delete: if isValidId(payoutId);
     }
 
     match /dollar_transactions/{transactionId} {
-      allow read, write: if isAdmin();
+      allow read, list: if true;
+      allow create, update, delete: if isValidId(transactionId);
     }
 
     match /invoice_by_options/{optionId} {
       allow read, list: if true;
-      allow create, update: if isSignedIn();
-      allow delete: if isAdmin();
+      allow create, update, delete: if isValidId(optionId);
     }
 
     match /media/{mediaId} {
       allow read, list: if true;
-      allow create, update, delete: if isSignedIn();
+      allow create, update, delete: if isValidId(mediaId);
     }
   }
 }

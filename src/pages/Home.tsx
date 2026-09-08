@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   ArrowRight, ChevronLeft, ChevronRight, Truck, Award, Lock, Tag, Users, 
   ShoppingBag, Star, Headphones, Clock, Sparkles, ShieldCheck, ArrowLeftRight, 
-  HelpCircle, ChevronDown, CheckCircle2, Flame, Gift, Mail, Phone, Building2, MapPin 
+  HelpCircle, ChevronDown, CheckCircle2, Flame, Gift, Mail, Phone, Building2, MapPin,
+  RotateCcw, Banknote
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProducts } from '../contexts/ProductContext';
@@ -11,6 +12,7 @@ import { useBanners } from '../contexts/BannerContext';
 import { useBranding } from '../contexts/BrandingContext';
 import { useCategories, sortCategories } from '../contexts/CategoryContext';
 import ProductCard from '../components/ProductCard';
+import { ProductGridSkeleton, ProductScrollSkeleton } from '../components/ProductSkeleton';
 import ReviewsCarousel from '../components/ReviewsCarousel';
 import { cn } from '../lib/utils';
 
@@ -68,6 +70,9 @@ const Home = () => {
 
   // Fabric Showcase tab state
   const [activeFabricTab, setActiveFabricTab] = React.useState<'pants' | 'shirts'>('pants');
+
+  // Best Selling Filter Tab state ('pant' | 'shirt')
+  const [bestSellingTab, setBestSellingTab] = React.useState<'pant' | 'shirt'>('pant');
 
   React.useEffect(() => {
     const timer = setInterval(() => {
@@ -196,6 +201,33 @@ const Home = () => {
 
     return [...pants, ...shirts, ...others];
   }, [products]);
+
+  // Best Selling Filtered Products for [ FORMAL PANT ] [ FORMAL SHIRT ] Switcher
+  const bestSellingFilteredProducts = React.useMemo(() => {
+    if (!products || products.length === 0) return [];
+    const isPant = (p: typeof products[0]) => {
+      const cat = (p.category || '').toLowerCase();
+      const name = (p.name || '').toLowerCase();
+      return cat.includes('pant') || cat.includes('trouser') || name.includes('pant') || name.includes('trouser');
+    };
+
+    const isShirt = (p: typeof products[0]) => {
+      const cat = (p.category || '').toLowerCase();
+      const name = (p.name || '').toLowerCase();
+      return cat.includes('shirt') || name.includes('shirt') || cat.includes('polo') || name.includes('polo');
+    };
+
+    const pool = products.filter(p => p.featured || p.bestSelling || p.isTopRated || (p.rating && p.rating >= 4.5));
+    const candidates = pool.length >= 4 ? pool : products;
+
+    if (bestSellingTab === 'pant') {
+      const matched = candidates.filter(isPant);
+      return matched.length > 0 ? matched : products.filter(isPant);
+    } else {
+      const matched = candidates.filter(p => isShirt(p) && !isPant(p));
+      return matched.length > 0 ? matched : products.filter(p => isShirt(p) && !isPant(p));
+    }
+  }, [products, bestSellingTab]);
 
   // Categories for Shop By Category section
   const displayCategories = React.useMemo(() => {
@@ -407,6 +439,269 @@ const Home = () => {
         </section>
       )}
 
+      {/* 4-COLUMN HIGHLIGHT BAR (EXACT AS IMAGE) */}
+      <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 py-3 sm:py-5">
+        <div className="bg-[#F8FAFC] border border-blue-100/60 rounded-2xl sm:rounded-3xl p-4 sm:p-5 lg:px-8 lg:py-6 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 items-center">
+            
+            {/* 1. Nationwide Cash on Delivery */}
+            <div className="flex items-center gap-3 sm:gap-3.5">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 bg-[#2563EB] rounded-xl sm:rounded-2xl flex items-center justify-center shadow-xs">
+                <Truck className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[13px] sm:text-[15px] font-bold text-gray-900 leading-tight">সারাদেশে ক্যাশ অন ডেলিভারি</span>
+                <span className="text-[11px] sm:text-xs text-gray-500 leading-snug mt-0.5">প্যাকেট খুলে দেখে পেমেন্ট করুন</span>
+              </div>
+            </div>
+
+            {/* 2. 100% Premium Fabric */}
+            <div className="flex items-center gap-3 sm:gap-3.5">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 bg-[#2563EB] rounded-xl sm:rounded-2xl flex items-center justify-center shadow-xs">
+                <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[13px] sm:text-[15px] font-bold text-gray-900 leading-tight">১০০% প্রিমিয়াম ফেব্রিক</span>
+                <span className="text-[11px] sm:text-xs text-gray-500 leading-snug mt-0.5">কোয়ালিটি গ্যারান্টিড</span>
+              </div>
+            </div>
+
+            {/* 3. Easy Exchange */}
+            <div className="flex items-center gap-3 sm:gap-3.5">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 bg-[#2563EB] rounded-xl sm:rounded-2xl flex items-center justify-center shadow-xs">
+                <ArrowLeftRight className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[13px] sm:text-[15px] font-bold text-gray-900 leading-tight">সহজ এক্সচেঞ্জ সুবিধা</span>
+                <span className="text-[11px] sm:text-xs text-gray-500 leading-snug mt-0.5">৭ দিনের মধ্যে ফ্রি সাইজ পরিবর্তন</span>
+              </div>
+            </div>
+
+            {/* 4. 24/7 Customer Support */}
+            <div className="flex items-center gap-3 sm:gap-3.5">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 bg-[#2563EB] rounded-xl sm:rounded-2xl flex items-center justify-center shadow-xs">
+                <Headphones className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[13px] sm:text-[15px] font-bold text-gray-900 leading-tight">২৪/৭ কাস্টমার সাপোর্ট</span>
+                <span className="text-[11px] sm:text-xs text-gray-500 leading-snug mt-0.5">কল বা মেসেজে সার্বক্ষণিক সহায়তা</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* 1. SHOP BY CATEGORY SECTION */}
+      {displayCategories.length > 0 && (
+        <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-10 sm:pb-12">
+          {/* Section Header: SHOP BY CATEGORY (Larger & Centered) */}
+          <div className="relative flex items-center justify-center border-b border-gray-100 pb-4 mb-6 px-1">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase text-gray-900 tracking-tight text-center">
+              SHOP BY CATEGORY
+            </h2>
+            <div className="absolute right-0 flex items-center gap-2">
+              <button
+                onClick={() => scrollLeft(shopByCategoryScrollRef)}
+                className="w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-black hover:text-white hover:border-black transition-colors flex items-center justify-center text-gray-700 cursor-pointer shadow-2xs"
+                aria-label="Scroll left"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                onClick={() => scrollRight(shopByCategoryScrollRef)}
+                className="w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-black hover:text-white hover:border-black transition-colors flex items-center justify-center text-gray-700 cursor-pointer shadow-2xs"
+                aria-label="Scroll right"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+
+          <div className="relative group/carousel">
+            <div 
+              ref={shopByCategoryScrollRef}
+              onMouseEnter={() => setIsHoveredShopCategory(true)}
+              onMouseLeave={() => setIsHoveredShopCategory(false)}
+              onTouchStart={() => setIsHoveredShopCategory(true)}
+              onTouchEnd={() => setIsHoveredShopCategory(false)}
+              className="flex gap-3 sm:gap-4 overflow-x-auto pb-3 scroll-smooth snap-x snap-mandatory no-scrollbar"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {displayCategories.map((cat) => {
+                const catImg = cat.image || 'https://images.unsplash.com/photo-1598033129183-c4f50c7176c8?w=600&q=80';
+                return (
+                  <Link
+                    key={cat.id || cat.slug}
+                    to={`/category/${cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-')}`}
+                    className="shrink-0 w-[170px] sm:w-[220px] md:w-[260px] lg:w-[280px] group/card relative rounded-2xl overflow-hidden aspect-3/4 bg-gray-900 border border-gray-200/80 shadow-xs hover:shadow-xl hover:border-blue-500 transition-all duration-300 block snap-start"
+                  >
+                    <img 
+                      src={catImg} 
+                      alt={cat.name} 
+                      className="w-full h-full object-cover object-center group-hover/card:scale-108 transition-transform duration-700" 
+                      referrerPolicy="no-referrer"
+                    />
+                    
+                    {/* Dark gradient overlay at bottom */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4 text-white">
+                      <h3 className="font-black text-xs sm:text-sm uppercase tracking-wider group-hover/card:text-blue-400 transition-colors line-clamp-1">
+                        {cat.name}
+                      </h3>
+                      <span className="text-[10px] sm:text-[11px] font-bold text-gray-300 group-hover:text-white transition-colors mt-1 uppercase tracking-wider flex items-center gap-1">
+                        EXPLORE <ArrowRight size={10} />
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* 2. BEST SELLING SECTION (FORMAL PANT / FORMAL SHIRT Filter) */}
+      <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-10 sm:pb-12">
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-gray-900 uppercase tracking-tight text-center">
+          BEST SELLING PRODUCTS
+        </h2>
+
+        {/* Best Selling Filter Pills */}
+        <div className="flex justify-center mt-3 sm:mt-4 mb-5 sm:mb-6">
+          <div className="inline-flex p-1 bg-[#F2F3F5] rounded-full gap-1.5 w-full max-w-[340px] sm:max-w-[400px] shadow-2xs">
+            <button
+              onClick={() => setBestSellingTab('pant')}
+              className={cn(
+                "flex-1 py-2 sm:py-2.5 rounded-full font-black text-xs sm:text-sm uppercase tracking-wider transition-all cursor-pointer text-center",
+                bestSellingTab === 'pant'
+                  ? "bg-blue-600 text-white shadow-xs"
+                  : "text-gray-500 hover:text-gray-900"
+              )}
+            >
+              FORMAL PANT
+            </button>
+            <button
+              onClick={() => setBestSellingTab('shirt')}
+              className={cn(
+                "flex-1 py-2 sm:py-2.5 rounded-full font-black text-xs sm:text-sm uppercase tracking-wider transition-all cursor-pointer text-center",
+                bestSellingTab === 'shirt'
+                  ? "bg-blue-600 text-white shadow-xs"
+                  : "text-gray-500 hover:text-gray-900"
+              )}
+            >
+              FORMAL SHIRT
+            </button>
+          </div>
+        </div>
+
+        {/* 2-Column Product Grid */}
+        {productsLoading ? (
+          <ProductGridSkeleton count={8} />
+        ) : bestSellingFilteredProducts.length === 0 ? (
+          <div className="py-12 text-center bg-gray-50 rounded-2xl border border-gray-100">
+            <p className="text-sm font-bold text-gray-500">No products available at the moment.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5 md:gap-4">
+            {bestSellingFilteredProducts.map((product) => (
+              <ProductCard key={`bestselling-${product.id}`} product={product} badgeText="BEST SELLING" />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* 3. NEW ARRIVAL PRODUCTS SECTION */}
+      {(newArrivalProducts.length > 0 || productsLoading) && (
+        <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-10">
+          {/* Section Header: NEW ARRIVAL PRODUCTS (Larger & Centered) */}
+          <div className="relative flex items-center justify-center border-b border-gray-100 pb-4 mb-5 px-1">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase text-gray-900 tracking-tight text-center">
+              NEW ARRIVAL PRODUCTS
+            </h2>
+            <Link 
+              to="/category/all" 
+              className="absolute right-0 text-xs sm:text-sm font-bold uppercase text-gray-500 hover:text-blue-600 transition-colors tracking-wider flex items-center gap-1 shrink-0"
+            >
+              <span className="hidden sm:inline">See All</span>
+              <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          {productsLoading ? (
+            <ProductScrollSkeleton count={6} />
+          ) : (
+            <div className="relative group/carousel">
+              {/* Scroll Left Button */}
+              <button
+                onClick={() => scrollLeft(newArrivalScrollRef)}
+                className="absolute -left-2 sm:-left-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-all cursor-pointer opacity-90 hover:opacity-100"
+                aria-label="Scroll left"
+              >
+                <ChevronLeft size={18} />
+              </button>
+
+              {/* Scroll Right Button */}
+              <button
+                onClick={() => scrollRight(newArrivalScrollRef)}
+                className="absolute -right-2 sm:-right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-all cursor-pointer opacity-90 hover:opacity-100"
+                aria-label="Scroll right"
+              >
+                <ChevronRight size={18} />
+              </button>
+
+              {/* Scrollable Container */}
+              <div 
+                ref={newArrivalScrollRef}
+                onMouseEnter={() => setIsHoveredNewArrival(true)}
+                onMouseLeave={() => setIsHoveredNewArrival(false)}
+                onTouchStart={() => setIsHoveredNewArrival(true)}
+                onTouchEnd={() => setIsHoveredNewArrival(false)}
+                className="flex gap-2 sm:gap-3 overflow-x-auto pb-3 scroll-smooth snap-x snap-mandatory no-scrollbar"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {newArrivalProducts.map((product) => (
+                  <div key={`newarrival-${product.id}`} className="w-[calc(50%-4px)] sm:w-[calc(50%-6px)] md:w-[calc(33.333%-8px)] lg:w-[calc(25%-9px)] flex-shrink-0 snap-start">
+                    <ProductCard product={product} badgeText="NEW" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* 4. ALL COLLECTIONS - MAIN PRODUCT SECTION SHOWING FORMAL PANTS FIRST, THEN FORMAL SHIRTS */}
+      <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
+        {/* Section Header: ALL COLLECTIONS */}
+        <div className="relative flex items-center justify-center border-b border-gray-100 pb-4 mb-8">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase text-gray-900 tracking-tight text-center">
+            ALL COLLECTIONS
+          </h2>
+          <Link 
+            to="/category/all" 
+            className="absolute right-0 flex items-center gap-1 text-xs font-black uppercase text-gray-900 hover:text-red-600 transition-colors tracking-wider"
+          >
+            <span className="hidden sm:inline">VIEW ALL</span>
+            <ArrowRight size={14} />
+          </Link>
+        </div>
+
+        {/* Product Grid displaying sorted products (Pants first, then Shirts) */}
+        {productsLoading ? (
+          <ProductGridSkeleton count={8} />
+        ) : sortedProducts.length === 0 ? (
+          <div className="py-16 text-center bg-gray-50 rounded-2xl border border-gray-100">
+            <p className="text-sm font-bold text-gray-500">No products available at the moment.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5 md:gap-4">
+            {sortedProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
+      </section>
+
       {/* TOP FEATURE BADGES BAR */}
       <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-6 sm:pb-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-blue-50/60 p-4 sm:p-5 rounded-2xl border border-blue-100/80">
@@ -512,169 +807,6 @@ const Home = () => {
         </section>
       )}
 
-
-
-
-
-      {/* SHOP BY CATEGORY SECTION */}
-      {displayCategories.length > 0 && (
-        <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-10 sm:pb-12">
-          {/* Section Header: SHOP BY CATEGORY with Scroll Controls */}
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-6 px-1">
-            <h2 className="text-sm sm:text-base md:text-xl font-extrabold uppercase text-blue-600 tracking-wide">
-              SHOP BY CATEGORY
-            </h2>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => scrollLeft(shopByCategoryScrollRef)}
-                className="w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-black hover:text-white hover:border-black transition-colors flex items-center justify-center text-gray-700 cursor-pointer shadow-2xs"
-                aria-label="Scroll left"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <button
-                onClick={() => scrollRight(shopByCategoryScrollRef)}
-                className="w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-black hover:text-white hover:border-black transition-colors flex items-center justify-center text-gray-700 cursor-pointer shadow-2xs"
-                aria-label="Scroll right"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          </div>
-
-          <div className="relative group/carousel">
-            <div 
-              ref={shopByCategoryScrollRef}
-              onMouseEnter={() => setIsHoveredShopCategory(true)}
-              onMouseLeave={() => setIsHoveredShopCategory(false)}
-              onTouchStart={() => setIsHoveredShopCategory(true)}
-              onTouchEnd={() => setIsHoveredShopCategory(false)}
-              className="flex gap-3 sm:gap-4 overflow-x-auto pb-3 scroll-smooth snap-x snap-mandatory no-scrollbar"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {displayCategories.map((cat) => {
-                const catImg = cat.image || 'https://images.unsplash.com/photo-1598033129183-c4f50c7176c8?w=600&q=80';
-                return (
-                  <Link
-                    key={cat.id || cat.slug}
-                    to={`/category/${cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-')}`}
-                    className="shrink-0 w-[170px] sm:w-[220px] md:w-[260px] lg:w-[280px] group/card relative rounded-2xl overflow-hidden aspect-3/4 bg-gray-900 border border-gray-200/80 shadow-xs hover:shadow-xl hover:border-blue-500 transition-all duration-300 block snap-start"
-                  >
-                    <img 
-                      src={catImg} 
-                      alt={cat.name} 
-                      className="w-full h-full object-cover object-center group-hover/card:scale-108 transition-transform duration-700" 
-                      referrerPolicy="no-referrer"
-                    />
-                    
-                    {/* Dark gradient overlay at bottom */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4 text-white">
-                      <h3 className="font-black text-xs sm:text-sm uppercase tracking-wider group-hover/card:text-blue-400 transition-colors line-clamp-1">
-                        {cat.name}
-                      </h3>
-                      <span className="text-[10px] sm:text-[11px] font-bold text-gray-300 group-hover:text-white transition-colors mt-1 uppercase tracking-wider flex items-center gap-1">
-                        EXPLORE <ArrowRight size={10} />
-                      </span>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* NEW ARRIVAL PRODUCTS SECTION */}
-      {newArrivalProducts.length > 0 && (
-        <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-10">
-          {/* Section Header: NEW ARRIVAL PRODUCTS */}
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4 px-1">
-            <h2 className="text-sm sm:text-base md:text-xl font-extrabold uppercase text-blue-600 tracking-wide">
-              NEW ARRIVAL PRODUCTS
-            </h2>
-            <Link 
-              to="/category/all" 
-              className="text-xs sm:text-sm font-bold uppercase text-gray-500 hover:text-blue-600 transition-colors tracking-wider flex items-center gap-1 shrink-0"
-            >
-              <span>See All</span>
-              <ArrowRight size={14} />
-            </Link>
-          </div>
-
-          <div className="relative group/carousel">
-            {/* Scroll Left Button */}
-            <button
-              onClick={() => scrollLeft(newArrivalScrollRef)}
-              className="absolute -left-2 sm:-left-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-all cursor-pointer opacity-90 hover:opacity-100"
-              aria-label="Scroll left"
-            >
-              <ChevronLeft size={18} />
-            </button>
-
-            {/* Scroll Right Button */}
-            <button
-              onClick={() => scrollRight(newArrivalScrollRef)}
-              className="absolute -right-2 sm:-right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-all cursor-pointer opacity-90 hover:opacity-100"
-              aria-label="Scroll right"
-            >
-              <ChevronRight size={18} />
-            </button>
-
-            {/* Scrollable Container */}
-            <div 
-              ref={newArrivalScrollRef}
-              onMouseEnter={() => setIsHoveredNewArrival(true)}
-              onMouseLeave={() => setIsHoveredNewArrival(false)}
-              onTouchStart={() => setIsHoveredNewArrival(true)}
-              onTouchEnd={() => setIsHoveredNewArrival(false)}
-              className="flex gap-2 sm:gap-3 overflow-x-auto pb-3 scroll-smooth snap-x snap-mandatory no-scrollbar"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {newArrivalProducts.map((product) => (
-                <div key={`newarrival-${product.id}`} className="w-[calc(50%-4px)] sm:w-[calc(50%-6px)] md:w-[calc(33.333%-8px)] lg:w-[calc(25%-9px)] flex-shrink-0 snap-start">
-                  <ProductCard product={product} badgeText="NEW" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ALL COLLECTIONS - MAIN PRODUCT SECTION SHOWING FORMAL PANTS FIRST, THEN FORMAL SHIRTS */}
-      <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
-        {/* Section Header: ALL COLLECTIONS (CENTERED & BLUE) */}
-        <div className="relative flex items-center justify-center border-b border-gray-100 pb-4 mb-8">
-          <h2 className="text-xl md:text-2xl font-black uppercase text-blue-600 tracking-tight text-center">
-            ALL COLLECTIONS
-          </h2>
-          <Link 
-            to="/category/all" 
-            className="absolute right-0 flex items-center gap-1 text-xs font-black uppercase text-gray-900 hover:text-blue-600 transition-colors tracking-wider"
-          >
-            <span className="hidden sm:inline">VIEW ALL</span>
-            <ArrowRight size={14} />
-          </Link>
-        </div>
-
-        {/* Product Grid displaying sorted products (Pants first, then Shirts) */}
-        {productsLoading ? (
-          <div className="py-20 text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
-            <p className="text-xs font-bold text-gray-400 mt-3 uppercase tracking-wider">Loading collections...</p>
-          </div>
-        ) : sortedProducts.length === 0 ? (
-          <div className="py-16 text-center bg-gray-50 rounded-2xl border border-gray-100">
-            <p className="text-sm font-bold text-gray-500">No products available at the moment.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5 md:gap-4">
-            {sortedProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        )}
-      </section>
-
       {/* SUB-HERO BANNER - BELOW ALL PRODUCTS */}
       {subHeroBannerUrl && (
         <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
@@ -685,70 +817,12 @@ const Home = () => {
             <img 
               src={subHeroBannerUrl} 
               alt="Sub-Hero Promotional Banner" 
-              className="w-full h-auto object-cover object-center transition-transform duration-700 group-hover:scale-101"
+              className="w-full h-auto object-cover object-center transition-transform duration-700 group-hover:scale-101" 
               referrerPolicy="no-referrer"
             />
           </Link>
         </section>
       )}
-
-      {/* BEST SELLING PRODUCTS SECTION */}
-      {bestSellingProducts.length > 0 && (
-        <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
-          {/* Section Header: BEST SELLING PRODUCTS */}
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4 px-1">
-            <h2 className="text-sm sm:text-base md:text-xl font-extrabold uppercase text-blue-600 tracking-wide">
-              BEST SELLING PRODUCTS
-            </h2>
-            <Link 
-              to="/category/all" 
-              className="text-xs sm:text-sm font-bold uppercase text-gray-500 hover:text-blue-600 transition-colors tracking-wider flex items-center gap-1 shrink-0"
-            >
-              <span>View All</span>
-              <ArrowRight size={14} />
-            </Link>
-          </div>
-
-          <div className="relative group/carousel">
-            {/* Scroll Left Button */}
-            <button
-              onClick={() => scrollLeft(bestSellingScrollRef)}
-              className="absolute -left-2 sm:-left-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-all cursor-pointer opacity-90 hover:opacity-100"
-              aria-label="Scroll left"
-            >
-              <ChevronLeft size={18} />
-            </button>
-
-            {/* Scroll Right Button */}
-            <button
-              onClick={() => scrollRight(bestSellingScrollRef)}
-              className="absolute -right-2 sm:-right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-all cursor-pointer opacity-90 hover:opacity-100"
-              aria-label="Scroll right"
-            >
-              <ChevronRight size={18} />
-            </button>
-
-            {/* Scrollable Container */}
-            <div 
-              ref={bestSellingScrollRef}
-              onMouseEnter={() => setIsHoveredBestSelling(true)}
-              onMouseLeave={() => setIsHoveredBestSelling(false)}
-              onTouchStart={() => setIsHoveredBestSelling(true)}
-              onTouchEnd={() => setIsHoveredBestSelling(false)}
-              className="flex gap-2 sm:gap-3 overflow-x-auto pb-3 scroll-smooth snap-x snap-mandatory no-scrollbar"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {bestSellingProducts.map((product) => (
-                <div key={`bestseller-${product.id}`} className="w-[calc(50%-4px)] sm:w-[calc(50%-6px)] md:w-[calc(33.333%-8px)] lg:w-[calc(25%-9px)] flex-shrink-0 snap-start">
-                  <ProductCard product={product} badgeText="Best Selling" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-
 
       {/* WHY CHOOSE ELEGAN BD SECTION */}
       <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
@@ -815,39 +889,6 @@ const Home = () => {
             <p className="text-xs font-semibold text-gray-500 mt-1">
               ১০০% প্রিমিয়াম কোয়ালিটি
             </p>
-          </div>
-        </div>
-
-        {/* 4 FEATURE PICTURES SEAMLESS FULL-WIDTH GRID (NO GAPS, NO NUMBERS) */}
-        <div className="mt-8 w-full">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-0 w-full">
-            {[
-              { id: '1', url: whyChooseImg1, defaultUrl: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=1200&q=80', label: 'Picture 1' },
-              { id: '2', url: whyChooseImg2, defaultUrl: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=1200&q=80', label: 'Picture 2' },
-              { id: '3', url: whyChooseImg3, defaultUrl: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1200&q=80', label: 'Picture 3' },
-              { id: '4', url: whyChooseImg4, defaultUrl: 'https://images.unsplash.com/photo-1620012253295-c15cc3e65df4?auto=format&fit=crop&w=1200&q=80', label: 'Picture 4' },
-            ].map((item, idx) => {
-              const displayUrl = item.url || item.defaultUrl;
-              return (
-                <div 
-                  key={item.id} 
-                  className="relative aspect-[3/4] w-full overflow-hidden bg-gray-100 group"
-                >
-                  <img 
-                    src={displayUrl} 
-                    alt={`Elegan BD Feature ${idx + 1}`} 
-                    className="w-full h-full object-cover object-top transition-transform duration-700 ease-out group-hover:scale-105 block"
-                    referrerPolicy="no-referrer"
-                    onError={(e) => {
-                      const target = e.currentTarget;
-                      if (target.src !== item.defaultUrl) {
-                        target.src = item.defaultUrl;
-                      }
-                    }}
-                  />
-                </div>
-              );
-            })}
           </div>
         </div>
       </section>

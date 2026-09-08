@@ -90,26 +90,19 @@ export default function Navbar() {
       >
         <div className="max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 h-[55px] md:h-[68px] flex items-center justify-between gap-2 md:gap-6">
           
-          {/* Left: Mobile Menu Toggle & Logo */}
+          {/* Left: Brand Logo */}
           <div className="flex items-center gap-3">
-            <button 
-              onClick={() => setIsOpen(true)}
-              className="lg:hidden p-2 text-gray-800 hover:text-black transition-colors cursor-pointer"
-            >
-              <Menu size={22} strokeWidth={1.8} />
-            </button>
-
-            <Link to="/" className="flex items-center group gap-1.5 md:gap-2">
+            <Link to="/" className="flex items-center group gap-2">
               <img 
                 src={logoUrl || '/logo.png'} 
-                alt="Elegan BD" 
-                className="h-9 md:h-12 w-auto max-w-[150px] object-contain transition-transform group-hover:scale-105" 
+                alt="Brand Logo" 
+                className="h-8 md:h-11 w-auto max-w-[140px] object-contain transition-transform group-hover:scale-105" 
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = 'none';
                 }}
               />
-              <span className="font-black text-base md:text-lg uppercase tracking-tighter text-black whitespace-nowrap">
-                Elegan BD
+              <span className="font-black text-lg sm:text-xl uppercase tracking-[0.15em] text-black whitespace-nowrap">
+                ELEGAN BD
               </span>
             </Link>
           </div>
@@ -234,6 +227,15 @@ export default function Navbar() {
                 <User size={20} strokeWidth={1.8} />
               </button>
             )}
+
+            {/* Mobile Hamburger Menu Button on Right */}
+            <button 
+              onClick={() => setIsOpen(true)}
+              className="lg:hidden p-1.5 text-gray-800 hover:text-black transition-colors cursor-pointer"
+              aria-label="Open menu"
+            >
+              <Menu size={24} strokeWidth={1.8} />
+            </button>
 
             {/* Vertical Divider */}
             <div className="hidden md:block h-5 w-[1px] bg-gray-200 my-auto ml-1 mr-1" />

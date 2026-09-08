@@ -155,6 +155,333 @@ async function startServer() {
     }
   });
 
+  // In-memory cache for Firestore config documents to avoid quota limits & redundant reads
+  const memoryConfigCache: Record<string, { data: any; timestamp: number }> = {};
+  const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes cache
+
+  async function getCachedDocData(collectionName: string, docId: string, fallback: any = null) {
+    const cacheKey = `${collectionName}/${docId}`;
+    const now = Date.now();
+    const cached = memoryConfigCache[cacheKey];
+
+    if (cached && (now - cached.timestamp < CACHE_TTL_MS)) {
+      return cached.data;
+    }
+
+    try {
+      const docRef = doc(db, collectionName, docId);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        memoryConfigCache[cacheKey] = { data, timestamp: now };
+        return data;
+      }
+    } catch (_err) {
+      // Graceful fallback to previous cache or fallback defaults on quota limit / network error
+      if (cached?.data) {
+        return cached.data;
+      }
+    }
+
+    return fallback;
+  }
+
+  // API route to proxy fetch Google Sheets CSV data without CORS issues
+  app.post("/api/fetch-google-sheet", async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url || typeof url !== 'string' || !url.trim()) {
+        return res.status(400).json({ error: "Google Sheet URL is required" });
+      }
+
+      const rawUrl = url.trim();
+      let sheetId = '';
+      let gid = '0';
+      let isPubLink = false;
+      let pubId = '';
+
+      // Match published link (spreadsheets/d/e/2PACX...)
+      const pubMatch = rawUrl.match(/\/spreadsheets\/d\/e\/([a-zA-Z0-9-_]+)/);
+      if (pubMatch && pubMatch[1]) {
+        isPubLink = true;
+        pubId = pubMatch[1];
+      }
+
+      // Match standard Google Sheet link
+      const sheetMatch = rawUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+      if (sheetMatch && sheetMatch[1]) {
+        sheetId = sheetMatch[1];
+      }
+
+      // Match GID
+      const gidMatch = rawUrl.match(/[?&#]gid=([0-9]+)/);
+      if (gidMatch && gidMatch[1]) {
+        gid = gidMatch[1];
+      }
+
+      // Generate candidate URLs to try in priority order
+      const candidateUrls: string[] = [];
+
+      if (isPubLink && pubId) {
+        candidateUrls.push(`https://docs.google.com/spreadsheets/d/e/${pubId}/pub?output=csv&gid=${gid}`);
+        candidateUrls.push(`https://docs.google.com/spreadsheets/d/e/${pubId}/pub?output=csv`);
+      }
+
+      if (sheetId) {
+        // GViz endpoint (most reliable for public spreadsheets)
+        candidateUrls.push(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&gid=${gid}`);
+        // Direct export format CSV
+        candidateUrls.push(`https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`);
+        // Direct export without gid if gid is 0
+        candidateUrls.push(`https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`);
+      }
+
+      // If user provided a direct CSV link or other url format
+      if (!candidateUrls.includes(rawUrl)) {
+        candidateUrls.push(rawUrl);
+      }
+
+      let csvContent = '';
+      let lastStatus = 0;
+      let isPermissionBlocked = false;
+
+      for (const targetUrl of candidateUrls) {
+        try {
+          const response = await fetch(targetUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+              'Accept': 'text/csv,text/plain,application/csv,*/*'
+            },
+            redirect: 'follow'
+          });
+
+          lastStatus = response.status;
+
+          if (response.ok) {
+            const text = await response.text();
+            // Check if returned text is HTML (login redirect or error page)
+            if (text.includes('<!DOCTYPE html>') || text.includes('<html') || text.includes('ServiceLogin') || text.includes('accounts.google.com')) {
+              isPermissionBlocked = true;
+              continue;
+            }
+
+            // Valid CSV content must have some characters and not look like HTML error
+            if (text && text.trim().length > 0 && !text.trim().startsWith('<')) {
+              csvContent = text;
+              break;
+            }
+          } else if (response.status === 401 || response.status === 403) {
+            isPermissionBlocked = true;
+          }
+        } catch (fetchErr: any) {
+          console.warn(`[Google Sheet Fetch] Failed candidate ${targetUrl}:`, fetchErr.message);
+        }
+      }
+
+      if (csvContent) {
+        return res.json({ success: true, csv: csvContent });
+      }
+
+      if (isPermissionBlocked) {
+        return res.status(403).json({
+          error: 'Could not access Google Sheet. Please make sure link sharing is set to "Anyone with the link can view".',
+          details: 'Google Sheet link requires public viewer access (Share > General Access > Anyone with the link > Viewer).',
+          isPermissionError: true
+        });
+      }
+
+      return res.status(400).json({
+        error: `Could not retrieve data from this Google Sheet link (Status: ${lastStatus}). Please check if the link is correct or try downloading as Excel/CSV and upload directly.`,
+        isPermissionError: false
+      });
+    } catch (err: any) {
+      console.error("[Google Sheet Proxy Error]:", err);
+      res.status(500).json({ error: "Internal server error fetching Google Sheet", details: err.message });
+    }
+  });
+
+  // API route to Save (Create or Update) Product via Server Firestore and Supabase Admin
+  app.post("/api/products/save", async (req, res) => {
+    try {
+      const { product } = req.body;
+      if (!product || !product.id || !product.name) {
+        return res.status(400).json({ success: false, error: "Product ID and name are required." });
+      }
+
+      const productData = {
+        ...product,
+        updatedAt: Date.now(),
+        createdAt: product.createdAt || Date.now()
+      };
+
+      // 1. Save in Firestore server-side (bypasses client security rules & offline state)
+      try {
+        const docRef = doc(db, 'products', String(productData.id));
+        await setDoc(docRef, productData, { merge: true });
+      } catch (fsErr: any) {
+        console.warn("[Server API] Firestore product save notice:", fsErr.message);
+      }
+
+      // 2. Save in Supabase
+      try {
+        const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://wnnnjroxyuxsbolbcdil.supabase.co';
+        const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_p2B8pChEnm9esPFTCLGYXg_Ype4-7NI';
+        const { createClient } = await import('@supabase/supabase-js');
+        const sb = createClient(supabaseUrl, supabaseKey);
+        
+        const sbRow = {
+          id: String(productData.id),
+          name: productData.name || 'Unnamed Product',
+          price: Number(productData.price) || 0,
+          category: productData.category || 'General',
+          images: Array.isArray(productData.images) ? productData.images : [],
+          sizes: Array.isArray(productData.sizes) ? productData.sizes : [],
+          stock: Number(productData.stock) || 0,
+          size_stock: productData.sizeStock && typeof productData.sizeStock === 'object' ? productData.sizeStock : {},
+          sku: productData.sku || null,
+          cost: typeof productData.cost === 'number' ? productData.cost : null,
+          regular_price: typeof productData.regularPrice === 'number' ? productData.regularPrice : null,
+          fabric: productData.fabric || null,
+          fit_type: productData.fitType || null,
+          description: productData.description || '',
+          rating: typeof productData.rating === 'number' ? productData.rating : 0,
+          is_top_rated: Boolean(productData.isTopRated),
+          new_arrival: Boolean(productData.newArrival),
+          featured: Boolean(productData.featured),
+          updated_at: new Date().toISOString()
+        };
+
+        const { error: sbError } = await sb.from('products').upsert(sbRow);
+        if (sbError) {
+          console.warn("[Server API] Supabase product upsert notice:", sbError.message);
+        }
+      } catch (sbErr: any) {
+        console.warn("[Server API] Supabase client notice:", sbErr.message);
+      }
+
+      return res.json({ success: true, product: productData });
+    } catch (err: any) {
+      console.error("[Server API] Product save error:", err);
+      return res.status(500).json({ success: false, error: err.message || "Failed to save product" });
+    }
+  });
+
+  // API route to Delete Product via Server Firestore and Supabase
+  app.post("/api/products/delete", async (req, res) => {
+    try {
+      const { id } = req.body;
+      if (!id) {
+        return res.status(400).json({ success: false, error: "Product ID is required." });
+      }
+
+      const productId = String(id);
+
+      // 1. Delete from Firestore server-side
+      try {
+        const docRef = doc(db, 'products', productId);
+        await deleteDoc(docRef);
+      } catch (fsErr: any) {
+        console.warn("[Server API] Firestore product delete notice:", fsErr.message);
+      }
+
+      // 2. Delete from Supabase
+      try {
+        const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://wnnnjroxyuxsbolbcdil.supabase.co';
+        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_p2B8pChEnm9esPFTCLGYXg_Ype4-7NI';
+        const { createClient } = await import('@supabase/supabase-js');
+        const sb = createClient(supabaseUrl, supabaseKey);
+        await sb.from('products').delete().eq('id', productId);
+      } catch (sbErr: any) {
+        console.warn("[Server API] Supabase product delete notice:", sbErr.message);
+      }
+
+      return res.json({ success: true, id: productId });
+    } catch (err: any) {
+      console.error("[Server API] Product delete error:", err);
+      return res.status(500).json({ success: false, error: err.message || "Failed to delete product" });
+    }
+  });
+
+  // API route to Delete single or multiple Orders directly via Server (Supabase + Firestore)
+  app.post("/api/orders/delete", async (req, res) => {
+    try {
+      const { id, ids } = req.body;
+      const targetIds: string[] = [];
+      if (id) targetIds.push(String(id));
+      if (Array.isArray(ids)) {
+        ids.forEach((i: any) => {
+          if (i) targetIds.push(String(i));
+        });
+      }
+
+      if (targetIds.length === 0) {
+        return res.status(400).json({ success: false, error: "Order ID or IDs required" });
+      }
+
+      // 1. Delete from Firestore
+      for (const ordId of targetIds) {
+        try {
+          await deleteDoc(doc(db, 'orders', ordId));
+        } catch (fsErr: any) {
+          console.warn(`[Server API] Firestore order delete notice for ${ordId}:`, fsErr.message);
+        }
+      }
+
+      // 2. Delete from Supabase
+      try {
+        const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://wnnnjroxyuxsbolbcdil.supabase.co';
+        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_p2B8pChEnm9esPFTCLGYXg_Ype4-7NI';
+        const { createClient } = await import('@supabase/supabase-js');
+        const sb = createClient(supabaseUrl, supabaseKey);
+
+        const { error: sbErr } = await sb.from('orders').delete().in('id', targetIds);
+        if (sbErr) {
+          console.warn("[Server API] Supabase orders delete notice:", sbErr.message);
+        }
+      } catch (sbErr: any) {
+        console.warn("[Server API] Supabase client delete notice:", sbErr.message);
+      }
+
+      return res.json({ success: true, deletedCount: targetIds.length });
+    } catch (err: any) {
+      console.error("[Server API] Order delete error:", err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // API route to Delete ALL Orders (for resetting store orders)
+  app.post("/api/orders/delete-all", async (req, res) => {
+    try {
+      // 1. Delete all from Firestore orders collection
+      try {
+        const snap = await getDocs(collection(db, 'orders'));
+        for (const docSnap of snap.docs) {
+          await deleteDoc(doc(db, 'orders', docSnap.id));
+        }
+      } catch (fsErr: any) {
+        console.warn("[Server API] Firestore clear all orders notice:", fsErr.message);
+      }
+
+      // 2. Delete all from Supabase orders table
+      try {
+        const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://wnnnjroxyuxsbolbcdil.supabase.co';
+        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_p2B8pChEnm9esPFTCLGYXg_Ype4-7NI';
+        const { createClient } = await import('@supabase/supabase-js');
+        const sb = createClient(supabaseUrl, supabaseKey);
+
+        // Delete all rows where id is not null/empty
+        await sb.from('orders').delete().neq('id', '___NON_EXISTENT___');
+      } catch (sbErr: any) {
+        console.warn("[Server API] Supabase clear all orders notice:", sbErr.message);
+      }
+
+      return res.json({ success: true, message: "All orders cleared successfully" });
+    } catch (err: any) {
+      console.error("[Server API] Order clear-all error:", err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // API route to send email
   app.post("/api/send-order-email", async (req, res) => {
     const { orderDetails } = req.body;
@@ -168,25 +495,21 @@ async function startServer() {
 
     let adminEmails = "eleganbd.ltd@gmail.com, sabbirrahmansr904@gmail.com";
     try {
-      const configRef = doc(db, 'config', 'notification_settings');
-      const configSnap = await getDoc(configRef);
-      if (configSnap.exists()) {
-        const data = configSnap.data();
-        if (data) {
-          if (data.emailAlertsEnabled === false) {
-            console.log("Email order alerts are disabled in settings");
-            return res.json({ success: true, message: "Email order alerts are disabled" });
-          }
-          if (data.primaryEmail) {
-            adminEmails = data.primaryEmail;
-            if (data.secondaryEmail) {
-              adminEmails += `, ${data.secondaryEmail}`;
-            }
+      const notifData = await getCachedDocData('config', 'notification_settings', null);
+      if (notifData) {
+        if (notifData.emailAlertsEnabled === false) {
+          console.log("Email order alerts are disabled in settings");
+          return res.json({ success: true, message: "Email order alerts are disabled" });
+        }
+        if (notifData.primaryEmail) {
+          adminEmails = notifData.primaryEmail;
+          if (notifData.secondaryEmail) {
+            adminEmails += `, ${notifData.secondaryEmail}`;
           }
         }
       }
-    } catch (e) {
-      console.warn("Could not load notification settings from Firestore, using default fallbacks", e);
+    } catch (_e) {
+      // Fallback to default adminEmails
     }
 
     const cleanUser = process.env.EMAIL_USER.trim();
@@ -260,17 +583,16 @@ async function startServer() {
     let chatId = process.env.TELEGRAM_CHAT_ID || '7986746414';
 
     try {
-      const tgConfigSnap = await getDoc(doc(db, 'config', 'telegram'));
-      if (tgConfigSnap.exists()) {
-        const data = tgConfigSnap.data();
+      const data = await getCachedDocData('config', 'telegram', null);
+      if (data) {
         if (data.enabled === false) {
           return res.json({ success: true, message: "Telegram alerts are disabled" });
         }
         if (data.botToken) botToken = data.botToken;
         if (data.chatId) chatId = data.chatId;
       }
-    } catch (e) {
-      console.warn("Could not load Telegram config from Firestore", e);
+    } catch (_e) {
+      // Fallback to default Telegram config
     }
 
     if (!botToken || !chatId) {
@@ -281,15 +603,18 @@ async function startServer() {
       `• ${i.name} ${i.selectedSize ? `(Size: ${i.selectedSize})` : ''} - Qty: ${i.quantity} - ৳${(i.price || 0) * (i.quantity || 1)}`
     ).join('\n');
 
+    const source = orderDetails.invoiceBy || 'Website';
     const message = `🛒 *নতুন অর্ডার এসেছে!* (Order #${String(orderDetails.id).slice(-6)})\n\n` +
+      `🏷️ *অর্ডার সোর্স:* ${source}\n` +
       `👤 *কাস্টমার নাম:* ${orderDetails.customerName}\n` +
       `📞 *ফোন নম্বর:* ${orderDetails.phone}\n` +
-      `📍 *ঠিকানা:* ${orderDetails.address}\n` +
+      `📍 *ঠিকানা:* ${orderDetails.address}${orderDetails.city ? `, ${orderDetails.city}` : ''}\n` +
       `💳 *পেমেন্ট পদ্ধতি:* ${orderDetails.paymentMethod}\n\n` +
       `📦 *প্রোডাক্টসমূহ:*\n${itemsList}\n\n` +
       `💵 *সাবটোটাল:* ৳${(orderDetails.total || 0) - (orderDetails.deliveryCharge || 0)}\n` +
       `🚚 *ডেলিভারি চার্জ:* ৳${orderDetails.deliveryCharge || 0}\n` +
       `✨ *মোট টাকা:* ৳${orderDetails.total}\n\n` +
+      (orderDetails.notes ? `📝 *নোট:* ${orderDetails.notes}\n\n` : '') +
       `🌐 *Elegan BD Automated Order System*`;
 
     try {
@@ -341,6 +666,15 @@ async function startServer() {
       return res.status(500).json({ success: false, error: error.message || "Connection failed" });
     }
   });
+  const DEFAULT_PATHAO_CONFIG = {
+    clientId: process.env.PATHAO_CLIENT_ID || 'nXe0A73axr',
+    clientSecret: process.env.PATHAO_CLIENT_SECRET || '0LyQiusPk4HguMTc3oZJaXIeKzjXWH7Yq0LsjPKc',
+    username: process.env.PATHAO_USERNAME || 'eleganbd.ltd@gmail.com',
+    password: process.env.PATHAO_PASSWORD || 'Eleganbdltd22@@##',
+    storeId: process.env.PATHAO_STORE_ID || '376372',
+    baseUrl: process.env.PATHAO_BASE_URL || 'https://api-hermes.pathao.com'
+  };
+
   let cachedPathaoToken: { token: string; expiresAt: number; apiBase: string } | null = null;
   let cachedPathaoCities: any[] | null = null;
   let cachedPathaoZones: Record<number, any[]> = {};
@@ -349,18 +683,15 @@ async function startServer() {
     let creds = customCreds;
     if (!creds || !creds.clientId) {
       try {
-        const pathaoRef = doc(db, 'config', 'pathao');
-        const pathaoSnap = await getDoc(pathaoRef);
-        if (pathaoSnap.exists()) {
-          creds = pathaoSnap.data();
-        }
-      } catch (e) {
-        console.warn("Could not load Pathao creds from Firestore", e);
+        const firestoreData = await getCachedDocData('config', 'pathao', DEFAULT_PATHAO_CONFIG);
+        creds = { ...DEFAULT_PATHAO_CONFIG, ...(firestoreData || {}) };
+      } catch (_e) {
+        creds = DEFAULT_PATHAO_CONFIG;
       }
     }
 
     if (!creds || !creds.clientId || !creds.clientSecret || !creds.username || !creds.password) {
-      throw new Error("Pathao API credentials missing in Admin Settings");
+      creds = DEFAULT_PATHAO_CONFIG;
     }
 
     let apiBase = (creds.baseUrl || 'https://api-hermes.pathao.com').replace(/\/$/, '');
@@ -404,17 +735,17 @@ async function startServer() {
     return { token: tokenData.access_token, apiBase, creds };
   }
 
-  async function trackPathaoInternal(rawId: string) {
+  async function trackPathaoInternal(rawId: string, customCreds?: any) {
     const cleanId = String(rawId || '').replace(/^#/, '').trim();
     if (!cleanId) throw new Error("Consignment ID is missing");
 
     let authInfo: any;
     try {
-      authInfo = await getPathaoAuth();
-    } catch (authErr: any) {
+      authInfo = await getPathaoAuth(customCreds);
+    } catch (_authErr: any) {
       // If auth failed, try clearing cache and retrying once
       cachedPathaoToken = null;
-      authInfo = await getPathaoAuth();
+      authInfo = await getPathaoAuth(customCreds);
     }
 
     const { token, apiBase } = authInfo;
@@ -477,19 +808,17 @@ async function startServer() {
     throw new Error(lastError);
   }
 
-  async function trackSteadfastInternal(rawId: string) {
+  async function trackSteadfastInternal(rawId: string, customCreds?: any) {
     const cleanId = String(rawId || '').replace(/^#/, '').trim();
     if (!cleanId) throw new Error("Tracking Code is missing");
 
-    let creds: any = null;
-    try {
-      const sfRef = doc(db, 'config', 'steadfast');
-      const sfSnap = await getDoc(sfRef);
-      if (sfSnap.exists()) {
-        creds = sfSnap.data();
+    let creds = customCreds;
+    if (!creds || !creds.apiKey) {
+      try {
+        creds = await getCachedDocData('config', 'steadfast', null);
+      } catch (_e) {
+        // Ignored
       }
-    } catch (e) {
-      console.warn("Could not load Steadfast credentials from Firestore", e);
     }
 
     if (!creds || !creds.apiKey || !creds.secretKey) {
@@ -811,6 +1140,8 @@ async function startServer() {
   app.post("/api/courier/track-order", async (req, res) => {
     const identifier = req.body.consignmentId || req.body.trackingCode || req.body.trackingId || req.body.invoiceId;
     const preferredCourier = (req.body.courier || '').toLowerCase();
+    const pathaoCreds = req.body.pathaoCredentials;
+    const steadfastCreds = req.body.steadfastCredentials;
 
     if (!identifier) {
       return res.status(400).json({ success: false, error: "Consignment ID / Tracking Code is missing" });
@@ -818,11 +1149,11 @@ async function startServer() {
 
     if (preferredCourier.includes('steadfast')) {
       try {
-        const res1 = await trackSteadfastInternal(identifier);
+        const res1 = await trackSteadfastInternal(identifier, steadfastCreds);
         return res.json(res1);
       } catch (e1: any) {
         try {
-          const res2 = await trackPathaoInternal(identifier);
+          const res2 = await trackPathaoInternal(identifier, pathaoCreds);
           return res.json(res2);
         } catch (e2: any) {
           return res.status(400).json({ success: false, error: e1.message || e2.message });
@@ -830,11 +1161,11 @@ async function startServer() {
       }
     } else {
       try {
-        const res1 = await trackPathaoInternal(identifier);
+        const res1 = await trackPathaoInternal(identifier, pathaoCreds);
         return res.json(res1);
       } catch (e1: any) {
         try {
-          const res2 = await trackSteadfastInternal(identifier);
+          const res2 = await trackSteadfastInternal(identifier, steadfastCreds);
           return res.json(res2);
         } catch (e2: any) {
           return res.status(400).json({ success: false, error: e1.message || e2.message });
@@ -960,13 +1291,9 @@ async function startServer() {
     let creds = credentials;
     if (!creds || !creds.apiKey) {
       try {
-        const sfRef = doc(db, 'config', 'steadfast');
-        const sfSnap = await getDoc(sfRef);
-        if (sfSnap.exists()) {
-          creds = sfSnap.data();
-        }
-      } catch (e) {
-        console.warn("Could not load Steadfast credentials from Firestore", e);
+        creds = await getCachedDocData('config', 'steadfast', null);
+      } catch (_e) {
+        // Fallback
       }
     }
 
@@ -1057,22 +1384,21 @@ async function startServer() {
     try {
       let heroImgUrl = '';
       try {
-        const heroBannerSnap = await getDoc(doc(db, "config", "banner_hero"));
-        if (heroBannerSnap.exists() && heroBannerSnap.data().url) {
-          heroImgUrl = heroBannerSnap.data().url;
+        const heroBannerData = await getCachedDocData("config", "banner_hero", null);
+        if (heroBannerData && heroBannerData.url) {
+          heroImgUrl = heroBannerData.url;
         } else {
-          const brandingSnap = await getDoc(doc(db, "config", "branding"));
-          if (brandingSnap.exists()) {
-            const data = brandingSnap.data();
-            if (data.heroBannerUrl && !data.heroBannerUrl.includes('unsplash.com')) {
-              heroImgUrl = data.heroBannerUrl;
-            } else if (data.logoUrl && !data.logoUrl.includes('unsplash.com')) {
-              heroImgUrl = data.logoUrl;
+          const brandingData = await getCachedDocData("config", "branding", null);
+          if (brandingData) {
+            if (brandingData.heroBannerUrl && !brandingData.heroBannerUrl.includes('unsplash.com')) {
+              heroImgUrl = brandingData.heroBannerUrl;
+            } else if (brandingData.logoUrl && !brandingData.logoUrl.includes('unsplash.com')) {
+              heroImgUrl = brandingData.logoUrl;
             }
           }
         }
-      } catch (e) {
-        console.error("Error fetching branding for og-image:", e);
+      } catch (_e) {
+        // Fallback
       }
 
       if (heroImgUrl) {

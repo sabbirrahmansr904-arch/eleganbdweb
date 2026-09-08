@@ -291,13 +291,15 @@ export default function CustomerDashboard() {
 
   const myOrders = useMemo(() => {
     return orders.filter(o => {
+      if (!o) return false;
       const oEmail = (o.email || '').toLowerCase().trim();
       const oPhone = (o.phone || '').replace(/\D/g, '');
-      const matchEmail = userEmail && oEmail === userEmail;
-      const matchPhone = userPhone && userPhone.length >= 8 && (oPhone.endsWith(userPhone) || userPhone.endsWith(oPhone));
-      return matchEmail || matchPhone;
-    }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [orders, userEmail, userPhone]);
+      const matchCustomerId = Boolean(currentUser?.uid && (o.customerId === currentUser.uid));
+      const matchEmail = Boolean(userEmail && oEmail && oEmail === userEmail);
+      const matchPhone = Boolean(userPhone && userPhone.length >= 8 && (oPhone.endsWith(userPhone) || userPhone.endsWith(oPhone)));
+      return matchCustomerId || matchEmail || matchPhone;
+    }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  }, [orders, userEmail, userPhone, currentUser]);
 
   // Filtered orders list
   const filteredOrders = useMemo(() => {

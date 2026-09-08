@@ -7,32 +7,25 @@ import {
   ShoppingBag, 
   DollarSign, 
   CheckCircle2, 
-  XCircle, 
   AlertTriangle, 
-  RefreshCw, 
-  ExternalLink, 
   MessageSquare, 
   Clock, 
-  Calendar, 
-  Package, 
   Award, 
-  Filter, 
   ChevronRight, 
   Save, 
   Copy, 
   Sparkles, 
   TrendingUp, 
-  UserCheck, 
-  ArrowUpRight 
+  UserCheck 
 } from 'lucide-react';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { useOrders } from '../../contexts/OrderContext';
 import { formatPrice, cn } from '../../lib/utils';
 import { db } from '../../lib/firebase';
 import { collection, onSnapshot, doc, setDoc } from 'firebase/firestore';
+import { supabase } from '../../lib/supabase';
 import { Order } from '../../types';
 import toast from 'react-hot-toast';
-import { formatDistanceToNow } from 'date-fns';
 import { ParcelLiveStatusBadge } from '../../components/admin/ParcelLiveStatusBadge';
 
 interface CustomerProfile {
@@ -57,9 +50,45 @@ interface CustomerProfile {
   reliability: 'VIP' | 'Regular' | 'New' | 'High Risk' | 'Normal';
 }
 
+function parseSafeTime(dateVal: any): number {
+  if (!dateVal) return 0;
+  if (typeof dateVal === 'number') return dateVal;
+  if (typeof dateVal === 'object' && dateVal.seconds) return dateVal.seconds * 1000;
+  if (typeof dateVal === 'string') {
+    const direct = new Date(dateVal).getTime();
+    if (!isNaN(direct) && direct > 0) return direct;
+    try {
+      // Try DD/MM/YYYY or DD-MM-YYYY
+      const parts = dateVal.trim().split(/[/ -]/);
+      if (parts.length >= 3) {
+        const d = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        let y = parseInt(parts[2], 10);
+        if (y < 100) y += 2000;
+        const parsed = new Date(y, m, d).getTime();
+        if (!isNaN(parsed) && parsed > 0) return parsed;
+      }
+    } catch {}
+  }
+  return 0;
+}
+
+function formatOrderDate(dateStr: any): string {
+  if (!dateStr) return 'Recently';
+  try {
+    const time = parseSafeTime(dateStr);
+    if (time > 0) {
+      return new Date(time).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+    return String(dateStr);
+  } catch (e) {
+    return String(dateStr || 'Recently');
+  }
+}
+
 const normalizePhone = (phoneStr: string | undefined | null): string => {
   if (!phoneStr) return '';
-  const cleaned = phoneStr.replace(/[^0-9]/g, '');
+  const cleaned = String(phoneStr).replace(/[^0-9]/g, '');
   if (cleaned.startsWith('880') && cleaned.length === 13) {
     return '0' + cleaned.slice(2);
   }
@@ -79,16 +108,77 @@ export default function AdminCustomerProfiler() {
   const [noteInput, setNoteInput] = useState('');
   const [savingNote, setSavingNote] = useState(false);
 
-  // Live Firestore subscription for additional customer metadata / notes
+  // Live Supabase + Firestore subscription for additional customer metadata / notes
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'customers'), (snapshot) => {
-      const data: Record<string, any> = {};
-      snapshot.forEach(docSnap => {
-        data[docSnap.id] = { id: docSnap.id, ...docSnap.data() };
+    let isMounted = true;
+
+    // 1. Fetch from Supabase customers table
+    const loadSupabaseCustomers = async () => {
+      try {
+        const { data, error } = await supabase.from('customers').select('*');
+        if (!error && data && Array.isArray(data) && isMounted) {
+          const map: Record<string, any> = {};
+          data.forEach(c => {
+            if (c.id || c.phone) {
+              const k = c.id || c.phone;
+              map[k] = { ...c, totalOrders: c.total_orders, totalSpent: c.total_spent };
+            }
+          });
+          setCustomerDocData(prev => ({ ...prev, ...map }));
+        }
+      } catch (err) {
+        console.warn('[AdminCustomerProfiler] Supabase customers notice:', err);
+      }
+    };
+    loadSupabaseCustomers();
+
+    // 2. Real-time Supabase postgres_changes on customers table
+    let supabaseChannel: any = null;
+    try {
+      supabaseChannel = supabase
+        .channel('realtime_customers_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, (payload) => {
+          if (!isMounted) return;
+          if (payload.new && ((payload.new as any).id || (payload.new as any).phone)) {
+            const row = payload.new as any;
+            const k = row.id || row.phone;
+            setCustomerDocData(prev => ({
+              ...prev,
+              [k]: { ...row, totalOrders: row.total_orders, totalSpent: row.total_spent }
+            }));
+          }
+        })
+        .subscribe();
+    } catch (e) {}
+
+    let unsubscribe: (() => void) | null = null;
+    try {
+      unsubscribe = onSnapshot(collection(db, 'customers'), (snapshot) => {
+        if (!isMounted) return;
+        const data: Record<string, any> = {};
+        snapshot.forEach(docSnap => {
+          data[docSnap.id] = { id: docSnap.id, ...docSnap.data() };
+        });
+        setCustomerDocData(prev => ({ ...prev, ...data }));
+      }, (err) => {
+        console.warn('[AdminCustomerProfiler] Snapshot notice:', err);
       });
-      setCustomerDocData(data);
-    }, (err) => console.warn('[AdminCustomerProfiler] Snapshot notice:', err));
-    return () => unsubscribe();
+    } catch (e) {
+      console.warn('[AdminCustomerProfiler] Init error:', e);
+    }
+    return () => {
+      isMounted = false;
+      if (typeof unsubscribe === 'function') {
+        try {
+          unsubscribe();
+        } catch {}
+      }
+      if (supabaseChannel) {
+        try {
+          supabase.removeChannel(supabaseChannel);
+        } catch {}
+      }
+    };
   }, []);
 
   // Aggregating live customer profiles from all active orders + customer metadata
@@ -152,7 +242,11 @@ export default function AdminCustomerProfiler() {
         }
 
         // Update latest information
-        if (new Date(dateStr).getTime() >= new Date(prof.lastOrderDate).getTime()) {
+        const orderTime = parseSafeTime(dateStr);
+        const lastProfTime = parseSafeTime(prof.lastOrderDate);
+        const firstProfTime = parseSafeTime(prof.firstOrderDate);
+
+        if (orderTime >= lastProfTime) {
           prof.lastOrderDate = dateStr;
           if (name && name !== 'Customer') prof.name = name;
           if (address) prof.address = address;
@@ -161,7 +255,7 @@ export default function AdminCustomerProfiler() {
           if (email) prof.email = email;
         }
 
-        if (new Date(dateStr).getTime() < new Date(prof.firstOrderDate).getTime()) {
+        if (orderTime < firstProfTime || firstProfTime === 0) {
           prof.firstOrderDate = dateStr;
         }
       });
@@ -206,7 +300,7 @@ export default function AdminCustomerProfiler() {
 
     // 3. Calculate Reliability / Loyalty Tag & Sort orders newest first
     const list = Object.values(customerMap).map((c) => {
-      c.orders.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      c.orders.sort((a, b) => parseSafeTime(b.createdAt) - parseSafeTime(a.createdAt));
 
       if (c.totalOrders >= 3 && c.cancelledOrders === 0 && c.totalSpent >= 2500) {
         c.reliability = 'VIP';
@@ -223,15 +317,15 @@ export default function AdminCustomerProfiler() {
     });
 
     // Sort customer list by most recent activity
-    return list.sort((a, b) => new Date(b.lastOrderDate).getTime() - new Date(a.lastOrderDate).getTime());
+    return list.sort((a, b) => parseSafeTime(b.lastOrderDate) - parseSafeTime(a.lastOrderDate));
   }, [orders, customerDocData]);
 
   // Overall aggregate metrics
   const stats = useMemo(() => {
-    const totalCustomers = profiles.length;
-    const repeatCustomers = profiles.filter(p => p.totalOrders >= 2).length;
-    const vipCustomers = profiles.filter(p => p.reliability === 'VIP').length;
-    const totalRevenueAll = profiles.reduce((sum, p) => sum + p.totalSpent, 0);
+    const totalCustomers = Array.isArray(profiles) ? profiles.length : 0;
+    const repeatCustomers = Array.isArray(profiles) ? profiles.filter(p => (p?.totalOrders || 0) >= 2).length : 0;
+    const vipCustomers = Array.isArray(profiles) ? profiles.filter(p => p?.reliability === 'VIP').length : 0;
+    const totalRevenueAll = Array.isArray(profiles) ? profiles.reduce((sum, p) => sum + (Number(p?.totalSpent) || 0), 0) : 0;
     const avgSpend = totalCustomers > 0 ? totalRevenueAll / totalCustomers : 0;
 
     return {
@@ -246,7 +340,9 @@ export default function AdminCustomerProfiler() {
 
   // Search and Filter
   const filteredProfiles = useMemo(() => {
+    if (!Array.isArray(profiles)) return [];
     return profiles.filter((p) => {
+      if (!p) return false;
       const q = searchTerm.toLowerCase().trim();
       const matchesSearch = 
         !q ||
@@ -255,14 +351,14 @@ export default function AdminCustomerProfiler() {
         (p.email || '').toLowerCase().includes(q) ||
         (p.address || '').toLowerCase().includes(q) ||
         (p.city || '').toLowerCase().includes(q) ||
-        (Array.isArray(p.orders) && p.orders.some(o => (o.invoiceNo && String(o.invoiceNo).includes(q)) || (o.id && String(o.id).includes(q))));
+        (Array.isArray(p.orders) && p.orders.some(o => (o && o.invoiceNo && String(o.invoiceNo).toLowerCase().includes(q)) || (o && o.id && String(o.id).toLowerCase().includes(q))));
 
       if (!matchesSearch) return false;
 
-      if (selectedFilter === 'vip') return p.reliability === 'VIP' || p.totalSpent >= 3000;
-      if (selectedFilter === 'regular') return p.totalOrders >= 2;
-      if (selectedFilter === 'new') return p.totalOrders === 1;
-      if (selectedFilter === 'risk') return p.reliability === 'High Risk' || p.cancelledOrders > 0;
+      if (selectedFilter === 'vip') return p.reliability === 'VIP' || (p.totalSpent || 0) >= 3000;
+      if (selectedFilter === 'regular') return (p.totalOrders || 0) >= 2;
+      if (selectedFilter === 'new') return (p.totalOrders || 0) === 1;
+      if (selectedFilter === 'risk') return p.reliability === 'High Risk' || (p.cancelledOrders || 0) > 0;
 
       return true;
     });
@@ -288,6 +384,23 @@ export default function AdminCustomerProfiler() {
     setSavingNote(true);
     try {
       const key = selectedCustomer.phone || selectedCustomer.id;
+
+      // 1. Save to Supabase customers table
+      try {
+        await supabase.from('customers').upsert({
+          id: key,
+          phone: selectedCustomer.phone || key,
+          name: selectedCustomer.name || 'Customer',
+          notes: noteInput,
+          total_orders: selectedCustomer.totalOrders,
+          total_spent: selectedCustomer.totalSpent,
+          updated_at: new Date().toISOString()
+        });
+      } catch (sbErr) {
+        console.warn('[AdminCustomerProfiler] Supabase note save notice:', sbErr);
+      }
+
+      // 2. Save to Firestore
       const ref = doc(db, 'customers', key);
       await setDoc(ref, {
         notes: noteInput,
@@ -763,18 +876,19 @@ export default function AdminCustomerProfiler() {
               <div className="space-y-4">
                 <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
                   <ShoppingBag className="w-4 h-4 text-indigo-600" />
-                  Complete Order History ({selectedCustomer.orders.length})
+                  Complete Order History ({Array.isArray(selectedCustomer.orders) ? selectedCustomer.orders.length : 0})
                 </h3>
 
-                {selectedCustomer.orders.length === 0 ? (
+                {(!Array.isArray(selectedCustomer.orders) || selectedCustomer.orders.length === 0) ? (
                   <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-xs text-slate-400">
                     No individual order records found in memory for this customer.
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {selectedCustomer.orders.map((order, idx) => {
-                      const displayInvoice = order.invoiceNo ? `#${order.invoiceNo}` : `#${order.id}`;
-                      const itemsCount = order.items ? order.items.reduce((s, it) => s + (it.quantity || 1), 0) : 1;
+                      if (!order) return null;
+                      const displayInvoice = order.invoiceNo ? `#${order.invoiceNo}` : `#${order.id || idx}`;
+                      const itemsCount = Array.isArray(order.items) ? order.items.reduce((s, it) => s + (it?.quantity || 1), 0) : 1;
 
                       return (
                         <div 
@@ -871,14 +985,5 @@ export default function AdminCustomerProfiler() {
       )}
     </div>
   );
-}
-
-function formatOrderDate(dateStr: string) {
-  try {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-  } catch (e) {
-    return dateStr;
-  }
 }
 

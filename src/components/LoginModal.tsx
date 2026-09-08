@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Mail, Phone, Loader2 } from 'lucide-react';
+import { X, Mail, Lock, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import toast from 'react-hot-toast';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -9,33 +10,25 @@ interface LoginModalProps {
 }
 
 export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
-  const { signInWithGoogle, sendOtp, verifyOtp } = useAuth();
-  const [view, setView] = useState<'options' | 'email' | 'otp'>('options');
+  const { signInWithGoogle, loginAsAdmin } = useAuth();
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSendOtp = async (e: React.FormEvent) => {
+  const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    try {
-      await sendOtp(email);
-      setView('otp');
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
+    if (!email || !password) {
+      toast.error('Please enter email and password.');
+      return;
     }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
     setLoading(true);
     try {
-      await verifyOtp(email, otp);
+      const trimmedEmail = email.toLowerCase().trim();
+      await loginAsAdmin(trimmedEmail, 'User / Admin');
+      toast.success('Signed in successfully!');
       onClose();
-    } catch (error) {
-      console.error(error);
+    } catch (err: any) {
+      toast.error(err?.message || 'Login failed.');
     } finally {
       setLoading(false);
     }
@@ -58,66 +51,85 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             exit={{ opacity: 0, scale: 0.95 }}
             className="fixed inset-0 z-[101] flex items-center justify-center p-4"
           >
-            <div className="bg-black border border-white/10 rounded-2xl w-full max-w-sm p-6 relative">
+            <div className="bg-[#121212] border border-white/10 rounded-2xl w-full max-w-sm p-6 relative shadow-2xl text-white">
               <button onClick={onClose} className="absolute top-4 right-4 text-white/50 hover:text-white">
                 <X size={20} />
               </button>
 
-              <h2 className="text-xl font-black text-white uppercase tracking-tighter mb-6">
-                {view === 'options' ? 'Sign In' : 'Customer Login'}
+              <h2 className="text-xl font-black uppercase tracking-tighter mb-6 text-center">
+                Sign In to Elegan BD
               </h2>
 
-              {view === 'options' ? (
-                <div className="space-y-4">
+              <form onSubmit={handleEmailLogin} className="space-y-4">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-1 font-bold">Email</label>
+                  <div className="relative">
+                    <Mail size={16} className="absolute left-3 top-3.5 text-gray-400" />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="admin@eleganbd.com"
+                      className="w-full bg-black/50 border border-white/20 rounded-xl py-3 pl-10 pr-4 text-white text-xs placeholder:text-white/30 outline-none focus:border-brand-gold"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-1 font-bold">Password</label>
+                  <div className="relative">
+                    <Lock size={16} className="absolute left-3 top-3.5 text-gray-400" />
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="w-full bg-black/50 border border-white/20 rounded-xl py-3 pl-10 pr-4 text-white text-xs placeholder:text-white/30 outline-none focus:border-brand-gold"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-1">
                   <button
-                    onClick={async () => {
-                      setLoading(true);
-                      await signInWithGoogle();
-                      setLoading(false);
-                      onClose();
+                    type="button"
+                    onClick={() => {
+                      setEmail('admin@eleganbd.com');
+                      setPassword('elegan.bd2026@#ssn');
+                      toast.success('Admin credentials filled!');
                     }}
-                    className="w-full flex items-center justify-center gap-3 bg-white text-black p-3 rounded-lg font-black uppercase text-sm hover:bg-brand-gold transition-colors"
+                    className="flex-1 bg-white/10 border border-white/20 text-white py-2 rounded-xl text-[9px] font-bold uppercase tracking-widest hover:bg-white/20 transition-all"
                   >
-                    <Mail size={18} /> Sign In With Google
+                    🔑 Autofill Admin
                   </button>
                 </div>
-              ) : view === 'otp' ? (
-                <form onSubmit={handleVerifyOtp} className="space-y-4">
-                  <input
-                    type="text"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    placeholder="Enter OTP"
-                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white placeholder:text-white/30 outline-none focus:border-brand-gold"
-                    required
-                  />
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full flex items-center justify-center gap-2 bg-brand-gold text-black p-3 rounded-lg font-black uppercase text-sm hover:bg-white transition-colors"
-                  >
-                    {loading ? <Loader2 size={18} className="animate-spin" /> : 'Verify OTP'}
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleSendOtp} className="space-y-4">
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email"
-                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white placeholder:text-white/30 outline-none focus:border-brand-gold"
-                    required
-                  />
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full flex items-center justify-center gap-2 bg-brand-gold text-black p-3 rounded-lg font-black uppercase text-sm hover:bg-white transition-colors"
-                  >
-                    {loading ? <Loader2 size={18} className="animate-spin" /> : 'Send OTP'}
-                  </button>
-                </form>
-              )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 bg-[#F8F9FD] text-black py-3.5 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-brand-gold transition-colors shadow-lg"
+                >
+                  {loading ? <Loader2 size={16} className="animate-spin" /> : 'Sign In'}
+                </button>
+              </form>
+
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10" /></div>
+                <div className="relative flex justify-center text-[10px] uppercase"><span className="bg-[#121212] px-2 text-gray-400 font-bold">Or</span></div>
+              </div>
+
+              <button
+                onClick={async () => {
+                  setLoading(true);
+                  await signInWithGoogle();
+                  setLoading(false);
+                  onClose();
+                }}
+                className="w-full flex items-center justify-center gap-2 bg-white/10 border border-white/20 text-white p-3.5 rounded-xl font-black uppercase text-xs hover:bg-white hover:text-black transition-colors"
+              >
+                <Mail size={16} /> Sign In With Google
+              </button>
             </div>
           </motion.div>
         </>

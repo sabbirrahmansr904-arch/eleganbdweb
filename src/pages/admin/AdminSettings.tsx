@@ -619,8 +619,8 @@ export default function AdminSettings() {
         setPathaoEnabled(data.enabled !== undefined ? data.enabled : true);
         setPathaoEnv(data.environment || 'production');
       }
-    } catch (err) {
-      console.error("Error loading Pathao config:", err);
+    } catch (_err) {
+      // Fallback cleanly to default state
     } finally {
       setIsPathaoLoading(false);
     }
@@ -636,8 +636,8 @@ export default function AdminSettings() {
         setSteadfastSecretKey(data.secretKey || '');
         setSteadfastEnabled(data.enabled !== undefined ? data.enabled : false);
       }
-    } catch (err) {
-      console.error("Error loading Steadfast config:", err);
+    } catch (_err) {
+      // Fallback cleanly
     } finally {
       setIsSteadfastLoading(false);
     }

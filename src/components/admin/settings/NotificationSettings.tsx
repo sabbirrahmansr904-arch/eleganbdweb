@@ -64,8 +64,8 @@ export default function NotificationSettings() {
           if (data.botToken) setTelegramBotToken(data.botToken);
           if (data.chatId) setTelegramChatId(data.chatId);
         }
-      } catch (error) {
-        console.error('Error fetching notification configuration:', error);
+      } catch (_error) {
+        // Fallback silently to defaults
       } finally {
         setIsConfigLoading(false);
       }

@@ -9,8 +9,8 @@ import {
   deleteDoc, 
   onSnapshot, 
   getDocs,
-  runTransaction
 } from 'firebase/firestore';
+import { supabase, orderToSupabaseRow, supabaseRowToOrder } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { useProducts } from './ProductContext';
 import { useInventory } from './InventoryContext';
@@ -22,6 +22,8 @@ interface OrderContextType {
   updateOrderStatus: (id: string, status: Order['status']) => Promise<void>;
   updateOrder: (id: string, data: Partial<Order> & Record<string, any>) => Promise<void>;
   deleteOrder: (id: string) => Promise<void>;
+  deleteMultipleOrders: (ids: string[]) => Promise<void>;
+  deleteAllOrders: () => Promise<void>;
   addOrder: (order: Order) => Promise<Order>;
   getNextOrderId: () => string;
   loading: boolean;
@@ -33,50 +35,6 @@ const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 const BASE_ORDER_ID = 2670000;
 const CACHE_KEY = 'eleganbd_all_orders';
-
-const SEED_FALLBACK_ORDERS: Order[] = [
-  {
-    id: "2670005",
-    invoiceNo: 2670005,
-    customerId: "manual_sabbir",
-    customerName: "Sabbir (Showroom/Manual)",
-    phone: "01619835133",
-    email: "",
-    address: "Showroom / Direct Order",
-    city: "Dhaka",
-    thana: "Dhaka",
-    items: [
-      {
-        id: "1781129084604",
-        name: "Man's Formal Pant - Black",
-        sku: "FP 1",
-        category: "Formal Pant",
-        price: 1050,
-        selectedSize: "34",
-        quantity: 1,
-        images: []
-      },
-      {
-        id: "1781129489067",
-        name: "Man's Formal Pant - Cream",
-        sku: "FP 3",
-        category: "Formal Pant",
-        price: 1050,
-        selectedSize: "34",
-        quantity: 1,
-        images: []
-      }
-    ],
-    deliveryCharge: 0,
-    total: 2100,
-    status: "Pending",
-    paymentMethod: "cod",
-    invoiceBy: "Sabbir",
-    createdAt: "2026-09-03T12:21:00.000Z",
-    updatedAt: Date.now(),
-    notes: "Order #2670005"
-  }
-];
 
 export const extractNumericId = (idStr: string | number | undefined): number | null => {
   if (!idStr) return null;
@@ -130,8 +88,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.filter(o => o && o.id);
         }
       }
     } catch (e) {}
@@ -165,92 +123,175 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     return order?.invoiceBy || currentUser?.displayName || currentUser?.email || 'Admin';
   };
 
-  // 1. Real-time Firestore Listener
+  // 1. Initial Load & Real-time Supabase + Firestore Listener
   useEffect(() => {
-    if (isFirestoreQuotaExceeded) {
-      setLoading(false);
-      return;
+    let isMounted = true;
+
+    // A. Fetch all orders from Supabase on start
+    const fetchFromSupabase = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.warn('[OrderContext] Supabase fetch error (table might need creation):', error.message);
+        } else if (data && Array.isArray(data) && isMounted) {
+          const mapped: Order[] = data.map(supabaseRowToOrder);
+          let maxObservedId = BASE_ORDER_ID;
+
+          mapped.forEach((o) => {
+            const numId = extractNumericId(o.id);
+            if (numId && numId > maxObservedId) maxObservedId = numId;
+            if (typeof o.invoiceNo === 'number' && o.invoiceNo > maxObservedId) {
+              maxObservedId = o.invoiceNo;
+            }
+          });
+
+          if (maxObservedId > lastCounterRef.current) {
+            lastCounterRef.current = maxObservedId;
+          }
+
+          mapped.sort((a, b) => {
+            const timeA = new Date(a.createdAt || 0).getTime() || (typeof a.updatedAt === 'number' ? a.updatedAt : 0) || 0;
+            const timeB = new Date(b.createdAt || 0).getTime() || (typeof b.updatedAt === 'number' ? b.updatedAt : 0) || 0;
+            return timeB - timeA;
+          });
+
+          setOrders(mapped);
+          try { 
+            localStorage.setItem(CACHE_KEY, JSON.stringify(mapped)); 
+          } catch {}
+          setLoading(false);
+        }
+      } catch (err) {
+        console.warn('[OrderContext] Supabase load exception:', err);
+      }
+    };
+
+    fetchFromSupabase();
+
+    // B. Real-time Supabase Channel Subscription
+    let supabaseChannel: any = null;
+    try {
+      supabaseChannel = supabase
+        .channel('realtime_orders_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+          if (!isMounted) return;
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const newOrder = supabaseRowToOrder(payload.new as any);
+            setOrders(prev => {
+              const map = new Map<string, Order>();
+              if (Array.isArray(prev)) {
+                prev.forEach(o => { if (o && o.id) map.set(String(o.id), o); });
+              }
+              map.set(String(newOrder.id), newOrder);
+              const merged = Array.from(map.values());
+              merged.sort((a, b) => {
+                const timeA = new Date(a.createdAt || 0).getTime() || 0;
+                const timeB = new Date(b.createdAt || 0).getTime() || 0;
+                return timeB - timeA;
+              });
+              try { localStorage.setItem(CACHE_KEY, JSON.stringify(merged)); } catch {}
+              return merged;
+            });
+          } else if (payload.eventType === 'DELETE' && payload.old && (payload.old as any).id) {
+            const deletedId = String((payload.old as any).id);
+            setOrders(prev => {
+              const next = prev.filter(o => o.id !== deletedId);
+              try { localStorage.setItem(CACHE_KEY, JSON.stringify(next)); } catch {}
+              return next;
+            });
+          }
+        })
+        .subscribe();
+    } catch (e) {
+      console.warn('[OrderContext] Supabase channel error:', e);
     }
 
-    setLoading(true);
-    const ordersColRef = collection(db, 'orders');
+    // C. Subscribe to live Firestore updates (fallback/dual sync)
+    let firestoreUnsub: (() => void) | null = null;
+    try {
+      if (!isFirestoreQuotaExceeded) {
+        const ordersColRef = collection(db, 'orders');
+        firestoreUnsub = onSnapshot(
+          ordersColRef,
+          (snapshot) => {
+            if (!isMounted) return;
+            const fetchedOrders: Order[] = [];
+            let maxObservedId = BASE_ORDER_ID;
 
-    // Subscribe to live Firestore updates
-    const unsubscribe = onSnapshot(
-      ordersColRef,
-      (snapshot) => {
-        const fetchedOrders: Order[] = [];
-        let maxObservedId = BASE_ORDER_ID;
+            snapshot.forEach((docSnap) => {
+              const data = docSnap.data();
+              const orderObj = { 
+                id: docSnap.id, 
+                ...data,
+                items: Array.isArray(data.items) ? data.items : []
+              } as Order;
+              fetchedOrders.push(orderObj);
 
-        snapshot.forEach((docSnap) => {
-          const data = docSnap.data();
-          const orderObj = { 
-            id: docSnap.id, 
-            ...data,
-            items: Array.isArray(data.items) ? data.items : []
-          } as Order;
-          fetchedOrders.push(orderObj);
+              const numId = extractNumericId(docSnap.id);
+              if (numId && numId > maxObservedId) maxObservedId = numId;
+              if (typeof data.invoiceNo === 'number' && data.invoiceNo > maxObservedId) {
+                maxObservedId = data.invoiceNo;
+              }
+            });
 
-          const numId = extractNumericId(docSnap.id);
-          if (numId && numId > maxObservedId) maxObservedId = numId;
-          if (typeof data.invoiceNo === 'number' && data.invoiceNo > maxObservedId) {
-            maxObservedId = data.invoiceNo;
+            if (maxObservedId > lastCounterRef.current) {
+              lastCounterRef.current = maxObservedId;
+            }
+
+            fetchedOrders.sort((a, b) => {
+              const timeA = new Date(a.createdAt || 0).getTime() || (typeof a.updatedAt === 'number' ? a.updatedAt : 0) || 0;
+              const timeB = new Date(b.createdAt || 0).getTime() || (typeof b.updatedAt === 'number' ? b.updatedAt : 0) || 0;
+              return timeB - timeA;
+            });
+
+            setOrders(fetchedOrders);
+            try {
+              localStorage.setItem(CACHE_KEY, JSON.stringify(fetchedOrders));
+            } catch (e) {}
+
+            setLoading(false);
+          },
+          (error) => {
+            setLoading(false);
           }
-        });
-
-        // Sort descending by creation date / timestamp / numeric id so new orders always appear at top
-        fetchedOrders.sort((a, b) => {
-          const timeA = new Date(a.createdAt || 0).getTime() || (typeof a.updatedAt === 'number' ? a.updatedAt : 0) || 0;
-          const timeB = new Date(b.createdAt || 0).getTime() || (typeof b.updatedAt === 'number' ? b.updatedAt : 0) || 0;
-          if (timeB !== timeA) {
-            return timeB - timeA;
-          }
-          const idA = extractNumericId(a.id) || (typeof a.invoiceNo === 'number' ? a.invoiceNo : 0);
-          const idB = extractNumericId(b.id) || (typeof b.invoiceNo === 'number' ? b.invoiceNo : 0);
-          return idB - idA;
-        });
-
-        if (maxObservedId > lastCounterRef.current) {
-          lastCounterRef.current = maxObservedId;
-        }
-
-        setOrders(fetchedOrders);
-        setLoading(false);
-
-        try {
-          localStorage.setItem(CACHE_KEY, JSON.stringify(fetchedOrders));
-          if (currentUser) {
-            localStorage.setItem(`eleganbd_orders_${currentUser.uid}`, JSON.stringify(fetchedOrders));
-          }
-        } catch (e) {}
-      },
-      (error) => {
-        console.warn('[OrderContext] onSnapshot warning:', error);
-        if (!isQuotaError(error)) {
-          handleFirestoreError(error, OperationType.GET, 'orders');
-        }
-        setLoading(false);
+        );
       }
-    );
+    } catch (e) {
+      setLoading(false);
+    }
 
-    // Also fetch the counter config doc
-    getDoc(doc(db, 'config', 'order_counter'))
-      .then((counterSnap) => {
-        if (counterSnap.exists()) {
-          const data = counterSnap.data();
-          if (typeof data.lastOrderId === 'number' && data.lastOrderId > lastCounterRef.current) {
-            lastCounterRef.current = data.lastOrderId;
-          }
-        }
-      })
-      .catch(() => {});
-
-    return () => unsubscribe();
+    return () => {
+      isMounted = false;
+      if (typeof firestoreUnsub === 'function') {
+        try { firestoreUnsub(); } catch {}
+      }
+      if (supabaseChannel) {
+        try { supabase.removeChannel(supabaseChannel); } catch {}
+      }
+    };
   }, [currentUser]);
 
   const refreshOrders = useCallback(async () => {
     setLoading(true);
     try {
+      // 1. Fetch from Supabase
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        const mapped = data.map(supabaseRowToOrder);
+        setOrders(mapped);
+        localStorage.setItem(CACHE_KEY, JSON.stringify(mapped));
+        return;
+      }
+
+      // 2. Fallback to Firestore
       const snapshot = await getDocs(collection(db, 'orders'));
       const fetchedOrders: Order[] = [];
       let maxObserved = BASE_ORDER_ID;
@@ -269,12 +310,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       fetchedOrders.sort((a, b) => {
         const timeA = new Date(a.createdAt || 0).getTime() || (typeof a.updatedAt === 'number' ? a.updatedAt : 0) || 0;
         const timeB = new Date(b.createdAt || 0).getTime() || (typeof b.updatedAt === 'number' ? b.updatedAt : 0) || 0;
-        if (timeB !== timeA) {
-          return timeB - timeA;
-        }
-        const idA = extractNumericId(a.id) || (typeof a.invoiceNo === 'number' ? a.invoiceNo : 0);
-        const idB = extractNumericId(b.id) || (typeof b.invoiceNo === 'number' ? b.invoiceNo : 0);
-        return idB - idA;
+        return timeB - timeA;
       });
 
       if (maxObserved > lastCounterRef.current) {
@@ -397,7 +433,20 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       }
       const updatedData = { status, updatedAt: Date.now() };
 
-      // 1. Update in Firestore
+      // 1. Update in Supabase
+      try {
+        await supabase
+          .from('orders')
+          .update({
+            status,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', String(id));
+      } catch (sbErr) {
+        console.warn('[OrderContext] Supabase update status notice:', sbErr);
+      }
+
+      // 2. Update in Firestore
       try {
         const cleaned = removeUndefined(updatedData);
         await setDoc(doc(db, 'orders', id), cleaned, { merge: true });
@@ -405,7 +454,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         console.warn('[OrderContext] Firestore update status fallback:', e);
       }
 
-      // 2. Local state update
+      // 3. Local state update
       setOrders(prev => {
         const next = prev.map(o => o.id === id ? { ...o, status, updatedAt: Date.now() } : o);
         try {
@@ -432,7 +481,18 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       }
       const updatedData = { ...safeData, updatedAt: Date.now() };
 
-      // 1. Update in Firestore
+      // 1. Update in Supabase
+      try {
+        const mergedForSb = order ? { ...order, ...updatedData } : updatedData;
+        const row = orderToSupabaseRow(mergedForSb);
+        await supabase
+          .from('orders')
+          .upsert(row);
+      } catch (sbErr) {
+        console.warn('[OrderContext] Supabase update order notice:', sbErr);
+      }
+
+      // 2. Update in Firestore
       try {
         const cleaned = removeUndefined(updatedData);
         await setDoc(doc(db, 'orders', id), cleaned, { merge: true });
@@ -440,7 +500,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         console.warn('[OrderContext] Firestore update order fallback:', e);
       }
 
-      // 2. Local state update
+      // 3. Local state update
       setOrders(prev => {
         const next = prev.map(o => o.id === id ? { ...o, ...updatedData } : o);
         try {
@@ -456,8 +516,9 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
   const deleteOrder = async (id: string) => {
     if (!id) return;
+    const cleanId = String(id);
     try {
-      const order = orders.find(o => o.id === id);
+      const order = orders.find(o => o.id === cleanId);
       if (order) {
         const s = (order.status || '').toString().trim().toLowerCase();
         const isAlreadyRestored = s === 'cancelled' || s === 'canceled' || s === 'returned' || s === 'return';
@@ -470,23 +531,138 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // 1. Delete in Firestore
+      // 1. Immediately update local state & cache so UI reflects instant removal
+      setOrders(prev => {
+        const next = prev.filter(o => o.id !== cleanId);
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify(next));
+          // Clean any user or backup keys
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && (k.startsWith('eleganbd_orders_') || k === 'orders')) {
+              try {
+                const stored = JSON.parse(localStorage.getItem(k) || '[]');
+                if (Array.isArray(stored)) {
+                  const cleaned = stored.filter((o: any) => o && o.id !== cleanId);
+                  localStorage.setItem(k, JSON.stringify(cleaned));
+                }
+              } catch {}
+            }
+          }
+        } catch {}
+        return next;
+      });
+
+      // 2. Server API direct deletion (deletes permanently from both Firestore and Supabase backend)
       try {
-        await deleteDoc(doc(db, 'orders', id));
-      } catch (e) {
-        console.warn('[OrderContext] Firestore delete order fallback:', e);
+        await fetch('/api/orders/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: cleanId })
+        });
+      } catch (apiErr) {
+        console.warn('[OrderContext] Server delete order notice:', apiErr);
       }
 
-      // 2. Local update
+      // 3. Client-side Firestore delete
+      try {
+        await deleteDoc(doc(db, 'orders', cleanId));
+      } catch (e) {
+        console.warn('[OrderContext] Client Firestore delete order notice:', e);
+      }
+
+      // 4. Client-side Supabase delete
+      try {
+        await supabase
+          .from('orders')
+          .delete()
+          .eq('id', cleanId);
+      } catch (sbErr) {
+        console.warn('[OrderContext] Client Supabase delete order notice:', sbErr);
+      }
+    } catch (error) {
+      console.error(`[OrderContext] ERROR: Deleting order ${cleanId}:`, error);
+      throw error;
+    }
+  };
+
+  const deleteMultipleOrders = async (ids: string[]) => {
+    if (!Array.isArray(ids) || ids.length === 0) return;
+    const targetSet = new Set(ids.map(String));
+
+    try {
+      // Restore stock for eligible orders
+      for (const id of ids) {
+        const order = orders.find(o => o.id === id);
+        if (order) {
+          const s = (order.status || '').toString().trim().toLowerCase();
+          const isAlreadyRestored = s === 'cancelled' || s === 'canceled' || s === 'returned' || s === 'return';
+          if (!isAlreadyRestored) {
+            try {
+              await restoreOrderStock(order);
+            } catch {}
+          }
+        }
+      }
+
+      // 1. Update local state & cache
       setOrders(prev => {
-        const next = prev.filter(o => o.id !== id);
+        const next = prev.filter(o => !targetSet.has(String(o.id)));
         try {
           localStorage.setItem(CACHE_KEY, JSON.stringify(next));
         } catch {}
         return next;
       });
+
+      // 2. Server API bulk delete
+      try {
+        await fetch('/api/orders/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: Array.from(targetSet) })
+        });
+      } catch (apiErr) {
+        console.warn('[OrderContext] Server bulk delete notice:', apiErr);
+      }
+
+      // 3. Client Firestore delete
+      for (const id of ids) {
+        try {
+          await deleteDoc(doc(db, 'orders', String(id)));
+        } catch {}
+      }
+
+      // 4. Client Supabase delete
+      try {
+        await supabase.from('orders').delete().in('id', Array.from(targetSet));
+      } catch {}
     } catch (error) {
-      console.error(`[OrderContext] ERROR: Deleting order ${id}:`, error);
+      console.error('[OrderContext] Bulk delete error:', error);
+      throw error;
+    }
+  };
+
+  const deleteAllOrders = async () => {
+    try {
+      // 1. Local state clear
+      setOrders([]);
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify([]));
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith('eleganbd_orders') || k === 'orders')) {
+            localStorage.removeItem(k);
+          }
+        }
+      } catch {}
+
+      // 2. Server-side complete wipe of orders
+      await fetch('/api/orders/delete-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (error) {
+      console.error('[OrderContext] Delete all orders error:', error);
       throw error;
     }
   };
@@ -538,21 +714,48 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         updatedAt: Date.now()
       };
 
-      // 1. Save directly to Firestore orders collection
+      // 1. Save directly to Supabase orders table
+      try {
+        const sbRow = orderToSupabaseRow(newOrder);
+        const { error: sbError } = await supabase.from('orders').upsert(sbRow);
+        if (sbError) {
+          console.warn('[OrderContext] Supabase order insert notice:', sbError.message);
+        } else {
+          console.log(`[OrderContext] Order #${finalOrderId} synced to Supabase successfully!`);
+        }
+
+        // Also sync customer profile in Supabase customers table
+        const customerPhone = newOrder.phone;
+        if (customerPhone) {
+          await supabase.from('customers').upsert({
+            id: customerPhone,
+            phone: customerPhone,
+            name: newOrder.customerName || 'Customer',
+            email: newOrder.email || null,
+            address: newOrder.address || null,
+            city: newOrder.city || null,
+            thana: newOrder.thana || null,
+            updated_at: new Date().toISOString()
+          }).catch(() => {});
+        }
+      } catch (sbErr) {
+        console.warn('[OrderContext] Supabase order save fallback:', sbErr);
+      }
+
+      // 2. Save directly to Firestore orders collection
       try {
         const cleaned = removeUndefined(newOrder);
         await setDoc(doc(db, 'orders', finalOrderId), cleaned);
-        console.log(`[OrderContext] Saved Order #${finalOrderId} successfully to Firestore.`);
       } catch (e) {
         console.warn('[OrderContext] Firestore order save fallback:', e);
       }
 
-      // 2. Persist the updated counter to Firestore
+      // 3. Persist the updated counter to Firestore
       try {
         await setDoc(doc(db, 'config', 'order_counter'), { lastOrderId: calculatedNextIdNum }, { merge: true });
       } catch (e) {}
 
-      // 3. Local State Update & Cache
+      // 4. Local State Update & Cache
       setOrders(prev => {
         // Prevent duplicate entry in array
         const filtered = prev.filter(o => o.id !== finalOrderId);
@@ -567,23 +770,24 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       });
       setLastOrder(newOrder);
 
-      // 4. Centralized Stock Deduction & Inventory Movement Logging
+      // 5. Centralized Stock Deduction & Inventory Movement Logging
       await deductOrderStock(newOrder);
 
-      // 5. Send order confirmation email and Telegram notification if applicable
+      // 6. Send order confirmation email and Telegram notification if applicable
       if (newOrder.invoiceBy && newOrder.invoiceBy.toLowerCase().includes('website')) {
         fetch('/api/send-order-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ orderDetails: newOrder }),
         }).catch(err => console.error('[OrderContext] Email notification error:', err));
-
-        fetch('/api/send-telegram-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderDetails: newOrder }),
-        }).catch(err => console.error('[OrderContext] Telegram notification error:', err));
       }
+
+      // Send Telegram notification for ALL new orders (Website & Admin Panel Manual Orders)
+      fetch('/api/send-telegram-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderDetails: newOrder }),
+      }).catch(err => console.error('[OrderContext] Telegram notification error:', err));
 
       return newOrder;
     } catch(e) {
@@ -598,6 +802,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       updateOrderStatus, 
       updateOrder, 
       deleteOrder, 
+      deleteMultipleOrders,
+      deleteAllOrders,
       addOrder, 
       getNextOrderId, 
       loading, 

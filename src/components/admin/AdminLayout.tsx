@@ -95,14 +95,25 @@ export default function AdminLayout() {
     const emailKey = cleanEmail.replace(/[^a-zA-Z0-9]/g, '_');
     
     // Check local storage first for instant render
-    try {
-      const local = localStorage.getItem('elegan_admin_profiles');
-      if (local) {
-        const list = JSON.parse(local);
-        const found = list.find((p: any) => p.email?.toLowerCase() === cleanEmail);
-        if (found) setUserProfile(found);
-      }
-    } catch (e) {}
+    const loadFromLocal = () => {
+      try {
+        const local = localStorage.getItem('elegan_admin_profiles');
+        if (local) {
+          const list = JSON.parse(local);
+          const found = list.find((p: any) => p.email?.toLowerCase() === cleanEmail);
+          if (found) setUserProfile(found);
+        }
+      } catch (e) {}
+    };
+
+    loadFromLocal();
+
+    const handleStorageChange = () => {
+      loadFromLocal();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('elegan_profile_updated', handleStorageChange);
 
     // Realtime Firestore sync with admin_profiles
     let unsubProfile: (() => void) | null = null;
@@ -134,6 +145,8 @@ export default function AdminLayout() {
     } catch (e) {}
 
     return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('elegan_profile_updated', handleStorageChange);
       if (unsubProfile) unsubProfile();
       if (unsubPerms) unsubPerms();
     };
@@ -146,7 +159,7 @@ export default function AdminLayout() {
   const getDepartmentBadgeStyle = (dept?: string) => {
     const d = String(dept || '');
     if (isCEO || d.includes('CEO') || d.includes('Founder')) {
-      return 'bg-gradient-to-r from-amber-100 to-amber-200 text-amber-900 border-amber-300 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-700 font-black shadow-2xs';
+      return 'bg-gradient-to-r from-amber-200 to-yellow-300 text-black border-amber-400 dark:from-amber-400 dark:to-yellow-500 dark:text-black font-black shadow-2xs';
     }
     if (d.includes('Sales')) {
       return 'bg-blue-100 text-blue-900 border-blue-300 dark:bg-blue-950/60 dark:text-blue-200 dark:border-blue-700';
@@ -369,16 +382,15 @@ export default function AdminLayout() {
   const isCurrentRouteAllowed = !currentRequiredPerm || isPermitted(currentRequiredPerm);
 
   const rawMenuGroups = [
-    {
-      title: 'OVERVIEW',
-      items: [
-        { name: 'Dashboard', path: '/admin', icon: Home, perm: 'dashboard' },
-        { name: 'Customer Profiler', path: '/admin/customer-profiler', icon: UserCheck, perm: 'customer-profiler' },
-        { name: 'My Account', path: '/admin/my-account', icon: User, perm: 'my-account' },
-        { name: 'All Account', path: '/admin/all-accounts', icon: Users, perm: 'admin-access' },
-        { name: 'Stock Check', path: '/admin/stock-check', icon: BarChart3, perm: 'products' },
-      ]
-    },
+        {
+          title: 'OVERVIEW',
+          items: [
+            { name: 'Dashboard', path: '/admin', icon: Home, perm: 'dashboard' },
+            { name: 'Customer Profiler', path: '/admin/customer-profiler', icon: UserCheck, perm: 'customer-profiler' },
+            { name: 'My Account', path: '/admin/my-account', icon: User, perm: 'my-account' },
+            { name: 'Stock Check', path: '/admin/stock-check', icon: BarChart3, perm: 'products' },
+          ]
+        },
     {
       title: 'ORDER MANAGEMENT',
       items: [

@@ -919,8 +919,8 @@ export default function AdminAccounts() {
                     
                     {isTopCeo ? (
                       <>
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-100 to-amber-200 text-amber-900 border border-amber-300 flex items-center gap-1 shadow-2xs">
-                          <Crown size={11} className="text-amber-700 fill-amber-500" /> CEO
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-200 to-yellow-300 text-black border border-amber-400 flex items-center gap-1 shadow-2xs">
+                          <Crown size={11} className="text-black fill-amber-500" /> CEO & Founder
                         </span>
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1">
                           <VerifiedBadge size={14} /> Verified
