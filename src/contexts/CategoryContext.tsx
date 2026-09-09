@@ -3,6 +3,7 @@ import { Category } from '../types';
 import { db } from '../lib/firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import { handleFirestoreError, OperationType, isFirestoreQuotaExceeded, isQuotaError } from '../lib/firestoreUtils';
+import { saveDocumentToSupabase, deleteDocumentFromSupabase, fetchDocumentsFromSupabase } from '../lib/supabase';
 
 interface CategoryContextType {
   categories: Category[];
@@ -55,7 +56,7 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           setCategories(sortCategories(parsed));
           setLoading(false);
         }
@@ -65,6 +66,16 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } else {
       setCategories(sortCategories(DEFAULT_CATEGORIES));
     }
+
+    // Load from Supabase
+    fetchDocumentsFromSupabase('categories').then(data => {
+      if (Array.isArray(data) && data.length > 0) {
+        const sorted = sortCategories(data);
+        setCategories(sorted);
+        localStorage.setItem('eleganbd_categories', JSON.stringify(sorted));
+      }
+      setLoading(false);
+    }).catch(() => setLoading(false));
 
     if (isFirestoreQuotaExceeded) {
       setLoading(false);
@@ -95,9 +106,6 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
         setLoading(false);
       }, (error) => {
-        if (!isQuotaError(error)) {
-          handleFirestoreError(error, OperationType.GET, 'categories');
-        }
         if (!cached) {
           setCategories(sortCategories(DEFAULT_CATEGORIES));
         }
@@ -116,11 +124,13 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setCategories(updated);
     localStorage.setItem('eleganbd_categories', JSON.stringify(updated));
 
+    // 1. Save to Supabase
+    await saveDocumentToSupabase('categories', category.id, category);
+
+    // 2. Save to Firestore
     try {
       await setDoc(doc(db, 'categories', category.id), category);
-    } catch (error) {
-      console.warn("Firestore category sync warning:", error);
-    }
+    } catch (error) {}
   };
 
   const updateCategory = async (updatedCategory: Category) => {
@@ -128,11 +138,13 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setCategories(updated);
     localStorage.setItem('eleganbd_categories', JSON.stringify(updated));
 
+    // 1. Save to Supabase
+    await saveDocumentToSupabase('categories', updatedCategory.id, updatedCategory);
+
+    // 2. Save to Firestore
     try {
       await setDoc(doc(db, 'categories', updatedCategory.id), updatedCategory, { merge: true });
-    } catch (error) {
-      console.warn("Firestore category update warning:", error);
-    }
+    } catch (error) {}
   };
 
   const deleteCategory = async (id: string) => {
@@ -140,11 +152,13 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setCategories(updated);
     localStorage.setItem('eleganbd_categories', JSON.stringify(updated));
 
+    // 1. Delete from Supabase
+    await deleteDocumentFromSupabase('categories', id);
+
+    // 2. Delete from Firestore
     try {
       await deleteDoc(doc(db, 'categories', id));
-    } catch (error) {
-      console.warn("Firestore category delete warning:", error);
-    }
+    } catch (error) {}
   };
 
   return (

@@ -468,7 +468,7 @@ const Home = () => {
       {/* TOP SECTION: HERO BANNER (SLIDER SUPPORT FOR 2 OR MORE BANNERS) */}
       {activeHeroBanners.length > 0 && showHeroBanner && (
         <section className="w-full m-0 p-0 pb-2 sm:pb-4">
-          <div className="relative w-full overflow-hidden bg-black flex items-center justify-center m-0 p-0 md:max-h-[360px] lg:max-h-[400px] xl:max-h-[440px] group">
+          <div className="relative w-full overflow-hidden bg-white flex items-center justify-center m-0 p-0 group">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentBanner}
@@ -476,15 +476,15 @@ const Home = () => {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.5 }}
-                className="w-full relative flex items-center justify-center overflow-hidden bg-black md:max-h-[360px] lg:max-h-[400px] xl:max-h-[440px]"
+                className="w-full relative flex items-center justify-center overflow-hidden bg-white"
               >
-                {/* Main Hero Banner Image - Crisp, un-distorted and fully visible */}
+                {/* Main Hero Banner Image - Responsive aspect ratio for beautiful display on all devices */}
                 {activeHeroBanners[currentBanner].link ? (
                   <Link to={activeHeroBanners[currentBanner].link} className="relative z-10 block w-full">
                     <img 
                       src={activeHeroBanners[currentBanner].image} 
                       alt={`Hero Banner ${currentBanner + 1}`} 
-                      className="w-full h-auto max-h-[360px] md:max-h-[420px] lg:max-h-[480px] object-contain object-center block mx-auto"
+                      className="w-full h-auto object-contain block mx-auto"
                       referrerPolicy="no-referrer"
                     />
                   </Link>
@@ -492,7 +492,7 @@ const Home = () => {
                   <img 
                     src={activeHeroBanners[currentBanner].image} 
                     alt={`Hero Banner ${currentBanner + 1}`} 
-                    className="relative z-10 w-full h-auto max-h-[360px] md:max-h-[420px] lg:max-h-[480px] object-contain object-center block mx-auto"
+                    className="relative z-10 w-full h-auto object-contain block mx-auto"
                     referrerPolicy="no-referrer"
                   />
                 )}

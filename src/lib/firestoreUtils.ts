@@ -69,12 +69,17 @@ export function isQuotaError(error: unknown): boolean {
                   lowerStr.includes('resource-exhausted') ||
                   lowerStr.includes('resource_exhausted') ||
                   lowerStr.includes('free daily read units') ||
+                  lowerStr.includes('free daily write units') ||
+                  lowerStr.includes('write units') ||
+                  lowerStr.includes('write stream') ||
+                  lowerStr.includes('grpcconnection') ||
+                  lowerStr.includes('rpc') ||
                   lowerStr.includes('quota metric') ||
                   lowerStr.includes('exceeded free quota') ||
                   lowerStr.includes('exceeded quota') ||
                   lowerStr.includes('free tier database') ||
                   lowerStr.includes('firestore.googleapis.com') ||
-                  lowerStr.includes('project_number:905794080701') ||
+                  lowerStr.includes('project_number') ||
                   lowerStr.includes('retry after quota limits') ||
                   lowerStr.includes('cannot exceed free quota') ||
                   lowerStr.includes('internal assertion failed') ||
@@ -84,7 +89,7 @@ export function isQuotaError(error: unknown): boolean {
                   (error as any)?.code === 'resource-exhausted' ||
                   (error as any)?.code === 'RESOURCE_EXHAUSTED';
 
-  if (matched && (lowerStr.includes('quota') || lowerStr.includes('resource-exhausted') || lowerStr.includes('resource_exhausted') || lowerStr.includes('read units'))) {
+  if (matched) {
     setQuotaExceededState(true);
   }
   return matched;
@@ -105,7 +110,7 @@ if (typeof window !== 'undefined') {
       return String(arg);
     }).join(' ');
 
-    if (isQuotaError(combined) || combined.includes('Free daily read units') || combined.includes('quota metric')) {
+    if (isQuotaError(combined) || combined.includes('Free daily read units') || combined.includes('Free daily write units') || combined.includes('write units') || combined.includes('quota metric')) {
       return;
     }
     originalConsoleError(...args);
@@ -121,7 +126,7 @@ if (typeof window !== 'undefined') {
       return String(arg);
     }).join(' ');
 
-    if (isQuotaError(combined) || combined.includes('Free daily read units') || combined.includes('quota metric')) {
+    if (isQuotaError(combined) || combined.includes('Free daily read units') || combined.includes('Free daily write units') || combined.includes('write units') || combined.includes('quota metric')) {
       return;
     }
     originalConsoleWarn(...args);

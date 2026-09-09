@@ -7,6 +7,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { isFirestoreQuotaExceeded, isQuotaError } from '../lib/firestoreUtils';
+import { saveDocumentToSupabase, fetchDocumentFromSupabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
 interface BrandingContextType {
@@ -685,6 +686,12 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const updateFirestore = async (path: string, data: any) => {
+    try {
+      await saveDocumentToSupabase('config', path, data);
+    } catch (sbErr) {
+      console.warn(`[BrandingContext] Supabase save notice for config/${path}:`, sbErr);
+    }
+
     try {
       await setDoc(doc(db, 'config', path), data, { merge: true });
     } catch (e) {

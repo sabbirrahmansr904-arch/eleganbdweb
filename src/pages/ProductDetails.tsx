@@ -51,6 +51,10 @@ const ProductDetails = () => {
   const [showStickyBar, setShowStickyBar] = useState(false);
 
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [id]);
+
+  useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 400) {
         setShowStickyBar(true);

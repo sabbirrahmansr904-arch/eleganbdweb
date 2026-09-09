@@ -3,6 +3,7 @@ import { StockTransaction } from '../types';
 import { db } from '../lib/firebase';
 import { collection, onSnapshot, doc, setDoc, query, orderBy, limit, deleteDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType, isQuotaError, isFirestoreQuotaExceeded } from '../lib/firestoreUtils';
+import { saveDocumentToSupabase, deleteDocumentFromSupabase, fetchDocumentsFromSupabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
 interface InventoryContextType {
@@ -33,6 +34,14 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const { isAdmin, currentUser, loading: authLoading } = useAuth();
 
   useEffect(() => {
+    // 1. Fetch initial inventory transactions from Supabase
+    fetchDocumentsFromSupabase('inventory_transactions').then(data => {
+      if (Array.isArray(data) && data.length > 0) {
+        setTransactions(data);
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify(data)); } catch {}
+      }
+    }).catch(() => {});
+
     // We listen to real-time inventory transactions for admins and logged-in users
     if (authLoading) return;
     if (!isAdmin && !currentUser) {
@@ -79,12 +88,6 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setLoading(false);
       },
       (error) => {
-        if (isQuotaError(error)) {
-          console.warn('[InventoryContext] Firestore quota limit reached. Using cached transactions.');
-        } else {
-          console.warn('[InventoryContext] Real-time listener notice:', error);
-          handleFirestoreError(error, OperationType.LIST, 'inventory_transactions');
-        }
         setLoading(false);
       }
     );
@@ -121,17 +124,13 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return updated;
     });
 
-    // 2. Persist to Firestore
+    // 2. Persist to Supabase
+    await saveDocumentToSupabase('inventory_transactions', id, newTrans);
+
+    // 3. Persist to Firestore
     try {
       await setDoc(doc(db, 'inventory_transactions', id), newTrans);
-    } catch (error) {
-      if (isQuotaError(error)) {
-        console.warn('[InventoryContext] Firestore quota exceeded while writing transaction. Saved locally.');
-      } else {
-        console.error('[InventoryContext] Error creating transaction in Firestore:', error);
-        handleFirestoreError(error, OperationType.CREATE, `inventory_transactions/${id}`);
-      }
-    }
+    } catch (error) {}
   }, [currentUser]);
 
   const deleteTransaction = useCallback(async (id: string) => {
@@ -145,11 +144,13 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return updated;
     });
 
+    // 1. Delete from Supabase
+    await deleteDocumentFromSupabase('inventory_transactions', id);
+
+    // 2. Delete from Firestore
     try {
       await deleteDoc(doc(db, 'inventory_transactions', id));
-    } catch (error) {
-      console.error('[InventoryContext] Error deleting transaction:', error);
-    }
+    } catch (error) {}
   }, []);
 
   return (

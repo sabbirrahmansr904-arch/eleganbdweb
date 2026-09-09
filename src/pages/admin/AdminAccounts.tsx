@@ -70,7 +70,6 @@ const AVAILABLE_MODULES = [
   { id: 'dashboard', name: 'Dashboard', banglaName: 'ড্যাশবোর্ড' },
   { id: 'customer-profiler', name: 'Customer Profiler', banglaName: 'কাস্টমার প্রোফাইলার' },
   { id: 'orders', name: 'Order Management', banglaName: 'অর্ডার ম্যানেজমেন্ট' },
-  { id: 'exchanges', name: 'Exchange & Returns', banglaName: 'এক্সচেঞ্জ ও রিটার্ন' },
   { id: 'issues', name: 'Issue Tracker', banglaName: 'ইস্যু ট্র্যাকার' },
   { id: 'products', name: 'Product Catalog', banglaName: 'প্রোডাক্ট ক্যাটালগ' },
   { id: 'categories', name: 'Categories', banglaName: 'ক্যাটেগরি' },
@@ -159,7 +158,7 @@ export default function AdminAccounts() {
     photoURL: '',
     status: 'Active',
     bio: '',
-    permissions: ['dashboard', 'orders', 'exchanges', 'issues']
+    permissions: ['dashboard', 'orders', 'issues']
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -495,7 +494,7 @@ export default function AdminAccounts() {
       status: 'Active',
       bio: '',
       mainTasks: 'অর্ডার প্রসেসিং, কাস্টমার সাপোর্ট ও রিয়েল-টাইম সেলস ফলোআপ।',
-      permissions: ['dashboard', 'orders', 'exchanges', 'issues', 'customers']
+      permissions: ['dashboard', 'orders', 'issues', 'customers']
     });
     setIsModalOpen(true);
   };

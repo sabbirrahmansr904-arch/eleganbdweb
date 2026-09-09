@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../lib/firebase';
-import { collection, onSnapshot, doc, addDoc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, addDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { Expense } from '../types';
 import toast from 'react-hot-toast';
 import { useAuth } from './AuthContext';
 import { handleFirestoreError, OperationType, isFirestoreQuotaExceeded, isQuotaError } from '../lib/firestoreUtils';
+import { saveDocumentToSupabase, deleteDocumentFromSupabase, fetchDocumentsFromSupabase } from '../lib/supabase';
 
 interface ExpenseContextType {
   expenses: Expense[];
@@ -33,6 +34,16 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
+    // Load from Supabase
+    fetchDocumentsFromSupabase('expenses').then(data => {
+      if (Array.isArray(data) && data.length > 0) {
+        data.sort((a, b) => b.date - a.date);
+        setExpenses(data);
+        localStorage.setItem('eleganbd_expenses', JSON.stringify(data));
+      }
+      setLoading(false);
+    }).catch(() => setLoading(false));
+
     if (isFirestoreQuotaExceeded) {
       setLoading(false);
       return;
@@ -51,9 +62,6 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         } catch {}
         setLoading(false);
       }, (error) => {
-        if (!isQuotaError(error)) {
-          handleFirestoreError(error, OperationType.GET, 'expenses');
-        }
         setLoading(false);
       });
 
@@ -76,13 +84,14 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return next;
     });
 
+    // 1. Save to Supabase
+    await saveDocumentToSupabase('expenses', tempId, newExp);
+    toast.success('খরচ যোগ করা হয়েছে!');
+
+    // 2. Save to Firestore
     try {
-      await addDoc(collection(db, 'expenses'), expense);
-      toast.success('খরচ যোগ করা হয়েছে!');
-    } catch (err) {
-      console.error('Error adding expense:', err);
-      toast.error('খরচ যোগ করতে ব্যর্থ হয়েছে।');
-    }
+      await setDoc(doc(db, 'expenses', tempId), expense);
+    } catch (err) {}
   };
 
   const deleteExpense = async (id: string) => {
@@ -100,13 +109,14 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return next;
     });
 
+    // 1. Delete from Supabase
+    await deleteDocumentFromSupabase('expenses', id);
+    toast.success('রেকর্ড সফলভাবে মুছে ফেলা হয়েছে!');
+
+    // 2. Delete from Firestore
     try {
       await deleteDoc(doc(db, 'expenses', id));
-      toast.success('ডলার ক্রয়ের রেকর্ড সফলভাবে মুছে ফেলা হয়েছে!');
-    } catch (err) {
-      console.error('Error deleting expense:', err);
-      toast.error('রেকর্ড মুছতে ব্যর্থ হয়েছে।');
-    }
+    } catch (err) {}
   };
 
   return (

@@ -4,7 +4,18 @@ import { createServer as createViteServer } from "vite";
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, query, where, getDocs, updateDoc } from "firebase/firestore";
+import { 
+  db, 
+  doc, 
+  setDoc, 
+  getDoc, 
+  deleteDoc, 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  updateDoc 
+} from "./src/lib/firestoreMock";
 import { createRequire } from "module";
 
 
@@ -14,7 +25,6 @@ const require = createRequire(import.meta.url);
 const firebaseConfig = require("./firebase-applet-config.json");
 
 const firebaseApp = initializeApp(firebaseConfig);
-const db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
 
 async function startServer() {
   const app = express();
@@ -483,7 +493,15 @@ async function startServer() {
 
         const { error: sbErr } = await sb.from('orders').delete().in('id', targetIds);
         if (sbErr) {
-          console.warn("[Server API] Supabase orders delete notice:", sbErr.message);
+          console.warn("[Server API] Supabase orders delete notice by id:", sbErr.message);
+        }
+
+        const numIds = targetIds.map(i => parseInt(i.replace(/[^0-9]/g, ''), 10)).filter(Boolean);
+        if (numIds.length > 0) {
+          const { error: sbNumErr } = await sb.from('orders').delete().in('invoice_no', numIds);
+          if (sbNumErr) {
+            console.warn("[Server API] Supabase orders delete notice by invoice_no:", sbNumErr.message);
+          }
         }
       } catch (sbErr: any) {
         console.warn("[Server API] Supabase client delete notice:", sbErr.message);
@@ -650,8 +668,10 @@ async function startServer() {
       `• ${i.name} ${i.selectedSize ? `(Size: ${i.selectedSize})` : ''} - Qty: ${i.quantity} - ৳${(i.price || 0) * (i.quantity || 1)}`
     ).join('\n');
 
+    const invoiceNumDisplay = orderDetails.invoiceNo || orderDetails.id;
     const source = orderDetails.invoiceBy || 'Website';
-    const message = `🛒 *নতুন অর্ডার এসেছে!* (Order #${String(orderDetails.id).slice(-6)})\n\n` +
+    const message = `🛒 *নতুন অর্ডার এসেছে!*\n` +
+      `🧾 *ইনভয়েস নম্বর:* #${invoiceNumDisplay}\n` +
       `🏷️ *অর্ডার সোর্স:* ${source}\n` +
       `👤 *কাস্টমার নাম:* ${orderDetails.customerName}\n` +
       `📞 *ফোন নম্বর:* ${orderDetails.phone}\n` +

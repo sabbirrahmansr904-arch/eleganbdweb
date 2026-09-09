@@ -50,6 +50,9 @@ export default function CustomerDashboard() {
   // Selected Order for Invoice Modal
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<Order | null>(null);
 
+  // Pagination for orders box (Show 15 orders initially)
+  const [visibleCount, setVisibleCount] = useState(15);
+
   // Tracking tab input
   const [trackingIdInput, setTrackingIdInput] = useState('');
 
@@ -695,7 +698,7 @@ export default function CustomerDashboard() {
                 </div>
               ) : (
                 <div className="space-y-5">
-                  {filteredOrders.map(order => (
+                  {filteredOrders.slice(0, visibleCount).map(order => (
                     <div 
                       key={order.id} 
                       className="border border-gray-200 rounded-2xl p-5 hover:border-gray-300 transition-all bg-white shadow-xs space-y-4"
@@ -800,6 +803,18 @@ export default function CustomerDashboard() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Centered More Button */}
+              {filteredOrders.length > visibleCount && (
+                <div className="flex items-center justify-center pt-4 pb-1">
+                  <button
+                    onClick={() => setVisibleCount(prev => prev + 15)}
+                    className="px-8 py-3.5 bg-brand-ink text-white hover:bg-brand-gold hover:text-brand-ink font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <span>More ({filteredOrders.length - visibleCount} Remaining)</span>
+                  </button>
                 </div>
               )}
             </div>

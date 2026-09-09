@@ -99,7 +99,7 @@ export default function AdminOrders(): React.JSX.Element {
   const { currency, rate } = useCurrency();
   const { orders, updateOrderStatus, updateOrder, addOrder, deleteOrder, deleteMultipleOrders, deleteAllOrders, getNextOrderId } = useOrders();
   const { products } = useProducts();
-  const { isSuperAdmin, isCEO } = useAuth();
+  const { isAdmin, isSuperAdmin, isCEO } = useAuth();
   const navigate = useNavigate();
 
   const changeStatus = async (status: Order['status']) => {
@@ -165,8 +165,8 @@ export default function AdminOrders(): React.JSX.Element {
   const [cameraPermissionError, setCameraPermissionError] = useState<string | null>(null);
   const [isCameraScannerActive, setIsCameraScannerActive] = useState(false);
   
-  // Pagination State
-  const [visibleCount, setVisibleCount] = useState(50);
+  // Pagination State (Show 15 orders initially inside the box container)
+  const [visibleCount, setVisibleCount] = useState(15);
   
   // Bulk Selection
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
@@ -298,6 +298,8 @@ export default function AdminOrders(): React.JSX.Element {
   const [tempTrackingId, setTempTrackingId] = useState('');
   const [newInternalNote, setNewInternalNote] = useState('');
   const [newDeliveryDate, setNewDeliveryDate] = useState('');
+  const [newOrderDate, setNewOrderDate] = useState(new Date().toISOString().slice(0, 10));
+  const [newInvoiceNo, setNewInvoiceNo] = useState('');
   const { options: invoiceByOptions, addOption: addInvoiceByOption } = useInvoiceByOptions();
   const [newInvoiceBy, setNewInvoiceBy] = useState<string>('Sabbir');
   const [showAddInvoiceByModal, setShowAddInvoiceByModal] = useState(false);
@@ -356,6 +358,8 @@ export default function AdminOrders(): React.JSX.Element {
     setNewCourierCharge(120);
     setNewInternalNote('');
     setNewDeliveryDate('');
+    setNewOrderDate(new Date().toISOString().slice(0, 10));
+    setNewInvoiceNo('');
     setNewOrderItems([]);
     setShowCreateModal(false);
   };
@@ -376,6 +380,8 @@ export default function AdminOrders(): React.JSX.Element {
     setNewCourierCharge(order.courierCharge ?? 120);
     setNewInternalNote(order.notes || '');
     setNewInvoiceBy((order.invoiceBy as any) || 'Sabbir');
+    setNewOrderDate(order.createdAt ? new Date(order.createdAt).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10));
+    setNewInvoiceNo(order.invoiceNo ? String(order.invoiceNo) : (order.id || ''));
     
     if (order.items && order.items.length > 0) {
       setNewOrderItems(order.items.map((it, idx) => ({
@@ -1367,7 +1373,9 @@ export default function AdminOrders(): React.JSX.Element {
         trackingCode: trackingToSave,
         pathaoConsignmentId: (newDeliveryPartner === 'Pathao' || !newDeliveryPartner) ? (trackingToSave || existingOrder?.pathaoConsignmentId || '') : existingOrder?.pathaoConsignmentId,
         courierCharge: courierChargeToSave,
-        courierPayoutAmount: courierPayoutToSave
+        courierPayoutAmount: courierPayoutToSave,
+        createdAt: newOrderDate ? new Date(newOrderDate + 'T12:00:00Z').toISOString() : (existingOrder?.createdAt || new Date().toISOString()),
+        invoiceNo: newInvoiceNo ? parseInt(newInvoiceNo, 10) : (existingOrder?.invoiceNo || undefined)
       };
 
       try {
@@ -1381,7 +1389,8 @@ export default function AdminOrders(): React.JSX.Element {
     }
 
     const newOrder: Order = {
-      id: orderId,
+      id: newInvoiceNo ? String(newInvoiceNo) : orderId,
+      invoiceNo: newInvoiceNo ? parseInt(newInvoiceNo, 10) : undefined,
       customerId: 'manual_admin',
       customerName: newCustomerName,
       email: newCustomerEmail || '',
@@ -1394,7 +1403,7 @@ export default function AdminOrders(): React.JSX.Element {
       total: totalCollectable,
       status: 'Pending',
       paymentMethod: (newAdvancePaymentMethod.toLowerCase() as any) || 'cod',
-      createdAt: new Date().toISOString(),
+      createdAt: newOrderDate ? new Date(newOrderDate + 'T12:00:00Z').toISOString() : new Date().toISOString(),
       notes: newInternalNote || '',
       discount: newDiscountAmount,
       advancePayment: newAdvancePayment,
@@ -1910,6 +1919,37 @@ export default function AdminOrders(): React.JSX.Element {
                 <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-100">
                   <div className="text-sm font-black text-indigo-600">{formatPrice(order.total, currency, rate)}</div>
                   <div className="flex gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const orderId = order.id;
+                        const shortId = order.invoiceNo || orderId.slice(-6);
+                        setDeleteConfirm({
+                          isOpen: true,
+                          title: `Delete Order #${shortId}?`,
+                          message: `Are you sure you want to PERMANENTLY DELETE Order #${shortId}? This cannot be undone.`,
+                          onConfirm: async () => {
+                            try {
+                              const deletePromise = deleteOrder(orderId);
+                              toast.promise(deletePromise, {
+                                loading: 'Deleting...',
+                                success: 'Order deleted',
+                                error: (err) => `Failed: ${err?.message || 'Permission denied'}`
+                              });
+                              await deletePromise;
+                            } catch (err: any) {
+                              toast.error(err?.message || 'Error');
+                            } finally {
+                              setDeleteConfirm(prev => ({ ...prev, isOpen: false }));
+                            }
+                          }
+                        });
+                      }}
+                      title="Delete Order"
+                      className="p-2 bg-slate-50 rounded-lg transition-all text-slate-400 hover:text-rose-600 cursor-pointer"
+                    >
+                      <Trash2 size={18} />
+                    </button>
                     <button onClick={(e) => { e.stopPropagation(); setSelectedOrder(order); }} title="View Details" className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 rounded-lg"><Eye size={18} /></button>
                     <button onClick={(e) => { e.stopPropagation(); setIssueConversationOrder(order); }} title="Order Issues" className="p-2 text-slate-400 hover:text-rose-600 bg-slate-50 rounded-lg"><MessageSquare size={18} /></button>
                     <button onClick={(e) => { e.stopPropagation(); setInvoiceOrder(order); setShowInvoiceModal(true); if (!isDeliveredOrSuccess(order.status) && order.status !== 'Returned' && order.status !== 'Cancelled' && normalizeStatus(order.status) !== 'PRINTED') { updateOrderStatus(order.id, 'PRINTED'); } }} title="Print Invoice" className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 rounded-lg"><Printer size={18} /></button>
@@ -2366,7 +2406,7 @@ export default function AdminOrders(): React.JSX.Element {
                               <span>Pathao</span>
                             </button>
 
-                            {isSuperAdmin && (
+                            {(isAdmin || isSuperAdmin || isCEO) && (
                               <>
                                 <div className="w-[1px] h-3.5 bg-[#E2E8F0] mx-0.5" />
                                 
@@ -2419,22 +2459,22 @@ export default function AdminOrders(): React.JSX.Element {
 
         {/* Centered More & Show All buttons */}
         {filteredOrders.length > visibleCount && (
-          <div className="flex items-center justify-center gap-3 pt-5 pb-2">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-6 pb-2">
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setVisibleCount(prev => prev + 50);
+                setVisibleCount(prev => prev + 15);
               }}
-              className="px-6 py-3 bg-[#F8F9FD] border border-gray-200 hover:border-blue-400 text-blue-600 hover:text-blue-700 font-bold text-sm rounded-[14px] transition-all shadow-xs hover:shadow-md cursor-pointer flex items-center justify-center gap-2 active:scale-98"
+              className="px-8 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center justify-center gap-2 active:scale-95"
             >
-              <span>More (+50)</span>
+              <span>More ({filteredOrders.length - visibleCount} Remaining)</span>
             </button>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 setVisibleCount(filteredOrders.length);
               }}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-[14px] transition-all shadow-xs hover:shadow-md cursor-pointer flex items-center justify-center gap-2 active:scale-98"
+              className="px-6 py-3.5 bg-[#F8F9FD] border border-gray-200 hover:border-blue-400 text-blue-600 hover:text-blue-700 font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-xs hover:shadow-md cursor-pointer flex items-center justify-center gap-2 active:scale-98"
             >
               <span>Show All ({filteredOrders.length})</span>
             </button>
@@ -2735,18 +2775,33 @@ export default function AdminOrders(): React.JSX.Element {
                         </div>
                       </div>
 
-                      {/* EMAIL FIELD (OPTIONAL) */}
-                      <div className="space-y-1 text-left">
-                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">EMAIL (OPTIONAL)</label>
-                        <div className="relative">
-                          <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                          <input 
-                            type="email" 
-                            placeholder="e.g., john@example.com" 
-                            value={newCustomerEmail}
-                            onChange={(e) => setNewCustomerEmail(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
-                          />
+                      {/* EMAIL & ORDER DATE */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1 text-left">
+                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">EMAIL (OPTIONAL)</label>
+                          <div className="relative">
+                            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                            <input 
+                              type="email" 
+                              placeholder="e.g., john@example.com" 
+                              value={newCustomerEmail}
+                              onChange={(e) => setNewCustomerEmail(e.target.value)}
+                              className="w-full pl-10 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1 text-left">
+                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">ORDER DATE (CREATE DATE)</label>
+                          <div className="relative">
+                            <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
+                            <input 
+                              type="date" 
+                              value={newOrderDate}
+                              onChange={(e) => setNewOrderDate(e.target.value)}
+                              className="w-full pl-10 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
+                            />
+                          </div>
                         </div>
                       </div>
 
@@ -2845,14 +2900,15 @@ export default function AdminOrders(): React.JSX.Element {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* INVOICE NO */}
                         <div className="space-y-1 text-left">
-                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">INVOICE NO</label>
+                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">INVOICE NO (CUSTOM OR AUTO)</label>
                           <div className="relative">
                             <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                             <input 
-                              type="text" 
-                              disabled
-                              value="Will be generated automatically (e.g., INV-123456)"
-                              className="w-full pl-10 pr-4 py-2.5 bg-[#E2E8F2]/60 border border-white/50 text-[11px] font-semibold rounded-xl text-slate-400 select-none cursor-not-allowed shadow-[inset_1px_1px_3px_rgba(160,175,195,0.2)]"
+                              type="number" 
+                              placeholder="e.g., 1042 (Leave empty for auto)" 
+                              value={newInvoiceNo}
+                              onChange={(e) => setNewInvoiceNo(e.target.value)}
+                              className="w-full pl-10 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
                             />
                           </div>
                         </div>
@@ -3778,13 +3834,6 @@ export default function AdminOrders(): React.JSX.Element {
                     ) : (
                       <>
                         <div className="flex gap-2">
-                          <button
-                            onClick={() => navigate(`/admin/exchanges?orderId=${issueConversationOrder.id}`)}
-                            className="flex items-center justify-center p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full transition-all"
-                            title="Create Exchange"
-                          >
-                            <ArrowLeftRight size={16} />
-                          </button>
                           <button 
                             onClick={async () => {
                               await handleStatusChange(issueConversationOrder.id, 'Ready');
@@ -4031,7 +4080,7 @@ export default function AdminOrders(): React.JSX.Element {
                           <h3 className="text-xs font-black uppercase text-indigo-600 tracking-wider">Modify Order Record</h3>
                           <p className="text-[10px] text-gray-400 font-semibold mt-0.5">Edit customer details, logistics parameters, and notes below.</p>
                         </div>
-                        {isSuperAdmin && (
+                        {(isAdmin || isSuperAdmin || isCEO) && (
                           <button 
                             onClick={() => {
                               const orderId = selectedOrder.id;
@@ -4538,13 +4587,6 @@ export default function AdminOrders(): React.JSX.Element {
                           </span>
                           <span className="font-bold text-[#10B981] font-mono">
                             {formatPrice((selectedOrder as any).advancePayment || 0, currency, rate)}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
-                          <span>Pathao Courier Fee (-)</span>
-                          <span className="font-bold text-[#E11D48] font-mono">
-                            -{formatPrice(selectedOrder.courierCharge ?? 120, currency, rate)}
                           </span>
                         </div>
                         

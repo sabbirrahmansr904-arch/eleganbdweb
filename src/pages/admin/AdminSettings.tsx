@@ -211,7 +211,6 @@ export default function AdminSettings() {
     { id: 'dashboard', name: 'Dashboard', banglaName: 'ড্যাশবোর্ড', desc: 'ওভারভিউ, চার্ট ও সেলস সামারি' },
     { id: 'customer-profiler', name: 'Customer Profiler', banglaName: 'কাস্টমার প্রোফাইলার', desc: 'গ্রাহক প্রোফাইল ও বিস্তারিত তথ্য' },
     { id: 'orders', name: 'Orders', banglaName: 'অর্ডারসমূহ', desc: 'অর্ডার লিস্ট, স্ট্যাটাস আপডেট ও কাস্টমার ডিটেইলস' },
-    { id: 'exchanges', name: 'Exchanges', banglaName: 'রিটার্ন ও এক্সচেঞ্জ', desc: 'সাইজ এক্সচেঞ্জ ও রিটার্ন রিকোয়েস্ট ম্যানেজমেন্ট' },
     { id: 'categories', name: 'Categories', banglaName: 'ক্যাটাগরি', desc: 'প্রোডাক্ট ক্যাটাগরি ম্যানেজমেন্ট' },
     { id: 'products', name: 'Products', banglaName: 'প্রোডাক্টস', desc: 'প্রোডাক্ট অ্যাড, এডিট ও ক্যাটালগ' },
     { id: 'issues', name: 'Issues', banglaName: 'অর্ডার ইস্যু', desc: 'কাস্টমার কমপ্লেন, প্রবলেম রিপোর্ট ও সমাধান' },
@@ -231,10 +230,10 @@ export default function AdminSettings() {
 
   const departmentsList = [
     { id: 'CEO & Founder', name: 'CEO & Founder', desc: 'ফুল সিস্টেম এক্সেস ও সর্বোচ্চ নিয়ন্ত্রণ', defaultPerms: availableModules.map(m => m.id) },
-    { id: 'Sales Executive Department', name: 'Sales Executive Department', desc: 'অর্ডার নেওয়া, ড্যাশবোর্ড দেখা ও কাস্টমার ম্যানেজমেন্ট', defaultPerms: ['dashboard', 'customer-profiler', 'orders', 'exchanges', 'products', 'issues'] },
-    { id: 'Delivery / Logistics Department', name: 'Delivery / Logistics Department', desc: 'অর্ডার প্রসেসিং, লেবেল প্রিন্ট, এক্সচেঞ্জ ও পাথাও কুরিয়ার', defaultPerms: ['orders', 'exchanges', 'master-table', 'inventory-log', 'pathao'] },
-    { id: 'Management / Admin Department', name: 'Management / Admin Department', desc: 'সম্পূর্ণ স্টোর অপারেশন, প্রোডাক্ট ইনভেন্টরি ও হিসাব-নিকাশ', defaultPerms: ['dashboard', 'customer-profiler', 'orders', 'exchanges', 'categories', 'products', 'issues', 'master-table', 'inventory-log', 'finance', 'dollar-expense', 'settings', 'pathao', 'payments'] },
-    { id: 'Customer Support Department', name: 'Customer Support Department', desc: 'কাস্টমার কমপ্লেন, অর্ডার ইস্যু সমাধান ও সাইজ এক্সচেঞ্জ', defaultPerms: ['dashboard', 'orders', 'exchanges', 'issues', 'customer-profiler'] }
+    { id: 'Sales Executive Department', name: 'Sales Executive Department', desc: 'অর্ডার নেওয়া, ড্যাশবোর্ড দেখা ও কাস্টমার ম্যানেজমেন্ট', defaultPerms: ['dashboard', 'customer-profiler', 'orders', 'products', 'issues'] },
+    { id: 'Delivery / Logistics Department', name: 'Delivery / Logistics Department', desc: 'অর্ডার প্রসেসিং, লেবেল প্রিন্ট ও পাথাও কুরিয়ার', defaultPerms: ['orders', 'master-table', 'inventory-log', 'pathao'] },
+    { id: 'Management / Admin Department', name: 'Management / Admin Department', desc: 'সম্পূর্ণ স্টোর অপারেশন, প্রোডাক্ট ইনভেন্টরি ও হিসাব-নিকাশ', defaultPerms: ['dashboard', 'customer-profiler', 'orders', 'categories', 'products', 'issues', 'master-table', 'inventory-log', 'finance', 'dollar-expense', 'settings', 'pathao', 'payments'] },
+    { id: 'Customer Support Department', name: 'Customer Support Department', desc: 'কাস্টমার কমপ্লেন ও অর্ডার ইস্যু সমাধান', defaultPerms: ['dashboard', 'orders', 'issues', 'customer-profiler'] }
   ];
   const [loadingAdmins, setLoadingAdmins] = useState(false);
   const [isSavingCode, setIsSavingCode] = useState(false);
@@ -1286,7 +1285,7 @@ export default function AdminSettings() {
     setEditingTargetEmail('');
     setDirectAccessEmail('');
     setSelectedDepartment('Sales Executive Department');
-    setSelectedPermissions(['dashboard', 'orders', 'customers', 'exchanges']);
+    setSelectedPermissions(['dashboard', 'orders', 'customers']);
     setShowDirectAccessModal(true);
   };
 

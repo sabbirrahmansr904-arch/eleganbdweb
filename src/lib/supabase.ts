@@ -4,17 +4,36 @@ import { createClient } from '@supabase/supabase-js';
 const DEFAULT_SUPABASE_URL = 'https://wnnnjroxyuxsbolbcdil.supabase.co';
 const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_p2B8pChEnm9esPFTCLGYXg_Ype4-7NI';
 
-// Get Supabase credentials from environment or localStorage or fallback
+// Safe helper to read env vars in both Vite browser and Node.js
 export const getSupabaseConfig = () => {
-  const url = 
-    import.meta.env.VITE_SUPABASE_URL || 
-    localStorage.getItem('elegan_supabase_url') || 
-    DEFAULT_SUPABASE_URL;
-  const anonKey = 
-    import.meta.env.VITE_SUPABASE_ANON_KEY || 
-    localStorage.getItem('elegan_supabase_key') || 
-    DEFAULT_SUPABASE_ANON_KEY;
-  return { url, anonKey };
+  let url = '';
+  let anonKey = '';
+
+  try {
+    if (typeof import.meta !== 'undefined' && import.meta && import.meta.env) {
+      url = import.meta.env.VITE_SUPABASE_URL || '';
+      anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+    }
+  } catch {}
+
+  if (!url && typeof process !== 'undefined' && process.env) {
+    url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
+  }
+  if (!anonKey && typeof process !== 'undefined' && process.env) {
+    anonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
+  }
+
+  if (!url && typeof localStorage !== 'undefined') {
+    try { url = localStorage.getItem('elegan_supabase_url') || ''; } catch {}
+  }
+  if (!anonKey && typeof localStorage !== 'undefined') {
+    try { anonKey = localStorage.getItem('elegan_supabase_key') || ''; } catch {}
+  }
+
+  return {
+    url: url || DEFAULT_SUPABASE_URL,
+    anonKey: anonKey || DEFAULT_SUPABASE_ANON_KEY
+  };
 };
 
 const { url, anonKey } = getSupabaseConfig();
@@ -23,16 +42,27 @@ export const isSupabaseConfigured = Boolean(url && anonKey);
 
 export const supabase = createClient(url, anonKey, {
   auth: {
-    persistSession: true,
-    autoRefreshToken: true,
+    persistSession: typeof window !== 'undefined',
+    autoRefreshToken: typeof window !== 'undefined',
   }
 });
 
 export const getSupabaseClient = (customUrl?: string, customKey?: string) => {
-  const u = customUrl || localStorage.getItem('elegan_supabase_url') || import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
-  const k = customKey || localStorage.getItem('elegan_supabase_key') || import.meta.env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY;
-  if (!u || !k) return null;
-  return createClient(u, k);
+  const { url: defaultUrl, anonKey: defaultKey } = getSupabaseConfig();
+  let u = customUrl;
+  let k = customKey;
+
+  if (!u && typeof localStorage !== 'undefined') {
+    try { u = localStorage.getItem('elegan_supabase_url') || undefined; } catch {}
+  }
+  if (!k && typeof localStorage !== 'undefined') {
+    try { k = localStorage.getItem('elegan_supabase_key') || undefined; } catch {}
+  }
+
+  const finalUrl = u || defaultUrl;
+  const finalKey = k || defaultKey;
+  if (!finalUrl || !finalKey) return null;
+  return createClient(finalUrl, finalKey);
 };
 
 // ==========================================
@@ -73,6 +103,14 @@ export function orderToSupabaseRow(order: any): SupabaseOrderRow {
   if (order.courierStatus) meta.courierStatus = order.courierStatus;
   if (order.invoiceBy) meta.invoiceBy = order.invoiceBy;
   if (order.userNote) meta.userNote = order.userNote;
+  if (order.issueType) meta.issueType = order.issueType;
+  if (order.issueUrgency) meta.issueUrgency = order.issueUrgency;
+  if (order.issueStatus) meta.issueStatus = order.issueStatus;
+  if (order.issueReplies) meta.issueReplies = order.issueReplies;
+  if (order.advancePayment !== undefined) meta.advancePayment = order.advancePayment;
+  if (order.courierCharge !== undefined) meta.courierCharge = order.courierCharge;
+  if (order.courierPayoutAmount !== undefined) meta.courierPayoutAmount = order.courierPayoutAmount;
+  if (order.pathaoConsignmentId) meta.pathaoConsignmentId = order.pathaoConsignmentId;
 
   let cleanNotes = order.notes || '';
   if (cleanNotes.includes('__META__:') && cleanNotes.includes('__ENDMETA__')) {
@@ -141,6 +179,14 @@ export function supabaseRowToOrder(row: SupabaseOrderRow): any {
     trackingId: meta.trackingId || undefined,
     courierStatus: meta.courierStatus || undefined,
     invoiceBy: meta.invoiceBy || undefined,
+    issueType: meta.issueType || undefined,
+    issueUrgency: meta.issueUrgency || undefined,
+    issueStatus: meta.issueStatus || undefined,
+    issueReplies: meta.issueReplies || undefined,
+    advancePayment: meta.advancePayment !== undefined ? meta.advancePayment : 0,
+    courierCharge: meta.courierCharge !== undefined ? meta.courierCharge : 120,
+    courierPayoutAmount: meta.courierPayoutAmount !== undefined ? meta.courierPayoutAmount : 0,
+    pathaoConsignmentId: meta.pathaoConsignmentId || undefined,
     notes: rawNotes,
     createdAt: row.created_at || new Date().toISOString(),
     updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : Date.now()
@@ -242,5 +288,78 @@ export async function checkSupabaseDataStatus() {
     };
   }
 }
+
+// ==========================================
+// GENERIC SUPABASE DOCUMENT HELPERS
+// ==========================================
+
+export async function saveDocumentToSupabase(collectionName: string, recordId: string, data: any): Promise<boolean> {
+  try {
+    const client = getSupabaseClient() || supabase;
+    if (!client) return false;
+    const docId = `${collectionName}_${recordId}`;
+    const { error } = await client.from('app_documents').upsert({
+      id: docId,
+      collection_name: collectionName,
+      record_id: String(recordId),
+      data: data,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'id' });
+    if (error) {
+      console.warn(`[Supabase] Error saving ${docId}:`, error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn(`[Supabase] Exception saving ${collectionName}/${recordId}:`, err);
+    return false;
+  }
+}
+
+export async function fetchDocumentsFromSupabase(collectionName: string): Promise<any[]> {
+  try {
+    const client = getSupabaseClient() || supabase;
+    if (!client) return [];
+    const { data, error } = await client
+      .from('app_documents')
+      .select('*')
+      .eq('collection_name', collectionName);
+    if (error || !data) return [];
+    return data.map(item => ({ id: item.record_id, ...item.data }));
+  } catch (err) {
+    console.warn(`[Supabase] Exception fetching collection ${collectionName}:`, err);
+    return [];
+  }
+}
+
+export async function fetchDocumentFromSupabase(collectionName: string, recordId: string): Promise<any | null> {
+  try {
+    const client = getSupabaseClient() || supabase;
+    if (!client) return null;
+    const docId = `${collectionName}_${recordId}`;
+    const { data, error } = await client
+      .from('app_documents')
+      .select('data')
+      .eq('id', docId)
+      .maybeSingle();
+    if (error || !data) return null;
+    return data.data;
+  } catch (err) {
+    return null;
+  }
+}
+
+export async function deleteDocumentFromSupabase(collectionName: string, recordId: string): Promise<boolean> {
+  try {
+    const client = getSupabaseClient() || supabase;
+    if (!client) return false;
+    const docId = `${collectionName}_${recordId}`;
+    await client.from('app_documents').delete().eq('id', docId);
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
 
 

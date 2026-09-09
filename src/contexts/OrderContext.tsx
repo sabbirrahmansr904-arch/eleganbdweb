@@ -88,6 +88,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
   const lastCounterRef = useRef<number>(BASE_ORDER_ID);
+  const deletedOrderIdsRef = useRef<Set<string>>(new Set());
 
   const { currentUser, isAdmin } = useAuth();
   const { products, updateProduct } = useProducts();
@@ -104,6 +105,41 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let isMounted = true;
 
+    const replaceAndSetOrders = (incoming: Order[]) => {
+      if (!isMounted || !Array.isArray(incoming)) return;
+      const valid = incoming.filter(o => {
+        if (!o || !o.id) return false;
+        const idStr = String(o.id);
+        const invStr = o.invoiceNo ? String(o.invoiceNo) : '';
+        return !deletedOrderIdsRef.current.has(idStr) && (!invStr || !deletedOrderIdsRef.current.has(invStr));
+      });
+
+      let maxObservedId = BASE_ORDER_ID;
+      valid.forEach((o) => {
+        const numId = extractNumericId(o.id);
+        if (numId && numId > maxObservedId) maxObservedId = numId;
+        if (typeof o.invoiceNo === 'number' && o.invoiceNo > maxObservedId) {
+          maxObservedId = o.invoiceNo;
+        }
+      });
+
+      if (maxObservedId > lastCounterRef.current) {
+        lastCounterRef.current = maxObservedId;
+      }
+
+      valid.sort((a, b) => {
+        const timeA = new Date(a.createdAt || 0).getTime() || (typeof a.updatedAt === 'number' ? a.updatedAt : 0) || 0;
+        const timeB = new Date(b.createdAt || 0).getTime() || (typeof b.updatedAt === 'number' ? b.updatedAt : 0) || 0;
+        return timeB - timeA;
+      });
+
+      setOrders(valid);
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(valid));
+      } catch {}
+      setLoading(false);
+    };
+
     const mergeAndSetOrders = (newIncoming: Order[]) => {
       if (!isMounted || !Array.isArray(newIncoming) || newIncoming.length === 0) return;
       
@@ -111,16 +147,28 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         const map = new Map<string, Order>();
         // Add existing orders first
         if (Array.isArray(prev)) {
-          prev.forEach(o => { if (o && o.id) map.set(String(o.id), o); });
+          prev.forEach(o => {
+            if (o && o.id) {
+              const idStr = String(o.id);
+              const invStr = o.invoiceNo ? String(o.invoiceNo) : '';
+              if (!deletedOrderIdsRef.current.has(idStr) && (!invStr || !deletedOrderIdsRef.current.has(invStr))) {
+                map.set(idStr, o);
+              }
+            }
+          });
         }
         // Merge incoming orders (updating or adding)
         newIncoming.forEach(o => {
           if (o && o.id) {
-            const existing = map.get(String(o.id));
-            if (existing) {
-              map.set(String(o.id), { ...existing, ...o, items: (Array.isArray(o.items) && o.items.length > 0) ? o.items : existing.items });
-            } else {
-              map.set(String(o.id), o);
+            const idStr = String(o.id);
+            const invStr = o.invoiceNo ? String(o.invoiceNo) : '';
+            if (!deletedOrderIdsRef.current.has(idStr) && (!invStr || !deletedOrderIdsRef.current.has(invStr))) {
+              const existing = map.get(idStr);
+              if (existing) {
+                map.set(idStr, { ...existing, ...o, items: (Array.isArray(o.items) && o.items.length > 0) ? o.items : existing.items });
+              } else {
+                map.set(idStr, o);
+              }
             }
           }
         });
@@ -156,20 +204,34 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     };
 
     // A. Fetch all orders exclusively from Supabase
-    const fetchFromSupabase = async () => {
+    const fetchFromSupabase = async (limitRecent = false) => {
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('orders')
           .select('*')
           .order('created_at', { ascending: false });
+          
+        if (limitRecent) {
+          query = query.limit(100);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
           console.warn('[OrderContext] Supabase fetch notice:', error.message);
         } else if (data && Array.isArray(data) && isMounted) {
           const mapped: Order[] = data.map(supabaseRowToOrder);
           if (mapped.length > 0) {
-            mergeAndSetOrders(mapped);
+            if (limitRecent) {
+              mergeAndSetOrders(mapped);
+            } else {
+              replaceAndSetOrders(mapped);
+            }
           } else {
+            if (!limitRecent) {
+              setOrders([]);
+              try { localStorage.removeItem(CACHE_KEY); } catch {}
+            }
             setLoading(false);
           }
         }
@@ -180,6 +242,12 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     };
 
     fetchFromSupabase();
+
+    // Fallback Polling (Every 12 seconds check for top 100 recent orders/updates)
+    // Ensures real-time sync across browsers even if Supabase Realtime is not fully enabled for the table.
+    const pollInterval = setInterval(() => {
+      if (isMounted) fetchFromSupabase(true);
+    }, 12000);
 
     // B. Real-time Supabase Channel Subscription
     let supabaseChannel: any = null;
@@ -207,6 +275,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       isMounted = false;
+      clearInterval(pollInterval);
       if (supabaseChannel) {
         try { supabase.removeChannel(supabaseChannel); } catch {}
       }
@@ -413,7 +482,13 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     if (!id) return;
     const cleanId = String(id);
     try {
-      const order = orders.find(o => o.id === cleanId);
+      const order = orders.find(o => o.id === cleanId || String(o.invoiceNo) === cleanId);
+      
+      // Register in deleted ids set so no polling/realtime re-injects it
+      deletedOrderIdsRef.current.add(cleanId);
+      if (order?.id) deletedOrderIdsRef.current.add(String(order.id));
+      if (order?.invoiceNo) deletedOrderIdsRef.current.add(String(order.invoiceNo));
+
       if (order) {
         const s = (order.status || '').toString().trim().toLowerCase();
         const isAlreadyRestored = s === 'cancelled' || s === 'canceled' || s === 'returned' || s === 'return';
@@ -428,7 +503,13 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
       // 1. Immediately update local state & cache so UI reflects instant removal
       setOrders(prev => {
-        const next = prev.filter(o => o.id !== cleanId);
+        const next = prev.filter(o => 
+          o && 
+          o.id !== cleanId && 
+          String(o.id) !== cleanId &&
+          (!o.invoiceNo || String(o.invoiceNo) !== cleanId) &&
+          !deletedOrderIdsRef.current.has(String(o.id))
+        );
         try {
           localStorage.setItem(CACHE_KEY, JSON.stringify(next));
           // Clean any user or backup keys
@@ -438,7 +519,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
               try {
                 const stored = JSON.parse(localStorage.getItem(k) || '[]');
                 if (Array.isArray(stored)) {
-                  const cleaned = stored.filter((o: any) => o && o.id !== cleanId);
+                  const cleaned = stored.filter((o: any) => o && o.id !== cleanId && String(o.invoiceNo) !== cleanId);
                   localStorage.setItem(k, JSON.stringify(cleaned));
                 }
               } catch {}
@@ -461,10 +542,18 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
       // 3. Client-side Supabase delete
       try {
-        await supabase
-          .from('orders')
-          .delete()
-          .eq('id', cleanId);
+        const cleanIdNum = parseInt(cleanId.replace(/[^0-9]/g, ''), 10);
+        if (cleanIdNum) {
+          await supabase
+            .from('orders')
+            .delete()
+            .or(`id.eq.${cleanId},invoice_no.eq.${cleanIdNum}`);
+        } else {
+          await supabase
+            .from('orders')
+            .delete()
+            .eq('id', cleanId);
+        }
       } catch (sbErr) {
         console.warn('[OrderContext] Client Supabase delete order notice:', sbErr);
       }
@@ -479,10 +568,13 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     const targetSet = new Set(ids.map(String));
 
     try {
-      // Restore stock for eligible orders
       for (const id of ids) {
-        const order = orders.find(o => o.id === id);
+        const cleanId = String(id);
+        deletedOrderIdsRef.current.add(cleanId);
+        const order = orders.find(o => o.id === cleanId || String(o.invoiceNo) === cleanId);
         if (order) {
+          if (order.id) deletedOrderIdsRef.current.add(String(order.id));
+          if (order.invoiceNo) deletedOrderIdsRef.current.add(String(order.invoiceNo));
           const s = (order.status || '').toString().trim().toLowerCase();
           const isAlreadyRestored = s === 'cancelled' || s === 'canceled' || s === 'returned' || s === 'return';
           if (!isAlreadyRestored) {
@@ -495,7 +587,12 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
       // 1. Update local state & cache
       setOrders(prev => {
-        const next = prev.filter(o => !targetSet.has(String(o.id)));
+        const next = prev.filter(o => 
+          o && 
+          !targetSet.has(String(o.id)) && 
+          (!o.invoiceNo || !targetSet.has(String(o.invoiceNo))) &&
+          !deletedOrderIdsRef.current.has(String(o.id))
+        );
         try {
           localStorage.setItem(CACHE_KEY, JSON.stringify(next));
         } catch {}
@@ -516,6 +613,10 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       // 3. Client Supabase delete
       try {
         await supabase.from('orders').delete().in('id', Array.from(targetSet));
+        const numIds = Array.from(targetSet).map(i => parseInt(i.replace(/[^0-9]/g, ''), 10)).filter(Boolean);
+        if (numIds.length > 0) {
+          await supabase.from('orders').delete().in('invoice_no', numIds);
+        }
       } catch {}
     } catch (error) {
       console.error('[OrderContext] Bulk delete error:', error);
@@ -525,6 +626,11 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
   const deleteAllOrders = async () => {
     try {
+      orders.forEach(o => {
+        if (o.id) deletedOrderIdsRef.current.add(String(o.id));
+        if (o.invoiceNo) deletedOrderIdsRef.current.add(String(o.invoiceNo));
+      });
+
       // 1. Local state clear
       setOrders([]);
       try {
@@ -569,18 +675,21 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // If order had an explicit valid 7-digit ID, check if it is already taken
       let finalOrderId: string;
-      const explicitNum = extractNumericId(order.id);
-      
-      if (explicitNum && !orders.some(o => o.id === String(explicitNum))) {
-        finalOrderId = String(explicitNum);
-        if (explicitNum > calculatedNextIdNum) {
-          calculatedNextIdNum = explicitNum;
+      let finalInvoiceNo: number;
+
+      const explicitInvoiceNo = order.invoiceNo ? Number(order.invoiceNo) : null;
+
+      if (explicitInvoiceNo && !isNaN(explicitInvoiceNo)) {
+        finalInvoiceNo = explicitInvoiceNo;
+        finalOrderId = String(explicitInvoiceNo);
+        if (explicitInvoiceNo > calculatedNextIdNum) {
+          calculatedNextIdNum = explicitInvoiceNo;
         }
       } else {
         calculatedNextIdNum += 1;
         finalOrderId = String(calculatedNextIdNum);
+        finalInvoiceNo = calculatedNextIdNum;
       }
 
       // Advance our internal counter
@@ -589,7 +698,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       const newOrder: Order = {
         ...order,
         id: finalOrderId,
-        invoiceNo: calculatedNextIdNum,
+        invoiceNo: finalInvoiceNo,
         customerId: targetCustomerId,
         createdAt: order.createdAt || new Date().toISOString(),
         updatedAt: Date.now()

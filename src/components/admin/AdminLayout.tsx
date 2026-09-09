@@ -395,7 +395,6 @@ export default function AdminLayout() {
       title: 'ORDER MANAGEMENT',
       items: [
         { name: 'Orders', path: '/admin/orders', icon: FileText, perm: 'orders' },
-        { name: 'Exchanges', path: '/admin/exchanges', icon: RefreshCw, perm: 'exchanges' },
         { name: 'Issues', path: '/admin/issues', icon: MessageCircle, perm: 'issues' },
       ]
     },

@@ -153,7 +153,7 @@ function AppRoutes() {
           <Route path="stock-in" element={<AdminStockIn />} />
           <Route path="stock-out" element={<AdminStockOut />} />
           <Route path="inventory-log" element={<AdminInventoryLog />} />
-          <Route path="exchanges" element={<AdminExchanges />} />
+          <Route path="exchanges" element={<Navigate to="/admin/orders" replace />} />
           <Route path="issues" element={<AdminIssues />} />
           <Route path="media" element={<AdminMedia />} />
           <Route path="fix-sizes" element={<FixSizes />} />

@@ -118,6 +118,11 @@ export const ParcelLiveStatusBadgeComponent: React.FC<ParcelLiveStatusBadgeProps
     return null;
   }
 
+  // FIX: Do not show the Pathao status badge in list views if it hasn't been synced to Pathao yet
+  if (!status && !showDetails && !(order as any).pathaoConsignmentId && !(order as any).steadfastConsignmentId) {
+    return null;
+  }
+
   const cleanLabel = (s: string) => {
     if (!s) return '';
     return s.replace(/_/g, ' ').replace(/-/g, ' ').trim();

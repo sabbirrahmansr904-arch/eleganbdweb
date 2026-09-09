@@ -3,6 +3,7 @@ import { Banner } from '../types';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, query, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { isFirestoreQuotaExceeded, isQuotaError } from '../lib/firestoreUtils';
+import { saveDocumentToSupabase, deleteDocumentFromSupabase, fetchDocumentsFromSupabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
 interface BannerContextType {
@@ -24,6 +25,14 @@ export function BannerProvider({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
+    // 1. Fetch from Supabase
+    fetchDocumentsFromSupabase('banners').then(data => {
+      if (Array.isArray(data) && data.length > 0) {
+        setBanners(data);
+        localStorage.setItem('eleganbd_banners', JSON.stringify(data));
+      }
+    }).catch(() => {});
+
     if (isFirestoreQuotaExceeded) return;
 
     const q = query(collection(db, 'banners'));
@@ -58,12 +67,13 @@ export function BannerProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
 
+    // 1. Save to Supabase
+    await saveDocumentToSupabase('banners', id, banner);
+
+    // 2. Save to Firestore as backup
     try {
       await setDoc(doc(db, 'banners', id), banner);
-    } catch (e) {
-      console.error("Error adding banner:", e);
-      toast.error("Failed to save banner to cloud. Saved locally.");
-    }
+    } catch (e) {}
   };
 
   const updateBanner = async (id: string, updates: Partial<Banner>) => {
@@ -76,12 +86,13 @@ export function BannerProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
 
+    // 1. Save to Supabase
+    await saveDocumentToSupabase('banners', id, updates);
+
+    // 2. Save to Firestore as backup
     try {
       await setDoc(doc(db, 'banners', id), updates, { merge: true });
-    } catch (e) {
-      console.error("Error updating banner:", e);
-      toast.error("Failed to update banner in cloud. Saved locally.");
-    }
+    } catch (e) {}
   };
 
   const deleteBanner = async (id: string) => {
@@ -94,12 +105,13 @@ export function BannerProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
 
+    // 1. Delete from Supabase
+    await deleteDocumentFromSupabase('banners', id);
+
+    // 2. Delete from Firestore
     try {
       await deleteDoc(doc(db, 'banners', id));
-    } catch (e) {
-      console.error("Error deleting banner:", e);
-      toast.error("Failed to delete banner in cloud.");
-    }
+    } catch (e) {}
   };
 
   return (

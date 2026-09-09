@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { db } from '../lib/firebase';
-import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, orderBy, setDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType, isFirestoreQuotaExceeded, isQuotaError } from '../lib/firestoreUtils';
+import { saveDocumentToSupabase, deleteDocumentFromSupabase, fetchDocumentsFromSupabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
 export interface BankAccount {
@@ -144,6 +145,23 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
+    // Load bank accounts & transactions from Supabase
+    Promise.all([
+      fetchDocumentsFromSupabase('bank_accounts'),
+      fetchDocumentsFromSupabase('bank_transactions')
+    ]).then(([accountsData, txData]) => {
+      if (Array.isArray(accountsData) && accountsData.length > 0) {
+        const sorted = sortBankAccounts(accountsData);
+        setBankAccounts(sorted);
+        localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(sorted));
+      }
+      if (Array.isArray(txData) && txData.length > 0) {
+        setBankTransactions(txData);
+        localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(txData));
+      }
+      setLoading(false);
+    }).catch(() => setLoading(false));
+
     if (isFirestoreQuotaExceeded) {
       setLoading(false);
       return;
@@ -157,12 +175,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         try {
           localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(sorted));
         } catch {}
-      }, (error) => {
-        if (!isQuotaError(error)) {
-          handleFirestoreError(error, OperationType.GET, 'bank_accounts');
-        }
-        setLoading(false);
-      });
+      }, () => setLoading(false));
 
       const unsubTransactions = onSnapshot(query(collection(db, 'bank_transactions'), orderBy('date', 'desc')), (snapshot) => {
         const transactions = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as BankTransaction));
@@ -171,12 +184,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(transactions));
         } catch {}
         setLoading(false);
-      }, (error) => {
-        if (!isQuotaError(error)) {
-          handleFirestoreError(error, OperationType.GET, 'bank_transactions');
-        }
-        setLoading(false);
-      });
+      }, () => setLoading(false));
 
       return () => {
         unsubAccounts();
@@ -191,7 +199,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     for (const acc of accounts) {
       let currentBalance = acc.initialBalance || 0;
       transactions.forEach(tx => {
-        // Unpaid transactions are pending/unsettled and do not alter settled account balance
         if (tx.status === 'unpaid') return;
 
         if (tx.accountId === acc.id) {
@@ -208,89 +215,142 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       });
       if (acc.balance !== currentBalance) {
-        await updateDoc(doc(db, 'bank_accounts', acc.id), { balance: currentBalance });
+        const updatedAcc = { ...acc, balance: currentBalance };
+        await saveDocumentToSupabase('bank_accounts', acc.id, updatedAcc);
+        try {
+          await updateDoc(doc(db, 'bank_accounts', acc.id), { balance: currentBalance });
+        } catch {}
       }
     }
   };
 
   const addBankAccount = async (account: Omit<BankAccount, 'id' | 'balance'>) => {
+    const id = `acc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const newAcc: BankAccount = { ...account, id, balance: 0, initialBalance: 0 };
+
+    setBankAccounts(prev => {
+      const sorted = sortBankAccounts([newAcc, ...prev]);
+      try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(sorted)); } catch {}
+      return sorted;
+    });
+
+    await saveDocumentToSupabase('bank_accounts', id, newAcc);
+    toast.success('নতুন অ্যাকাউন্ট সফলভাবে যোগ করা হয়েছে!');
+
     try {
-      await addDoc(collection(db, 'bank_accounts'), { ...account, balance: 0, initialBalance: 0 });
-      toast.success('নতুন অ্যাকাউন্ট সফলভাবে যোগ করা হয়েছে!');
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'bank_accounts');
-    }
+      await setDoc(doc(db, 'bank_accounts', id), newAcc);
+    } catch (error) {}
   };
 
   const updateBankAccount = async (updatedAcc: BankAccount) => {
+    setBankAccounts(prev => {
+      const sorted = sortBankAccounts(prev.map(a => a.id === updatedAcc.id ? updatedAcc : a));
+      try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(sorted)); } catch {}
+      return sorted;
+    });
+
+    await saveDocumentToSupabase('bank_accounts', updatedAcc.id, updatedAcc);
+    toast.success('অ্যাকাউন্ট সফলভাবে আপডেট করা হয়েছে!');
+
     try {
       await updateDoc(doc(db, 'bank_accounts', updatedAcc.id), { ...updatedAcc });
-      toast.success('অ্যাকাউন্ট সফলভাবে আপডেট করা হয়েছে!');
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `bank_accounts/${updatedAcc.id}`);
-    }
+    } catch (error) {}
   };
 
   const deleteBankAccount = async (id: string) => {
+    setBankAccounts(prev => {
+      const sorted = sortBankAccounts(prev.filter(a => a.id !== id));
+      try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(sorted)); } catch {}
+      return sorted;
+    });
+
+    await deleteDocumentFromSupabase('bank_accounts', id);
+    toast.success('অ্যাকাউন্ট সফলভাবে মুছে ফেলা হয়েছে!');
+
     try {
       await deleteDoc(doc(db, 'bank_accounts', id));
-      toast.success('অ্যাকাউন্ট সফলভাবে মুছে ফেলা হয়েছে!');
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `bank_accounts/${id}`);
-    }
+    } catch (error) {}
   };
 
   const addBankTransaction = async (tx: Omit<BankTransaction, 'id'>, targetAccountId?: string) => {
+    const id = `tx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const newTx: BankTransaction = {
+      ...tx,
+      id,
+      status: tx.status || 'unpaid',
+      targetAccountId: targetAccountId || tx.targetAccountId || undefined,
+      date: tx.date || Date.now()
+    };
+
+    setBankTransactions(prev => {
+      const updated = [newTx, ...prev];
+      try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+
+    await saveDocumentToSupabase('bank_transactions', id, newTx);
+    await recalculateBalances(bankAccounts, [
+      ...bankTransactions,
+      newTx
+    ]);
+
     try {
-      const newTx = {
-        ...tx,
-        status: tx.status || 'unpaid', // Defaults to unpaid as requested
-        targetAccountId: targetAccountId || tx.targetAccountId || null,
-        date: tx.date || Date.now()
-      };
-      await addDoc(collection(db, 'bank_transactions'), newTx);
-      await recalculateBalances(bankAccounts, [
-        ...bankTransactions,
-        { ...newTx, id: 'temp' } as BankTransaction
-      ]);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'bank_transactions');
-    }
+      await setDoc(doc(db, 'bank_transactions', id), newTx);
+    } catch (error) {}
   };
 
   const updateBankTransaction = async (id: string, updatedFields: Partial<BankTransaction>) => {
+    const updatedList = bankTransactions.map(tx => tx.id === id ? { ...tx, ...updatedFields } : tx);
+    setBankTransactions(updatedList);
+    try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(updatedList)); } catch {}
+
+    const targetTx = updatedList.find(t => t.id === id);
+    if (targetTx) {
+      await saveDocumentToSupabase('bank_transactions', id, targetTx);
+    }
+    await recalculateBalances(bankAccounts, updatedList);
+    toast.success('লেনদেন আপডেট করা হয়েছে!');
+
     try {
       await updateDoc(doc(db, 'bank_transactions', id), updatedFields);
-      await recalculateBalances(bankAccounts, bankTransactions.map(tx => tx.id === id ? { ...tx, ...updatedFields } : tx));
-      toast.success('লেনদেন আপডেট করা হয়েছে!');
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `bank_transactions/${id}`);
-    }
+    } catch (error) {}
   };
 
   const toggleTransactionStatus = async (id: string, currentStatus?: 'unpaid' | 'paid') => {
-    try {
-      const nextStatus = currentStatus === 'paid' ? 'unpaid' : 'paid';
-      await updateDoc(doc(db, 'bank_transactions', id), { status: nextStatus });
-      await recalculateBalances(bankAccounts, bankTransactions.map(tx => tx.id === id ? { ...tx, status: nextStatus } : tx));
-      if (nextStatus === 'paid') {
-        toast.success('লেনদেনটি PAID (পরিশোধিত) করা হয়েছে!');
-      } else {
-        toast.success('লেনদেনটি UNPAID (বকেয়া) করা হয়েছে!');
-      }
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `bank_transactions/${id}`);
+    const nextStatus = currentStatus === 'paid' ? 'unpaid' : 'paid';
+    const updatedList = bankTransactions.map(tx => tx.id === id ? { ...tx, status: nextStatus as 'unpaid' | 'paid' } : tx);
+    setBankTransactions(updatedList);
+    try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(updatedList)); } catch {}
+
+    const targetTx = updatedList.find(t => t.id === id);
+    if (targetTx) {
+      await saveDocumentToSupabase('bank_transactions', id, targetTx);
     }
+    await recalculateBalances(bankAccounts, updatedList);
+
+    if (nextStatus === 'paid') {
+      toast.success('লেনদেনটি PAID (পরিশোধিত) করা হয়েছে!');
+    } else {
+      toast.success('লেনদেনটি UNPAID (বকেয়া) করা হয়েছে!');
+    }
+
+    try {
+      await updateDoc(doc(db, 'bank_transactions', id), { status: nextStatus });
+    } catch (error) {}
   };
 
   const deleteBankTransaction = async (id: string) => {
+    const updatedList = bankTransactions.filter(tx => tx.id !== id);
+    setBankTransactions(updatedList);
+    try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(updatedList)); } catch {}
+
+    await deleteDocumentFromSupabase('bank_transactions', id);
+    await recalculateBalances(bankAccounts, updatedList);
+    toast.success('লেনদেন সফলভাবে মুছে ফেলা হয়েছে!');
+
     try {
       await deleteDoc(doc(db, 'bank_transactions', id));
-      await recalculateBalances(bankAccounts, bankTransactions.filter(tx => tx.id !== id));
-      toast.success('লেনদেন সফলভাবে মুছে ফেলা হয়েছে!');
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `bank_transactions/${id}`);
-    }
+    } catch (error) {}
   };
 
   return (

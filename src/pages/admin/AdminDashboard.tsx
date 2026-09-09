@@ -1359,16 +1359,16 @@ export default function AdminDashboard(): React.JSX.Element {
           </div>
         </div>
 
-        {/* CARD 4: Total Customers */}
+        {/* CARD 4: Today Sales */}
         <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:shadow-xs transition-all">
           <div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#EFF6FF] text-[#3B82F6] flex items-center justify-center shadow-2xs">
-                  <Users className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-2xs">
+                  <TrendingUp className="w-5 h-5" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-gray-400">Total Customers</span>
+                  <span className="text-xs font-bold text-gray-400">Today Sales (রিয়েল-টাইম)</span>
                 </div>
               </div>
               <button className="text-gray-400 hover:text-gray-900 p-1 rounded-lg hover:bg-gray-50 transition-colors">
@@ -1376,36 +1376,39 @@ export default function AdminDashboard(): React.JSX.Element {
               </button>
             </div>
             
-            <div className="mt-4">
-              <h3 className="text-2xl font-black text-gray-900 tracking-tight">
-                {dynamicTotalCustomersCount.toLocaleString()}
+            <div className="mt-4 flex items-baseline gap-2">
+              <h3 className="text-2xl font-black text-gray-900 tracking-tight font-mono">
+                {formatPrice(salesToday.total, currency, rate)}
               </h3>
+              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                {salesToday.count} orders
+              </span>
             </div>
           </div>
 
           {/* Trend & Sparkline */}
           <div className="flex items-end justify-between mt-2 pt-2 border-t border-gray-50/50">
-            <span className={`inline-flex items-center gap-1 text-[11px] font-black ${monthlyStats.customersGrowth >= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'} px-2 py-0.5 rounded-md`}>
-              {monthlyStats.customersGrowth >= 0 ? `↑ ${monthlyStats.customersGrowth}%` : `↓ ${Math.abs(monthlyStats.customersGrowth)}%`} <span className="text-gray-400 font-bold text-[10px]">vs last month</span>
+            <span className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+              <span>● Live updates</span>
             </span>
             <div className="w-20 h-8">
-              <svg width="80" height="32" viewBox="0 0 80 32" className="text-[#3B82F6]">
+              <svg width="80" height="32" viewBox="0 0 80 32" className="text-emerald-600">
                 <path
-                  d="M0 26 C15 26, 20 18, 35 22 C50 26, 60 5, 80 10"
+                  d="M0 24 C15 20, 25 28, 40 16 C55 4, 65 18, 80 8"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2.5"
                   strokeLinecap="round"
                 />
                 <path
-                  d="M0 26 C15 26, 20 18, 35 22 C50 26, 60 5, 80 10 L80 32 L0 32 Z"
-                  fill="url(#sparkline-blue)"
+                  d="M0 24 C15 20, 25 28, 40 16 C55 4, 65 18, 80 8 L80 32 L0 32 Z"
+                  fill="url(#sparkline-emerald)"
                   opacity="0.1"
                 />
                 <defs>
-                  <linearGradient id="sparkline-blue-2" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3B82F6" />
-                    <stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
+                  <linearGradient id="sparkline-emerald" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#10B981" />
+                    <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
                   </linearGradient>
                 </defs>
               </svg>

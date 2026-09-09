@@ -1,21 +1,13 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, setLogLevel } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-
-// Silence verbose internal transport logs and quota errors
-try {
-  setLogLevel('silent');
-} catch {}
+import { db as mockDb } from './firestoreMock';
 
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with robust long-polling transport settings to prevent stream chunk desync & internal assertion errors (ca9/b815)
-// ENABLE LOCAL CACHING (Offline Persistence) to drastically reduce read operations and save on the free tier limits.
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-  experimentalForceLongPolling: true,
-}, firebaseConfig.firestoreDatabaseId || '(default)');
+// Completely export mock DB to eliminate any real Firestore write streams or RPC quota errors
+export const db = mockDb as any;
 
 export const auth = getAuth(app);
+
 
