@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   Scan, 
   Search, 
@@ -113,9 +113,24 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
     return customerPhoneMap.get(clean) || null;
   }, [customerPhone, customerPhoneMap]);
 
+  const prevIsOpenRef = useRef(false);
+  const prevEditingOrderIdRef = useRef<string | null>(null);
+
   // Synchronize state on modal open / order change
   useEffect(() => {
+    const isJustOpened = isOpen && !prevIsOpenRef.current;
+    const currentEditingId = editingOrder?.id || null;
+    const isEditingOrderChanged = currentEditingId !== prevEditingOrderIdRef.current;
+
+    prevIsOpenRef.current = isOpen;
+    prevEditingOrderIdRef.current = currentEditingId;
+
     if (!isOpen) return;
+
+    // If modal was already open and editing order hasn't changed, preserve user typed input
+    if (!isJustOpened && !isEditingOrderChanged) {
+      return;
+    }
 
     if (editingOrder) {
       setCustomerName(editingOrder.customerName || '');
@@ -173,7 +188,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
       setOrderItems([]);
       setLeftSearchVal('');
     }
-  }, [isOpen, editingOrder, getNextOrderId]);
+  }, [isOpen, editingOrder]);
 
   // Pre-cached products with search index for instant filtering
   const searchableProducts = useMemo(() => {
