@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -11,7 +12,7 @@ import { useProducts } from '../../contexts/ProductContext';
 import { useOrders } from '../../contexts/OrderContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { useCategories } from '../../contexts/CategoryContext';
-import { formatPrice } from '../../lib/utils';
+import { formatPrice, cn } from '../../lib/utils';
 import { 
   Search, 
   Upload, 
@@ -37,6 +38,7 @@ import toast from 'react-hot-toast';
 import OrderFulfillmentTracker from '../../components/admin/OrderFulfillmentTracker';
 
 export default function AdminDashboard(): React.JSX.Element {
+  const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { products } = useProducts();
   const { orders, loading } = useOrders();
@@ -46,6 +48,11 @@ export default function AdminDashboard(): React.JSX.Element {
   const [isDownloading, setIsDownloading] = useState(false);
   const [timeRange, setTimeRange] = useState<'Monthly' | 'Yearly'>('Monthly');
   const [reportPeriod, setReportPeriod] = useState<'12 MONTHS' | '6 MONTHS' | '30 DAYS' | '7 DAYS'>('12 MONTHS');
+
+  // Dashboard Recent Orders Pagination & Show All State
+  const [dashboardPage, setDashboardPage] = useState(1);
+  const [showAllDashboardOrders, setShowAllDashboardOrders] = useState(false);
+  const dashboardPageSize = 10;
 
   // Real-time Active Admins State
   const [activeAdmins, setActiveAdmins] = useState<Array<{
@@ -1104,7 +1111,11 @@ export default function AdminDashboard(): React.JSX.Element {
       return [];
     }
 
-    return orders.slice(0, 10).map((o) => {
+    const currentOrders = showAllDashboardOrders 
+      ? orders 
+      : orders.slice((dashboardPage - 1) * dashboardPageSize, dashboardPage * dashboardPageSize);
+
+    return currentOrders.map((o) => {
       let statusText = o.status || 'Processing';
       let statusColor = 'bg-blue-50 text-blue-600 border border-blue-100/50';
 
@@ -1650,12 +1661,18 @@ export default function AdminDashboard(): React.JSX.Element {
         <div className="lg:col-span-2 bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-5">
-              <h3 className="text-base font-black text-gray-900 tracking-tight">Recent Orders</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-black text-gray-900 tracking-tight">Recent Orders</h3>
+                <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-[11px] font-black border border-blue-100">
+                  {orders?.length || 0} Total
+                </span>
+              </div>
               <button 
-                onClick={() => toast.success('Viewing all order registers...')}
-                className="flex items-center gap-1 text-[11px] font-black text-[#6366F1] hover:text-[#4F46E5] bg-[#EEF2FF] px-3.5 py-1.5 rounded-full transition-all cursor-pointer"
+                onClick={() => navigate('/admin/orders')}
+                className="flex items-center gap-1.5 text-[11px] font-black text-[#6366F1] hover:text-white bg-[#EEF2FF] hover:bg-[#4F46E5] px-3.5 py-1.5 rounded-full transition-all cursor-pointer shadow-3xs"
+                title="Go to Full Order Management"
               >
-                <span>View All</span>
+                <span>View All Orders ({orders?.length || 0})</span>
                 <span className="font-bold">→</span>
               </button>
             </div>
@@ -1715,12 +1732,53 @@ export default function AdminDashboard(): React.JSX.Element {
 
           {/* Table Pagination */}
           <div className="border-t border-gray-100 pt-4 mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs font-bold text-gray-400">
-            <span>Showing {tableOrders.length > 0 ? 1 : 0} to {tableOrders.length} of {orders?.length || 0} orders</span>
-            <div className="flex items-center gap-1">
-              <button className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 disabled:opacity-50" disabled>&lt;</button>
-              <button className="px-3.5 py-1.5 rounded-lg bg-[#6366F1] text-white font-black shadow-xs">1</button>
-              <button className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50">&gt;</button>
+            <div className="flex flex-wrap items-center gap-2">
+              <span>
+                {showAllDashboardOrders 
+                  ? `Showing all ${orders?.length || 0} orders`
+                  : `Showing ${tableOrders.length > 0 ? (dashboardPage - 1) * dashboardPageSize + 1 : 0} to ${Math.min(dashboardPage * dashboardPageSize, orders?.length || 0)} of ${orders?.length || 0} orders`}
+              </span>
+              <button
+                onClick={() => setShowAllDashboardOrders(prev => !prev)}
+                className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-black rounded-lg transition-all cursor-pointer"
+              >
+                {showAllDashboardOrders ? 'Paginate (10 per page)' : `Show All (${orders?.length || 0})`}
+              </button>
             </div>
+
+            {!showAllDashboardOrders && (
+              <div className="flex items-center gap-1">
+                <button 
+                  onClick={() => setDashboardPage(p => Math.max(1, p - 1))}
+                  disabled={dashboardPage <= 1}
+                  className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  &lt;
+                </button>
+                {Array.from({ length: Math.min(5, Math.ceil((orders?.length || 0) / dashboardPageSize) || 1) }, (_, i) => i + 1).map(pageNumber => (
+                  <button 
+                    key={pageNumber}
+                    onClick={() => setDashboardPage(pageNumber)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-xs font-black shadow-xs cursor-pointer transition-all",
+                      dashboardPage === pageNumber ? "bg-[#6366F1] text-white" : "border border-gray-200 text-gray-700 hover:bg-gray-50"
+                    )}
+                  >
+                    {pageNumber}
+                  </button>
+                ))}
+                {Math.ceil((orders?.length || 0) / dashboardPageSize) > 5 && (
+                  <span className="px-1 text-gray-400">...</span>
+                )}
+                <button 
+                  onClick={() => setDashboardPage(p => Math.min(Math.ceil((orders?.length || 0) / dashboardPageSize) || 1, p + 1))}
+                  disabled={dashboardPage >= (Math.ceil((orders?.length || 0) / dashboardPageSize) || 1)}
+                  className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  &gt;
+                </button>
+              </div>
+            )}
           </div>
 
         </div>

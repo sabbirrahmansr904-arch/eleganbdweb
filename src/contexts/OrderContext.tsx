@@ -71,13 +71,38 @@ export const generateNextOrderId = (ordersList: Order[], lastCounterId?: number)
   return String(maxId + 1);
 };
 
+export const saveOrdersToCache = (ordersToCache: Order[]) => {
+  if (!Array.isArray(ordersToCache)) return;
+  try {
+    const light = ordersToCache.map(o => {
+      if (!o) return o;
+      const lightItems = Array.isArray(o.items) ? o.items.map(it => {
+        if (!it) return it;
+        const itemCopy = { ...it };
+        if (itemCopy.images) delete itemCopy.images;
+        if (typeof itemCopy.image === 'string' && itemCopy.image.length > 500) {
+          delete itemCopy.image;
+        }
+        return itemCopy;
+      }) : [];
+      return {
+        ...o,
+        items: lightItems
+      };
+    });
+    localStorage.setItem(CACHE_KEY, JSON.stringify(light));
+  } catch (e) {
+    console.warn('[OrderContext] LocalStorage cache save warning:', e);
+  }
+};
+
 export function OrderProvider({ children }: { children: React.ReactNode }) {
   const [orders, setOrders] = useState<Order[]>(() => {
     try {
-      const cached = localStorage.getItem(CACHE_KEY);
+      const cached = localStorage.getItem(CACHE_KEY) || localStorage.getItem('eleganbd_orders');
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed.filter(o => o && o.id);
         }
       }
@@ -85,7 +110,16 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     return [];
   });
   
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => {
+    try {
+      const cached = localStorage.getItem(CACHE_KEY) || localStorage.getItem('eleganbd_orders');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return false;
+      }
+    } catch (e) {}
+    return true;
+  });
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
   const lastCounterRef = useRef<number>(BASE_ORDER_ID);
   const deletedOrderIdsRef = useRef<Set<string>>(new Set());
@@ -101,7 +135,18 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     return order?.invoiceBy || currentUser?.displayName || currentUser?.email || 'Admin';
   };
 
-  // 1. Initial Load & Real-time Supabase Listener
+  // Helper to notify other browser tabs instantly
+  const broadcastSync = (type: string, payload?: any) => {
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        const channel = new BroadcastChannel('eleganbd_orders_sync_channel');
+        channel.postMessage({ type, payload, timestamp: Date.now() });
+        channel.close();
+      }
+    } catch (err) {}
+  };
+
+  // 1. Initial Load, Rapid Real-time Sync & Broadcast Channel
   useEffect(() => {
     let isMounted = true;
 
@@ -130,9 +175,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       valid.sort((a, b) => compareOrdersByInvoice(a, b, 'desc'));
 
       setOrders(valid);
-      try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(valid));
-      } catch {}
+      saveOrdersToCache(valid);
       setLoading(false);
     };
 
@@ -186,32 +229,36 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
         merged.sort((a, b) => compareOrdersByInvoice(a, b, 'desc'));
 
-        try {
-          localStorage.setItem(CACHE_KEY, JSON.stringify(merged));
-        } catch {}
+        saveOrdersToCache(merged);
 
         return merged;
       });
       setLoading(false);
     };
 
-    // A. Fetch all orders exclusively from Supabase
+    // A. Fetch orders from Supabase with timeout prevention and safety locks
+    const isFetchingRef = { current: false };
+
     const fetchFromSupabase = async (limitRecent = false) => {
+      if (isFetchingRef.current) return;
+      isFetchingRef.current = true;
       try {
         let query = supabase
           .from('orders')
           .select('*')
-          .order('invoice_no', { ascending: false, nullsFirst: false })
           .order('created_at', { ascending: false });
           
         if (limitRecent) {
-          query = query.limit(100);
+          query = query.limit(200);
+        } else {
+          query = query.limit(1000);
         }
 
         const { data, error } = await query;
 
         if (error) {
           console.warn('[OrderContext] Supabase fetch notice:', error.message);
+          // CRITICAL: NEVER wipe out existing orders or localStorage on error/timeout!
         } else if (data && Array.isArray(data) && isMounted) {
           const mapped: Order[] = data.map(supabaseRowToOrder);
           if (mapped.length > 0) {
@@ -220,29 +267,51 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             } else {
               replaceAndSetOrders(mapped);
             }
-          } else {
-            if (!limitRecent) {
-              setOrders([]);
-              try { localStorage.removeItem(CACHE_KEY); } catch {}
-            }
-            setLoading(false);
           }
         }
       } catch (err) {
         console.warn('[OrderContext] Supabase load exception:', err);
-        setLoading(false);
+      } finally {
+        isFetchingRef.current = false;
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchFromSupabase();
 
-    // Fallback Polling (Every 12 seconds check for top 100 recent orders/updates)
-    // Ensures real-time sync across browsers even if Supabase Realtime is not fully enabled for the table.
+    // Background sync check every 12 seconds for cross-device updates (Realtime channel provides instant 0ms updates)
     const pollInterval = setInterval(() => {
       if (isMounted) fetchFromSupabase(true);
     }, 12000);
 
-    // B. Real-time Supabase Channel Subscription
+    // Instant sync on window focus/tab switch
+    const handleFocus = () => {
+      if (isMounted) fetchFromSupabase(true);
+    };
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('visibilitychange', handleFocus);
+
+    // B. Broadcast Channel Listener (0ms inter-tab sync)
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        bc = new BroadcastChannel('eleganbd_orders_sync_channel');
+        bc.onmessage = (event) => {
+          if (!isMounted || !event.data) return;
+          const { type, payload } = event.data;
+          if (type === 'ORDER_CREATED' || type === 'ORDER_UPDATED') {
+            if (payload) mergeAndSetOrders([payload]);
+          } else if (type === 'ORDER_DELETED' && payload) {
+            const delId = String(payload);
+            setOrders(prev => prev.filter(o => o.id !== delId && String(o.invoiceNo) !== delId));
+          } else if (type === 'ORDERS_REFRESH') {
+            fetchFromSupabase(true);
+          }
+        };
+      }
+    } catch (err) {}
+
+    // C. Real-time Supabase Channel Subscription
     let supabaseChannel: any = null;
     try {
       supabaseChannel = supabase
@@ -256,7 +325,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             const deletedId = String((payload.old as any).id);
             setOrders(prev => {
               const next = prev.filter(o => o.id !== deletedId);
-              try { localStorage.setItem(CACHE_KEY, JSON.stringify(next)); } catch {}
+              saveOrdersToCache(next);
               return next;
             });
           }
@@ -269,11 +338,16 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     return () => {
       isMounted = false;
       clearInterval(pollInterval);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('visibilitychange', handleFocus);
+      if (bc) {
+        try { bc.close(); } catch {}
+      }
       if (supabaseChannel) {
         try { supabase.removeChannel(supabaseChannel); } catch {}
       }
     };
-  }, [currentUser]);
+  }, []);
 
   const refreshOrders = useCallback(async () => {
     setLoading(true);
@@ -281,17 +355,14 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await supabase
         .from('orders')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(1000);
 
       if (!error && data && Array.isArray(data)) {
         const mapped = data.map(supabaseRowToOrder);
-        mapped.sort((a, b) => {
-          const timeA = new Date(a.createdAt || 0).getTime() || 0;
-          const timeB = new Date(b.createdAt || 0).getTime() || 0;
-          return timeB - timeA;
-        });
+        mapped.sort((a, b) => compareOrdersByInvoice(a, b, 'desc'));
         setOrders(mapped);
-        try { localStorage.setItem(CACHE_KEY, JSON.stringify(mapped)); } catch {}
+        saveOrdersToCache(mapped);
       }
     } catch (error) {
       console.error('[OrderContext] Supabase Refresh error:', error);
@@ -422,11 +493,13 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       // 2. Local state update
       setOrders(prev => {
         const next = prev.map(o => o.id === id ? { ...o, status, updatedAt: Date.now() } : o);
-        try {
-          localStorage.setItem(CACHE_KEY, JSON.stringify(next));
-        } catch {}
+        saveOrdersToCache(next);
         return next;
       });
+      const updatedOrder = orders.find(o => o.id === id);
+      if (updatedOrder) {
+        broadcastSync('ORDER_UPDATED', { ...updatedOrder, status, updatedAt: Date.now() });
+      }
     } catch (error: any) {
       console.error("Error updating order status:", error);
       throw error;
@@ -460,11 +533,10 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       // 2. Local state update
       setOrders(prev => {
         const next = prev.map(o => o.id === id ? { ...o, ...updatedData } : o);
-        try {
-          localStorage.setItem(CACHE_KEY, JSON.stringify(next));
-        } catch {}
+        saveOrdersToCache(next);
         return next;
       });
+      broadcastSync('ORDER_UPDATED', { id, ...updatedData });
     } catch (error: any) {
       console.error("Error updating order:", error);
       throw error;
@@ -503,24 +575,10 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           (!o.invoiceNo || String(o.invoiceNo) !== cleanId) &&
           !deletedOrderIdsRef.current.has(String(o.id))
         );
-        try {
-          localStorage.setItem(CACHE_KEY, JSON.stringify(next));
-          // Clean any user or backup keys
-          for (let i = 0; i < localStorage.length; i++) {
-            const k = localStorage.key(i);
-            if (k && (k.startsWith('eleganbd_orders_') || k === 'orders')) {
-              try {
-                const stored = JSON.parse(localStorage.getItem(k) || '[]');
-                if (Array.isArray(stored)) {
-                  const cleaned = stored.filter((o: any) => o && o.id !== cleanId && String(o.invoiceNo) !== cleanId);
-                  localStorage.setItem(k, JSON.stringify(cleaned));
-                }
-              } catch {}
-            }
-          }
-        } catch {}
+        saveOrdersToCache(next);
         return next;
       });
+      broadcastSync('ORDER_DELETED', cleanId);
 
       // 2. Server API direct deletion
       try {
@@ -586,9 +644,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           (!o.invoiceNo || !targetSet.has(String(o.invoiceNo))) &&
           !deletedOrderIdsRef.current.has(String(o.id))
         );
-        try {
-          localStorage.setItem(CACHE_KEY, JSON.stringify(next));
-        } catch {}
+        saveOrdersToCache(next);
         return next;
       });
 
@@ -701,15 +757,11 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       setOrders(prev => {
         const filtered = prev.filter(o => o.id !== finalOrderId);
         const next = [newOrder, ...filtered].sort((a, b) => compareOrdersByInvoice(a, b, 'desc'));
-        try {
-          localStorage.setItem(CACHE_KEY, JSON.stringify(next));
-          if (currentUser) {
-            localStorage.setItem(`eleganbd_orders_${currentUser.uid}`, JSON.stringify(next));
-          }
-        } catch {}
+        saveOrdersToCache(next);
         return next;
       });
       setLastOrder(newOrder);
+      broadcastSync('ORDER_CREATED', newOrder);
 
       // 2. Background Supabase Upsert (Non-blocking)
       const sbRow = orderToSupabaseRow(newOrder);

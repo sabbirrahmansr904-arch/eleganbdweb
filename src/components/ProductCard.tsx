@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Product } from '../types';
 import { useCurrency } from '../contexts/CurrencyContext';
@@ -17,6 +17,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
 }) => {
   const { currency, rate } = useCurrency();
   const discount = product.discount || 0;
+  const [imageError, setImageError] = useState(false);
 
   const isPant = Boolean(
     (product.category || '').toLowerCase().includes('pant') ||
@@ -55,9 +56,19 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
     return formatPrice(product.regularPrice, currency, rate);
   }, [product.regularPrice, product.price, currency, rate]);
 
-  const mainImage = product.images && product.images.length > 0 && product.images[0]
+  const rawImage = product.images && product.images.length > 0 && product.images[0]
     ? product.images[0]
     : product.image;
+
+  const fallbackImage = isPant
+    ? 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=600&auto=format&fit=crop&q=80'
+    : 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600&auto=format&fit=crop&q=80';
+
+  const secondaryImage = (product.images && product.images.length > 1 && product.images[1])
+    ? product.images[1]
+    : fallbackImage;
+
+  const displayImage = imageError ? secondaryImage : (rawImage || fallbackImage);
 
   return (
     <div className="group relative bg-white rounded-2xl border border-gray-100/90 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col justify-between h-full">
@@ -65,14 +76,15 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
         {/* Product Image */}
         <div className="relative w-full aspect-[3/4.2] overflow-hidden bg-[#f4f5f7]">
           <Link to={`/product/${product.id}`} className="block w-full h-full">
-            {mainImage ? (
+            {displayImage ? (
               <img
-                src={mainImage}
+                src={displayImage}
                 alt={product.name}
                 className="w-full h-full object-cover object-top transition-transform duration-500 ease-out group-hover:scale-105"
                 referrerPolicy="no-referrer"
                 loading={loading}
                 decoding="async"
+                onError={() => setImageError(true)}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">

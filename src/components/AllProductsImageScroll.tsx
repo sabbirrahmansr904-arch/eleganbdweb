@@ -16,9 +16,18 @@ interface AllProductsImageScrollProps {
 const ScrollProductCard: React.FC<{ product: Product }> = ({ product }) => {
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
-  const mainImage = product.images?.[0] || product.image || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop';
-  const secondaryImage = product.images?.[1] || mainImage;
+  const [imgError, setImgError] = useState(false);
+  
   const isPant = (product.category || '').toLowerCase().includes('pant') || (product.name || '').toLowerCase().includes('pant');
+  const fallback = isPant 
+    ? 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=500&auto=format&fit=crop'
+    : 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=500&auto=format&fit=crop';
+
+  const rawMain = product.images?.[0] || product.image || fallback;
+  const rawSecondary = product.images?.[1] || rawMain;
+
+  const mainImage = imgError ? fallback : rawMain;
+  const secondaryImage = imgError ? fallback : rawSecondary;
 
   const formatPrice = (p: number) => `৳${p.toLocaleString()}`;
 
@@ -42,6 +51,7 @@ const ScrollProductCard: React.FC<{ product: Product }> = ({ product }) => {
           )}
           loading="lazy"
           referrerPolicy="no-referrer"
+          onError={() => setImgError(true)}
         />
         
         {product.originalPrice && product.originalPrice > product.price && (
