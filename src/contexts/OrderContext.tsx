@@ -4,12 +4,12 @@ import { supabase, orderToSupabaseRow, supabaseRowToOrder } from '../lib/supabas
 import { useAuth } from './AuthContext';
 import { useProducts } from './ProductContext';
 import { useInventory } from './InventoryContext';
-import { isDeliveredOrSuccess, compareOrdersByInvoice } from '../utils/orderUtils';
+import { isDeliveredOrSuccess, compareOrdersByInvoice, canChangeOrderStatus } from '../utils/orderUtils';
 
 interface OrderContextType {
   orders: Order[];
-  updateOrderStatus: (id: string, status: Order['status']) => Promise<void>;
-  updateOrder: (id: string, data: Partial<Order> & Record<string, any>) => Promise<void>;
+  updateOrderStatus: (id: string, status: Order['status'], overrideLock?: boolean) => Promise<void>;
+  updateOrder: (id: string, data: Partial<Order> & Record<string, any>, overrideLock?: boolean) => Promise<void>;
   deleteOrder: (id: string) => Promise<void>;
   deleteMultipleOrders: (ids: string[]) => Promise<void>;
   deleteAllOrders: () => Promise<void>;
@@ -395,12 +395,12 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const updateOrderStatus = async (id: string, status: Order['status']) => {
+  const updateOrderStatus = async (id: string, status: Order['status'], overrideLock: boolean = false) => {
     try {
       const order = orders.find(o => o.id === id);
-      if (order && isDeliveredOrSuccess(order.status) && !isDeliveredOrSuccess(status)) {
-        console.warn(`[OrderContext] Blocked status modification for Success/Delivered order ${id}. Status cannot be edited.`);
-        throw new Error('সাকসেস / ডেলিভার্ড অর্ডারের স্ট্যাটাস পরিবর্তন করা যাবে না (Delivered order status is locked).');
+      if (order && !overrideLock && !canChangeOrderStatus(order.status)) {
+        console.warn(`[OrderContext] Blocked status modification for order ${id} with status "${order.status}". Status is locked.`);
+        throw new Error('অর্ডারের স্ট্যাটাস পরিবর্তন করা যাবে না। শুধুমাত্র ORDER PLACED, PRINTED, PREPARING এবং PICK UP CANCEL স্ট্যাটাসের অর্ডারের স্ট্যাটাস পরিবর্তন করা যাবে।');
       }
       if (order) {
         await handleStatusChangeStock(order, status);
@@ -433,12 +433,12 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const updateOrder = async (id: string, data: Partial<Order> & Record<string, any>) => {
+  const updateOrder = async (id: string, data: Partial<Order> & Record<string, any>, overrideLock: boolean = false) => {
     try {
       const order = orders.find(o => o.id === id);
       const safeData = { ...data };
-      if (safeData.status && order && isDeliveredOrSuccess(order.status) && !isDeliveredOrSuccess(safeData.status)) {
-        console.warn(`[OrderContext] Blocked changing status of Delivered/Success order ${id}`);
+      if (safeData.status && order && !overrideLock && !canChangeOrderStatus(order.status) && safeData.status !== order.status) {
+        console.warn(`[OrderContext] Blocked changing status of locked order ${id}`);
         delete safeData.status;
       }
       if (safeData.status && order) {

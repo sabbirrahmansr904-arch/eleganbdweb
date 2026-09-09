@@ -131,11 +131,17 @@ const ProductDetails = () => {
       orderBy('createdAt', 'desc')
     );
 
-    const unsubscribe = onSnapshot(reviewsQuery, (snapshot) => {
+    const unsubscribe = onSnapshot(reviewsQuery, (snapshot: any) => {
       const reviewData: Review[] = [];
-      snapshot.forEach(doc => {
-        reviewData.push({ id: doc.id, ...doc.data() } as Review);
-      });
+      if (snapshot && typeof snapshot.forEach === 'function') {
+        snapshot.forEach((docSnap: any) => {
+          reviewData.push({ id: docSnap.id, ...docSnap.data() } as Review);
+        });
+      } else if (snapshot && Array.isArray(snapshot.docs)) {
+        snapshot.docs.forEach((docSnap: any) => {
+          reviewData.push({ id: docSnap.id, ...docSnap.data() } as Review);
+        });
+      }
       setReviews(reviewData);
     }, (error) => {
        console.error("Reviews fetch error:", error);

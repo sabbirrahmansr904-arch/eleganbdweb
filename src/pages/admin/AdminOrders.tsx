@@ -51,7 +51,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatPrice, cn } from '../../lib/utils';
-import { isDeliveredOrSuccess, compareOrdersByInvoice, formatInvoiceNumber } from '../../utils/orderUtils';
+import { isDeliveredOrSuccess, compareOrdersByInvoice, formatInvoiceNumber, canChangeOrderStatus } from '../../utils/orderUtils';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { useOrders } from '../../contexts/OrderContext';
 import { useProducts } from '../../contexts/ProductContext';
@@ -108,8 +108,8 @@ export default function AdminOrders(): React.JSX.Element {
 
   const changeStatus = async (status: Order['status']) => {
     if (!selectedOrder) return;
-    if (isDeliveredOrSuccess(selectedOrder.status)) {
-      toast.error('সাকসেস / ডেলিভার্ড অর্ডারের স্ট্যাটাস পরিবর্তন করা যাবে না (Delivered order status is locked).');
+    if (!canChangeOrderStatus(selectedOrder.status)) {
+      toast.error('অর্ডারের স্ট্যাটাস পরিবর্তন করা সম্ভব নয় (Status Locked)।');
       return;
     }
     try {
@@ -539,8 +539,8 @@ export default function AdminOrders(): React.JSX.Element {
 
   const handleStatusChange = async (id: string, newStatus: Order['status']) => {
     const targetOrder = orders.find(o => o.id === id);
-    if (targetOrder && isDeliveredOrSuccess(targetOrder.status)) {
-      toast.error('সাকসেস / ডেলিভার্ড অর্ডারের স্ট্যাটাস পরিবর্তন করা যাবে না (Delivered order status is locked).');
+    if (targetOrder && !canChangeOrderStatus(targetOrder.status)) {
+      toast.error('অর্ডারের স্ট্যাটাস পরিবর্তন করা সম্ভব নয় (Status Locked)।');
       return;
     }
     try {
@@ -767,7 +767,7 @@ export default function AdminOrders(): React.JSX.Element {
             courierPayoutAmount: payout
           });
         } else {
-          await updateOrderStatus(pathaoBookingOrder.id, 'Shipped');
+          await updateOrderStatus(pathaoBookingOrder.id, 'Shipped', true);
         }
 
         // Display success box and mock SMS send info
@@ -812,7 +812,7 @@ export default function AdminOrders(): React.JSX.Element {
             steadfastConsignmentId: consignmentId 
           });
         } else {
-          await updateOrderStatus(steadfastBookingOrder.id, 'Shipped');
+          await updateOrderStatus(steadfastBookingOrder.id, 'Shipped', true);
         }
 
         setSteadfastSuccessResult({
@@ -865,7 +865,7 @@ export default function AdminOrders(): React.JSX.Element {
             courierPayoutAmount: payout
           });
         } else {
-          await updateOrderStatus(activeScanOrder.id, 'Shipped');
+          await updateOrderStatus(activeScanOrder.id, 'Shipped', true);
         }
         
         // Store in session arrays
@@ -1618,9 +1618,9 @@ export default function AdminOrders(): React.JSX.Element {
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 justify-end" onClick={(e) => e.stopPropagation()}>
                     <div className="relative inline-flex items-center">
-                      {isDeliveredOrSuccess(order.status) ? (
+                      {!canChangeOrderStatus(order.status) ? (
                         <div 
-                          title="Success / Delivered অর্ডারের স্ট্যাটাস পরিবর্তন করা যাবে না (Status Locked)"
+                          title="এই স্ট্যাটাসের অর্ডার পরিবর্তন করা সম্ভব নয় (Status Locked)"
                           className={cn(
                             "flex items-center gap-1 px-2.5 py-1 text-[9px] font-extrabold rounded-full border shadow-3xs uppercase tracking-wider select-none cursor-not-allowed",
                             getStatusBadge(order.status).class
@@ -1709,7 +1709,7 @@ export default function AdminOrders(): React.JSX.Element {
                     </button>
                     <button onClick={(e) => { e.stopPropagation(); setSelectedOrder(order); }} title="View Details" className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 rounded-lg"><Eye size={18} /></button>
                     <button onClick={(e) => { e.stopPropagation(); setIssueConversationOrder(order); }} title="Order Issues" className="p-2 text-slate-400 hover:text-rose-600 bg-slate-50 rounded-lg"><MessageSquare size={18} /></button>
-                    <button onClick={(e) => { e.stopPropagation(); setInvoiceOrder(order); setShowInvoiceModal(true); if (!isDeliveredOrSuccess(order.status) && order.status !== 'Returned' && order.status !== 'Cancelled' && normalizeStatus(order.status) !== 'PRINTED') { updateOrderStatus(order.id, 'PRINTED'); } }} title="Print Invoice" className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 rounded-lg"><Printer size={18} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); setInvoiceOrder(order); setShowInvoiceModal(true); if (canChangeOrderStatus(order.status) && normalizeStatus(order.status) !== 'PRINTED') { updateOrderStatus(order.id, 'PRINTED'); } }} title="Print Invoice" className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 rounded-lg"><Printer size={18} /></button>
                     <button 
                       onClick={(e) => { 
                         e.stopPropagation(); 
@@ -1894,9 +1894,9 @@ export default function AdminOrders(): React.JSX.Element {
                       <td className="py-4 px-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-1.5 flex-nowrap whitespace-nowrap">
                           <div className="relative inline-flex items-center">
-                            {isDeliveredOrSuccess(order.status) ? (
+                            {!canChangeOrderStatus(order.status) ? (
                               <div 
-                                title="Success / Delivered অর্ডারের স্ট্যাটাস পরিবর্তন করা যাবে না (Status Locked)"
+                                title="এই স্ট্যাটাসের অর্ডার পরিবর্তন করা সম্ভব নয় (Status Locked)"
                                 className={cn(
                                   "inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-extrabold rounded-full border shadow-3xs uppercase tracking-wider select-none cursor-not-allowed",
                                   getStatusBadge(order.status).class
@@ -2136,7 +2136,7 @@ export default function AdminOrders(): React.JSX.Element {
                                 e.stopPropagation();
                                 setInvoiceOrder(order);
                                 setShowInvoiceModal(true);
-                                if (!isDeliveredOrSuccess(order.status) && order.status !== 'Returned' && order.status !== 'Cancelled' && normalizeStatus(order.status) !== 'PRINTED') {
+                                if (canChangeOrderStatus(order.status) && normalizeStatus(order.status) !== 'PRINTED') {
                                   updateOrderStatus(order.id, 'PRINTED');
                                 }
                               }} 
@@ -3297,19 +3297,19 @@ export default function AdminOrders(): React.JSX.Element {
                         <div className="space-y-1 col-span-2">
                           <div className="flex items-center justify-between">
                             <label className="text-[9px] font-black text-[#8292A1] uppercase tracking-widest block">Order Status</label>
-                            {selectedOrder && isDeliveredOrSuccess(selectedOrder.status) && (
-                              <span className="text-[9px] font-bold text-emerald-600 flex items-center gap-1">
+                            {selectedOrder && !canChangeOrderStatus(selectedOrder.status) && (
+                              <span className="text-[9px] font-bold text-amber-600 flex items-center gap-1">
                                 <Lock size={9} /> Status Locked
                               </span>
                             )}
                           </div>
                           <select 
                             value={normalizeStatus(editStatus)}
-                            disabled={selectedOrder ? isDeliveredOrSuccess(selectedOrder.status) : false}
+                            disabled={selectedOrder ? !canChangeOrderStatus(selectedOrder.status) : false}
                             onChange={(e) => setEditStatus(e.target.value as any)}
                             className={cn(
                               "w-full bg-[#F8FAFC] border border-gray-200 text-[12px] font-semibold rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-[#F8F9FD] uppercase",
-                              selectedOrder && isDeliveredOrSuccess(selectedOrder.status) ? "opacity-60 cursor-not-allowed bg-slate-100" : "cursor-pointer"
+                              selectedOrder && !canChangeOrderStatus(selectedOrder.status) ? "opacity-60 cursor-not-allowed bg-slate-100" : "cursor-pointer"
                             )}
                           >
                             <option value="ORDER PLACED">ORDER PLACED</option>
@@ -3595,9 +3595,9 @@ export default function AdminOrders(): React.JSX.Element {
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Status</span>
                             <div className="flex items-center gap-2 flex-wrap">
                               <div className="relative inline-flex items-center">
-                                {isDeliveredOrSuccess(selectedOrder.status) ? (
+                                {!canChangeOrderStatus(selectedOrder.status) ? (
                                   <div 
-                                    title="Success / Delivered অর্ডারের স্ট্যাটাস পরিবর্তন করা যাবে না (Status Locked)"
+                                    title="এই স্ট্যাটাসের অর্ডার পরিবর্তন করা সম্ভব নয় (Status Locked)"
                                     className={cn(
                                       "inline-flex items-center gap-1.5 px-3 py-1 text-[10px] font-extrabold rounded-full border shadow-3xs uppercase tracking-wider select-none cursor-not-allowed",
                                       getStatusBadge(selectedOrder.status).class
@@ -3738,7 +3738,7 @@ export default function AdminOrders(): React.JSX.Element {
                           onClick={() => {
                             setInvoiceOrder(selectedOrder);
                             setShowInvoiceModal(true);
-                            if (!isDeliveredOrSuccess(selectedOrder.status) && selectedOrder.status !== 'Returned' && selectedOrder.status !== 'Cancelled' && normalizeStatus(selectedOrder.status) !== 'PRINTED') {
+                            if (canChangeOrderStatus(selectedOrder.status) && normalizeStatus(selectedOrder.status) !== 'PRINTED') {
                               updateOrderStatus(selectedOrder.id, 'PRINTED');
                             }
                           }}
@@ -3805,7 +3805,7 @@ export default function AdminOrders(): React.JSX.Element {
                         return;
                       }
 
-                      if (invoiceOrder && !isDeliveredOrSuccess(invoiceOrder.status) && invoiceOrder.status !== 'Returned' && invoiceOrder.status !== 'Cancelled' && normalizeStatus(invoiceOrder.status) !== 'PRINTED') {
+                      if (invoiceOrder && canChangeOrderStatus(invoiceOrder.status) && normalizeStatus(invoiceOrder.status) !== 'PRINTED') {
                         updateOrderStatus(invoiceOrder.id, 'PRINTED');
                       }
 

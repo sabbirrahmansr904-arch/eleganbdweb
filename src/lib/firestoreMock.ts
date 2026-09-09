@@ -188,44 +188,52 @@ export async function getDoc(docRef: MockRef) {
   };
 }
 
+function createMockQuerySnapshot(docs: any[]) {
+  return {
+    empty: docs.length === 0,
+    size: docs.length,
+    docs,
+    forEach: function(callback: (doc: any, index: number) => void) {
+      docs.forEach((docItem, index) => {
+        callback(docItem, index);
+      });
+    },
+    docChanges: () => docs.map(doc => ({ type: 'added', doc }))
+  };
+}
+
 export async function getDocs(queryOrCol: MockRef) {
   const collectionName = queryOrCol.collectionName;
 
   if (collectionName === 'orders') {
     const { data } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
     const orders = (data || []).map(row => supabaseRowToOrder(row));
-    return {
-      empty: orders.length === 0,
-      docs: orders.map(o => ({
-        id: o.id,
-        data: () => o,
-        exists: () => true
-      }))
-    };
+    const docs = orders.map(o => ({
+      id: o.id,
+      data: () => o,
+      exists: () => true
+    }));
+    return createMockQuerySnapshot(docs);
   }
 
   if (collectionName === 'products') {
     const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
     const products = (data || []).map(row => supabaseRowToProduct(row));
-    return {
-      empty: products.length === 0,
-      docs: products.map(p => ({
-        id: p.id,
-        data: () => p,
-        exists: () => true
-      }))
-    };
+    const docs = products.map(p => ({
+      id: p.id,
+      data: () => p,
+      exists: () => true
+    }));
+    return createMockQuerySnapshot(docs);
   }
 
   const docsData = await fetchDocumentsFromSupabase(collectionName);
-  return {
-    empty: docsData.length === 0,
-    docs: docsData.map(item => ({
-      id: item.id,
-      data: () => item,
-      exists: () => true
-    }))
-  };
+  const docs = docsData.map(item => ({
+    id: item.id,
+    data: () => item,
+    exists: () => true
+  }));
+  return createMockQuerySnapshot(docs);
 }
 
 export function onSnapshot(target: MockRef, onNext: Function, onError?: Function) {

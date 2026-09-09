@@ -66,13 +66,6 @@ export default function Login() {
     }
   }, [isAdmin, currentUser, customerUser, navigate, redirectPath]);
 
-  // Quick fill admin credentials
-  const fillAdminCredentials = () => {
-    setAdminEmail('admin@eleganbd.com');
-    setAdminPassword('eleganbd2026@@##ssn');
-    toast.success('অ্যাডমিন ক্রেডেনশিয়াল ফিল করা হয়েছে!');
-  };
-
   // Handle Customer Sign In / Up
   const handleCustomerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -266,7 +259,7 @@ export default function Login() {
                   </button>
                 </div>
 
-                <form onSubmit={handleCustomerSubmit} className="space-y-4">
+                <form onSubmit={handleCustomerSubmit} className="space-y-4" autoComplete="off">
                   {isSignUp && (
                     <div>
                       <label className="block text-[10px] font-black uppercase tracking-widest text-gray-600 mb-1">
@@ -379,23 +372,7 @@ export default function Login() {
                     />
                   </svg>
                   <span>Sign In with Google</span>
-                </button>
-
-                {/* Guest / One Click Login */}
-                <div className="mt-4 pt-4 border-t border-gray-100 text-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      loginCustomer('guest_customer@eleganbd.com', 'Guest Customer');
-                      toast.success('ગેস্ট ইউজার হিসেবে প্রবেশ করা হয়েছে!');
-                      navigate(redirectPath || '/dashboard');
-                    }}
-                    className="text-[11px] font-bold text-gray-500 hover:text-black underline cursor-pointer"
-                  >
-                    Continue as Guest / কাস্টমার হিসেবে সরাসরি প্রবেশ
-                  </button>
-                </div>
-              </motion.div>
+                </button>              </motion.div>
             ) : (
               <motion.div
                 key="admin-tab"
@@ -417,7 +394,7 @@ export default function Login() {
                   </span>
                 </div>
 
-                <form onSubmit={handleAdminSubmit} className="space-y-4">
+                <form onSubmit={handleAdminSubmit} className="space-y-4" autoComplete="off">
                   <div>
                     <label className="block text-[10px] font-black uppercase tracking-widest text-gray-600 mb-1">
                       Admin Email
@@ -459,20 +436,7 @@ export default function Login() {
                     </div>
                   </div>
 
-                  {/* One-Click Quick Fill Button for Admin */}
-                  <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-3 flex items-center justify-between gap-2">
-                    <div className="text-[11px] text-amber-900 font-medium leading-tight">
-                      <span className="font-bold block text-[10px] uppercase tracking-wider text-amber-800">Quick Fill Admin</span>
-                      admin@eleganbd.com
-                    </div>
-                    <button
-                      type="button"
-                      onClick={fillAdminCredentials}
-                      className="px-3 py-1.5 bg-black text-white hover:bg-brand-gold hover:text-black text-[10px] font-black uppercase tracking-wider rounded-xl transition-all shadow-xs cursor-pointer shrink-0"
-                    >
-                      Fill Credentials
-                    </button>
-                  </div>
+
 
                   <button
                     type="submit"

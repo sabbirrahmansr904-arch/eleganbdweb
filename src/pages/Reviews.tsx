@@ -120,10 +120,10 @@ export default function Reviews() {
 
     try {
       const q = query(collection(db, 'reviews'), orderBy('createdAt', 'desc'));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
+      const unsubscribe = onSnapshot(q, (snapshot: any) => {
         const items: ReviewItem[] = [];
-        snapshot.forEach((docSnap) => {
-          const data = docSnap.data();
+        const processDoc = (docSnap: any) => {
+          const data = docSnap.data ? docSnap.data() : docSnap;
           items.push({
             id: docSnap.id,
             userName: data.userName || data.name || 'Anonymous',
@@ -135,7 +135,12 @@ export default function Reviews() {
             isVerified: data.isVerified ?? true,
             isAdmin: data.isAdmin ?? false,
           });
-        });
+        };
+        if (snapshot && typeof snapshot.forEach === 'function') {
+          snapshot.forEach(processDoc);
+        } else if (snapshot && Array.isArray(snapshot.docs)) {
+          snapshot.docs.forEach(processDoc);
+        }
         setFirestoreReviews(items);
         setLoading(false);
       }, (err) => {

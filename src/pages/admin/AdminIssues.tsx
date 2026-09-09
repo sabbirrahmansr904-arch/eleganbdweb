@@ -7,7 +7,7 @@ import { useOrders } from '../../contexts/OrderContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatPrice, cn } from '../../lib/utils';
-import { isDeliveredOrSuccess } from '../../utils/orderUtils';
+import { isDeliveredOrSuccess, canChangeOrderStatus } from '../../utils/orderUtils';
 import { Order } from '../../types';
 
 const normalizeStatus = (status: string): string => {
@@ -23,6 +23,7 @@ import {
   MessageSquare, 
   Send, 
   CheckCircle, 
+  CheckCircle2,
   AlertCircle, 
   Clock, 
   User, 
@@ -124,8 +125,8 @@ export default function AdminIssues() {
   const openOrderModal = (mode: 'view' | 'edit') => {
     if (!selectedIssue?.order) return;
     const order = selectedIssue.order;
-    if (mode === 'edit' && isDeliveredOrSuccess(order.status)) {
-      toast.error('ডেলিভার্ড বা সাকসেস অর্ডার এডিট করা যাবে না। (Delivered/Success order cannot be edited)');
+    if (mode === 'edit' && !canChangeOrderStatus(order.status)) {
+      toast.error('এই স্ট্যাটাসের অর্ডার এডিট করা যাবে না। (Locked status)');
       return;
     }
     setEditName(order.customerName || '');

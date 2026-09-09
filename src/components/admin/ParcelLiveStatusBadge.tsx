@@ -65,9 +65,9 @@ export const ParcelLiveStatusBadgeComponent: React.FC<ParcelLiveStatusBadgeProps
                   ...order,
                   status: 'Returned',
                   courierStatus: data.status
-                });
+                }, true);
               } else if (updateOrderStatus) {
-                await updateOrderStatus(order.id, 'Returned');
+                await updateOrderStatus(order.id, 'Returned', true);
               }
               const shortId = order.invoiceNo || String(order.id || '').slice(-6) || 'N/A';
               toast.success(`অর্ডার #${shortId} রিটার্ন হওয়ায় স্ট্যাটাস Returned করা হয়েছে!`);
@@ -85,9 +85,9 @@ export const ParcelLiveStatusBadgeComponent: React.FC<ParcelLiveStatusBadgeProps
                   status: 'Delivered',
                   courierStatus: data.status,
                   deliveredAt: Date.now()
-                });
+                }, true);
               } else if (updateOrderStatus) {
-                await updateOrderStatus(order.id, 'Delivered');
+                await updateOrderStatus(order.id, 'Delivered', true);
               }
               const shortId = order.invoiceNo || String(order.id || '').slice(-6) || 'N/A';
               toast.success(`অর্ডার #${shortId} পার্সেল ডেলিভার্ড হওয়ায় স্ট্যাটাস অটো SUCCESS করা হয়েছে!`);

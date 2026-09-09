@@ -1,3 +1,19 @@
+export const canChangeOrderStatus = (status?: string): boolean => {
+  if (!status) return true;
+  const s = status.toUpperCase().trim();
+  return (
+    s === 'ORDER PLACED' ||
+    s === 'PENDING' ||
+    s === 'PRINTED' ||
+    s === 'PREPARING' ||
+    s === 'PROCESSING' ||
+    s === 'PICK UP CANCEL' ||
+    s === 'PICKUP CANCEL' ||
+    s === 'PICKUP_CANCEL' ||
+    s === 'PICK_UP_CANCEL'
+  );
+};
+
 export const isDeliveredOrSuccess = (status?: string): boolean => {
   if (!status) return false;
   const s = status.toLowerCase().trim();
