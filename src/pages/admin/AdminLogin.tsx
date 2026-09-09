@@ -3,82 +3,63 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useBranding } from '../../contexts/BrandingContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { db } from '../../lib/firebase';
-import { doc, setDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
+import { Lock, Mail, Eye, EyeOff, ShieldCheck, Loader2 } from 'lucide-react';
 
 export default function AdminLogin() {
   const { logoUrl } = useBranding();
-  const { signInWithGoogle, signInWithEmail, signUpWithEmail, loginAsAdmin, isAdmin, currentUser, refreshAdminStatus, signOut } = useAuth();
+  const { loginAsAdmin, isAdmin, currentUser, signOut } = useAuth();
   const navigate = useNavigate();
-  const [code, setCode] = React.useState('');
-  const [isActivating, setIsActivating] = React.useState(false);
-  const [mode, setMode] = React.useState<'login' | 'signup'>('login');
-  const [email, setEmail] = React.useState('');
-  const [password, setPassword] = React.useState('');
-  const [isLoading, setIsLoading] = React.useState(false);
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // If already admin, redirect automatically
-  React.useEffect(() => {
+  useEffect(() => {
     if (isAdmin) {
       navigate('/admin');
     }
   }, [isAdmin, navigate]);
 
-  const handleQuickAdminLogin = async () => {
-    setIsLoading(true);
-    try {
-      await loginAsAdmin('sabbirrahmansr904@gmail.com', 'Sabbir Rahman (CEO & Founder)');
-      toast.success('Welcome Back, CEO & Founder Sabbir Rahman!');
-      navigate('/admin');
-    } catch (err: any) {
-      toast.error('Failed to log in as admin.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  const handleLogin = async () => {
-    try {
-      await signInWithGoogle();
-      toast.success('Authentication successful!');
-    } catch (error: any) {
-       toast.error(error?.message || 'Authentication failed.');
-    }
-  };
+    const trimmedEmail = email.toLowerCase().trim();
+    const enteredPassword = password.trim();
 
-  const handleEmailAuth = async () => {
-    if (!email || !password) {
-      toast.error("Please enter email and password.");
+    if (!trimmedEmail || !enteredPassword) {
+      toast.error('দয়া করে ইমেইল এবং পাসওয়ার্ড প্রদান করুন।');
       return;
     }
+
     setIsLoading(true);
+
     try {
-      const trimmedEmail = email.toLowerCase().trim();
-      
-      // Authorize any admin or CEO email
-      if (
-        trimmedEmail === 'sabbirrahmansr904@gmail.com' ||
-        trimmedEmail === 'eleganbd@gmail.com' ||
-        trimmedEmail === 'eleganbd.ltd@gmail.com' ||
-        trimmedEmail.includes('admin') ||
-        trimmedEmail.includes('elegan')
-      ) {
+      // Specified Admin Master Credentials
+      // Email: admin@eleganbd.com
+      // Password: eleganbd2026@@##ssn
+      const isMasterAdmin =
+        (trimmedEmail === 'admin@eleganbd.com' ||
+          trimmedEmail === 'sabbirrahmansr904@gmail.com' ||
+          trimmedEmail === 'eleganbd@gmail.com') &&
+        enteredPassword === 'eleganbd2026@@##ssn';
+
+      if (isMasterAdmin) {
         await loginAsAdmin(trimmedEmail, 'Sabbir Rahman (CEO & Founder)');
-        toast.success('Admin signed in successfully!');
+        toast.success('অ্যাডমিন প্যানেলে স্বাগতম! লগইন সফল হয়েছে।');
         navigate('/admin');
         return;
       }
 
-      // Default auth check
-      await loginAsAdmin(trimmedEmail, 'Administrator');
-      toast.success('Admin signed in successfully!');
-      navigate('/admin');
+      // Invalid credentials
+      toast.error('ভুল ইমেইল বা পাসওয়ার্ড! সঠিক ক্রেডেনশিয়াল ব্যবহার করুন।');
     } catch (error: any) {
       toast.error(error?.message || 'Authentication failed.');
     } finally {
@@ -86,71 +67,45 @@ export default function AdminLogin() {
     }
   };
 
-  const handleActivate = async () => {
-    if (!currentUser) return;
-    setIsActivating(true);
-    const loadingToast = toast.loading("Verifying administrator access...");
-    try {
-      // Auto-activate for Sabbir or allow any code / ELEGAN2026
-      await loginAsAdmin(currentUser.email || 'sabbirrahmansr904@gmail.com', currentUser.displayName || 'Administrator');
-      if (currentUser.uid) {
-        try {
-          const adminRef = doc(db, 'admins', currentUser.uid);
-          await setDoc(adminRef, {
-            role: 'ceo',
-            email: currentUser.email,
-            signupCode: code.trim() || 'ADMIN-AUTHORIZED',
-            updatedAt: Date.now()
-          }, { merge: true });
-        } catch {}
-      }
-      toast.success("Administrator access activated successfully!", { id: loadingToast });
-      navigate('/admin');
-    } catch (err: any) {
-      console.error("Activation failure: ", err);
-      toast.error("Activation failed. Please try 1-click admin login.", { id: loadingToast });
-    } finally {
-      setIsActivating(false);
-    }
-  };
-
   const handleSignOut = async () => {
     try {
       await signOut();
-      toast.success("Signed out safely.");
-    } catch (err) {
-      toast.error("Sign out failed.");
+      toast.success('Signed out successfully.');
+    } catch {
+      toast.error('Failed to sign out.');
     }
   };
 
   return (
-    <div className="min-h-screen bg-brand-bg flex items-center justify-center px-6 py-12">
+    <div className="min-h-screen bg-[#0d0f12] text-white flex items-center justify-center px-6 py-12 relative overflow-hidden">
+      {/* Background ambient lighting */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none opacity-20">
-         <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-brand-gold/10 rounded-full blur-[100px]" />
-         <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-brand-muted rounded-full blur-[100px]" />
+        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-brand-gold/20 rounded-full blur-[120px]" />
+        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-amber-500/10 rounded-full blur-[120px]" />
       </div>
 
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
-        className="w-full max-w-md bg-[#F8F9FD]/5 backdrop-blur-md border border-white/10 p-8 md:p-12 shadow-2xl relative z-10"
+        transition={{ duration: 0.6 }}
+        className="w-full max-w-md bg-[#16191f]/90 backdrop-blur-xl border border-white/10 rounded-3xl p-8 md:p-10 shadow-2xl relative z-10"
       >
-        <div className="text-center mb-10">
+        {/* Logo and Header */}
+        <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             {logoUrl ? (
-              <img 
-                src={logoUrl} 
-                alt="Elegan BD" 
-                className="h-16 w-auto mx-auto object-contain brightness-0 invert" 
+              <img
+                src={logoUrl}
+                alt="Elegan BD"
+                className="h-16 w-auto mx-auto object-contain brightness-0 invert"
                 referrerPolicy="no-referrer"
               />
             ) : (
               <div className="flex items-center justify-center">
                 <div className="flex flex-col gap-[3px] mr-3">
-                  <div className="h-[4px] w-6 bg-[#F8F9FD]" />
-                  <div className="h-[4px] w-[14px] bg-[#F8F9FD] translate-x-[-2px]" />
-                  <div className="h-[4px] w-6 bg-[#F8F9FD]" />
+                  <div className="h-[4px] w-6 bg-brand-gold" />
+                  <div className="h-[4px] w-[14px] bg-brand-gold translate-x-[-2px]" />
+                  <div className="h-[4px] w-6 bg-brand-gold" />
                 </div>
                 <span className="font-black text-2xl italic tracking-tighter uppercase text-white">
                   Elegan BD
@@ -158,126 +113,128 @@ export default function AdminLogin() {
               </div>
             )}
           </div>
-          <p className="text-[10px] uppercase tracking-[0.4em] text-gray-500 font-bold">Admin Portal Access</p>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-brand-gold text-[10px] uppercase font-bold tracking-widest mb-2">
+            <ShieldCheck size={12} />
+            <span>Secure Admin Portal</span>
+          </div>
+          <h1 className="text-xl font-bold tracking-tight text-white mt-1">
+            Admin Authentication
+          </h1>
+          <p className="text-xs text-gray-400 mt-1">
+            অ্যাডমিন প্যানেলে প্রবেশ করতে আপনার ক্রেডেনশিয়াল দিন
+          </p>
         </div>
 
-        {currentUser && !isAdmin ? (
-          <div className="space-y-6 text-white text-sans">
-            <div className="p-5 bg-[#F8F9FD]/5 border border-white/10 rounded-2xl space-y-1 text-center">
-              <p className="text-[9px] uppercase tracking-[0.2em] text-gray-400 font-black">Logged In Profile</p>
-              <p className="text-xs font-black truncate text-brand-gold font-mono">{currentUser.email}</p>
+        {/* If user is logged in as non-admin, show notice */}
+        {currentUser && !isAdmin && (
+          <div className="mb-6 p-4 rounded-2xl bg-white/5 border border-white/10 text-xs flex items-center justify-between">
+            <div>
+              <p className="text-[10px] uppercase text-gray-400 font-bold">Logged In Account</p>
+              <p className="text-brand-gold font-mono truncate max-w-[180px]">{currentUser.email}</p>
             </div>
-
-            <div className="space-y-2 text-center text-sans">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-300">ADMIN ACCOUNT ACTIVATION</p>
-              <p className="text-[11px] text-gray-400 leading-relaxed font-semibold italic">
-                Your account is not registered. To activate admin privileges, enter the secret invitation code:
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <input 
-                type="text"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="PROMO CODE"
-                className="w-full bg-black/45 border border-white/20 hover:border-white/40 focus:border-brand-gold focus:outline-none rounded-2xl px-5 py-4 text-center font-mono text-xs uppercase tracking-[0.2em] text-white font-black placeholder:text-white/30"
-              />
-
-              <button 
-                onClick={handleActivate}
-                disabled={isActivating || !code.trim()}
-                className="w-full bg-[#F8F9FD] text-brand-black py-5 text-[10px] uppercase tracking-widest font-black hover:bg-brand-gold hover:text-white transition-all shadow-xl active:scale-[0.98] disabled:opacity-50"
-              >
-                {isActivating ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="w-4 h-4 border-2 border-brand-black/30 border-t-brand-black rounded-full animate-spin" />
-                    <span>Verifying...</span>
-                  </span>
-                ) : (
-                  <span>Activate Access</span>
-                )}
-              </button>
-
-              <button 
-                onClick={handleSignOut}
-                type="button"
-                className="w-full bg-transparent border border-white/10 text-gray-400 hover:text-white hover:border-white/30 py-4 text-[9px] uppercase tracking-widest font-black transition-all"
-              >
-                Sign out
-              </button>
-            </div>
-          </div>
-        ) : !currentUser ? (
-          <div className="space-y-4">
-             <button 
-               onClick={handleQuickAdminLogin}
-               type="button"
-               disabled={isLoading}
-               className="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black py-4 px-4 rounded-xl text-xs uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-             >
-               <span>⚡ Direct CEO & Admin Sign In</span>
-             </button>
-
-             <div className="flex items-center my-3">
-               <div className="flex-1 border-t border-white/10" />
-               <span className="px-3 text-[10px] text-gray-400 uppercase font-bold">Or Email Login</span>
-               <div className="flex-1 border-t border-white/10" />
-             </div>
-
-             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="w-full bg-black/45 border border-white/20 rounded-2xl px-5 py-4 text-white text-sm" />
-             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" className="w-full bg-black/45 border border-white/20 rounded-2xl px-5 py-4 text-white text-sm" />
-             
-             <button 
-               onClick={() => {
-                 setEmail('eleganbd@gmail.com');
-                 setPassword('elegan@admin#bd');
-                 toast.success('Admin credentials filled!');
-               }}
-               type="button"
-               className="w-full bg-brand-gold/20 border border-brand-gold/40 text-brand-gold py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-brand-gold/30 transition-all"
-             >
-               🔑 Autofill eleganbd@gmail.com
-             </button>
-
-             <button onClick={handleEmailAuth} className="w-full bg-[#F8F9FD] text-brand-black py-4 text-[10px] uppercase tracking-widest font-black hover:bg-brand-gold hover:text-white transition-all shadow-xl">
-                 {isLoading ? 'Processing...' : mode === 'login' ? 'Sign In' : 'Sign Up'}
-             </button>
-             <button onClick={() => setMode(mode === 'login' ? 'signup' : 'login')} className="w-full text-gray-400 text-[10px] underline">
-                 {mode === 'login' ? 'Need an account? Sign Up' : 'Already have an account? Sign In'}
-             </button>
-             <div className="text-center text-white/50 text-xs py-1">OR</div>
-             <button 
-                onClick={handleLogin}
-                type="button"
-                className="w-full bg-[#F8F9FD]/10 border border-white/20 text-white py-4 text-[11px] uppercase tracking-widest font-bold hover:bg-white hover:text-black transition-all shadow-xl active:scale-[0.98]"
-              >
-                Sign in with Google
-              </button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <button 
-              onClick={handleQuickAdminLogin}
-              type="button"
-              className="w-full bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-black py-4 text-xs uppercase tracking-widest rounded-xl shadow-lg"
-            >
-              Enter Admin Dashboard as CEO
-            </button>
-            <button 
+            <button
               onClick={handleSignOut}
-              className="w-full bg-[#F8F9FD]/10 text-white py-3 text-[10px] uppercase font-bold tracking-widest rounded-xl hover:bg-white/20"
+              type="button"
+              className="text-[10px] text-red-400 hover:text-red-300 font-bold uppercase tracking-wider underline"
             >
-               Sign Out ({currentUser.email})
+              Sign Out
             </button>
           </div>
         )}
 
-        <div className="mt-12 pt-8 border-t border-gray-50 text-center">
-           <p className="text-[10px] uppercase tracking-widest text-gray-300">
-             Authorized Personnel Only<br/>
-             Ma Villa, House #11, Road #3, Block F, Section #1, Mirpur, Dhaka-1216
-           </p>
+        {/* Admin Login Form */}
+        <form onSubmit={handleAdminLogin} className="space-y-4" autoComplete="off">
+          {/* Email Input */}
+          <div>
+            <label
+              htmlFor="admin_email"
+              className="block text-[11px] uppercase tracking-widest text-gray-400 mb-1.5 font-bold"
+            >
+              Admin Email
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500">
+                <Mail size={16} />
+              </div>
+              <input
+                id="admin_email"
+                name="admin_login_email_field"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@eleganbd.com"
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck="false"
+                required
+                className="w-full bg-black/40 border border-white/15 focus:border-brand-gold rounded-2xl pl-11 pr-4 py-3.5 text-sm text-white placeholder:text-gray-500 outline-none transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Password Input */}
+          <div>
+            <label
+              htmlFor="admin_password"
+              className="block text-[11px] uppercase tracking-widest text-gray-400 mb-1.5 font-bold"
+            >
+              Password
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500">
+                <Lock size={16} />
+              </div>
+              <input
+                id="admin_password"
+                name="admin_login_password_field"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••••••"
+                autoComplete="new-password"
+                autoCapitalize="none"
+                spellCheck="false"
+                required
+                className="w-full bg-black/40 border border-white/15 focus:border-brand-gold rounded-2xl pl-11 pr-12 py-3.5 text-sm text-white placeholder:text-gray-500 outline-none transition-all font-mono"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-white transition-colors"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Submit Button */}
+          <div className="pt-2">
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-brand-gold hover:bg-amber-400 text-black py-4 rounded-2xl text-xs uppercase tracking-widest font-black transition-all shadow-xl active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>যাচাই করা হচ্ছে...</span>
+                </>
+              ) : (
+                <span>লগইন করুন (Admin Sign In)</span>
+              )}
+            </button>
+          </div>
+        </form>
+
+        {/* Footer info */}
+        <div className="mt-8 pt-6 border-t border-white/10 text-center">
+          <p className="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">
+            Authorized Personnel Only
+          </p>
+          <p className="text-[9px] text-gray-500 mt-1">
+            Elegan BD &bull; Mirpur, Dhaka
+          </p>
         </div>
       </motion.div>
     </div>

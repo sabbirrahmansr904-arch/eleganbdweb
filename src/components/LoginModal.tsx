@@ -24,6 +24,20 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     setLoading(true);
     try {
       const trimmedEmail = email.toLowerCase().trim();
+      const enteredPassword = password.trim();
+
+      if (trimmedEmail === 'admin@eleganbd.com') {
+        if (enteredPassword !== 'eleganbd2026@@##ssn') {
+          toast.error('ভুল পাসওয়ার্ড! সঠিক পাসওয়ার্ড ব্যবহার করুন।');
+          setLoading(false);
+          return;
+        }
+        await loginAsAdmin('admin@eleganbd.com', 'Admin (ELEGAN BD)');
+        toast.success('Admin signed in successfully!');
+        onClose();
+        return;
+      }
+
       await loginAsAdmin(trimmedEmail, 'User / Admin');
       toast.success('Signed in successfully!');
       onClose();
@@ -60,7 +74,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 Sign In to Elegan BD
               </h2>
 
-              <form onSubmit={handleEmailLogin} className="space-y-4">
+              <form onSubmit={handleEmailLogin} className="space-y-4" autoComplete="off">
                 <div>
                   <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-1 font-bold">Email</label>
                   <div className="relative">
@@ -70,6 +84,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="admin@eleganbd.com"
+                      autoComplete="off"
                       className="w-full bg-black/50 border border-white/20 rounded-xl py-3 pl-10 pr-4 text-white text-xs placeholder:text-white/30 outline-none focus:border-brand-gold"
                       required
                     />
@@ -85,24 +100,11 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••••••"
+                      autoComplete="new-password"
                       className="w-full bg-black/50 border border-white/20 rounded-xl py-3 pl-10 pr-4 text-white text-xs placeholder:text-white/30 outline-none focus:border-brand-gold"
                       required
                     />
                   </div>
-                </div>
-
-                <div className="flex gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEmail('admin@eleganbd.com');
-                      setPassword('elegan.bd2026@#ssn');
-                      toast.success('Admin credentials filled!');
-                    }}
-                    className="flex-1 bg-white/10 border border-white/20 text-white py-2 rounded-xl text-[9px] font-bold uppercase tracking-widest hover:bg-white/20 transition-all"
-                  >
-                    🔑 Autofill Admin
-                  </button>
                 </div>
 
                 <button

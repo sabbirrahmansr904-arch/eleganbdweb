@@ -416,7 +416,6 @@ export default function AdminLayout() {
         { name: 'Partnership', path: '/admin/partnership', icon: Handshake, perm: 'partnership' },
         { name: 'Transaction List', path: '/admin/transaction-list', icon: FileSpreadsheet, perm: 'transaction-list' },
         { name: 'Dollar Expense', path: '/admin/dollar-expenses', icon: Coins, perm: 'dollar-expense' },
-        { name: 'Pay Method', path: '/admin/settings?tab=Payments', icon: CreditCard, perm: 'payments' },
       ]
     },
     {
@@ -427,12 +426,6 @@ export default function AdminLayout() {
         { name: 'Notifications', path: '/admin/settings?tab=Notifications', icon: Bell, perm: 'notifications' },
         { name: 'Media', path: '/admin/media', icon: Images, perm: 'media' },
         { name: 'Supabase DB', path: '/admin/settings?tab=Supabase', icon: Database, perm: 'settings' },
-      ]
-    },
-    {
-      title: 'ACCESS',
-      items: [
-        { name: 'Admin Access', path: '/admin/settings?tab=Admin Access', icon: Lock, perm: 'admin-access' },
       ]
     }
   ];

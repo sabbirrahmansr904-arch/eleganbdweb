@@ -83,9 +83,7 @@ const AVAILABLE_MODULES = [
   { id: 'banners', name: 'Banners & Sliders', banglaName: 'ব্যানার্স' },
   { id: 'notifications', name: 'Notifications', banglaName: 'নোটিফিকেশনস' },
   { id: 'pathao', name: 'Pathao Courier', banglaName: 'পাঠাও কুরিয়ার' },
-  { id: 'payments', name: 'Payment Methods', banglaName: 'পেমেন্ট মেথড' },
-  { id: 'settings', name: 'System Settings', banglaName: 'সিস্টেম সেটিংস' },
-  { id: 'admin-access', name: 'Admin Access & Staff', banglaName: 'এডমিন এক্সেস' }
+  { id: 'settings', name: 'System Settings', banglaName: 'সিস্টেম সেটিংস' }
 ];
 
 const DEFAULT_DEPARTMENTS = [

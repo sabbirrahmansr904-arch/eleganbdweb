@@ -224,15 +224,13 @@ export default function AdminSettings() {
     { id: 'banners', name: 'Banners', banglaName: 'ব্যানার্স', desc: 'হিরো ব্যানার ও স্লাইডার ম্যানেজমেন্ট' },
     { id: 'notifications', name: 'Notifications', banglaName: 'নোটিফিকেশনস', desc: 'এসএমএস ও নোটিফিকেশন সেটিংস' },
     { id: 'pathao', name: 'Pathao Courier', banglaName: 'পাঠাও কুরিয়ার', desc: 'পাঠাও ডেলিভারি ও এপিআই সেটিংস' },
-    { id: 'payments', name: 'Pay Method', banglaName: 'পেমেন্ট মেথড', desc: 'বিকাশ, নগদ, কার্ড ও ক্যাশ অন ডেলিভারি' },
-    { id: 'admin-access', name: 'Admin Access', banglaName: 'অ্যাডমিন এক্সেস', desc: 'অ্যাডমিন রোল, পারমিশন ও নতুন এডমিন যোগ' },
   ];
 
   const departmentsList = [
     { id: 'CEO & Founder', name: 'CEO & Founder', desc: 'ফুল সিস্টেম এক্সেস ও সর্বোচ্চ নিয়ন্ত্রণ', defaultPerms: availableModules.map(m => m.id) },
     { id: 'Sales Executive Department', name: 'Sales Executive Department', desc: 'অর্ডার নেওয়া, ড্যাশবোর্ড দেখা ও কাস্টমার ম্যানেজমেন্ট', defaultPerms: ['dashboard', 'customer-profiler', 'orders', 'products', 'issues'] },
     { id: 'Delivery / Logistics Department', name: 'Delivery / Logistics Department', desc: 'অর্ডার প্রসেসিং, লেবেল প্রিন্ট ও পাথাও কুরিয়ার', defaultPerms: ['orders', 'master-table', 'inventory-log', 'pathao'] },
-    { id: 'Management / Admin Department', name: 'Management / Admin Department', desc: 'সম্পূর্ণ স্টোর অপারেশন, প্রোডাক্ট ইনভেন্টরি ও হিসাব-নিকাশ', defaultPerms: ['dashboard', 'customer-profiler', 'orders', 'categories', 'products', 'issues', 'master-table', 'inventory-log', 'finance', 'dollar-expense', 'settings', 'pathao', 'payments'] },
+    { id: 'Management / Admin Department', name: 'Management / Admin Department', desc: 'সম্পূর্ণ স্টোর অপারেশন, প্রোডাক্ট ইনভেন্টরি ও হিসাব-নিকাশ', defaultPerms: ['dashboard', 'customer-profiler', 'orders', 'categories', 'products', 'issues', 'master-table', 'inventory-log', 'finance', 'dollar-expense', 'settings', 'pathao'] },
     { id: 'Customer Support Department', name: 'Customer Support Department', desc: 'কাস্টমার কমপ্লেন ও অর্ডার ইস্যু সমাধান', defaultPerms: ['dashboard', 'orders', 'issues', 'customer-profiler'] }
   ];
   const [loadingAdmins, setLoadingAdmins] = useState(false);
