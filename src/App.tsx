@@ -42,6 +42,7 @@ import ProductList from './pages/ProductList';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import Reviews from './pages/Reviews';
+import Login from './pages/Login';
 import { MetaPixel } from './components/MetaPixel';
 
 // Admin Pages
@@ -98,7 +99,7 @@ const ProtectedRoute = ({ children, requireAdmin = true }: { children: React.Rea
     }
   } else {
     if (!currentUser && !customerUser) {
-      return <Navigate to="/" replace />;
+      return <Navigate to="/login" replace />;
     }
   }
 
@@ -130,6 +131,7 @@ function AppRoutes() {
         <Route path="/terms-conditions" element={<TermsConditions />} />
         
         {/* Customer Routes */}
+        <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={<ProtectedRoute requireAdmin={false}><CustomerDashboard /></ProtectedRoute>} />
 
         {/* Admin Auth */}

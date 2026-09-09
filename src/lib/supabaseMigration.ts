@@ -19,7 +19,7 @@ export async function syncOrdersToSupabase(ordersList?: any[]): Promise<{ synced
   let orders = ordersList;
   if (!orders || orders.length === 0) {
     try {
-      const raw = localStorage.getItem('eleganbd_orders');
+      const raw = localStorage.getItem('eleganbd_all_orders') || localStorage.getItem('eleganbd_orders');
       if (raw) orders = JSON.parse(raw);
     } catch {}
   }
@@ -174,7 +174,7 @@ export async function migrateFirestoreToSupabase(
       }
     }
 
-    const localOrders = localStorage.getItem('eleganbd_orders');
+    const localOrders = localStorage.getItem('eleganbd_all_orders') || localStorage.getItem('eleganbd_orders');
     if (localOrders) {
       const parsed = JSON.parse(localOrders);
       if (Array.isArray(parsed)) {

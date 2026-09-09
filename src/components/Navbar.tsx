@@ -14,7 +14,6 @@ import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
 import SearchOverlay from './SearchOverlay';
-import LoginModal from './LoginModal';
 
 import { useCart } from '../contexts/CartContext';
 
@@ -26,7 +25,6 @@ export default function Navbar() {
   const { currentUser, customerUser, logoutCustomer, isAdmin, signInWithGoogle, signOut } = useAuth();
   const { categories } = useCategories();
   const [isOpen, setIsOpen] = useState(false);
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -44,7 +42,6 @@ export default function Navbar() {
   useEffect(() => {
     setIsOpen(false);
     setIsSearchOpen(false);
-    setIsLoginOpen(false);
   }, [location]);
 
   const navLinks = [
@@ -66,7 +63,6 @@ export default function Navbar() {
 
   return (
     <>
-      <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
       {showAnnouncementBar && (
         <div className="bg-brand-gold text-black py-2 overflow-hidden whitespace-nowrap relative z-[60] border-b border-black/5">
           <motion.div
@@ -223,9 +219,9 @@ export default function Navbar() {
                 <User size={20} strokeWidth={1.8} />
               </button>
             ) : (
-              <button onClick={() => setIsLoginOpen(true)} className="p-2 text-gray-700 hover:text-black hover:bg-gray-100 rounded-full transition-colors cursor-pointer" title="Sign In">
+              <Link to="/login" className="p-2 text-gray-700 hover:text-black hover:bg-gray-100 rounded-full transition-colors cursor-pointer" title="Sign In">
                 <User size={20} strokeWidth={1.8} />
-              </button>
+              </Link>
             )}
 
             {/* Mobile Hamburger Menu Button on Right */}

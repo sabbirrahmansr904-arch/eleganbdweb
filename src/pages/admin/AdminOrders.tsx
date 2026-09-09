@@ -6,6 +6,7 @@ import InvoiceTemplate from '../../components/admin/InvoiceTemplate';
 import { ParcelLiveStatusBadge } from '../../components/admin/ParcelLiveStatusBadge';
 import { GoogleSheetImporterModal } from '../../components/admin/GoogleSheetImporterModal';
 import { PathaoSyncModal } from '../../components/admin/PathaoSyncModal';
+import CreateOrderModal from '../../components/admin/CreateOrderModal';
 import { useInvoiceByOptions } from '../../hooks/useInvoiceByOptions';
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
@@ -43,11 +44,14 @@ import {
   Edit3,
   Trash2,
   Clock,
-  Download
+  Download,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatPrice, cn } from '../../lib/utils';
-import { isDeliveredOrSuccess } from '../../utils/orderUtils';
+import { isDeliveredOrSuccess, compareOrdersByInvoice, formatInvoiceNumber } from '../../utils/orderUtils';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { useOrders } from '../../contexts/OrderContext';
 import { useProducts } from '../../contexts/ProductContext';
@@ -127,6 +131,8 @@ export default function AdminOrders(): React.JSX.Element {
   const [filterDelivery, setFilterDelivery] = useState('All');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [sortField, setSortField] = useState<'invoice' | 'date'>('invoice');
+  const [sortDirection, setSortDirection] = useState<'desc' | 'asc'>('desc');
   
   // Custom states matching screenshot behaviors
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -272,36 +278,18 @@ export default function AdminOrders(): React.JSX.Element {
   const [issueMetaType, setIssueMetaType] = useState('QC');
   const [issueMetaUrgency, setIssueMetaUrgency] = useState('Normal');
 
-  // Create Order Form State
-  const [newCustomerName, setNewCustomerName] = useState('');
-  const [newCustomerPhone, setNewCustomerPhone] = useState('');
-  const [lastAutofilledPhone, setLastAutofilledPhone] = useState('');
-  const [newCustomerAddress, setNewCustomerAddress] = useState('');
-  const [newCustomerCity, setNewCustomerCity] = useState('');
-  const [newCustomerThana, setNewCustomerThana] = useState('');
-  const [newProductId, setNewProductId] = useState('');
-  const [newSize, setNewSize] = useState('');
-  const [newQty, setNewQty] = useState(1);
-  const [newDeliveryCharge, setNewDeliveryCharge] = useState(0);
-  const [newPaymentMethod, setNewPaymentMethod] = useState<'cod' | 'bkash' | 'nagad' | 'card'>('cod');
+  // Editing and creating orders modal state
+  const [editingOrderForModal, setEditingOrderForModal] = useState<Order | null>(null);
 
-  // Advanced Create Order (Memo Invoice style) States
-  const [leftSearchVal, setLeftSearchVal] = useState('');
-  const [newCustomerEmail, setNewCustomerEmail] = useState('');
-  const [newDiscountAmount, setNewDiscountAmount] = useState(0);
-  const [newAdvancePayment, setNewAdvancePayment] = useState(0);
-  const [newAdvancePaymentMethod, setNewAdvancePaymentMethod] = useState<'Cash' | 'bKash' | 'Nagad' | ''>('');
-  const [newDeliveryPartner, setNewDeliveryPartner] = useState('');
-  const [newTrackingId, setNewTrackingId] = useState('');
-  const [newCourierCharge, setNewCourierCharge] = useState<number>(120);
+  const openOrderInCreateModal = (order: Order) => {
+    setEditingOrderForModal(order);
+    setSelectedOrder(null);
+    setShowCreateModal(true);
+  };
+
   const [editingTrackingOrderId, setEditingTrackingOrderId] = useState<string | null>(null);
   const [tempTrackingId, setTempTrackingId] = useState('');
-  const [newInternalNote, setNewInternalNote] = useState('');
-  const [newDeliveryDate, setNewDeliveryDate] = useState('');
-  const [newOrderDate, setNewOrderDate] = useState(new Date().toISOString().slice(0, 10));
-  const [newInvoiceNo, setNewInvoiceNo] = useState('');
   const { options: invoiceByOptions, addOption: addInvoiceByOption } = useInvoiceByOptions();
-  const [newInvoiceBy, setNewInvoiceBy] = useState<string>('Sabbir');
   const [showAddInvoiceByModal, setShowAddInvoiceByModal] = useState(false);
   const [customInvoiceByName, setCustomInvoiceByName] = useState('');
   const [addingForField, setAddingForField] = useState<'create' | 'edit'>('create');
@@ -317,9 +305,7 @@ export default function AdminOrders(): React.JSX.Element {
     const success = await addInvoiceByOption(trimmed);
     if (success) {
       toast.success(`"${trimmed}" has been added and published for all admins!`);
-      if (addingForField === 'create') {
-        setNewInvoiceBy(trimmed);
-      } else {
+      if (addingForField === 'edit') {
         setEditInvoiceBy(trimmed);
       }
       setCustomInvoiceByName('');
@@ -327,76 +313,6 @@ export default function AdminOrders(): React.JSX.Element {
     } else {
       toast.error('Failed to save name. Please try again.');
     }
-  };
-  const [newOrderItems, setNewOrderItems] = useState<Array<{
-    id: string;
-    product: any;
-    selectedSize: string;
-    quantity: number;
-    price: number;
-  }>>([]);
-
-  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
-
-  const resetCreateModalState = () => {
-    setEditingOrderId(null);
-    setNewCustomerName('');
-    setNewCustomerPhone('');
-    setNewCustomerAddress('');
-    setNewCustomerCity('');
-    setNewCustomerThana('');
-    setNewProductId('');
-    setNewSize('');
-    setNewQty(1);
-    setNewDeliveryCharge(0);
-    setNewCustomerEmail('');
-    setNewDiscountAmount(0);
-    setNewAdvancePayment(0);
-    setNewAdvancePaymentMethod('');
-    setNewDeliveryPartner('');
-    setNewTrackingId('');
-    setNewCourierCharge(120);
-    setNewInternalNote('');
-    setNewDeliveryDate('');
-    setNewOrderDate(new Date().toISOString().slice(0, 10));
-    setNewInvoiceNo('');
-    setNewOrderItems([]);
-    setShowCreateModal(false);
-  };
-
-  const openOrderInCreateModal = (order: Order) => {
-    setEditingOrderId(order.id);
-    setNewCustomerName(order.customerName || '');
-    setNewCustomerPhone(order.phone || '');
-    setNewCustomerAddress(order.address || '');
-    setNewCustomerCity(order.city || '');
-    setNewCustomerThana((order as any).thana || '');
-    setNewCustomerEmail(order.email || '');
-    setNewDeliveryCharge(order.deliveryCharge ?? 100);
-    setNewDiscountAmount((order as any).discount ?? 0);
-    setNewAdvancePayment((order as any).advancePayment ?? 0);
-    setNewDeliveryPartner(order.partner || order.courier || 'Pathao');
-    setNewTrackingId(order.trackingId || (order as any).pathaoConsignmentId || (order as any).trackingCode || '');
-    setNewCourierCharge(order.courierCharge ?? 120);
-    setNewInternalNote(order.notes || '');
-    setNewInvoiceBy((order.invoiceBy as any) || 'Sabbir');
-    setNewOrderDate(order.createdAt ? new Date(order.createdAt).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10));
-    setNewInvoiceNo(order.invoiceNo ? String(order.invoiceNo) : (order.id || ''));
-    
-    if (order.items && order.items.length > 0) {
-      setNewOrderItems(order.items.map((it, idx) => ({
-        id: `${it.id || idx}-${Date.now()}`,
-        product: it,
-        selectedSize: it.selectedSize || 'M',
-        quantity: it.quantity || 1,
-        price: it.price || 0
-      })));
-    } else {
-      setNewOrderItems([]);
-    }
-    
-    setSelectedOrder(null);
-    setShowCreateModal(true);
   };
 
   // Helper deterministic dispatcher name generator for the 'INVOICE BY' column matching screenshot names (or custom manual creations)
@@ -560,7 +476,17 @@ export default function AdminOrders(): React.JSX.Element {
 
       return true;
     });
-  }, [orders, filterStatus, searchQuery, filterIssue, filterPartner, filterCourier, filterCreator, filterDelivery, startDate, endDate, hasActiveIssue, getInvoiceBy]);
+
+    return list.sort((a, b) => {
+      if (sortField === 'invoice') {
+        return compareOrdersByInvoice(a, b, sortDirection);
+      } else {
+        const timeA = new Date(a.createdAt || 0).getTime() || (typeof a.updatedAt === 'number' ? a.updatedAt : 0) || 0;
+        const timeB = new Date(b.createdAt || 0).getTime() || (typeof b.updatedAt === 'number' ? b.updatedAt : 0) || 0;
+        return sortDirection === 'desc' ? timeB - timeA : timeA - timeB;
+      }
+    });
+  }, [orders, sortField, sortDirection, filterStatus, searchQuery, filterIssue, filterPartner, filterCourier, filterCreator, filterDelivery, startDate, endDate, hasActiveIssue, getInvoiceBy]);
 
   const uniquePartners = useMemo(() => {
     const set = new Set<string>();
@@ -1232,202 +1158,13 @@ export default function AdminOrders(): React.JSX.Element {
     }
   };
 
-  const matchedCustomerFromOrders = useMemo(() => {
-    if (newCustomerPhone.length < 5) return null;
-    const match = orders.find(o => o && o.phone && typeof o.phone === 'string' && o.phone.includes(newCustomerPhone));
-    if (match) {
-      return {
-        name: match.customerName,
-        email: match.email,
-        address: match.address,
-        city: match.city,
-        thana: (match as any).thana || ''
-      };
-    }
-    return null;
-  }, [orders, newCustomerPhone]);
-
-  const handleAutofillCustomer = () => {
-    if (matchedCustomerFromOrders) {
-       setNewCustomerName(matchedCustomerFromOrders.name);
-       setNewCustomerAddress(matchedCustomerFromOrders.address);
-       setNewCustomerCity(matchedCustomerFromOrders.city);
-       setNewCustomerThana(matchedCustomerFromOrders.thana || '');
-       if (matchedCustomerFromOrders.email && !matchedCustomerFromOrders.email.includes('@elegan.bd')) {
-         setNewCustomerEmail(matchedCustomerFromOrders.email);
-       }
-       toast.success(`Autofilled details for ${matchedCustomerFromOrders.name}!`);
-    }
-  };
-
-  // Automatic customer info populate when a phone number is entered that exists in orders history
-  useEffect(() => {
-    const cleanedInput = newCustomerPhone.trim();
-    if (cleanedInput.length < 11) return;
-    if (cleanedInput === lastAutofilledPhone) return;
-
-    // Find first order with exactly matching phone, or matching suffix/cleaned number
-    const match = orders.find(o => o.phone && o.phone.trim() === cleanedInput);
-    const finalMatch = match || orders.find(o => o.phone && o.phone.replace(/[^0-9]/g, '').endsWith(cleanedInput.replace(/[^0-9]/g, '')));
-
-    if (finalMatch) {
-      setNewCustomerName(finalMatch.customerName || '');
-      setNewCustomerAddress(finalMatch.address || '');
-      setNewCustomerCity(finalMatch.city || '');
-      setNewCustomerThana((finalMatch as any).thana || '');
-      if (finalMatch.email && !finalMatch.email.includes('@elegan.bd')) {
-        setNewCustomerEmail(finalMatch.email);
-      } else {
-        setNewCustomerEmail('');
-      }
-      setLastAutofilledPhone(cleanedInput);
-      toast.success(`Autofilled details for returning customer: ${finalMatch.customerName}!`, { id: 'autofill-toast' });
-    }
-  }, [newCustomerPhone, orders, lastAutofilledPhone]);
-
-  useEffect(() => {
-    if (newCustomerPhone.trim().length < 11) {
-      setLastAutofilledPhone('');
-    }
-  }, [newCustomerPhone]);
-
-  const matchedProductsForLeftSearch = useMemo(() => {
-    if (!leftSearchVal.trim()) return [];
-    const query = leftSearchVal.toLowerCase();
-    return products.filter(p => 
-      p.name.toLowerCase().includes(query) || 
-      (p.category && p.category.toLowerCase().includes(query)) ||
-      p.sizes.some(s => s.toLowerCase().includes(query)) ||
-      p.id.toLowerCase().includes(query)
-    );
-  }, [products, leftSearchVal]);
-
-  const handleAddProductToNewOrder = (product: any, size: string) => {
-    const existingIndex = newOrderItems.findIndex(item => item.product.id === product.id && item.selectedSize === size);
-    if (existingIndex > -1) {
-      const updated = [...newOrderItems];
-      updated[existingIndex].quantity += 1;
-      setNewOrderItems(updated);
+  const handleSaveOrderFromModal = async (orderData: Partial<Order>, isEdit: boolean, orderId?: string) => {
+    if (isEdit && orderId) {
+      await updateOrder(orderId, orderData);
     } else {
-      setNewOrderItems([
-        ...newOrderItems,
-        {
-          id: `${product.id}-${size}-${Date.now()}`,
-          product,
-          selectedSize: size,
-          quantity: 1,
-          price: product.price
-        }
-      ]);
-    }
-    toast.success(`Added ${product.name} (${size}) to Order Items`);
-  };
-
-  const handleCreateOrderSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCustomerName || !newCustomerPhone || !newCustomerAddress || !newCustomerCity) {
-      toast.error("Please fill in all customer details (Name, Phone, Address, Region/City)");
-      return;
-    }
-
-    if (newOrderItems.length === 0) {
-      toast.error("Please add at least one product item to create an order");
-      return;
-    }
-
-    const orderId = getNextOrderId();
-
-    const cartItems: CartItem[] = newOrderItems.map(item => ({
-      ...item.product,
-      selectedSize: item.selectedSize,
-      quantity: item.quantity,
-      price: item.price,
-      sku: item.product?.sku || (item.product?.id ? `EP ${item.product.id.slice(-3).toUpperCase()}` : 'EP 100')
-    }));
-
-    const subtotal = newOrderItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
-    const totalCollectable = subtotal + newDeliveryCharge - newDiscountAmount - newAdvancePayment;
-    const courierChargeToSave = newCourierCharge >= 0 ? newCourierCharge : 120;
-    const courierPayoutToSave = Math.max(0, totalCollectable - courierChargeToSave);
-
-    if (editingOrderId) {
-      const existingOrder = orders.find(o => o.id === editingOrderId);
-      const trackingToSave = newTrackingId || (existingOrder?.trackingId || '');
-      const updatedData: Partial<Order> = {
-        customerName: newCustomerName,
-        email: newCustomerEmail || '',
-        phone: newCustomerPhone,
-        address: newCustomerAddress,
-        city: newCustomerCity,
-        thana: newCustomerThana,
-        items: cartItems,
-        deliveryCharge: newDeliveryCharge,
-        total: totalCollectable,
-        notes: newInternalNote || '',
-        discount: newDiscountAmount,
-        advancePayment: newAdvancePayment,
-        invoiceBy: newInvoiceBy,
-        courier: newDeliveryPartner || 'Pathao',
-        partner: newDeliveryPartner || '',
-        trackingId: trackingToSave,
-        trackingCode: trackingToSave,
-        pathaoConsignmentId: (newDeliveryPartner === 'Pathao' || !newDeliveryPartner) ? (trackingToSave || existingOrder?.pathaoConsignmentId || '') : existingOrder?.pathaoConsignmentId,
-        courierCharge: courierChargeToSave,
-        courierPayoutAmount: courierPayoutToSave,
-        createdAt: newOrderDate ? new Date(newOrderDate + 'T12:00:00Z').toISOString() : (existingOrder?.createdAt || new Date().toISOString()),
-        invoiceNo: newInvoiceNo ? parseInt(newInvoiceNo, 10) : (existingOrder?.invoiceNo || undefined)
-      };
-
-      try {
-        await updateOrder(editingOrderId, updatedData);
-        toast.success(`Order #${editingOrderId.slice(-6)} updated successfully!`);
-        resetCreateModalState();
-      } catch (err: any) {
-        toast.error(`Update failed: ${err.message || 'Error occurred'}`);
-      }
-      return;
-    }
-
-    const newOrder: Order = {
-      id: newInvoiceNo ? String(newInvoiceNo) : orderId,
-      invoiceNo: newInvoiceNo ? parseInt(newInvoiceNo, 10) : undefined,
-      customerId: 'manual_admin',
-      customerName: newCustomerName,
-      email: newCustomerEmail || '',
-      phone: newCustomerPhone,
-      address: newCustomerAddress,
-      city: newCustomerCity,
-      thana: newCustomerThana,
-      items: cartItems,
-      deliveryCharge: newDeliveryCharge,
-      total: totalCollectable,
-      status: 'Pending',
-      paymentMethod: (newAdvancePaymentMethod.toLowerCase() as any) || 'cod',
-      createdAt: newOrderDate ? new Date(newOrderDate + 'T12:00:00Z').toISOString() : new Date().toISOString(),
-      notes: newInternalNote || '',
-      discount: newDiscountAmount,
-      advancePayment: newAdvancePayment,
-      invoiceBy: newInvoiceBy,
-      courier: newDeliveryPartner || 'Pathao',
-      partner: newDeliveryPartner || '',
-      trackingId: newTrackingId || '',
-      trackingCode: newTrackingId || '',
-      pathaoConsignmentId: (newDeliveryPartner === 'Pathao' || !newDeliveryPartner) ? (newTrackingId || '') : undefined,
-      courierCharge: courierChargeToSave,
-      courierPayoutAmount: courierPayoutToSave
-    };
-
-    try {
-      const created = await addOrder(newOrder);
-      toast.success(`Memo Order #${created?.id || orderId} created successfully!`);
-      resetCreateModalState();
-    } catch (err: any) {
-      console.error("Manual order creation failed:", err);
-      toast.error(`Failed to create manual order record: ${err?.message || err}`);
+      await addOrder(orderData as Order);
     }
   };
-
-  const selectedProductDetails = products.find(p => p.id === newProductId);
 
   // Status mapping labels and color setups
   const getStatusBadge = (status: Order['status']) => {
@@ -1683,7 +1420,7 @@ export default function AdminOrders(): React.JSX.Element {
 
           <button 
             onClick={() => {
-              resetCreateModalState();
+              setEditingOrderForModal(null);
               setShowCreateModal(true);
             }}
             className="px-4 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-sm flex items-center gap-2"
@@ -1832,6 +1569,26 @@ export default function AdminOrders(): React.JSX.Element {
             </select>
             <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none stroke-[2]" />
           </div>
+
+          {/* SORT BY INVOICE SERIAL / DATE */}
+          <div className="relative shrink-0">
+            <select
+              value={`${sortField}_${sortDirection}`}
+              onChange={(e) => {
+                const [f, d] = e.target.value.split('_') as ['invoice' | 'date', 'desc' | 'asc'];
+                setSortField(f);
+                setSortDirection(d);
+              }}
+              className="appearance-none bg-blue-50/80 hover:bg-blue-100/80 border border-blue-200 pl-2.5 pr-6 py-1.5 text-[10px] font-black tracking-wider uppercase rounded-xl text-blue-800 cursor-pointer focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/40 outline-none transition-all shadow-3xs"
+              title="Change list sorting"
+            >
+              <option value="invoice_desc">🔢 INVOICE: HIGH → LOW (SERIAL)</option>
+              <option value="invoice_asc">🔢 INVOICE: LOW → HIGH (SERIAL)</option>
+              <option value="date_desc">📅 DATE: NEWEST FIRST</option>
+              <option value="date_asc">📅 DATE: OLDEST FIRST</option>
+            </select>
+            <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-600 pointer-events-none stroke-[2.5]" />
+          </div>
         </div>
 
 
@@ -1857,7 +1614,7 @@ export default function AdminOrders(): React.JSX.Element {
                         }
                       }}
                     />
-                    <span className="font-bold text-slate-800">{order.invoiceNo || String(order.id || '').slice(-6)}</span>
+                    <span className="font-bold text-slate-800">#{formatInvoiceNumber(order)}</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 justify-end" onClick={(e) => e.stopPropagation()}>
                     <div className="relative inline-flex items-center">
@@ -1923,7 +1680,7 @@ export default function AdminOrders(): React.JSX.Element {
                       onClick={(e) => {
                         e.stopPropagation();
                         const orderId = order.id;
-                        const shortId = order.invoiceNo || orderId.slice(-6);
+                        const shortId = formatInvoiceNumber(order);
                         setDeleteConfirm({
                           isOpen: true,
                           title: `Delete Order #${shortId}?`,
@@ -1988,9 +1745,53 @@ export default function AdminOrders(): React.JSX.Element {
                     }}
                   />
                 </th>
-                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Date</th>
+                <th 
+                  className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap cursor-pointer hover:bg-slate-100/70 transition-colors select-none group"
+                  onClick={() => {
+                    if (sortField === 'date') {
+                      setSortDirection(prev => prev === 'desc' ? 'asc' : 'desc');
+                    } else {
+                      setSortField('date');
+                      setSortDirection('desc');
+                    }
+                  }}
+                  title="Click to sort by Date"
+                >
+                  <div className="flex items-center gap-1">
+                    <span>Date</span>
+                    <span className="text-slate-400 group-hover:text-slate-700">
+                      {sortField === 'date' ? (
+                        sortDirection === 'desc' ? <ArrowDown className="w-3 h-3 text-blue-600" /> : <ArrowUp className="w-3 h-3 text-blue-600" />
+                      ) : (
+                        <ArrowUpDown className="w-2.5 h-2.5 opacity-30" />
+                      )}
+                    </span>
+                  </div>
+                </th>
                 <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Time</th>
-                <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Invoice No</th>
+                <th 
+                  className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap cursor-pointer hover:bg-slate-100/70 transition-colors select-none group"
+                  onClick={() => {
+                    if (sortField === 'invoice') {
+                      setSortDirection(prev => prev === 'desc' ? 'asc' : 'desc');
+                    } else {
+                      setSortField('invoice');
+                      setSortDirection('desc');
+                    }
+                  }}
+                  title="Click to sort by Invoice Serial"
+                >
+                  <div className="flex items-center gap-1">
+                    <span>Invoice No</span>
+                    <span className="text-slate-400 group-hover:text-slate-700">
+                      {sortField === 'invoice' ? (
+                        sortDirection === 'desc' ? <ArrowDown className="w-3 h-3 text-blue-600" /> : <ArrowUp className="w-3 h-3 text-blue-600" />
+                      ) : (
+                        <ArrowUpDown className="w-2.5 h-2.5 opacity-30" />
+                      )}
+                    </span>
+                  </div>
+                </th>
                 <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Invoice By</th>
                 <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Status</th>
                 <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Courier</th>
@@ -2023,7 +1824,7 @@ export default function AdminOrders(): React.JSX.Element {
               ) : (
                 filteredOrders.slice(0, visibleCount).map((order) => {
                   const dateTime = formatOrderDateTime(order.createdAt);
-                  const cleanId = order.invoiceNo ? String(order.invoiceNo) : String(order.id || '').replace('ORD-', '').replace('#', '');
+                  const cleanId = formatInvoiceNumber(order);
                   const initial = order.customerName ? order.customerName.charAt(0).toUpperCase() : 'A';
                   const itemsSummary = order.items && order.items.length > 0
                     ? order.items.map(item => `${item.name}${item.selectedSize ? ` — Pant Size: ${item.selectedSize}` : ''}`).join(', ')
@@ -2415,7 +2216,7 @@ export default function AdminOrders(): React.JSX.Element {
                                     e.stopPropagation();
                                     
                                     const orderId = order.id;
-                                    const shortId = orderId.slice(-6);
+                                    const shortId = formatInvoiceNumber(order);
                                     
                                     setDeleteConfirm({
                                       isOpen: true,
@@ -2482,696 +2283,22 @@ export default function AdminOrders(): React.JSX.Element {
         )}
       </div>
 
-      {/* Creating manual orders Modal Dialog block */}
-      <AnimatePresence>
-        {showCreateModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={resetCreateModalState}
-              className="absolute inset-0 bg-black/60 backdrop-blur-xs"
-            />
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="relative z-10 bg-[#E6ECF4] rounded-[28px] w-full max-w-[1080px] h-[90vh] overflow-hidden shadow-[-10px_-10px_30px_rgba(255,255,255,0.95),10px_10px_30px_rgba(165,180,205,0.4)] border border-white/90 flex flex-col font-sans"
-            >
-              {/* Modal Title / Header bar */}
-              <div className="p-6 flex items-center justify-center bg-[#E6ECF4] border-b border-white/80 shrink-0 relative text-center">
-                <div className="flex flex-col items-center justify-center text-center">
-                  <h2 className="text-xl font-black text-slate-900 tracking-tight text-center">
-                    {editingOrderId ? `Order Details & Edit #${editingOrderId.slice(-6)}` : 'Create Order'}
-                  </h2>
-                  <p className="text-xs text-slate-500 font-bold mt-1 text-center">
-                    {editingOrderId ? 'View and modify order items, customer details, address, and logistics.' : 'Record precise transaction details and sync with inventory catalog.'}
-                  </p>
-                </div>
-                <button 
-                  onClick={resetCreateModalState}
-                  className="w-8 h-8 rounded-full bg-[#E2E8F2] border border-white/90 shadow-[-2px_-2px_5px_rgba(255,255,255,0.95),2px_2px_5px_rgba(165,180,205,0.35)] text-slate-500 hover:text-slate-800 flex items-center justify-center transition-all cursor-pointer absolute right-6 top-1/2 -translate-y-1/2"
-                >
-                  <XCircle size={18} />
-                </button>
-              </div>
-
-              {/* Split Screen Grid Layout */}
-              <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden bg-[#E6ECF4]">
-                
-                {/* LEFT COLUMN: IBL Search panel */}
-                <div className="lg:col-span-5 border-r border-white/80 p-6 flex flex-col bg-[#E6ECF4] overflow-y-auto no-scrollbar">
-                  
-                  <div className="flex items-center justify-between mb-3 shrink-0">
-                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#2563EB] flex items-center gap-1.5">
-                      <Scan size={12} className="stroke-[3]" /> IBL SEARCH
-                    </span>
-                    <span className="text-[9px] font-extrabold uppercase tracking-widest text-slate-400 font-mono">
-                      SCAN OR ENTER SKU
-                    </span>
-                  </div>
-
-                  {/* SKU/Barcode input box */}
-                  <div className="relative mb-5 shrink-0">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 stroke-[2.2]" />
-                    <input 
-                      type="text" 
-                      placeholder="Scan Barcode or Search SKU/Name..." 
-                      value={leftSearchVal}
-                      onChange={(e) => setLeftSearchVal(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 bg-[#E2E8F2] border border-white/90 text-[12px] font-semibold rounded-xl placeholder-slate-400 text-slate-800 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
-                    />
-                  </div>
-
-                  {/* Catalog list container */}
-                  <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 no-scrollbar text-left">
-                    {!leftSearchVal.trim() ? (
-                      <div className="py-20 text-center flex flex-col items-center justify-center">
-                        <Scan size={36} className="text-gray-300 mb-3 animate-pulse" />
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Search or scan code to add items</p>
-                        <p className="text-[10px] text-gray-400 mt-1 max-w-xs leading-relaxed text-center">
-                          Enter SKU, barcode, or product name in the search box above to view details, available sizes, and stock count.
-                        </p>
-                      </div>
-                    ) : matchedProductsForLeftSearch.length === 0 ? (
-                      <div className="py-12 text-center">
-                        <AlertCircle className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                        <p className="text-xs font-bold text-gray-400 uppercase">No products found matching "{leftSearchVal}"</p>
-                      </div>
-                    ) : (
-                      matchedProductsForLeftSearch.map(prod => (
-                        <div key={prod.id} className="p-3 border border-gray-150 rounded-2xl bg-[#FAFBFD]/50 hover:bg-[#FAFBFD] transition-all flex flex-col gap-2.5">
-                          <div className="flex gap-3">
-                            <img 
-                              src={(prod.images && prod.images[0]) || 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=100'} 
-                              alt={prod.name} 
-                              className="w-12 h-12 rounded-xl object-cover border border-gray-200 bg-[#F8F9FD]"
-                              referrerPolicy="no-referrer"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 font-mono">SKU: EP-{prod?.id ? prod.id.slice(-4).toUpperCase() : '0000'}</span>
-                              <p className="text-xs font-black text-[#0C1421] truncate mt-0.5" title={prod.name}>{prod.name}</p>
-                              <p className="text-xs font-black text-blue-600 font-mono mt-0.5">{formatPrice(prod.price, currency, rate)}</p>
-                            </div>
-                          </div>
-                          
-                          {/* Sizes selector pills to quickly add to memo */}
-                          <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-dashed border-gray-200">
-                            <span className="text-[9px] font-extrabold text-gray-400 uppercase mr-1">ADD SIZE:</span>
-                            {(prod.sizes || []).map(sz => {
-                              const stockQty = prod.sizeStock?.[sz] ?? 0;
-                              return (
-                                <button
-                                  key={sz}
-                                  type="button"
-                                  onClick={() => handleAddProductToNewOrder(prod, sz)}
-                                  className="px-2.5 py-1 bg-[#F8F9FD] hover:bg-blue-600 hover:text-white border border-gray-200 text-[10px] font-black uppercase rounded-lg transition-all active:scale-95 shadow-3xs flex items-center gap-1.5 cursor-pointer"
-                                >
-                                  <span>{sz}</span>
-                                  <span className={`text-[9px] font-extrabold ${stockQty <= 5 ? 'text-red-500 font-bold' : 'text-emerald-500 font-bold'}`}>
-                                    ({stockQty} pcs)
-                                  </span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-
-                </div>
-
-                {/* RIGHT COLUMN: Order details & Memo billing */}
-                <form 
-                  onSubmit={handleCreateOrderSubmit}
-                  className="lg:col-span-7 flex flex-col overflow-hidden h-full bg-[#E6ECF4]"
-                >
-                  
-                  {/* Scrollable inputs field wrapper */}
-                  <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar">
-                    
-                    {/* ORDER ITEMS */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">ORDER ITEMS (REQUIRED)</span>
-                        <span className="bg-[#E2E8F2] border border-white/90 text-[#2563EB] px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide font-mono shadow-[-2px_-2px_5px_rgba(255,255,255,0.95),2px_2px_5px_rgba(165,180,205,0.3)]">
-                          {newOrderItems.length} styles
-                        </span>
-                      </div>
-
-                      {newOrderItems.length === 0 ? (
-                        <div className="py-8 bg-[#E2E8F2] border border-white/90 rounded-2xl text-center flex items-center justify-center shadow-[inset_2px_2px_5px_rgba(160,175,195,0.25),inset_-2px_-2px_5px_rgba(255,255,255,0.9)]">
-                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                            Select products from the left catalog
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {newOrderItems.map(item => (
-                            <div key={item.id} className="p-3 bg-[#E6ECF4] border border-white/90 rounded-2xl flex items-center justify-between gap-4 shadow-[-4px_-4px_10px_rgba(255,255,255,0.95),4px_4px_10px_rgba(165,180,205,0.3)] transition-all">
-                              <div className="flex items-center gap-3 min-w-0 flex-1">
-                                <div className="flex-1 min-w-0 text-left">
-                                  <p className="text-xs font-black text-slate-900 truncate">
-                                    {item.product.name} ({item.selectedSize})
-                                  </p>
-                                  <p className="text-[10px] font-bold text-slate-500 font-mono mt-0.5">
-                                    SKU: EP-{item.product?.id ? item.product.id.slice(-4).toUpperCase() : '0000'}
-                                  </p>
-                                </div>
-                              </div>
-                              
-                              {/* Quantity custom field with visual multiplier */}
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <input 
-                                  type="number"
-                                  min={1}
-                                  value={item.quantity}
-                                  onChange={(e) => {
-                                    const val = parseInt(e.target.value) || 1;
-                                    setNewOrderItems(prev => prev.map(it => it.id === item.id ? { ...it, quantity: val } : it));
-                                  }}
-                                  className="w-12 text-center py-1 bg-[#E2E8F2] border border-white/80 text-xs font-black rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 shadow-[inset_1.5px_1.5px_3px_rgba(160,175,195,0.3),inset_-1.5px_-1.5px_3px_rgba(255,255,255,0.9)]"
-                                />
-                                <span className="text-xs font-black text-slate-400">×</span>
-                                
-                                {/* Editable custom price field, prefixed with ৳ */}
-                                <div className="relative">
-                                  <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">৳</span>
-                                  <input 
-                                    type="number"
-                                    min={0}
-                                    value={item.price}
-                                    onChange={(e) => {
-                                      const val = parseFloat(e.target.value) || 0;
-                                      setNewOrderItems(prev => prev.map(it => it.id === item.id ? { ...it, price: val } : it));
-                                    }}
-                                    className="w-20 pl-4 pr-1 text-center py-1 bg-[#E2E8F2] border border-white/80 text-xs font-black rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 shadow-[inset_1.5px_1.5px_3px_rgba(160,175,195,0.3),inset_-1.5px_-1.5px_3px_rgba(255,255,255,0.9)]"
-                                  />
-                                </div>
-
-                                {/* Delete item button */}
-                                <button
-                                  type="button"
-                                  onClick={() => setNewOrderItems(prev => prev.filter(it => it.id !== item.id))}
-                                  className="p-1 text-slate-400 hover:text-red-500 transition-colors ml-1"
-                                >
-                                  <X size={14} className="stroke-[2.5]" />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* CUSTOMER DETAILS SECTION */}
-                    <div className="space-y-4">
-                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block border-b border-slate-300/50 pb-1.5 text-left">
-                        CUSTOMER DETAILS
-                      </span>
-                      
-                      {/* Lookup phone number field with auto-fill pill indicator */}
-                      <div className="space-y-1 text-left">
-                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">PHONE NUMBER (LOOKUP)</label>
-                        <div className="relative">
-                          <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                          <input 
-                            type="tel" 
-                            placeholder="e.g., 017XXXXXXXX" 
-                            value={newCustomerPhone}
-                            onChange={(e) => setNewCustomerPhone(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
-                          />
-                        </div>
-                        
-                        {/* Autofill helper suggestion pill if existing user matches */}
-                        {matchedCustomerFromOrders && (
-                          <button
-                            type="button"
-                            onClick={handleAutofillCustomer}
-                            className="mt-1.5 w-full text-left bg-blue-50/70 hover:bg-blue-50 border border-blue-200/50 rounded-xl px-3 py-2 text-[10px] font-black text-blue-700 uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-3xs active:scale-99 cursor-pointer"
-                          >
-                            <CheckCircle2 size={12} className="text-blue-600 shrink-0" />
-                            <span>Found client: <span className="underline">{matchedCustomerFromOrders.name}</span> — Click to autofill address &amp; region</span>
-                          </button>
-                        )}
-
-                        {newCustomerPhone.trim().length >= 6 && !matchedCustomerFromOrders && (
-                          <div className="mt-1.5 w-full text-left bg-emerald-50/70 border border-emerald-200/50 rounded-xl px-3 py-2 text-[10px] font-black text-emerald-700 uppercase tracking-wider flex items-center gap-1.5 shadow-3xs">
-                            <Plus size={12} className="text-emerald-600 shrink-0" />
-                            <span>+ NEW PROFILE WILL BE CREATED</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Grid for Name and City/Region */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1 text-left">
-                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">FULL NAME</label>
-                          <div className="relative">
-                            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                            <input 
-                              type="text" 
-                              placeholder="e.g., John Doe" 
-                              value={newCustomerName}
-                              onChange={(e) => setNewCustomerName(e.target.value)}
-                              className="w-full pl-10 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-1 text-left">
-                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">DELIVERY REGION (REQUIRED)</label>
-                          <div className="relative">
-                            <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                            <select 
-                              value={newCustomerCity}
-                              onChange={(e) => {
-                                const region = e.target.value;
-                                  setNewCustomerCity(region);
-                                  // Dynamic region charge setting!
-                                  if (region === 'Inside Dhaka') {
-                                    setNewDeliveryCharge(80);
-                                  } else if (region === 'Sub Area') {
-                                    setNewDeliveryCharge(110);
-                                  } else if (region === 'Outside Dhaka') {
-                                    setNewDeliveryCharge(130);
-                                  } else if (region === 'Store Pickup') {
-                                    setNewDeliveryCharge(0);
-                                  }
-                              }}
-                              className="w-full pl-10 pr-8 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all appearance-none cursor-pointer shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
-                            >
-                              <option value="" disabled>Select Region</option>
-                              <option value="Inside Dhaka">Inside Dhaka</option>
-                              <option value="Sub Area">Sub Area</option>
-                              <option value="Outside Dhaka">Outside Dhaka</option>
-                              <option value="Store Pickup">Store Pickup</option>
-                            </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* EMAIL & ORDER DATE */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1 text-left">
-                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">EMAIL (OPTIONAL)</label>
-                          <div className="relative">
-                            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                            <input 
-                              type="email" 
-                              placeholder="e.g., john@example.com" 
-                              value={newCustomerEmail}
-                              onChange={(e) => setNewCustomerEmail(e.target.value)}
-                              className="w-full pl-10 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-1 text-left">
-                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">ORDER DATE (CREATE DATE)</label>
-                          <div className="relative">
-                            <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
-                            <input 
-                              type="date" 
-                              value={newOrderDate}
-                              onChange={(e) => setNewOrderDate(e.target.value)}
-                              className="w-full pl-10 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* SHIPPING ADDRESS & THANA FIELDS */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1 text-left">
-                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">SHIPPING ADDRESS</label>
-                          <div className="relative">
-                            <MapPin className="absolute left-3.5 top-3 text-slate-400 w-4 h-4" />
-                            <textarea 
-                              rows={2}
-                              placeholder="e.g., House 12, Road 4, Dhanmondi" 
-                              value={newCustomerAddress}
-                              onChange={(e) => setNewCustomerAddress(e.target.value)}
-                              className="w-full pl-10 pr-4 py-2 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all resize-none shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-1 text-left">
-                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">THANA / AREA</label>
-                          <div className="relative">
-                            <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                            <input 
-                              type="text" 
-                              placeholder="e.g., Savar" 
-                              value={newCustomerThana}
-                              onChange={(e) => setNewCustomerThana(e.target.value)}
-                              className="w-full pl-10 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* TRACKING INFO SECTION */}
-                    <div className="space-y-4">
-                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block border-b border-slate-300/50 pb-1.5 text-left">
-                        TRACKING INFO
-                      </span>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* DELIVERY PARTNER */}
-                        <div className="space-y-1 text-left">
-                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">DELIVERY PARTNER</label>
-                          <div className="relative">
-                            <Truck className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                            <select 
-                              value={newDeliveryPartner}
-                              onChange={(e) => setNewDeliveryPartner(e.target.value)}
-                              className="w-full pl-10 pr-8 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all appearance-none cursor-pointer shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
-                            >
-                              <option value="">Select Partner (Optional)</option>
-                              <option value="Pathao">Pathao</option>
-                              <option value="Steadfast">Steadfast</option>
-                              <option value="RedX">RedX</option>
-                              <option value="Paperfly">Paperfly</option>
-                            </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
-                          </div>
-                        </div>
-
-                        {/* INVOICE BY */}
-                        <div className="space-y-1 text-left">
-                          <div className="flex items-center justify-between">
-                            <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">INVOICE BY</label>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setAddingForField('create');
-                                setShowAddInvoiceByModal(true);
-                              }}
-                              className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 bg-[#E2E8F2] border border-white/80 px-2 py-0.5 rounded-lg transition-all cursor-pointer active:scale-95 shadow-[-2px_-2px_4px_rgba(255,255,255,0.95),2px_2px_4px_rgba(165,180,205,0.3)]"
-                              title="Add new name"
-                            >
-                              <Plus size={12} className="stroke-[3]" />
-                              <span>Add</span>
-                            </button>
-                          </div>
-                          <div className="relative">
-                            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                            <select 
-                              value={newInvoiceBy}
-                              onChange={(e) => setNewInvoiceBy(e.target.value)}
-                              className="w-full pl-10 pr-8 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all appearance-none cursor-pointer shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
-                            >
-                              {invoiceByOptions.map((opt) => (
-                                <option key={opt} value={opt}>{opt}</option>
-                              ))}
-                            </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* INVOICE NO */}
-                        <div className="space-y-1 text-left">
-                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">INVOICE NO (CUSTOM OR AUTO)</label>
-                          <div className="relative">
-                            <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                            <input 
-                              type="number" 
-                              placeholder="e.g., 1042 (Leave empty for auto)" 
-                              value={newInvoiceNo}
-                              onChange={(e) => setNewInvoiceNo(e.target.value)}
-                              className="w-full pl-10 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
-                            />
-                          </div>
-                        </div>
-
-                        {/* TRACKING ID */}
-                        <div className="space-y-1 text-left">
-                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">TRACKING ID</label>
-                          <div className="relative">
-                            <Tag className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                            <input 
-                              type="text" 
-                              placeholder="Tracking Number" 
-                              value={newTrackingId}
-                              onChange={(e) => setNewTrackingId(e.target.value)}
-                              className="w-full pl-10 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* DELIVERY DATE (OPTIONAL) */}
-                      <div className="space-y-1 text-left">
-                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">DELIVERY DATE (OPTIONAL)</label>
-                        <div className="relative">
-                          <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
-                          <input 
-                            type="date" 
-                            value={newDeliveryDate} 
-                            onChange={(e) => setNewDeliveryDate(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl outline-none focus:ring-2 focus:ring-[#2563EB]/20 transition-all cursor-pointer font-mono shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)] text-left text-slate-800"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* BILLING & PAYMENT SECTION */}
-                    <div className="space-y-4">
-                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block border-b border-slate-300/50 pb-1.5 text-left">
-                        BILLING &amp; PAYMENT
-                      </span>
-
-                      {/* BILLING & PAYMENT Grid */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1 text-left">
-                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">DELIVERY CHARGE (CUSTOMER)</label>
-                          <div className="relative">
-                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold font-mono">৳</span>
-                            <input 
-                              type="number" 
-                              min={0}
-                              value={newDeliveryCharge}
-                              onChange={(e) => setNewDeliveryCharge(parseFloat(e.target.value) || 0)}
-                              className="w-full pl-8 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)] font-mono text-slate-900"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-1 text-left">
-                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">DISCOUNT AMOUNT</label>
-                          <div className="relative">
-                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold font-mono">৳</span>
-                            <input 
-                              type="number" 
-                              min={0}
-                              value={newDiscountAmount}
-                              onChange={(e) => setNewDiscountAmount(parseFloat(e.target.value) || 0)}
-                              className="w-full pl-8 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)] font-mono text-slate-900"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-1 text-left">
-                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">ADVANCE PAYMENT</label>
-                          <div className="relative">
-                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold font-mono">৳</span>
-                            <input 
-                              type="number" 
-                              min={0}
-                              value={newAdvancePayment}
-                              onChange={(e) => setNewAdvancePayment(parseFloat(e.target.value) || 0)}
-                              className="w-full pl-8 pr-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)] font-mono text-slate-900"
-                            />
-                          </div>
-                        </div>
-
-
-
-                        {/* Orange computed Collectable card */}
-                        <div className="space-y-1 text-left">
-                          <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">COLLECTABLE AMOUNT</label>
-                          <div className="relative bg-[#FFF7ED] border border-[#FFEDD5] text-[#C2410C] rounded-xl px-4 py-2.5 flex items-center justify-between font-mono font-black text-xs h-[42px] shadow-3xs select-all">
-                            <span className="text-[#C2410C]/70">৳</span>
-                            <span>{newOrderItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0) + newDeliveryCharge - newDiscountAmount - newAdvancePayment}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* ADVANCE PAYMENT METHOD pills row */}
-                      <div className="space-y-1.5 text-left">
-                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">ADVANCE PAYMENT METHOD</label>
-                        <div className="flex items-center gap-2 flex-wrap md:flex-nowrap">
-                          {/* Cash Button */}
-                          <button
-                            type="button"
-                            onClick={() => setNewAdvancePaymentMethod('Cash')}
-                            className={cn(
-                              "flex-1 min-w-[100px] py-2 px-3 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-2.5 cursor-pointer active:scale-95",
-                              newAdvancePaymentMethod === 'Cash'
-                                ? "bg-[#E6F4EA] border-[#137333] text-[#137333] font-black"
-                                : "bg-[#F8F9FD] border-slate-200 text-slate-600 hover:text-black hover:border-slate-300"
-                            )}
-                          >
-                            <div className="w-12 h-12 rounded-xl bg-white shrink-0 border border-slate-200/80 flex items-center justify-center overflow-hidden relative shadow-3xs p-1">
-                              {paymentsConfig.codLogo ? (
-                                <img src={paymentsConfig.codLogo} alt="Cash" className="w-full h-full object-contain" />
-                              ) : (
-                                <span className="text-xl">💵</span>
-                              )}
-                            </div>
-                            <span>Cash</span>
-                          </button>
-
-                          {/* bKash Button */}
-                          <button
-                            type="button"
-                            onClick={() => setNewAdvancePaymentMethod('bKash')}
-                            className={cn(
-                              "flex-1 min-w-[100px] py-2.5 px-3.5 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-3 cursor-pointer active:scale-95",
-                              newAdvancePaymentMethod === 'bKash'
-                                ? "bg-[#FDF2F8] border-[#DB2777] text-[#DB2777] font-black"
-                                : "bg-[#F8F9FD] border-slate-200 text-slate-600 hover:text-black hover:border-slate-300"
-                            )}
-                          >
-                            <div className="w-12 h-12 rounded-xl bg-white shrink-0 border border-slate-200/80 flex items-center justify-center overflow-hidden relative shadow-3xs p-1">
-                              <img 
-                                src={paymentsConfig.bkashLogo || "https://upload.wikimedia.org/wikipedia/commons/7/7a/BKash_Logo.svg"} 
-                                alt="bKash" 
-                                className="w-full h-full object-contain scale-110"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = 'none';
-                                  const fb = e.currentTarget.parentElement?.querySelector('.fallback-bkash') as HTMLElement;
-                                  if (fb) fb.style.display = 'flex';
-                                }}
-                              />
-                              <div className="fallback-bkash hidden absolute inset-0 bg-[#D12053] items-center justify-center text-white text-[11px] font-black">bK</div>
-                            </div>
-                            <span>bKash</span>
-                          </button>
-
-                          {/* Nagad Button */}
-                          <button
-                            type="button"
-                            onClick={() => setNewAdvancePaymentMethod('Nagad')}
-                            className={cn(
-                              "flex-1 min-w-[100px] py-2.5 px-3.5 text-[11px] font-black uppercase rounded-xl transition-all border shadow-3xs flex items-center justify-center gap-3 cursor-pointer active:scale-95",
-                              newAdvancePaymentMethod === 'Nagad'
-                                ? "bg-[#FFF7ED] border-[#EA580C] text-[#EA580C] font-black"
-                                : "bg-[#F8F9FD] border-slate-200 text-slate-600 hover:text-black hover:border-slate-300"
-                            )}
-                          >
-                            <div className="w-12 h-12 rounded-xl bg-white shrink-0 border border-slate-200/80 flex items-center justify-center overflow-hidden relative shadow-3xs p-1">
-                              <img 
-                                src={paymentsConfig.nagadLogo || "https://upload.wikimedia.org/wikipedia/commons/1/1b/Nagad_logo.png"} 
-                                alt="Nagad" 
-                                className="w-full h-full object-contain scale-110"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = 'none';
-                                  const fb = e.currentTarget.parentElement?.querySelector('.fallback-nagad') as HTMLElement;
-                                  if (fb) fb.style.display = 'flex';
-                                }}
-                              />
-                              <div className="fallback-nagad hidden absolute inset-0 bg-[#F47216] items-center justify-center text-white text-[10px] font-black">Ng</div>
-                            </div>
-                            <span>Nagad</span>
-                          </button>
-                          
-                          <button
-                            type="button"
-                            onClick={() => setNewAdvancePaymentMethod('')}
-                            title="Clear selection"
-                            className="p-3 border border-slate-200 hover:border-slate-300 rounded-xl bg-[#F8F9FD] hover:bg-slate-50 transition-all text-slate-400 hover:text-black shrink-0 shadow-3xs active:scale-95 cursor-pointer"
-                          >
-                            <X size={14} className="stroke-[2.5]" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* INTERNAL NOTE */}
-                      <div className="space-y-1 text-left">
-                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 font-sans">INTERNAL NOTE (OPTIONAL)</label>
-                        <input 
-                          type="text" 
-                          placeholder="e.g., Call before delivery, handle with care..." 
-                          value={newInternalNote}
-                          onChange={(e) => setNewInternalNote(e.target.value)}
-                          className="w-full px-4 py-2.5 bg-[#E2E8F2] border border-white/80 text-[11px] font-semibold rounded-xl placeholder-slate-400 text-slate-900 focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all shadow-[inset_2px_2px_5px_rgba(160,175,195,0.3),inset_-2px_-2px_5px_rgba(255,255,255,0.95)]"
-                        />
-                      </div>
-                    </div>
-
-                  </div>
-
-                  {/* STICKY BOTTOM SUMMARY SECTION */}
-                  <div className="p-5 bg-[#E6ECF4] border-t border-white/80 shrink-0 text-left shadow-[-4px_-4px_12px_rgba(255,255,255,0.95)]">
-                    <div className="space-y-4">
-                      
-                      {/* Financial values mapping */}
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center text-[10px] font-extrabold text-[#64748B] uppercase tracking-widest">
-                          <span>SUBTOTAL</span>
-                          <span className="font-mono font-black text-slate-700">
-                            {formatPrice(newOrderItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0), currency, rate)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center text-[10px] font-extrabold text-[#10B981] uppercase tracking-widest">
-                          <span>ADVANCE PAYMENT (-)</span>
-                          <span className="font-mono font-black">
-                            {formatPrice(newAdvancePayment, currency, rate)}
-                          </span>
-                        </div>
-
-                        <div className="flex justify-between items-end pt-3 border-t border-dashed border-slate-300/60">
-                          <span className="text-[11px] font-black text-[#0F172A] uppercase tracking-widest leading-none">COLLECTABLE AMOUNT</span>
-                          <span className="text-3xl font-black text-slate-900 font-mono-numbers leading-none">
-                            {formatPrice(newOrderItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0) + newDeliveryCharge - newDiscountAmount - newAdvancePayment, currency, rate)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Submit action button */}
-                      <div className="space-y-2">
-                        <button 
-                          type="submit"
-                          disabled={!newCustomerName || !newCustomerPhone || !newCustomerAddress || !newCustomerCity || newOrderItems.length === 0}
-                          className={cn(
-                            "w-full py-4 uppercase font-black text-xs tracking-widest rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 active:scale-98",
-                            (!newCustomerName || !newCustomerPhone || !newCustomerAddress || !newCustomerCity || newOrderItems.length === 0)
-                              ? "bg-[#94A3B8] text-white cursor-not-allowed opacity-80"
-                              : "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-[-4px_-4px_10px_rgba(255,255,255,0.8),4px_4px_12px_rgba(37,99,235,0.3)] hover:shadow-blue-500/25"
-                          )}
-                        >
-                          <CheckCircle2 size={14} className="stroke-[3.5]" />
-                          <span>{editingOrderId ? `Update Order Record #${editingOrderId.slice(-6)}` : 'Initialize Order Row'}</span>
-                        </button>
-                        
-                        {/* Status notification when incomplete */}
-                        {(!newCustomerName || !newCustomerPhone || !newCustomerAddress || !newCustomerCity || newOrderItems.length === 0) && (
-                          <p className="text-[8.5px] font-black text-center tracking-widest text-[#2563EB] uppercase leading-relaxed animate-pulse">
-                            COMPLETE NAME, PHONE, ADDRESS &amp; ADD PRODUCTS TO PROCEED
-                          </p>
-                        )}
-                      </div>
-
-                    </div>
-                  </div>
-
-                </form>
-
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* High-Performance, Isolated Create & Edit Order Modal */}
+      <CreateOrderModal
+        isOpen={showCreateModal}
+        onClose={() => {
+          setShowCreateModal(false);
+          setEditingOrderForModal(null);
+        }}
+        editingOrder={editingOrderForModal}
+        orders={orders}
+        products={products}
+        currency={currency}
+        rate={rate}
+        paymentsConfig={paymentsConfig}
+        onSaveOrder={handleSaveOrderFromModal}
+        getNextOrderId={getNextOrderId}
+      />
 
       {/* Receipt Photo Capture Camera Simulation */}
       <AnimatePresence>

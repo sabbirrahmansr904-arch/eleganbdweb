@@ -4,7 +4,7 @@ import { supabase, orderToSupabaseRow, supabaseRowToOrder } from '../lib/supabas
 import { useAuth } from './AuthContext';
 import { useProducts } from './ProductContext';
 import { useInventory } from './InventoryContext';
-import { isDeliveredOrSuccess } from '../utils/orderUtils';
+import { isDeliveredOrSuccess, compareOrdersByInvoice } from '../utils/orderUtils';
 
 interface OrderContextType {
   orders: Order[];
@@ -28,11 +28,11 @@ const CACHE_KEY = 'eleganbd_all_orders';
 export const extractNumericId = (idStr: string | number | undefined): number | null => {
   if (!idStr) return null;
   const cleaned = String(idStr).replace(/[^0-9]/g, '');
-  if (cleaned.length >= 6) {
-    const num = parseInt(cleaned, 10);
-    if (!isNaN(num) && num >= BASE_ORDER_ID) {
-      return num;
-    }
+  if (!cleaned) return null;
+  const num = parseInt(cleaned, 10);
+  // Must be valid number, not an arbitrary epoch timestamp (> 10 billion)
+  if (!isNaN(num) && num < 10000000000) {
+    return num;
   }
   return null;
 };
@@ -127,11 +127,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         lastCounterRef.current = maxObservedId;
       }
 
-      valid.sort((a, b) => {
-        const timeA = new Date(a.createdAt || 0).getTime() || (typeof a.updatedAt === 'number' ? a.updatedAt : 0) || 0;
-        const timeB = new Date(b.createdAt || 0).getTime() || (typeof b.updatedAt === 'number' ? b.updatedAt : 0) || 0;
-        return timeB - timeA;
-      });
+      valid.sort((a, b) => compareOrdersByInvoice(a, b, 'desc'));
 
       setOrders(valid);
       try {
@@ -188,11 +184,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           lastCounterRef.current = maxObservedId;
         }
 
-        merged.sort((a, b) => {
-          const timeA = new Date(a.createdAt || 0).getTime() || (typeof a.updatedAt === 'number' ? a.updatedAt : 0) || 0;
-          const timeB = new Date(b.createdAt || 0).getTime() || (typeof b.updatedAt === 'number' ? b.updatedAt : 0) || 0;
-          return timeB - timeA;
-        });
+        merged.sort((a, b) => compareOrdersByInvoice(a, b, 'desc'));
 
         try {
           localStorage.setItem(CACHE_KEY, JSON.stringify(merged));
@@ -209,6 +201,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         let query = supabase
           .from('orders')
           .select('*')
+          .order('invoice_no', { ascending: false, nullsFirst: false })
           .order('created_at', { ascending: false });
           
         if (limitRecent) {
@@ -707,7 +700,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       // 1. Local State Update & Cache FIRST (Guaranteed Persistence & Display)
       setOrders(prev => {
         const filtered = prev.filter(o => o.id !== finalOrderId);
-        const next = [newOrder, ...filtered];
+        const next = [newOrder, ...filtered].sort((a, b) => compareOrdersByInvoice(a, b, 'desc'));
         try {
           localStorage.setItem(CACHE_KEY, JSON.stringify(next));
           if (currentUser) {
