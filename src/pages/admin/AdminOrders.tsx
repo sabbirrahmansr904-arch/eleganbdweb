@@ -145,7 +145,7 @@ export default function AdminOrders(): React.JSX.Element {
     setFilterDelivery('All');
     setStartDate('');
     setEndDate('');
-    setVisibleCount(500);
+    setVisibleCount(10);
   };
   const isAnyFilterActive = searchQuery.trim() !== '' || filterStatus !== 'All' || filterIssue !== 'All' || filterPartner !== 'All' || filterCourier !== 'All' || filterCreator !== 'All' || filterDelivery !== 'All' || startDate !== '' || endDate !== '';
   
@@ -186,8 +186,8 @@ export default function AdminOrders(): React.JSX.Element {
   const [cameraPermissionError, setCameraPermissionError] = useState<string | null>(null);
   const [isCameraScannerActive, setIsCameraScannerActive] = useState(false);
   
-  // Pagination State (Default to 500 so all orders are always visible immediately)
-  const [visibleCount, setVisibleCount] = useState(500);
+  // Pagination State (Show first 10 orders initially, then load more)
+  const [visibleCount, setVisibleCount] = useState(10);
   
   // Bulk Selection
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
@@ -252,8 +252,8 @@ export default function AdminOrders(): React.JSX.Element {
   });
 
   useEffect(() => {
-    setVisibleCount(prev => Math.max(prev, 500));
-  }, [searchQuery, filterStatus, filterIssue, filterPartner, filterCourier, filterCreator]);
+    setVisibleCount(10);
+  }, [searchQuery, filterStatus, filterIssue, filterPartner, filterCourier, filterCreator, filterDelivery, startDate, endDate]);
 
   useEffect(() => {
     const fetchPayments = async () => {
@@ -1860,12 +1860,18 @@ export default function AdminOrders(): React.JSX.Element {
               );
             })}
             {filteredOrders.length > visibleCount && (
-              <div className="pt-2 pb-1">
+              <div className="pt-2 pb-1 flex flex-col gap-2">
+                <button
+                  onClick={() => setVisibleCount(prev => prev + 10)}
+                  className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-98 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>More ({filteredOrders.length - visibleCount} Remaining)</span>
+                </button>
                 <button
                   onClick={() => setVisibleCount(filteredOrders.length)}
-                  className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 active:scale-98 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 active:scale-98 text-slate-700 font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <span>Show All {filteredOrders.length} Orders</span>
+                  <span>Show All ({filteredOrders.length})</span>
                 </button>
               </div>
             )}
