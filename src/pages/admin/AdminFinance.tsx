@@ -30,6 +30,7 @@ import {
   Eye,
   FileText,
   Check,
+  CheckCircle2,
   Clock,
   AlertCircle,
   Printer,
@@ -60,9 +61,9 @@ export default function AdminFinance(): React.JSX.Element {
   // Sonali Bank detection
   const sonaliAccount = useMemo(() => {
     return bankAccounts.find(a => 
-      a.bankName.toLowerCase().includes('sonali') || 
-      a.accountName.toLowerCase().includes('sonali') ||
-      a.bankName.includes('সোনালী')
+      (a?.bankName || '').toLowerCase().includes('sonali') || 
+      (a?.accountName || '').toLowerCase().includes('sonali') ||
+      (a?.bankName || '').includes('সোনালী')
     );
   }, [bankAccounts]);
 
@@ -91,7 +92,7 @@ export default function AdminFinance(): React.JSX.Element {
   const [txToDelete, setTxToDelete] = useState<any>(null);
   const [selectedTx, setSelectedTx] = useState<any>(null);
 
-  // New Transaction Form state (Defaults to UNPAID)
+  // New Transaction Form state (Defaults to PAID)
   const [txForm, setTxForm] = useState({
     accountId: '',
     type: 'deposit' as 'deposit' | 'withdraw' | 'transfer',
@@ -107,7 +108,7 @@ export default function AdminFinance(): React.JSX.Element {
     reference: '',
     notes: '',
     attachment: '',
-    status: 'unpaid' as 'unpaid' | 'paid'
+    status: 'paid' as 'unpaid' | 'paid'
   });
   const [isSubmittingTx, setIsSubmittingTx] = useState(false);
 
@@ -267,7 +268,7 @@ export default function AdminFinance(): React.JSX.Element {
         reference: txForm.reference || (txForm.type === 'deposit' ? 'Income / Deposit' : txForm.type === 'withdraw' ? 'Expense / Withdraw' : 'Account Transfer'),
         notes: txForm.notes,
         attachment: txForm.attachment,
-        status: txForm.status || 'unpaid' // Default is UNPAID as requested
+        status: txForm.status || 'paid'
       }, txForm.targetAccountId);
 
       setTxForm({
@@ -279,9 +280,9 @@ export default function AdminFinance(): React.JSX.Element {
         reference: '',
         notes: '',
         attachment: '',
-        status: 'unpaid'
+        status: 'paid'
       });
-      toast.success(txForm.status === 'unpaid' ? 'নতুন লেনদেন (UNPAID অবস্থায়) সংরক্ষণ করা হয়েছে!' : 'নতুন লেনদেন সফলভাবে সংরক্ষণ করা হয়েছে!');
+      toast.success(txForm.status === 'unpaid' ? 'নতুন লেনদেন (UNPAID অবস্থায়) সংরক্ষণ করা হয়েছে!' : 'নতুন লেনদেন সফলভাবে যোগ করা হয়েছে এবং ব্যালেন্স আপডেট হয়েছে!');
     } catch (err) {
       console.error(err);
       toast.error('লেনদেন সংরক্ষণ করতে সমস্যা হয়েছে।');
@@ -301,7 +302,7 @@ export default function AdminFinance(): React.JSX.Element {
       reference: '',
       notes: '',
       attachment: '',
-      status: 'unpaid'
+      status: 'paid'
     });
   };
 
@@ -656,11 +657,14 @@ export default function AdminFinance(): React.JSX.Element {
             </div>
           ) : (
             sortBankAccounts(bankAccounts).map((acc) => {
-              const isBkash = acc.bankName.toLowerCase().includes('bkash');
-              const isNagad = acc.bankName.toLowerCase().includes('nagad');
-              const isRocket = acc.bankName.toLowerCase().includes('rocket');
+              const bName = (acc?.bankName || '').toLowerCase();
+              const aName = (acc?.accountName || '').toLowerCase();
+              const aType = (acc?.accountType || '').toLowerCase();
+              const isBkash = bName.includes('bkash');
+              const isNagad = bName.includes('nagad');
+              const isRocket = bName.includes('rocket');
               const isUsd = isUsdAccount(acc);
-              const isProductAccount = (acc.accountType || '').toLowerCase().includes('product') || (acc.bankName || '').toLowerCase().includes('product') || (acc.accountName || '').toLowerCase().includes('product') || (acc.bankName || '').toLowerCase().includes('প্রোডাক্ট') || (acc.accountName || '').toLowerCase().includes('প্রোডাক্ট');
+              const isProductAccount = aType.includes('product') || bName.includes('product') || aName.includes('product') || bName.includes('প্রোডাক্ট') || aName.includes('প্রোডাক্ট');
               const isZeroBalance = (acc.balance || 0) === 0;
               const isSelected = accountFilter === acc.id;
 
@@ -845,11 +849,11 @@ export default function AdminFinance(): React.JSX.Element {
                 <PlusCircle className="w-4 h-4 text-[#4f46e5]" />
                 নতুন লেনদেন এন্ট্রি করুন
               </h3>
-              <p className="text-xs text-gray-400 mt-0.5 font-medium">ম্যানুয়ালি নতুন আয়, খরচ, ডিপোজিট অথবা ট্রান্সফার এন্ট্রি করুন (ডিফল্ট আনপেইড)</p>
+              <p className="text-xs text-gray-400 mt-0.5 font-medium">ম্যানুয়ালি নতুন আয়, খরচ, ডিপোজিট অথবা ট্রান্সফার এন্ট্রি করুন (ডিফল্ট পেইড)</p>
             </div>
-            <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl">
-              <Clock className="w-3.5 h-3.5 text-amber-600" />
-              <span className="text-[11px] font-bold text-amber-800">নতুন এন্ট্রি প্রথমে <strong>Unpaid</strong> থাকবে</span>
+            <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="text-[11px] font-bold text-emerald-800">Paid এন্ট্রি সাথে সাথে <strong>অ্যাকাউন্ট ব্যালেন্সে</strong> যোগ হবে</span>
             </div>
           </div>
 
@@ -932,8 +936,8 @@ export default function AdminFinance(): React.JSX.Element {
                   onChange={(e) => setTxForm({ ...txForm, status: e.target.value as 'unpaid' | 'paid' })}
                   className="w-full bg-[#F8F9FD] border border-gray-200 rounded-xl px-3 py-3 text-xs font-black text-gray-700 focus:border-indigo-300 focus:outline-none cursor-pointer"
                 >
+                  <option value="paid">✓ Paid (পরিশোধিত - অ্যাকাউন্টে যোগ হবে)</option>
                   <option value="unpaid">⏳ Unpaid (বকেয়া/অনিষ্পন্ন)</option>
-                  <option value="paid">✓ Paid (পরিশোধিত)</option>
                 </select>
               </div>
 

@@ -196,7 +196,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [isAdmin, authLoading]);
 
   const recalculateBalances = async (accounts: BankAccount[], transactions: BankTransaction[]) => {
-    for (const acc of accounts) {
+    const updatedAccounts = accounts.map(acc => {
       let currentBalance = acc.initialBalance || 0;
       transactions.forEach(tx => {
         if (tx.status === 'unpaid') return;
@@ -214,11 +214,21 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           currentBalance += tx.amount;
         }
       });
-      if (acc.balance !== currentBalance) {
-        const updatedAcc = { ...acc, balance: currentBalance };
-        await saveDocumentToSupabase('bank_accounts', acc.id, updatedAcc);
+      return { ...acc, balance: currentBalance };
+    });
+
+    const sorted = sortBankAccounts(updatedAccounts);
+    setBankAccounts(sorted);
+    try {
+      localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(sorted));
+    } catch {}
+
+    for (const acc of sorted) {
+      const orig = accounts.find(a => a.id === acc.id);
+      if (!orig || orig.balance !== acc.balance) {
+        await saveDocumentToSupabase('bank_accounts', acc.id, acc);
         try {
-          await updateDoc(doc(db, 'bank_accounts', acc.id), { balance: currentBalance });
+          await updateDoc(doc(db, 'bank_accounts', acc.id), { balance: acc.balance });
         } catch {}
       }
     }
@@ -226,7 +236,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const addBankAccount = async (account: Omit<BankAccount, 'id' | 'balance'>) => {
     const id = `acc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const newAcc: BankAccount = { ...account, id, balance: 0, initialBalance: 0 };
+    const initialBal = account.initialBalance || 0;
+    const newAcc: BankAccount = { ...account, id, balance: initialBal, initialBalance: initialBal };
 
     setBankAccounts(prev => {
       const sorted = sortBankAccounts([newAcc, ...prev]);
@@ -277,7 +288,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const newTx: BankTransaction = {
       ...tx,
       id,
-      status: tx.status || 'unpaid',
+      status: tx.status || 'paid',
       targetAccountId: targetAccountId || tx.targetAccountId || undefined,
       date: tx.date || Date.now()
     };
