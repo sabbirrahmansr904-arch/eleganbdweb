@@ -171,8 +171,8 @@ export default function AdminOrders(): React.JSX.Element {
   const [cameraPermissionError, setCameraPermissionError] = useState<string | null>(null);
   const [isCameraScannerActive, setIsCameraScannerActive] = useState(false);
   
-  // Pagination State (Show 15 orders initially inside the box container)
-  const [visibleCount, setVisibleCount] = useState(15);
+  // Pagination State (Show 10 orders initially inside the box container)
+  const [visibleCount, setVisibleCount] = useState(10);
   
   // Bulk Selection
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
@@ -235,6 +235,10 @@ export default function AdminOrders(): React.JSX.Element {
     rocketType: 'Personal',
     rocketLogo: ''
   });
+
+  useEffect(() => {
+    setVisibleCount(10);
+  }, [searchQuery, filterStatus, filterIssue, filterPartner, filterCourier, filterCreator]);
 
   useEffect(() => {
     const fetchPayments = async () => {
@@ -2267,7 +2271,7 @@ export default function AdminOrders(): React.JSX.Element {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setVisibleCount(prev => prev + 15);
+                setVisibleCount(prev => prev + 10);
               }}
               className="px-8 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center justify-center gap-2 active:scale-95"
             >
