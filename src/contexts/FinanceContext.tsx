@@ -120,23 +120,130 @@ export const sortBankAccounts = (accounts: BankAccount[]): BankAccount[] => {
   });
 };
 
+const DEFAULT_STARTER_ACCOUNTS: BankAccount[] = [
+  {
+    id: 'acc_cash_main',
+    bankName: 'ক্যাশ (Cash in Hand)',
+    accountName: 'প্রধান ক্যাশ অ্যাকাউন্ট',
+    accountNumber: 'CASH-01',
+    initialBalance: 0,
+    balance: 0,
+    accountType: 'cash',
+    currency: 'BDT'
+  },
+  {
+    id: 'acc_sonali_main',
+    bankName: 'সোনালী ব্যাংক (Sonali Bank)',
+    accountName: 'সোনালী ব্যাংক লিমিটেড',
+    accountNumber: '4400-0001',
+    initialBalance: 0,
+    balance: 0,
+    accountType: 'bank',
+    currency: 'BDT'
+  },
+  {
+    id: 'acc_bkash_main',
+    bankName: 'bKash (বিকাশ)',
+    accountName: 'বিকাশ মার্চেন্ট ওয়ালেট',
+    accountNumber: '01619835133',
+    initialBalance: 0,
+    balance: 0,
+    accountType: 'mobile',
+    currency: 'BDT'
+  }
+];
+
 export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(() => {
     try {
       const cached = localStorage.getItem('eleganbd_bank_accounts');
-      if (cached) return JSON.parse(cached);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch {}
-    return [];
+    return DEFAULT_STARTER_ACCOUNTS;
   });
+
   const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>(() => {
     try {
       const cached = localStorage.getItem('eleganbd_bank_transactions');
-      if (cached) return JSON.parse(cached);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) return parsed;
+      }
     } catch {}
     return [];
   });
+
   const [loading, setLoading] = useState(true);
   const { isAdmin, loading: authLoading } = useAuth();
+
+  // Helper function to calculate exact balance for all accounts based on paid transactions
+  const computeBalances = (accounts: BankAccount[], transactions: BankTransaction[]): BankAccount[] => {
+    const updated = accounts.map(acc => {
+      let currentBalance = acc.initialBalance || 0;
+      transactions.forEach(tx => {
+        if (tx.status === 'unpaid') return;
+
+        if (tx.accountId === acc.id) {
+          if (tx.type === 'deposit') {
+            currentBalance += tx.amount;
+          } else if (tx.type === 'withdraw' || tx.type === 'transfer') {
+            currentBalance -= tx.amount;
+          }
+        }
+        if (tx.targetAccountId === acc.id && tx.type === 'transfer') {
+          currentBalance += tx.amount;
+        }
+      });
+      return { ...acc, balance: currentBalance };
+    });
+    return sortBankAccounts(updated);
+  };
+
+  const recalculateBalances = async (accounts: BankAccount[], transactions: BankTransaction[]) => {
+    const sorted = computeBalances(accounts, transactions);
+    setBankAccounts(sorted);
+    try {
+      localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(sorted));
+    } catch {}
+
+    for (const acc of sorted) {
+      await saveDocumentToSupabase('bank_accounts', acc.id, acc);
+      try {
+        await setDoc(doc(db, 'bank_accounts', acc.id), acc, { merge: true });
+      } catch {}
+    }
+  };
+
+  // Defensive helper to merge accounts without losing existing ones
+  const mergeAccounts = (existing: BankAccount[], incoming: BankAccount[]): BankAccount[] => {
+    if (!incoming || incoming.length === 0) return existing;
+    const map = new Map<string, BankAccount>();
+    existing.forEach(a => { if (a && a.id) map.set(a.id, a); });
+    incoming.forEach(a => {
+      if (a && a.id) {
+        const prev = map.get(a.id);
+        map.set(a.id, { ...prev, ...a });
+      }
+    });
+    return Array.from(map.values());
+  };
+
+  // Defensive helper to merge transactions
+  const mergeTransactions = (existing: BankTransaction[], incoming: BankTransaction[]): BankTransaction[] => {
+    if (!incoming || incoming.length === 0) return existing;
+    const map = new Map<string, BankTransaction>();
+    existing.forEach(t => { if (t && t.id) map.set(t.id, t); });
+    incoming.forEach(t => {
+      if (t && t.id) {
+        const prev = map.get(t.id);
+        map.set(t.id, { ...prev, ...t });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => (b.date || 0) - (a.date || 0));
+  };
 
   useEffect(() => {
     if (authLoading) return;
@@ -150,15 +257,24 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       fetchDocumentsFromSupabase('bank_accounts'),
       fetchDocumentsFromSupabase('bank_transactions')
     ]).then(([accountsData, txData]) => {
+      let currentAccs = bankAccounts;
+      let currentTxs = bankTransactions;
+
       if (Array.isArray(accountsData) && accountsData.length > 0) {
-        const sorted = sortBankAccounts(accountsData);
-        setBankAccounts(sorted);
-        localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(sorted));
+        currentAccs = mergeAccounts(currentAccs, accountsData);
       }
       if (Array.isArray(txData) && txData.length > 0) {
-        setBankTransactions(txData);
-        localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(txData));
+        currentTxs = mergeTransactions(currentTxs, txData);
       }
+
+      const recalculated = computeBalances(currentAccs, currentTxs);
+      setBankAccounts(recalculated);
+      setBankTransactions(currentTxs);
+      try {
+        localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated));
+        localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(currentTxs));
+      } catch {}
+
       setLoading(false);
     }).catch(() => setLoading(false));
 
@@ -169,20 +285,31 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     try {
       const unsubAccounts = onSnapshot(collection(db, 'bank_accounts'), (snapshot) => {
-        const accounts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as BankAccount));
-        const sorted = sortBankAccounts(accounts);
-        setBankAccounts(sorted);
-        try {
-          localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(sorted));
-        } catch {}
+        if (snapshot.docs.length > 0) {
+          const incomingAccounts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as BankAccount));
+          setBankAccounts(prev => {
+            const merged = mergeAccounts(prev, incomingAccounts);
+            const recalculated = computeBalances(merged, bankTransactions);
+            try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
+            return recalculated;
+          });
+        }
       }, () => setLoading(false));
 
       const unsubTransactions = onSnapshot(query(collection(db, 'bank_transactions'), orderBy('date', 'desc')), (snapshot) => {
-        const transactions = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as BankTransaction));
-        setBankTransactions(transactions);
-        try {
-          localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(transactions));
-        } catch {}
+        if (snapshot.docs.length > 0) {
+          const incomingTxs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as BankTransaction));
+          setBankTransactions(prev => {
+            const merged = mergeTransactions(prev, incomingTxs);
+            try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(merged)); } catch {}
+            setBankAccounts(accs => {
+              const recalculated = computeBalances(accs, merged);
+              try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
+              return recalculated;
+            });
+            return merged;
+          });
+        }
         setLoading(false);
       }, () => setLoading(false));
 
@@ -194,45 +321,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setLoading(false);
     }
   }, [isAdmin, authLoading]);
-
-  const recalculateBalances = async (accounts: BankAccount[], transactions: BankTransaction[]) => {
-    const updatedAccounts = accounts.map(acc => {
-      let currentBalance = acc.initialBalance || 0;
-      transactions.forEach(tx => {
-        if (tx.status === 'unpaid') return;
-
-        if (tx.accountId === acc.id) {
-          if (tx.type === 'deposit') {
-            currentBalance += tx.amount;
-          } else if (tx.type === 'withdraw') {
-            currentBalance -= tx.amount;
-          } else if (tx.type === 'transfer') {
-            currentBalance -= tx.amount;
-          }
-        }
-        if (tx.targetAccountId === acc.id && tx.type === 'transfer') {
-          currentBalance += tx.amount;
-        }
-      });
-      return { ...acc, balance: currentBalance };
-    });
-
-    const sorted = sortBankAccounts(updatedAccounts);
-    setBankAccounts(sorted);
-    try {
-      localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(sorted));
-    } catch {}
-
-    for (const acc of sorted) {
-      const orig = accounts.find(a => a.id === acc.id);
-      if (!orig || orig.balance !== acc.balance) {
-        await saveDocumentToSupabase('bank_accounts', acc.id, acc);
-        try {
-          await updateDoc(doc(db, 'bank_accounts', acc.id), { balance: acc.balance });
-        } catch {}
-      }
-    }
-  };
 
   const addBankAccount = async (account: Omit<BankAccount, 'id' | 'balance'>) => {
     const id = `acc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;

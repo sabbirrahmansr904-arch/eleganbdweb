@@ -1498,6 +1498,7 @@ export default function AdminOrders(): React.JSX.Element {
               <option value="ORDER PLACED">ORDER PLACED</option>
               <option value="PRINTED">PRINTED</option>
               <option value="PREPARING">PREPARING</option>
+              <option value="Ready">READY TO SHIP</option>
               <option value="PICK UP CANCEL">PICK UP CANCEL</option>
               <option value="SHIPPED">SHIPPED</option>
               <option value="SUCCESS">SUCCESS</option>
@@ -1645,6 +1646,7 @@ export default function AdminOrders(): React.JSX.Element {
                             <option value="ORDER PLACED" className="bg-white text-slate-800 font-bold">ORDER PLACED</option>
                             <option value="PRINTED" className="bg-white text-slate-800 font-bold">PRINTED</option>
                             <option value="PREPARING" className="bg-white text-slate-800 font-bold">PREPARING</option>
+                            <option value="Ready" className="bg-white text-slate-800 font-bold">READY TO SHIP</option>
                             <option value="PICK UP CANCEL" className="bg-white text-slate-800 font-bold">PICK UP CANCEL</option>
                             <option value="SHIPPED" className="bg-white text-slate-800 font-bold">SHIPPED</option>
                             <option value="SUCCESS" className="bg-white text-slate-800 font-bold">SUCCESS</option>
@@ -1921,6 +1923,7 @@ export default function AdminOrders(): React.JSX.Element {
                                   <option value="ORDER PLACED" className="bg-white text-slate-800 font-bold py-1.5">ORDER PLACED</option>
                                   <option value="PRINTED" className="bg-white text-slate-800 font-bold py-1.5">PRINTED</option>
                                   <option value="PREPARING" className="bg-white text-slate-800 font-bold py-1.5">PREPARING</option>
+                                  <option value="Ready" className="bg-white text-slate-800 font-bold py-1.5">READY TO SHIP</option>
                                   <option value="PICK UP CANCEL" className="bg-white text-slate-800 font-bold py-1.5">PICK UP CANCEL</option>
                                   <option value="SHIPPED" className="bg-white text-slate-800 font-bold py-1.5">SHIPPED</option>
                                   <option value="SUCCESS" className="bg-white text-slate-800 font-bold py-1.5">SUCCESS</option>
@@ -3315,6 +3318,7 @@ export default function AdminOrders(): React.JSX.Element {
                             <option value="ORDER PLACED">ORDER PLACED</option>
                             <option value="PRINTED">PRINTED</option>
                             <option value="PREPARING">PREPARING</option>
+                            <option value="Ready">READY TO SHIP</option>
                             <option value="PICK UP CANCEL">PICK UP CANCEL</option>
                             <option value="SHIPPED">SHIPPED</option>
                             <option value="SUCCESS">SUCCESS</option>
@@ -3623,6 +3627,7 @@ export default function AdminOrders(): React.JSX.Element {
                                       <option value="ORDER PLACED" className="bg-white text-slate-800 font-bold">ORDER PLACED</option>
                                       <option value="PRINTED" className="bg-white text-slate-800 font-bold">PRINTED</option>
                                       <option value="PREPARING" className="bg-white text-slate-800 font-bold">PREPARING</option>
+                                      <option value="Ready" className="bg-white text-slate-800 font-bold">READY TO SHIP</option>
                                       <option value="PICK UP CANCEL" className="bg-white text-slate-800 font-bold">PICK UP CANCEL</option>
                                       <option value="SHIPPED" className="bg-white text-slate-800 font-bold">SHIPPED</option>
                                       <option value="SUCCESS" className="bg-white text-slate-800 font-bold">SUCCESS</option>

@@ -7,10 +7,22 @@ export const canChangeOrderStatus = (status?: string): boolean => {
     s === 'PRINTED' ||
     s === 'PREPARING' ||
     s === 'PROCESSING' ||
+    s === 'READY' ||
+    s === 'READY TO SHIP' ||
+    s === 'READY_TO_SHIP' ||
+    s === 'READY FOR SHIPMENT' ||
+    s === 'READY_FOR_SHIPMENT' ||
+    s === 'READY FOR PICKUP' ||
+    s === 'READY_FOR_PICKUP' ||
+    s === 'READY TO DELIVER' ||
+    s === 'READY_TO_DELIVER' ||
+    s === 'PACKED' ||
+    s === 'QC' ||
     s === 'PICK UP CANCEL' ||
     s === 'PICKUP CANCEL' ||
     s === 'PICKUP_CANCEL' ||
-    s === 'PICK_UP_CANCEL'
+    s === 'PICK_UP_CANCEL' ||
+    s.startsWith('READY')
   );
 };
 
