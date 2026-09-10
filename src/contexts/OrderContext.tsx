@@ -456,8 +456,10 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   };
 
   const handleStatusChangeStock = async (order: Order, newStatus: Order['status']) => {
-    const isOldRestored = order.status === 'Cancelled' || order.status === 'Returned';
-    const isNewRestored = newStatus === 'Cancelled' || newStatus === 'Returned';
+    // Only 'Cancelled' status automatically restores stock.
+    // 'Returned' status does NOT automatically restore stock (requires manual stock-in when product physically arrives).
+    const isOldRestored = order.status === 'Cancelled';
+    const isNewRestored = newStatus === 'Cancelled';
 
     if (!isOldRestored && isNewRestored) {
       await restoreOrderStock(order);

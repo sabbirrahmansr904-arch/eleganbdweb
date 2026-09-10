@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useInventory } from '../../contexts/InventoryContext';
+import { useOrders } from '../../contexts/OrderContext';
+import { StockTransaction } from '../../types';
 import { cn } from '../../lib/utils';
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
@@ -29,7 +31,8 @@ import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
 export default function AdminInventoryLog() {
-  const { transactions = [], loading, deleteTransaction } = useInventory();
+  const { transactions = [], loading: invLoading, deleteTransaction } = useInventory();
+  const { orders = [], loading: ordersLoading } = useOrders();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -41,11 +44,80 @@ export default function AdminInventoryLog() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState<number>(10);
 
+  const loading = invLoading && ordersLoading;
+
   useEffect(() => {
     if (skuParam) {
       setSearchQuery(skuParam);
     }
   }, [skuParam]);
+
+  // Combine manual inventory transactions with order-based transactions in real-time
+  const combinedTransactions = useMemo(() => {
+    const list: StockTransaction[] = [...transactions];
+    const existingIds = new Set(transactions.map(t => t.id));
+    const existingNotes = new Set(transactions.map(t => (t.notes || '').trim().toLowerCase()));
+
+    if (Array.isArray(orders)) {
+      orders.forEach(order => {
+        if (!order) return;
+        const invoiceLabel = order.invoiceNo ? `#${order.invoiceNo}` : `#${order.id}`;
+        const mainNoteLower = `order ${invoiceLabel}`.toLowerCase();
+
+        const dateStr = order.createdAt || order.created_at || order.date;
+        let baseTime = dateStr ? new Date(dateStr).getTime() : Date.now();
+        if (isNaN(baseTime)) baseTime = Date.now();
+
+        const items = Array.isArray(order.items) && order.items.length > 0 ? order.items : [];
+        items.forEach((item, idx) => {
+          if (!item) return;
+          const qty = Number(item.quantity) || 1;
+          const sz = item.selectedSize || item.size || 'Free Size';
+          const sku = item.sku || item.id || 'N/A';
+          const pName = item.name || item.productName || 'Apparel Item';
+          const txId = `ord_tx_out_${order.id}_${sku}_${sz}_${idx}`;
+
+          if (!existingIds.has(txId) && !existingNotes.has(mainNoteLower)) {
+            list.push({
+              id: txId,
+              type: 'out',
+              sku,
+              productName: pName,
+              quantities: { [sz]: qty },
+              totalQuantity: qty,
+              timestamp: baseTime,
+              category: item.category || order.category || 'General',
+              authorizedBy: order.invoiceBy || 'Website',
+              notes: `Order ${invoiceLabel}`
+            });
+          }
+
+          if (order.status === 'Cancelled') {
+            const restoreTxId = `ord_tx_in_${order.id}_${sku}_${sz}_${idx}`;
+            const restoreNoteLower = `restored: order ${invoiceLabel} (cancelled)`.toLowerCase();
+
+            if (!existingIds.has(restoreTxId) && !existingNotes.has(restoreNoteLower)) {
+              const restoreTime = order.updatedAt ? new Date(order.updatedAt).getTime() : baseTime + 1000;
+              list.push({
+                id: restoreTxId,
+                type: 'in',
+                sku,
+                productName: pName,
+                quantities: { [sz]: qty },
+                totalQuantity: qty,
+                timestamp: isNaN(restoreTime) ? baseTime + 1000 : restoreTime,
+                category: item.category || order.category || 'General',
+                authorizedBy: order.invoiceBy || 'Website',
+                notes: `Restored: Order ${invoiceLabel} (Cancelled)`
+              });
+            }
+          }
+        });
+      });
+    }
+
+    return list.sort((a, b) => (Number(b.timestamp) || 0) - (Number(a.timestamp) || 0));
+  }, [transactions, orders]);
 
   // Always reset to initial 10 items when filters change
   useEffect(() => {
@@ -53,7 +125,7 @@ export default function AdminInventoryLog() {
   }, [searchQuery, selectedType]);
 
   const filteredTransactions = useMemo(() => {
-    return transactions.filter(t => {
+    return combinedTransactions.filter(t => {
       const authorizedBy = t.authorizedBy || 'System';
       const notes = t.notes || '';
       const query = searchQuery.trim().toLowerCase();
@@ -67,7 +139,7 @@ export default function AdminInventoryLog() {
       const matchesType = selectedType === 'all' || t.type === selectedType;
       return matchesSearch && matchesType;
     });
-  }, [transactions, searchQuery, selectedType]);
+  }, [combinedTransactions, searchQuery, selectedType]);
 
   // Display only up to visibleCount (default 10)
   const displayedTransactions = useMemo(() => {
@@ -75,16 +147,16 @@ export default function AdminInventoryLog() {
   }, [filteredTransactions, visibleCount]);
 
   const totalIn = useMemo(() => {
-    return transactions
+    return combinedTransactions
       .filter(t => t.type === 'in')
       .reduce((acc, t) => acc + (t.totalQuantity || 0), 0);
-  }, [transactions]);
+  }, [combinedTransactions]);
   
   const totalOut = useMemo(() => {
-    return transactions
+    return combinedTransactions
       .filter(t => t.type === 'out')
       .reduce((acc, t) => acc + (t.totalQuantity || 0), 0);
-  }, [transactions]);
+  }, [combinedTransactions]);
 
   const handleExportExcel = () => {
     if (filteredTransactions.length === 0) {
