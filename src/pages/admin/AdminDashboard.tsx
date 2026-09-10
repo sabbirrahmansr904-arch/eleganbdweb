@@ -47,7 +47,7 @@ export default function AdminDashboard(): React.JSX.Element {
   const [isExporting, setIsExporting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [timeRange, setTimeRange] = useState<'Monthly' | 'Yearly'>('Monthly');
-  const [reportPeriod, setReportPeriod] = useState<'12 MONTHS' | '6 MONTHS' | '30 DAYS' | '7 DAYS'>('12 MONTHS');
+  const [reportPeriod, setReportPeriod] = useState<'12 MONTHS' | '6 MONTHS' | '30 DAYS' | '7 DAYS'>('7 DAYS');
 
   // Dashboard Recent Orders Pagination & Show All State
   const [dashboardPage, setDashboardPage] = useState(1);
