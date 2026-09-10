@@ -1048,105 +1048,192 @@ async function startServer() {
         return res.status(400).json({ success: false, error: "Pathao Store ID is missing in Admin Settings" });
       }
 
-      // Step 2: Format phone number (must be 11 digits starting with 01)
-      let phone = (order.phone || '').replace(/[^0-9]/g, '');
-      if (phone.startsWith('880')) phone = phone.slice(2);
-      if (!phone.startsWith('0') && phone.length === 10) phone = '0' + phone;
+      // Step 1: Format phone number (must be 11 digits starting with 01)
+      let rawPhone = String(order.phone || order.recipient_phone || order.customerPhone || '').replace(/[^0-9]/g, '');
+      if (rawPhone.startsWith('880')) {
+        rawPhone = rawPhone.slice(3);
+      } else if (rawPhone.startsWith('88')) {
+        rawPhone = rawPhone.slice(2);
+      }
+      if (!rawPhone.startsWith('0')) {
+        rawPhone = '0' + rawPhone;
+      }
+      if (rawPhone.length > 11 && rawPhone.startsWith('01')) {
+        rawPhone = rawPhone.slice(0, 11);
+      }
+      const phone = rawPhone;
 
-      // Format recipient address (must be at least 10 characters)
-      let address = `${order.address || ''}${order.thana ? `, ${order.thana}` : ''}${order.city ? `, ${order.city}` : ''}`.trim();
-      if (address.length < 10) {
-        address = (address + ', Bangladesh').trim();
+      // Step 2: Format recipient address (must be at least 10 characters)
+      let rawAddress = String(order.address || order.recipient_address || '').trim();
+      const thanaStr = String(order.thana || order.zone || '').trim();
+      const cityStr = String(order.city || '').trim();
+
+      let addressParts = [rawAddress];
+      if (thanaStr && !rawAddress.toLowerCase().includes(thanaStr.toLowerCase())) {
+        addressParts.push(thanaStr);
+      }
+      if (cityStr && !rawAddress.toLowerCase().includes(cityStr.toLowerCase())) {
+        addressParts.push(cityStr);
+      }
+      let fullAddress = addressParts.filter(Boolean).join(', ').trim();
+      if (fullAddress.length < 10) {
+        fullAddress = `${fullAddress}, Bangladesh`.trim();
+      }
+      if (fullAddress.length < 10) {
+        fullAddress = `House 0, Road 0, ${fullAddress}`.trim();
       }
 
-      // Resolve City ID & Zone ID
+      // Step 3: Resolve City ID & Zone ID safely
       let finalCityId = Number(order.cityId);
       let finalZoneId = Number(order.zoneId);
 
-      // If cityId or zoneId is not numeric or 0, attempt auto-resolution from Pathao API
-      if (!finalCityId || !finalZoneId || isNaN(finalCityId) || isNaN(finalZoneId)) {
+      // Fetch cities if needed
+      let cities = cachedPathaoCities;
+      if (!cities || cities.length === 0) {
         try {
-          // Fetch cities if needed
-          let cities = cachedPathaoCities;
-          if (!cities || cities.length === 0) {
-            const cityRes = await fetch(`${apiBase}/aladdin/api/v1/countries/1/city-list`, {
-              headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
-            });
-            const cData: any = await cityRes.json();
-            cities = cData?.data?.data || cData?.data || [];
+          const cityRes = await fetch(`${apiBase}/aladdin/api/v1/countries/1/city-list`, {
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
+          });
+          const cData: any = await cityRes.json();
+          cities = cData?.data?.data || cData?.data || [];
+          if (Array.isArray(cities) && cities.length > 0) {
             cachedPathaoCities = cities;
           }
+        } catch (_cErr) {
+          cities = [];
+        }
+      }
 
-          const targetCityName = (order.city || '').trim().toLowerCase();
-          const matchedCity = (cities || []).find((c: any) => 
-            c.city_name?.toLowerCase() === targetCityName ||
-            c.city_name?.toLowerCase().includes(targetCityName) ||
-            targetCityName.includes(c.city_name?.toLowerCase())
-          );
+      const inputCity = String(order.city || '').trim();
+      const inputThana = String(order.thana || order.zone || '').trim();
+      const inputAddress = String(order.address || '').trim();
+
+      if (!finalCityId || isNaN(finalCityId)) {
+        if (inputCity.toLowerCase().includes('inside dhaka') || inputCity.toLowerCase() === 'dhaka') {
+          const dhakaCity = (cities || []).find((c: any) => (c.city_name || '').toLowerCase() === 'dhaka');
+          if (dhakaCity) finalCityId = dhakaCity.city_id;
+        } else {
+          let matchedCity = (cities || []).find((c: any) => {
+            const cName = (c.city_name || '').toLowerCase();
+            if (!cName) return false;
+            return inputCity.toLowerCase() === cName ||
+                   inputThana.toLowerCase() === cName ||
+                   inputAddress.toLowerCase().includes(cName);
+          });
 
           if (matchedCity) {
             finalCityId = matchedCity.city_id;
           } else {
-            finalCityId = Number(creds.defaultCityId || 1);
+            const dhakaCity = (cities || []).find((c: any) => (c.city_name || '').toLowerCase() === 'dhaka');
+            finalCityId = dhakaCity ? dhakaCity.city_id : 1;
           }
-
-          // Fetch zones for matched city
-          let zones = cachedPathaoZones[finalCityId];
-          if (!zones || zones.length === 0) {
-            const zoneRes = await fetch(`${apiBase}/aladdin/api/v1/cities/${finalCityId}/zone-list`, {
-              headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
-            });
-            const zData: any = await zoneRes.json();
-            zones = zData?.data?.data || zData?.data || [];
-            cachedPathaoZones[finalCityId] = zones;
-          }
-
-          const targetZoneName = (order.thana || order.zone || '').trim().toLowerCase();
-          const matchedZone = (zones || []).find((z: any) => 
-            z.zone_name?.toLowerCase() === targetZoneName ||
-            z.zone_name?.toLowerCase().includes(targetZoneName) ||
-            targetZoneName.includes(z.zone_name?.toLowerCase())
-          );
-
-          if (matchedZone) {
-            finalZoneId = matchedZone.zone_id;
-          } else if (zones && zones.length > 0) {
-            finalZoneId = zones[0].zone_id;
-          } else {
-            finalZoneId = Number(creds.defaultZoneId || 1);
-          }
-        } catch (resolveErr) {
-          console.warn("Pathao location resolution fallback:", resolveErr);
-          if (!finalCityId) finalCityId = Number(creds.defaultCityId || 1);
-          if (!finalZoneId) finalZoneId = Number(creds.defaultZoneId || 1);
         }
       }
 
+      if (!finalCityId || isNaN(finalCityId)) finalCityId = 1;
+
+      // Fetch zones for finalCityId
+      let zones = cachedPathaoZones[finalCityId];
+      if (!zones || zones.length === 0) {
+        try {
+          const zoneRes = await fetch(`${apiBase}/aladdin/api/v1/cities/${finalCityId}/zone-list`, {
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/json' }
+          });
+          const zData: any = await zoneRes.json();
+          zones = zData?.data?.data || zData?.data || [];
+          if (Array.isArray(zones) && zones.length > 0) {
+            cachedPathaoZones[finalCityId] = zones;
+          }
+        } catch (_zErr) {
+          zones = [];
+        }
+      }
+
+      // Verify finalZoneId belongs to valid zone list for this city
+      const validZoneIds = new Set((zones || []).map((z: any) => z.zone_id));
+      if (!finalZoneId || isNaN(finalZoneId) || !validZoneIds.has(finalZoneId)) {
+        const searchTarget = `${inputThana} ${inputAddress}`.toLowerCase();
+        let matchedZone = (zones || []).find((z: any) => {
+          const zName = (z.zone_name || '').toLowerCase();
+          if (!zName) return false;
+          return searchTarget.includes(zName) || zName.includes(inputThana.toLowerCase());
+        });
+
+        if (matchedZone) {
+          finalZoneId = matchedZone.zone_id;
+        } else if (zones && zones.length > 0) {
+          finalZoneId = zones[0].zone_id;
+        } else {
+          finalZoneId = 171;
+        }
+      }
+
+      // Step 4: Calculate amount to collect & item details & sanitize fields
+      let recipientName = String(order.customerName || order.recipient_name || order.name || 'Customer').trim();
+      if (!recipientName) {
+        recipientName = 'Valued Customer';
+      } else if (recipientName.length < 3) {
+        recipientName = `${recipientName} Customer`;
+      }
+      if (recipientName.length > 64) {
+        recipientName = recipientName.slice(0, 64).trim();
+      }
+
+      if (fullAddress.length > 255) {
+        fullAddress = fullAddress.slice(0, 255).trim();
+      }
+
       const itemsDesc = (order.items || []).map((i: any) => `${i.name}${i.selectedSize ? ` (${i.selectedSize})` : ''} x${i.quantity || 1}`).join(', ');
-      const totalQty = (order.items || []).reduce((sum: number, i: any) => sum + (i.quantity || 1), 0);
+      let itemDesc = (itemsDesc || 'Garments / Apparel item').trim();
+      if (itemDesc.length > 255) itemDesc = itemDesc.slice(0, 255).trim();
+
+      let totalQty = (order.items || []).reduce((sum: number, i: any) => sum + (i.quantity || 1), 0);
+      if (isNaN(totalQty) || totalQty < 1) totalQty = 1;
+
+      let itemWeight = Number(order.item_weight || order.weight || 0.5);
+      if (isNaN(itemWeight) || itemWeight < 0.5) itemWeight = 0.5;
+
+      let deliveryType = Number(order.delivery_type || order.deliveryType || 48);
+      if (isNaN(deliveryType) || (deliveryType !== 48 && deliveryType !== 24 && deliveryType !== 12)) {
+        deliveryType = 48;
+      }
+
+      let amountToCollect = 0;
+      if (order.paymentMethod === 'COD' || (order.paymentStatus !== 'Paid' && order.status !== 'Paid')) {
+        const total = Number(order.total || 0);
+        const advance = Number(order.advancePayment || order.advance_payment || 0);
+        const due = order.dueAmount !== undefined ? Number(order.dueAmount) : Math.max(0, total - advance);
+        amountToCollect = isNaN(due) ? 0 : Math.max(0, Math.round(due));
+      }
+
+      let merchantOrderId = String(order.invoiceNo || order.id || '').replace(/^ORD-?/i, '');
+      if (!merchantOrderId) merchantOrderId = `${Date.now()}`;
+
+      let specialInstruction = (order.orderNote !== undefined && order.orderNote !== null && String(order.orderNote).trim()) ? String(order.orderNote).trim() : 'Handle with care';
+      if (specialInstruction.length > 255) specialInstruction = specialInstruction.slice(0, 255).trim();
 
       const payload: any = {
         store_id: Number(creds.storeId),
-        merchant_order_id: order.invoiceNo ? String(order.invoiceNo) : String(order.id || '').replace(/^ORD-?/i, ''),
-        recipient_name: order.customerName || 'Customer',
+        merchant_order_id: merchantOrderId,
+        recipient_name: recipientName,
         recipient_phone: phone,
-        recipient_address: address,
-        recipient_city: finalCityId || 1,
-        recipient_zone: finalZoneId || 1,
-        delivery_type: Number(order.delivery_type || 48),
+        recipient_address: fullAddress,
+        recipient_city: finalCityId,
+        recipient_zone: finalZoneId,
+        delivery_type: deliveryType,
         item_type: 2,
-        special_instruction: (order.orderNote !== undefined && order.orderNote !== null) ? order.orderNote : 'Handle with care',
-        item_quantity: totalQty || 1,
-        item_weight: Number(order.item_weight || 0.5),
-        amount_to_collect: (order.paymentMethod === 'COD' || order.paymentStatus !== 'Paid') ? Number(order.total || 0) : 0,
-        item_description: itemsDesc || 'Garments / Apparel item'
+        special_instruction: specialInstruction,
+        item_quantity: totalQty,
+        item_weight: itemWeight,
+        amount_to_collect: amountToCollect,
+        item_description: itemDesc
       };
 
-      if (order.areaId || creds.defaultAreaId) {
-        payload.recipient_area = Number(order.areaId || creds.defaultAreaId);
+      if (order.areaId && !isNaN(Number(order.areaId)) && Number(order.areaId) > 0) {
+        payload.recipient_area = Number(order.areaId);
       }
 
-      // Step 3: Create order in Pathao
+      // Step 5: Post order to Pathao API
       const orderRes = await fetch(`${apiBase}/aladdin/api/v1/orders`, {
         method: 'POST',
         headers: {
@@ -1167,8 +1254,18 @@ async function startServer() {
           data: orderData.data || orderData
         });
       } else {
-        const orderErr = orderData.message || (orderData.errors ? JSON.stringify(orderData.errors) : "Pathao Order Booking Failed");
-        return res.status(400).json({ success: false, error: orderErr });
+        let errorMsg = orderData.message || "Pathao Order Booking Failed";
+        if (orderData.errors && typeof orderData.errors === 'object') {
+          const errorParts: string[] = [];
+          for (const [key, val] of Object.entries(orderData.errors)) {
+            const msgs = Array.isArray(val) ? val.join(', ') : String(val);
+            errorParts.push(`${key}: ${msgs}`);
+          }
+          if (errorParts.length > 0) {
+            errorMsg = errorParts.join(' | ');
+          }
+        }
+        return res.status(400).json({ success: false, error: errorMsg });
       }
 
     } catch (error: any) {

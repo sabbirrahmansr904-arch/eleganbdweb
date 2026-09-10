@@ -171,10 +171,10 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
       setCustomerName('');
       setCustomerPhone('');
       setCustomerAddress('');
-      setCustomerCity('');
+      setCustomerCity('Inside Dhaka');
       setCustomerThana('');
       setCustomerEmail('');
-      setDeliveryCharge(0);
+      setDeliveryCharge(80);
       setDiscountAmount(0);
       setAdvancePayment(0);
       setAdvancePaymentMethod('');
@@ -269,14 +269,30 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
     return Math.max(0, subtotal + deliveryCharge - discountAmount - advancePayment);
   }, [subtotal, deliveryCharge, discountAmount, advancePayment]);
 
-  const isFormValid = customerName.trim() && customerPhone.trim() && customerAddress.trim() && customerCity.trim() && orderItems.length > 0;
+  const isFormValid = Boolean(customerName.trim() && customerPhone.trim() && orderItems.length > 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isFormValid) {
-      toast.error("Please fill in all customer details and add at least one product.");
+
+    if (orderItems.length === 0) {
+      toast.error("অনুগ্রহ করে বামপাশের ক্যাটালগ থেকে অন্তত ১টি প্রোডাক্ট সিলেক্ট করুন।");
       return;
     }
+
+    const trimmedName = customerName.trim();
+    if (!trimmedName) {
+      toast.error("অনুগ্রহ করে কাস্টমারের নাম লিখুন।");
+      return;
+    }
+
+    const trimmedPhone = customerPhone.trim();
+    if (!trimmedPhone) {
+      toast.error("অনুগ্রহ করে কাস্টমারের ফোন নম্বর লিখুন।");
+      return;
+    }
+
+    const effectiveAddress = customerAddress.trim() || 'Dhaka';
+    const effectiveCity = customerCity.trim() || 'Inside Dhaka';
 
     setIsSubmitting(true);
     try {
@@ -294,11 +310,11 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
       if (editingOrder) {
         const trackingToSave = trackingId || editingOrder.trackingId || '';
         const updatedData: Partial<Order> = {
-          customerName,
+          customerName: trimmedName,
           email: customerEmail || '',
-          phone: customerPhone,
-          address: customerAddress,
-          city: customerCity,
+          phone: trimmedPhone,
+          address: effectiveAddress,
+          city: effectiveCity,
           thana: customerThana,
           items: cartItems,
           deliveryCharge,
@@ -328,11 +344,11 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
           id: effectiveInvoiceStr || nextId,
           invoiceNo: !isNaN(finalInvNo) ? finalInvNo : undefined,
           customerId: 'manual_admin',
-          customerName,
+          customerName: trimmedName,
           email: customerEmail || '',
-          phone: customerPhone,
-          address: customerAddress,
-          city: customerCity,
+          phone: trimmedPhone,
+          address: effectiveAddress,
+          city: effectiveCity,
           thana: customerThana,
           items: cartItems,
           deliveryCharge,
@@ -1053,10 +1069,10 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                   <div>
                     <button 
                       type="submit"
-                      disabled={!isFormValid || isSubmitting}
+                      disabled={isSubmitting}
                       className={cn(
                         "w-full py-3.5 uppercase font-black text-xs tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-98",
-                        (!isFormValid || isSubmitting)
+                        isSubmitting
                           ? "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
                           : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20 hover:shadow-blue-500/30"
                       )}
@@ -1064,16 +1080,16 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                       <CheckCircle2 size={16} className="stroke-[3]" />
                       <span>
                         {isSubmitting 
-                          ? 'Saving...' 
+                          ? 'Saving Order...' 
                           : editingOrder 
                             ? `Update Order Record #${editingOrder.id.slice(-6)}` 
-                            : 'Initialize Order Row'}
+                            : 'Save Order / Create Entry'}
                       </span>
                     </button>
                     
-                    {!isFormValid && (
-                      <p className="text-[9.5px] font-bold text-center tracking-wide text-blue-600 uppercase mt-1.5">
-                        Complete name, phone, address &amp; add products to proceed
+                    {(!customerName.trim() || !customerPhone.trim() || orderItems.length === 0) && (
+                      <p className="text-[9.5px] font-bold text-center tracking-wide text-amber-600 uppercase mt-1.5">
+                        Please enter name, phone number &amp; add products to create order
                       </p>
                     )}
                   </div>
