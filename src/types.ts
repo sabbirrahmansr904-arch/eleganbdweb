@@ -219,3 +219,30 @@ export interface Expense {
   authorizedBy?: string;
 }
 
+export interface ActiveVisitor {
+  id: string;
+  path: string;
+  pageTitle?: string;
+  referrer?: string;
+  device: 'Mobile' | 'Desktop' | 'Tablet';
+  browser?: string;
+  os?: string;
+  screen?: string;
+  ip?: string;
+  city?: string;
+  country?: string;
+  firstSeen: number;
+  lastActive: number;
+  pageViews: number;
+  isOnline: boolean;
+  isAdminSession?: boolean;
+}
+
+export interface TrafficSummary {
+  todayVisits: number;
+  todayPageViews: number;
+  totalVisits: number;
+  totalPageViews: number;
+  lastUpdated: number;
+}
+

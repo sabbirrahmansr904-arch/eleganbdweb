@@ -71,6 +71,8 @@ import AdminDollarExpenses from './pages/admin/AdminDollarExpenses';
 import AdminPartnership from './pages/admin/AdminPartnership';
 import AdminAccounts from './pages/admin/AdminAccounts';
 import AdminMyAccount from './pages/admin/AdminMyAccount';
+import AdminLiveVisitors from './pages/admin/AdminLiveVisitors';
+import LiveVisitorTracker from './components/LiveVisitorTracker';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requireAdmin = true }: { children: React.ReactNode, requireAdmin?: boolean }) => {
@@ -165,6 +167,7 @@ function AppRoutes() {
           <Route path="partners" element={<AdminPartnership />} />
           <Route path="transaction-list" element={<AdminTransactionList />} />
           <Route path="dollar-expenses" element={<AdminDollarExpenses />} />
+          <Route path="live-visitors" element={<AdminLiveVisitors />} />
         </Route>
 
         {/* Catch-all */}
@@ -191,6 +194,7 @@ function App() {
                           <ScrollToTop />
                           <div className="min-h-screen bg-white selection:bg-black/10 selection:text-black">
                             <Toaster position="top-center" reverseOrder={false} />
+                            <LiveVisitorTracker />
                             <PixelTracker />
                             <MetaPixel />
                             <ErrorBoundary>

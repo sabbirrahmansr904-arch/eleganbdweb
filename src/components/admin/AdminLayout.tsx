@@ -56,8 +56,10 @@ import {
   BarChart3,
   Plus,
   Minus,
-  Clock
+  Clock,
+  Radio
 } from 'lucide-react';
+import { useLiveVisitors } from '../../hooks/useLiveVisitors';
 import { VerifiedBadge } from './VerifiedBadge';
 import { cn, formatPrice } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -75,6 +77,7 @@ export default function AdminLayout() {
   const { logoUrl } = useBranding();
   const { orders } = useOrders();
   const { products } = useProducts();
+  const { activeCount } = useLiveVisitors();
   const { currentUser, isSuperAdmin, isCEO, isSabbirRahman, department, permissions = [], signOut } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -363,6 +366,7 @@ export default function AdminLayout() {
     if (path.startsWith('/admin/finance')) return 'finance';
     if (path.startsWith('/admin/dollar-expenses')) return 'dollar-expense';
     if (path.startsWith('/admin/partnership') || path.startsWith('/admin/partners')) return 'partnership';
+    if (path.startsWith('/admin/live-visitors')) return 'dashboard';
     if (path.startsWith('/admin/settings')) {
       const searchParams = new URLSearchParams(location.search);
       const tab = searchParams.get('tab');
@@ -426,6 +430,19 @@ export default function AdminLayout() {
         { name: 'Notifications', path: '/admin/settings?tab=Notifications', icon: Bell, perm: 'notifications' },
         { name: 'Media', path: '/admin/media', icon: Images, perm: 'media' },
         { name: 'Supabase DB', path: '/admin/settings?tab=Supabase', icon: Database, perm: 'settings' },
+      ]
+    },
+    {
+      title: 'LIVE TRAFFIC',
+      items: [
+        { 
+          name: 'Live Visitors', 
+          path: '/admin/live-visitors', 
+          icon: Radio, 
+          perm: 'dashboard',
+          badge: activeCount > 0 ? `${activeCount} Live` : undefined,
+          isLive: true
+        }
       ]
     }
   ];

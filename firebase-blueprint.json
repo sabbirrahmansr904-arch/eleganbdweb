@@ -261,6 +261,41 @@
         "createdAt": { "type": "number" }
       },
       "required": ["partnerId", "partnerName", "type", "amount", "date"]
+    },
+    "ActiveVisitor": {
+      "title": "ActiveVisitor",
+      "description": "Real-time active website visitor session",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "path": { "type": "string" },
+        "pageTitle": { "type": "string" },
+        "referrer": { "type": "string" },
+        "device": { "type": "string" },
+        "browser": { "type": "string" },
+        "os": { "type": "string" },
+        "screen": { "type": "string" },
+        "firstSeen": { "type": "number" },
+        "lastActive": { "type": "number" },
+        "pageViews": { "type": "number" },
+        "isOnline": { "type": "boolean" },
+        "isAdminSession": { "type": "boolean" }
+      },
+      "required": ["id", "path", "device", "lastActive"]
+    },
+    "SiteAnalytics": {
+      "title": "SiteAnalytics",
+      "description": "Daily and overall site traffic analytics summary",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "todayVisits": { "type": "number" },
+        "todayPageViews": { "type": "number" },
+        "totalVisits": { "type": "number" },
+        "totalPageViews": { "type": "number" },
+        "lastUpdated": { "type": "number" }
+      },
+      "required": ["lastUpdated"]
     }
   },
   "firestore": {
@@ -335,6 +370,14 @@
     "/sms_logs/{logId}": {
       "schema": { "$ref": "#/entities/SmsLog" },
       "description": "Logs of sent SMS messages (create all, read/list admin)"
+    },
+    "/active_visitors/{visitorId}": {
+      "schema": { "$ref": "#/entities/ActiveVisitor" },
+      "description": "Live website active visitors (read/write all)"
+    },
+    "/site_analytics/{docId}": {
+      "schema": { "$ref": "#/entities/SiteAnalytics" },
+      "description": "Aggregated site traffic analytics (read/write all)"
     }
   }
 }

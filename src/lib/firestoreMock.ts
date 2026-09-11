@@ -109,6 +109,52 @@ export const Timestamp = {
   })
 };
 
+export function increment(n: number) {
+  return { type: 'increment', value: n };
+}
+
+export function arrayUnion(...elements: any[]) {
+  return { type: 'arrayUnion', elements };
+}
+
+export function arrayRemove(...elements: any[]) {
+  return { type: 'arrayRemove', elements };
+}
+
+export function deleteField() {
+  return { type: 'deleteField' };
+}
+
+export function writeBatch(dbInstance?: any) {
+  const operations: Array<() => Promise<any>> = [];
+  return {
+    set: (docRef: MockRef, data: any, options?: any) => {
+      operations.push(() => setDoc(docRef, data, options));
+    },
+    update: (docRef: MockRef, data: any) => {
+      operations.push(() => updateDoc(docRef, data));
+    },
+    delete: (docRef: MockRef) => {
+      operations.push(() => deleteDoc(docRef));
+    },
+    commit: async () => {
+      for (const op of operations) {
+        await op();
+      }
+    }
+  };
+}
+
+export async function runTransaction(dbInstance: any, updateFunction: (transaction: any) => Promise<any>) {
+  const transaction = {
+    get: async (docRef: MockRef) => getDoc(docRef),
+    set: (docRef: MockRef, data: any, options?: any) => setDoc(docRef, data, options),
+    update: (docRef: MockRef, data: any) => updateDoc(docRef, data),
+    delete: (docRef: MockRef) => deleteDoc(docRef)
+  };
+  return await updateFunction(transaction);
+}
+
 // Async Data Operations via Supabase / Local Storage
 
 export async function setDoc(docRef: MockRef, data: any, options?: { merge?: boolean }) {
@@ -237,23 +283,34 @@ export async function getDocs(queryOrCol: MockRef) {
 }
 
 export function onSnapshot(target: MockRef, onNext: Function, onError?: Function) {
-  if (target.type === 'doc') {
-    getDoc(target).then(snapshot => {
-      if (typeof onNext === 'function') {
-        onNext(snapshot);
-      }
-    }).catch(err => {
-      if (typeof onError === 'function') onError(err);
-    });
-  } else {
-    getDocs(target).then(snapshot => {
-      if (typeof onNext === 'function') {
-        onNext(snapshot);
-      }
-    }).catch(err => {
-      if (typeof onError === 'function') onError(err);
-    });
-  }
+  let isMounted = true;
 
-  return () => {};
+  const fetchAndNotify = () => {
+    if (!isMounted) return;
+    if (target.type === 'doc') {
+      getDoc(target).then(snapshot => {
+        if (isMounted && typeof onNext === 'function') {
+          onNext(snapshot);
+        }
+      }).catch(err => {
+        if (isMounted && typeof onError === 'function') onError(err);
+      });
+    } else {
+      getDocs(target).then(snapshot => {
+        if (isMounted && typeof onNext === 'function') {
+          onNext(snapshot);
+        }
+      }).catch(err => {
+        if (isMounted && typeof onError === 'function') onError(err);
+      });
+    }
+  };
+
+  fetchAndNotify();
+  const interval = setInterval(fetchAndNotify, 4000);
+
+  return () => {
+    isMounted = false;
+    clearInterval(interval);
+  };
 }

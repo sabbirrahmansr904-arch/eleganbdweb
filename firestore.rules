@@ -175,5 +175,16 @@ service cloud.firestore {
       allow read, list: if true;
       allow create, update, delete: if isValidId(mediaId);
     }
+
+    // Live website visitors & analytics
+    match /active_visitors/{visitorId} {
+      allow read, list: if true;
+      allow create, update, delete: if isValidId(visitorId);
+    }
+
+    match /site_analytics/{docId} {
+      allow read, list: if true;
+      allow create, update, delete: if isValidId(docId);
+    }
   }
 }

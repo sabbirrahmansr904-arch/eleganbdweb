@@ -19,16 +19,223 @@ interface ProductContextType {
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
-const DEMO_PRODUCT_IDS = new Set(['1', '2', '3', '4', '5', '6', '8', '9']);
-const DEMO_NAMES = [
-  'executive white formal shirt',
-  'sky blue royal oxford shirt',
-  'midnight black slim fit shirt',
-  'essential oversized t-shirt',
-  'vintage wash graphic tee',
-  'classic black formal pant',
-  'premium silk blend shirt',
-  'ash grey chino pant'
+export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
+  {
+    id: 'fp-1',
+    sku: 'FP-01',
+    name: "Men's Luxury Formal Pant - Deep Black (Code: FP 1)",
+    price: 790,
+    regularPrice: 1250,
+    description: "Premium Gabardine Stretch Woven Cotton formal pant with modern tailored slim fit. Anti-wrinkle, breathable and highly durable for all-day executive and occasion wear.",
+    category: 'Formal Pant',
+    color: 'Deep Black',
+    fabric: 'Gabardine Stretch Cotton',
+    fitType: 'Tailored Slim Fit',
+    images: [
+      'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&auto=format&fit=crop&q=80'
+    ],
+    sizes: ['28', '30', '32', '34', '36', '38'],
+    stock: 120,
+    sizeStock: { '28': 20, '30': 25, '32': 30, '34': 25, '36': 15, '38': 5 },
+    newArrival: true,
+    featured: true,
+    bestSelling: true,
+    rating: 5,
+    isTopRated: true
+  },
+  {
+    id: 'fp-2',
+    sku: 'FP-02',
+    name: "Men's Luxury Formal Pant - Navy Blue (Code: FP 2)",
+    price: 790,
+    regularPrice: 1250,
+    description: "Refined Royal Navy Blue Gabardine Stretch formal pant. Perfect pair for formal shirts, blazers and executive office look.",
+    category: 'Formal Pant',
+    color: 'Navy Blue',
+    fabric: 'Gabardine Stretch Cotton',
+    fitType: 'Tailored Slim Fit',
+    images: [
+      'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&auto=format&fit=crop&q=80'
+    ],
+    sizes: ['28', '30', '32', '34', '36', '38'],
+    stock: 110,
+    sizeStock: { '28': 15, '30': 25, '32': 30, '34': 20, '36': 15, '38': 5 },
+    newArrival: true,
+    featured: true,
+    bestSelling: true,
+    rating: 5,
+    isTopRated: true
+  },
+  {
+    id: 'fp-3',
+    sku: 'FP-03',
+    name: "Men's Luxury Formal Pant - Ash Grey (Code: FP 3)",
+    price: 790,
+    regularPrice: 1250,
+    description: "Classic Ash Grey executive formal pant crafted from high-density stretch gabardine fabric. Smooth texture and superior comfort.",
+    category: 'Formal Pant',
+    color: 'Ash Grey',
+    fabric: 'Gabardine Stretch Cotton',
+    fitType: 'Tailored Slim Fit',
+    images: [
+      'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&auto=format&fit=crop&q=80'
+    ],
+    sizes: ['28', '30', '32', '34', '36', '38'],
+    stock: 95,
+    sizeStock: { '28': 15, '30': 20, '32': 25, '34': 20, '36': 10, '38': 5 },
+    newArrival: true,
+    featured: true,
+    bestSelling: true,
+    rating: 5,
+    isTopRated: true
+  },
+  {
+    id: 'fp-4',
+    sku: 'FP-04',
+    name: "Men's Luxury Formal Pant - Charcoal Grey (Code: FP 4)",
+    price: 790,
+    regularPrice: 1250,
+    description: "Deep Charcoal Grey formal pant. Premium heavy gabardine stretch with impeccable finish and comfort.",
+    category: 'Formal Pant',
+    color: 'Charcoal Grey',
+    fabric: 'Gabardine Stretch Cotton',
+    fitType: 'Tailored Slim Fit',
+    images: [
+      'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&auto=format&fit=crop&q=80'
+    ],
+    sizes: ['28', '30', '32', '34', '36', '38'],
+    stock: 105,
+    sizeStock: { '28': 15, '30': 25, '32': 30, '34': 20, '36': 10, '38': 5 },
+    newArrival: true,
+    featured: true,
+    bestSelling: true,
+    rating: 5,
+    isTopRated: true
+  },
+  {
+    id: 'fp-5',
+    sku: 'FP-05',
+    name: "Men's Luxury Formal Pant - Olive Green (Code: FP 5)",
+    price: 790,
+    regularPrice: 1250,
+    description: "Distinctive Olive Green formal pant. Elegant earthy tone tailored to perfection for trendsetters.",
+    category: 'Formal Pant',
+    color: 'Olive Green',
+    fabric: 'Gabardine Stretch Cotton',
+    fitType: 'Tailored Slim Fit',
+    images: [
+      'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&auto=format&fit=crop&q=80'
+    ],
+    sizes: ['28', '30', '32', '34', '36', '38'],
+    stock: 90,
+    sizeStock: { '28': 10, '30': 20, '32': 25, '34': 20, '36': 10, '38': 5 },
+    newArrival: true,
+    featured: true,
+    bestSelling: true,
+    rating: 5,
+    isTopRated: true
+  },
+  {
+    id: 'fp-6',
+    sku: 'FP-06',
+    name: "Men's Luxury Formal Pant - Coffee Brown (Code: FP 6)",
+    price: 790,
+    regularPrice: 1250,
+    description: "Rich Coffee Brown Gabardine formal pant. Sophisticated warm color palette with excellent stretch recovery.",
+    category: 'Formal Pant',
+    color: 'Coffee Brown',
+    fabric: 'Gabardine Stretch Cotton',
+    fitType: 'Tailored Slim Fit',
+    images: [
+      'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&auto=format&fit=crop&q=80'
+    ],
+    sizes: ['28', '30', '32', '34', '36', '38'],
+    stock: 85,
+    sizeStock: { '28': 10, '30': 20, '32': 25, '34': 15, '36': 10, '38': 5 },
+    newArrival: true,
+    featured: true,
+    bestSelling: true,
+    rating: 5,
+    isTopRated: true
+  },
+  {
+    id: 'fp-7',
+    sku: 'FP-07',
+    name: "Men's Luxury Formal Pant - Khaki Beige (Code: FP 7)",
+    price: 790,
+    regularPrice: 1250,
+    description: "Versatile Khaki Beige Gabardine formal pant. An essential staple for smart casual and corporate wear.",
+    category: 'Formal Pant',
+    color: 'Khaki Beige',
+    fabric: 'Gabardine Stretch Cotton',
+    fitType: 'Tailored Slim Fit',
+    images: [
+      'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&auto=format&fit=crop&q=80'
+    ],
+    sizes: ['28', '30', '32', '34', '36', '38'],
+    stock: 95,
+    sizeStock: { '28': 15, '30': 20, '32': 25, '34': 20, '36': 10, '38': 5 },
+    newArrival: true,
+    featured: true,
+    bestSelling: true,
+    rating: 5,
+    isTopRated: true
+  },
+  {
+    id: 'fs-1',
+    sku: 'FS-01',
+    name: "Men's Premium Formal Shirt - WHITE",
+    price: 699,
+    regularPrice: 1050,
+    description: "100% Refine Cotton royal executive white formal shirt. Crisp collar, tailored fit, breathable all day.",
+    category: 'Formal Shirt',
+    color: 'White',
+    fabric: 'Refine Cotton 100%',
+    fitType: 'Regular Slim Fit',
+    images: [
+      'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=800&auto=format&fit=crop&q=80'
+    ],
+    sizes: ['M', 'L', 'XL', 'XXL'],
+    stock: 140,
+    sizeStock: { 'M': 35, 'L': 45, 'XL': 40, 'XXL': 20 },
+    newArrival: true,
+    featured: true,
+    bestSelling: true,
+    rating: 5,
+    isTopRated: true
+  },
+  {
+    id: 'fs-2',
+    sku: 'FS-02',
+    name: "Men's Premium Formal Shirt - BLACK",
+    price: 699,
+    regularPrice: 1050,
+    description: "Premium Midnight Black Refine Cotton formal shirt. Elegant, fade-resistant rich black fabric.",
+    category: 'Formal Shirt',
+    color: 'Black',
+    fabric: 'Refine Cotton 100%',
+    fitType: 'Regular Slim Fit',
+    images: [
+      'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&auto=format&fit=crop&q=80'
+    ],
+    sizes: ['M', 'L', 'XL', 'XXL'],
+    stock: 130,
+    sizeStock: { 'M': 30, 'L': 45, 'XL': 35, 'XXL': 20 },
+    newArrival: true,
+    featured: true,
+    bestSelling: true,
+    rating: 5,
+    isTopRated: true
+  }
 ];
 
 // Deleted products memory/localStorage tracking to avoid race condition resurrection
@@ -60,12 +267,25 @@ const removeDeletedId = (id: string) => {
 };
 
 export const isDemoProduct = (p: Product | null | undefined): boolean => {
-  if (!p) return false;
+  if (!p) return true;
   const deletedSet = getDeletedIds();
   if (p.id && deletedSet.has(String(p.id))) return true;
-  if (p.id && DEMO_PRODUCT_IDS.has(p.id)) return true;
+  
+  // STRICT RULE: Only products with a valid SKU are allowed
+  const sku = (p.sku || '').trim();
+  if (!sku) return true;
+
   const name = (p.name || '').trim().toLowerCase();
-  if (DEMO_NAMES.some(dn => name === dn || name.includes('essential oversized') || name.includes('executive white') || name.includes('vintage wash graphic'))) return true;
+  // Filter out unnamed or corrupt records
+  if (!name || name === 'unnamed product' || name === 'untitled product' || name === 'unnamed') {
+    return true;
+  }
+
+  // Must have a valid price
+  if (!p.price || Number(p.price) <= 0) {
+    return true;
+  }
+
   return false;
 };
 
@@ -203,11 +423,13 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const parsed = JSON.parse(locallySaved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const nonDemo = parsed.filter(p => !isDemoProduct(p));
-          return deduplicateProducts(nonDemo.map(normalizeProductCategory));
+          if (nonDemo.length > 0) {
+            return deduplicateProducts(nonDemo.map(normalizeProductCategory));
+          }
         }
       }
     } catch (e) {}
-    return [];
+    return CANONICAL_DEFAULT_PRODUCTS;
   });
 
   const [loading, setLoading] = useState<boolean>(true);
@@ -228,9 +450,14 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const nonDemo = parsed.filter(p => !isDemoProduct(p));
-          setProducts(deduplicateProducts(nonDemo.map(normalizeProductCategory)));
+          if (nonDemo.length > 0) {
+            setProducts(deduplicateProducts(nonDemo.map(normalizeProductCategory)));
+            setLoading(false);
+            return;
+          }
         }
       }
+      setProducts(CANONICAL_DEFAULT_PRODUCTS);
     } catch (e) {}
     setLoading(false);
   }, []);
