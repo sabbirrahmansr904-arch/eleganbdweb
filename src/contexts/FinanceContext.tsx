@@ -30,6 +30,7 @@ export interface BankTransaction {
   notes?: string;
   attachment?: string;
   status?: 'unpaid' | 'paid';
+  dollarTxId?: string;
 }
 
 export const isUsdAccount = (acc?: BankAccount | { bankName?: string; accountName?: string; accountType?: string; currency?: string } | null): boolean => {
@@ -42,10 +43,18 @@ export const isUsdAccount = (acc?: BankAccount | { bankName?: string; accountNam
          name.includes('redot') || 
          name.includes('রেডটপে') || 
          name.includes('রেডট পে') || 
+         name.includes('pyypl') ||
+         name.includes('wise') ||
+         name.includes('payoneer') ||
+         name.includes('binance') ||
          name.includes('dollar') || 
          name.includes('ডলার') || 
          name.includes('usd') ||
          accName.includes('redotpay') ||
+         accName.includes('pyypl') ||
+         accName.includes('wise') ||
+         accName.includes('payoneer') ||
+         accName.includes('binance') ||
          accName.includes('dollar') ||
          accName.includes('usd') ||
          accType.includes('usd') ||

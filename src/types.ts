@@ -194,6 +194,7 @@ export interface BankTransaction {
   notes?: string;
   attachment?: string;
   status?: 'unpaid' | 'paid';
+  dollarTxId?: string;
 }
 
 export interface PathaoPayout {

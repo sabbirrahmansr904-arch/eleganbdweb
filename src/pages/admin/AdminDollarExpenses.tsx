@@ -52,7 +52,7 @@ interface DollarTransaction {
 }
 
 export default function AdminDollarExpenses(): React.JSX.Element {
-  const { bankAccounts, addBankTransaction } = useFinance();
+  const { bankAccounts, bankTransactions, addBankTransaction, deleteBankTransaction } = useFinance();
   const { isSabbirRahman } = useAuth();
   const [transactions, setTransactions] = useState<DollarTransaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -375,68 +375,87 @@ export default function AdminDollarExpenses(): React.JSX.Element {
     };
 
     try {
+      let targetTxId = editingTransaction?.id;
+
       if (editingTransaction) {
         await updateDoc(doc(db, 'dollar_transactions', editingTransaction.id), payload);
-        toast.success('লেনদেন সফলভাবে আপডেট করা হয়েছে!');
+        
+        // Remove previous bank transaction logs associated with this dollar transaction to recalculate
+        const oldBankTxs = bankTransactions.filter(
+          tx => tx.dollarTxId === editingTransaction.id || (tx.reference && tx.reference.includes(`[DTX_${editingTransaction.id}]`))
+        );
+        for (const oldTx of oldBankTxs) {
+          try {
+            await deleteBankTransaction(oldTx.id);
+          } catch (e) {
+            console.warn('Could not remove previous bank tx log during edit:', e);
+          }
+        }
       } else {
         const docRef = await addDoc(collection(db, 'dollar_transactions'), payload);
+        targetTxId = docRef.id;
+      }
 
-        // If a real bank account is selected and it's a dollar buy, record it in the finance bank transaction ledger
-        if (formType === 'buy') {
-          if (form.accountId && bdtVal > 0) {
+      // Record updated bank transactions in Finance ledger
+      if (formType === 'buy') {
+        // BDT paying account (withdraw BDT)
+        if (form.accountId && bdtVal > 0) {
+          try {
+            await addBankTransaction({
+              accountId: form.accountId,
+              type: 'withdraw',
+              amount: bdtVal,
+              date: finalDate,
+              reference: `ডলার ক্রয় ($${amountVal} @ ৳${rateVal}) [DTX_${targetTxId}]`,
+              notes: form.notes ? `ডলার ক্রয় - ${form.notes}` : 'ডলার ক্রয়',
+              status: 'paid',
+              dollarTxId: targetTxId
+            });
+          } catch (bankErr) {
+            console.error('Failed to log BDT bank transaction:', bankErr);
+          }
+        }
+        // USD wallet receiving account (deposit USD)
+        if (form.usdAccountId && amountVal > 0) {
+          try {
+            await addBankTransaction({
+              accountId: form.usdAccountId,
+              type: 'deposit',
+              amount: amountVal,
+              date: finalDate,
+              reference: `ডলার জমা (Purchased) [DTX_${targetTxId}]`,
+              notes: form.notes ? `ডলার জমা - ${form.notes}` : 'ডলার ক্রয় থেকে জমা',
+              status: 'paid',
+              dollarTxId: targetTxId
+            });
+          } catch (bankErr) {
+            console.error('Failed to log USD bank transaction:', bankErr);
+          }
+        }
+      } else if (formType === 'spend') {
+        if (form.accountId && amountVal > 0) {
+          const acc = bankAccounts.find(a => a.id === form.accountId);
+          if (acc) {
+            const isUsd = isUsdAccount(acc);
             try {
               await addBankTransaction({
                 accountId: form.accountId,
-                type: 'withdraw', // Dollar buy deducts BDT from account
-                amount: bdtVal,
+                type: 'withdraw', // Spend deducts USD if USD account, or BDT if BDT account
+                amount: isUsd ? amountVal : bdtVal,
                 date: finalDate,
-                reference: `ডলার ক্রয় ($${amountVal} @ ৳${rateVal})`,
-                notes: form.notes ? `ডলার ক্রয় - ${form.notes}` : 'ডলার ক্রয়',
-                status: 'paid'
+                reference: `ডলার খরচ (${form.purpose}) [DTX_${targetTxId}]`,
+                notes: form.notes ? `ডলার খরচ - ${form.notes}` : 'ডলার খরচ',
+                status: 'paid',
+                dollarTxId: targetTxId
               });
             } catch (bankErr) {
-              console.error('Failed to log bank transaction:', bankErr);
-            }
-          }
-          if (form.usdAccountId && amountVal > 0) {
-            try {
-              await addBankTransaction({
-                accountId: form.usdAccountId,
-                type: 'deposit', // Dollar buy adds USD to the dollar wallet
-                amount: amountVal,
-                date: finalDate,
-                reference: `ডলার জমা (Purchased)`,
-                notes: form.notes ? `ডলার জমা - ${form.notes}` : 'ডলার ক্রয় থেকে জমা',
-                status: 'paid'
-              });
-            } catch (bankErr) {
-              console.error('Failed to log bank transaction:', bankErr);
-            }
-          }
-        } else if (formType === 'spend') {
-          if (form.accountId && amountVal > 0) {
-            // Find if the selected account is actually a USD account
-            const acc = bankAccounts.find(a => a.id === form.accountId);
-            if (acc) {
-              try {
-                await addBankTransaction({
-                  accountId: form.accountId,
-                  type: 'withdraw', // Spend deducts either USD or BDT depending on account type
-                  amount: isUsdAccount(acc) ? amountVal : bdtVal,
-                  date: finalDate,
-                  reference: `ডলার খরচ (${form.purpose})`,
-                  notes: form.notes ? `ডলার খরচ - ${form.notes}` : 'ডলার খরচ',
-                  status: 'paid'
-                });
-              } catch (bankErr) {
-                console.error('Failed to log bank transaction:', bankErr);
-              }
+              console.error('Failed to log spend bank transaction:', bankErr);
             }
           }
         }
-
-        toast.success('লেনদেন সফলভাবে সংরক্ষণ করা হয়েছে এবং সংশ্লিষ্ট অ্যাকাউন্ট থেকে টাকা সমন্বয় করা হয়েছে!');
       }
+
+      toast.success(editingTransaction ? 'লেনদেন আপডেট করা হয়েছে এবং ফাইন্যান্স অ্যাকাউন্ট থেকে ব্যালেন্স আপডেট করা হয়েছে!' : 'লেনদেন সফলভাবে ডিলিট ও ফাইন্যান্স অ্যাকাউন্টে সমন্বয় করা হয়েছে!');
       setShowModal(false);
       setEditingTransaction(null);
     } catch (err) {
@@ -451,10 +470,21 @@ export default function AdminDollarExpenses(): React.JSX.Element {
 
   // Delete Transaction Handler
   const handleDeleteTransaction = async (id: string) => {
-    
     try {
+      // Revert associated bank transactions from Finance ledger first
+      const relatedBankTxs = bankTransactions.filter(
+        tx => tx.dollarTxId === id || (tx.reference && tx.reference.includes(`[DTX_${id}]`))
+      );
+      for (const btx of relatedBankTxs) {
+        try {
+          await deleteBankTransaction(btx.id);
+        } catch (e) {
+          console.warn('Could not revert related bank transaction:', e);
+        }
+      }
+
       await deleteDoc(doc(db, 'dollar_transactions', id));
-      toast.success('লেনদেন সফলভাবে ডিলিট হয়েছে!');
+      toast.success('লেনদেন সফলভাবে ডিলিট হয়েছে এবং ফাইন্যান্স অ্যাকাউন্টের ব্যালেন্স রিস্টোর করা হয়েছে!');
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `dollar_transactions/${id}`);
       if (isQuotaError(err)) {
@@ -1173,7 +1203,8 @@ export default function AdminDollarExpenses(): React.JSX.Element {
                   <option value="">-- অ্যাকাউন্ট সিলেক্ট করুন --</option>
                   {bankAccounts.map((acc) => (
                     <option key={acc.id} value={acc.id}>
-                      {acc.bankName} - {acc.accountName} ({acc.accountNumber}) ({formatAccountBalance(acc)})
+                      {isUsdAccount(acc) ? '💵 [USD] ' : '💳 '}
+                      {acc.bankName} - {acc.accountName} ({acc.accountNumber}) - ব্যালেন্স: {formatAccountBalance(acc)}
                     </option>
                   ))}
                 </select>
@@ -1198,7 +1229,7 @@ export default function AdminDollarExpenses(): React.JSX.Element {
                     <option value="">-- ডলার অ্যাকাউন্ট সিলেক্ট করুন (ঐচ্ছিক) --</option>
                     {bankAccounts.filter(a => isUsdAccount(a)).map((acc) => (
                       <option key={acc.id} value={acc.id}>
-                        {acc.bankName} - {acc.accountName} ({acc.accountNumber}) ({formatAccountBalance(acc)})
+                        💵 {acc.bankName} - {acc.accountName} ({acc.accountNumber}) - ব্যালেন্স: {formatAccountBalance(acc)}
                       </option>
                     ))}
                   </select>
