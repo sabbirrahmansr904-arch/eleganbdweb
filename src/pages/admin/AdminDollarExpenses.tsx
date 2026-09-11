@@ -118,8 +118,10 @@ export default function AdminDollarExpenses(): React.JSX.Element {
     return () => unsubscribe();
   }, []);
 
-  // Pre-fill fields for editing
+  // Pre-fill fields for editing or fresh entry when modal opens
   useEffect(() => {
+    if (!showModal) return;
+
     if (editingTransaction) {
       setFormType(editingTransaction.type);
       const computedBdt = editingTransaction.bdtAmount 
@@ -142,65 +144,82 @@ export default function AdminDollarExpenses(): React.JSX.Element {
       });
     } else {
       // Set defaults for fresh entry
+      const defaultBankId = bankAccounts.length > 0 ? bankAccounts[0].id : '';
+      const usdAccs = bankAccounts.filter(a => isUsdAccount(a));
+      const defaultUsdBankId = usdAccs.length > 0 ? usdAccs[0].id : '';
+      const defaultAccountName = bankAccounts.length > 0 ? `${bankAccounts[0].bankName} (${bankAccounts[0].accountNumber})` : 'bKash';
+
       setForm({
         date: new Date().toISOString().split('T')[0],
         amount: '',
         rate: '117.5',
         bdtAmount: '',
-        accountId: bankAccounts.length > 0 ? bankAccounts[0].id : '',
-        usdAccountId: bankAccounts.filter(a => isUsdAccount(a)).length > 0 ? bankAccounts.filter(a => isUsdAccount(a))[0].id : '',
-        account: bankAccounts.length > 0 ? `${bankAccounts[0].bankName} (${bankAccounts[0].accountNumber})` : 'bKash',
+        accountId: defaultBankId,
+        usdAccountId: defaultUsdBankId,
+        account: defaultAccountName,
         purpose: 'Facebook Ads',
         notes: ''
       });
     }
-  }, [editingTransaction, showModal, bankAccounts]);
+  }, [editingTransaction, showModal]);
 
-  // Handle auto-calculating values
+  // Handle auto-calculating values cleanly without wiping typed values
   const handleAmountChange = (val: string) => {
-    const amt = parseFloat(val);
-    const bdt = parseFloat(form.bdtAmount);
-    const r = parseFloat(form.rate);
+    setForm(prev => {
+      const amt = parseFloat(val);
+      const r = parseFloat(prev.rate) || 117.5;
+      const bdt = parseFloat(prev.bdtAmount);
 
-    let nextBdt = form.bdtAmount;
-    let nextRate = form.rate;
+      let nextBdt = prev.bdtAmount;
+      let nextRate = prev.rate;
 
-    if (!isNaN(amt) && amt > 0) {
-      if (!isNaN(bdt) && bdt > 0) {
-        nextRate = (bdt / amt).toFixed(2);
-      } else if (!isNaN(r) && r > 0) {
-        nextBdt = (amt * r).toFixed(2);
+      if (!isNaN(amt) && amt > 0) {
+        if (formType === 'spend') {
+          nextBdt = (amt * r).toFixed(2);
+        } else {
+          if (!isNaN(r) && r > 0) {
+            nextBdt = (amt * r).toFixed(2);
+          } else if (!isNaN(bdt) && bdt > 0) {
+            nextRate = (bdt / amt).toFixed(2);
+          }
+        }
+      } else if (val === '') {
+        nextBdt = '';
       }
-    }
 
-    setForm(prev => ({
-      ...prev,
-      amount: val,
-      bdtAmount: nextBdt,
-      rate: nextRate
-    }));
+      return {
+        ...prev,
+        amount: val,
+        bdtAmount: nextBdt,
+        rate: nextRate
+      };
+    });
   };
 
   const handleRateChange = (val: string) => {
-    const r = parseFloat(val);
-    const amt = parseFloat(form.amount);
-    const calculatedBdt = (!isNaN(amt) && !isNaN(r)) ? (amt * r).toFixed(2) : form.bdtAmount;
-    setForm(prev => ({
-      ...prev,
-      rate: val,
-      bdtAmount: calculatedBdt
-    }));
+    setForm(prev => {
+      const r = parseFloat(val);
+      const amt = parseFloat(prev.amount);
+      const calculatedBdt = (!isNaN(amt) && !isNaN(r) && amt > 0) ? (amt * r).toFixed(2) : prev.bdtAmount;
+      return {
+        ...prev,
+        rate: val,
+        bdtAmount: calculatedBdt
+      };
+    });
   };
 
   const handleBdtAmountChange = (val: string) => {
-    const bdt = parseFloat(val);
-    const amt = parseFloat(form.amount);
-    const calculatedRate = (!isNaN(bdt) && !isNaN(amt) && amt > 0) ? (bdt / amt).toFixed(2) : form.rate;
-    setForm(prev => ({
-      ...prev,
-      bdtAmount: val,
-      rate: calculatedRate
-    }));
+    setForm(prev => {
+      const bdt = parseFloat(val);
+      const amt = parseFloat(prev.amount);
+      const calculatedRate = (!isNaN(bdt) && !isNaN(amt) && amt > 0) ? (bdt / amt).toFixed(2) : prev.rate;
+      return {
+        ...prev,
+        bdtAmount: val,
+        rate: calculatedRate
+      };
+    });
   };
 
   // List of unique months for filtration
