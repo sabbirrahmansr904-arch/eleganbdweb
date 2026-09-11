@@ -4,7 +4,7 @@ import { supabase, orderToSupabaseRow, supabaseRowToOrder } from '../lib/supabas
 import { useAuth } from './AuthContext';
 import { useProducts } from './ProductContext';
 import { useInventory } from './InventoryContext';
-import { isDeliveredOrSuccess, compareOrdersByInvoice, canChangeOrderStatus } from '../utils/orderUtils';
+import { isDeliveredOrSuccess, compareOrdersByInvoice, canChangeOrderStatus, isCancelledStatus } from '../utils/orderUtils';
 
 interface OrderContextType {
   orders: Order[];
@@ -373,13 +373,20 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
   const restoreOrderStock = async (order: Order) => {
     try {
-      if (!Array.isArray(order.items)) return;
+      if (!Array.isArray(order.items) || order.items.length === 0) return;
       for (const item of order.items) {
-        const product = products.find(p => p.id === item.id);
+        const product = products.find(p => 
+          String(p.id) === String(item.id) ||
+          (item.sku && p.sku && String(p.sku).trim().toLowerCase() === String(item.sku).trim().toLowerCase()) ||
+          (p.name && item.name && p.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+        );
+
         if (product) {
           const updatedSizeStock = { ...(product.sizeStock || {}) };
-          const currentSizeStock = updatedSizeStock[item.selectedSize] || 0;
-          updatedSizeStock[item.selectedSize] = currentSizeStock + item.quantity;
+          const sizeKey = item.selectedSize || (product.sizes && product.sizes[0]) || 'Standard';
+          const currentSizeStock = Number(updatedSizeStock[sizeKey]) || 0;
+          const qty = Number(item.quantity) || 1;
+          updatedSizeStock[sizeKey] = currentSizeStock + qty;
           
           const validSizes = Array.isArray(product.sizes) && product.sizes.length > 0
             ? product.sizes
@@ -396,15 +403,16 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             stock: updatedTotalStock
           });
 
+          const orderRefLabel = order.invoiceNo ? `#${order.invoiceNo}` : `#${String(order.id).slice(-7)}`;
           await addTransaction({
             type: 'in',
             sku: product.sku || product.id,
             productName: product.name,
-            quantities: { [item.selectedSize]: item.quantity },
-            totalQuantity: item.quantity,
+            quantities: { [sizeKey]: qty },
+            totalQuantity: qty,
             category: product.category,
             authorizedBy: getAuthorizedBy(order),
-            notes: `Restored: Order #${order.id.slice(-7)} Cancelled/Deleted`
+            notes: `Restored: Order ${orderRefLabel} (Cancelled)`
           });
         }
       }
@@ -415,13 +423,20 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
   const deductOrderStock = async (order: Order) => {
     try {
-      if (!Array.isArray(order.items)) return;
+      if (!Array.isArray(order.items) || order.items.length === 0) return;
       for (const item of order.items) {
-        const product = products.find(p => p.id === item.id);
+        const product = products.find(p => 
+          String(p.id) === String(item.id) ||
+          (item.sku && p.sku && String(p.sku).trim().toLowerCase() === String(item.sku).trim().toLowerCase()) ||
+          (p.name && item.name && p.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+        );
+
         if (product) {
           const updatedSizeStock = { ...(product.sizeStock || {}) };
-          const currentSizeStock = updatedSizeStock[item.selectedSize] || 0;
-          updatedSizeStock[item.selectedSize] = Math.max(0, currentSizeStock - item.quantity);
+          const sizeKey = item.selectedSize || (product.sizes && product.sizes[0]) || 'Standard';
+          const currentSizeStock = Number(updatedSizeStock[sizeKey]) || 0;
+          const qty = Number(item.quantity) || 1;
+          updatedSizeStock[sizeKey] = Math.max(0, currentSizeStock - qty);
           
           const validSizes = Array.isArray(product.sizes) && product.sizes.length > 0
             ? product.sizes
@@ -438,15 +453,16 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             stock: updatedTotalStock
           });
 
+          const orderRefLabel = order.invoiceNo ? `#${order.invoiceNo}` : `#${String(order.id).slice(-7)}`;
           await addTransaction({
             type: 'out',
             sku: product.sku || product.id,
             productName: product.name,
-            quantities: { [item.selectedSize]: item.quantity },
-            totalQuantity: item.quantity,
+            quantities: { [sizeKey]: qty },
+            totalQuantity: qty,
             category: product.category,
             authorizedBy: getAuthorizedBy(order),
-            notes: `Order #${order.id}`
+            notes: `Order ${orderRefLabel}`
           });
         }
       }
@@ -456,10 +472,10 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   };
 
   const handleStatusChangeStock = async (order: Order, newStatus: Order['status']) => {
-    // Only 'Cancelled' status automatically restores stock.
-    // 'Returned' status does NOT automatically restore stock (requires manual stock-in when product physically arrives).
-    const isOldRestored = order.status === 'Cancelled';
-    const isNewRestored = newStatus === 'Cancelled';
+    // Automatically restores stock for any Cancelled / Pick Up Cancel status.
+    // 'Returned' status requires manual stock-in check when parcel arrives.
+    const isOldRestored = isCancelledStatus(order.status);
+    const isNewRestored = isCancelledStatus(newStatus);
 
     if (!isOldRestored && isNewRestored) {
       await restoreOrderStock(order);
@@ -557,8 +573,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       if (order?.invoiceNo) deletedOrderIdsRef.current.add(String(order.invoiceNo));
 
       if (order) {
-        const s = (order.status || '').toString().trim().toLowerCase();
-        const isAlreadyRestored = s === 'cancelled' || s === 'canceled' || s === 'returned' || s === 'return';
+        const isAlreadyRestored = isCancelledStatus(order.status);
         if (!isAlreadyRestored) {
           try {
             await restoreOrderStock(order);
@@ -628,8 +643,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         if (order) {
           if (order.id) deletedOrderIdsRef.current.add(String(order.id));
           if (order.invoiceNo) deletedOrderIdsRef.current.add(String(order.invoiceNo));
-          const s = (order.status || '').toString().trim().toLowerCase();
-          const isAlreadyRestored = s === 'cancelled' || s === 'canceled' || s === 'returned' || s === 'return';
+          const isAlreadyRestored = isCancelledStatus(order.status);
           if (!isAlreadyRestored) {
             try {
               await restoreOrderStock(order);

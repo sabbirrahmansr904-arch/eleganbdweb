@@ -1424,11 +1424,11 @@ export default function AdminOrders(): React.JSX.Element {
         </div>
       </div>
 
-      {/* White outer container for Search, Pills, and Table */}
-      <div className="bg-[#F8F9FD] rounded-2xl border border-gray-200 p-4 md:p-5 shadow-[0_4px_30px_rgba(0,0,0,0.015)] space-y-4">
+      {/* Outer container */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 p-3.5 md:p-5 shadow-sm space-y-4">
         
-        {/* Interactive Filters Grid / Bar matching screenshot */}
-        <div className="flex flex-row items-center gap-1.5 bg-[#F8FAFC]/60 p-2 rounded-2xl border border-slate-100 overflow-x-auto no-scrollbar whitespace-nowrap">
+        {/* Interactive Filters Grid / Bar */}
+        <div className="flex flex-row items-center gap-1.5 bg-[#F8F9FD] dark:bg-slate-800/90 p-2.5 rounded-2xl border border-slate-200/80 shadow-xs overflow-x-auto no-scrollbar whitespace-nowrap">
           {/* Search Input */}
           <div className="relative flex-1 min-w-[220px] sm:min-w-[300px] max-w-[420px] shrink-0">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 stroke-[2.2]" />
@@ -1669,7 +1669,7 @@ export default function AdminOrders(): React.JSX.Element {
                 ? "bg-[#E8F8EE] border-emerald-300/80 shadow-xs hover:border-emerald-400"
                 : isCancelledOrReturned
                   ? "bg-[#FEF2F2] border-rose-200 shadow-sm hover:border-rose-300"
-                  : "bg-[#F8F9FD] border-slate-100 shadow-sm";
+                  : "bg-[#EBF1F7] border-slate-200/90 shadow-2xs hover:bg-[#E2E9F1]";
 
               const itemsBoxBg = isSuccess
                 ? "bg-white/90 border border-emerald-200/90 shadow-3xs"
@@ -1848,9 +1848,9 @@ export default function AdminOrders(): React.JSX.Element {
       </div>
 
           {/* Desktop Table View */}
-          <table className="hidden md:table w-full text-left border-collapse min-w-[1500px]">
+          <table className="hidden md:table w-full text-left border-separate border-spacing-y-3 min-w-[1500px]">
             <thead>
-              <tr className="border-b border-slate-100 text-[11px] font-black tracking-wider text-slate-400 h-14 bg-[#F8F9FD] select-none uppercase">
+              <tr className="text-[11px] font-black tracking-wider text-slate-500 h-10 select-none uppercase">
                 <th className="py-3 px-4 font-semibold text-left w-12">
                   <input 
                     type="checkbox" 
@@ -1866,7 +1866,7 @@ export default function AdminOrders(): React.JSX.Element {
                   />
                 </th>
                 <th 
-                  className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap cursor-pointer hover:bg-slate-100/70 transition-colors select-none group"
+                  className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap cursor-pointer hover:bg-slate-200/50 rounded-lg transition-colors select-none group"
                   onClick={() => {
                     if (sortField === 'date') {
                       setSortDirection(prev => prev === 'desc' ? 'asc' : 'desc');
@@ -1890,7 +1890,7 @@ export default function AdminOrders(): React.JSX.Element {
                 </th>
                 <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Time</th>
                 <th 
-                  className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap cursor-pointer hover:bg-slate-100/70 transition-colors select-none group"
+                  className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap cursor-pointer hover:bg-slate-200/50 rounded-lg transition-colors select-none group"
                   onClick={() => {
                     if (sortField === 'invoice') {
                       setSortDirection(prev => prev === 'desc' ? 'asc' : 'desc');
@@ -1927,13 +1927,13 @@ export default function AdminOrders(): React.JSX.Element {
                 <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Collectable</th>
                 <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Note</th>
                 <th className="py-3 px-4 font-bold text-left text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">Tracking ID</th>
-                <th className="py-3 px-6 font-bold text-center text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap sticky right-0 bg-[#F8F9FD] z-10 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)]">Action</th>
+                <th className="py-3 px-6 font-bold text-center text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap sticky right-0 z-10">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-[#F8F9FD]">
+            <tbody className="bg-transparent">
               {loading && orders.length === 0 ? (
                 <tr>
-                  <td colSpan={20} className="py-24 text-center">
+                  <td colSpan={20} className="py-24 text-center bg-[#EBF1F7] rounded-2xl border border-slate-200">
                     <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
                     <p className="text-sm font-black text-[#0D1829] uppercase tracking-wide">Loading Orders...</p>
                     <p className="text-xs text-slate-400 mt-1 font-semibold">Syncing real-time orders from database</p>
@@ -1941,7 +1941,7 @@ export default function AdminOrders(): React.JSX.Element {
                 </tr>
               ) : filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={20} className="py-24 text-center">
+                  <td colSpan={20} className="py-24 text-center bg-[#EBF1F7] rounded-2xl border border-slate-200">
                     <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 mx-auto mb-3 border border-slate-200">
                       <AlertCircle className="w-5 h-5 stroke-[1.5]" />
                     </div>
@@ -1985,12 +1985,12 @@ export default function AdminOrders(): React.JSX.Element {
                   const isRowCancelledOrReturned = rowStatus === 'CANCELLED' || rowStatus === 'RETURNED' || rowStatus === 'PICK UP CANCEL' || rowStatus.includes('CANCEL') || rowStatus.includes('RETURN');
 
                   const rowBgClass = order.issueType && order.issueStatus !== 'resolved'
-                    ? "bg-[#FFF5F5] hover:bg-[#FFEBEB] border-b border-rose-100 [&>td]:bg-[#FFF5F5] hover:[&>td]:bg-[#FFEBEB]"
+                    ? "[&>td]:bg-[#FFF5F5] hover:[&>td]:bg-[#FFEBEB] [&>td]:border-rose-200"
                     : isRowSuccess
-                      ? "bg-[#E8F8EE] hover:bg-[#DCF5E3] border-b border-emerald-200/90 [&>td]:bg-[#E8F8EE] hover:[&>td]:bg-[#DCF5E3]"
+                      ? "[&>td]:bg-[#E8F8EE] hover:[&>td]:bg-[#DCF5E3] [&>td]:border-emerald-200/90"
                       : isRowCancelledOrReturned
-                        ? "bg-[#FEF2F2] hover:bg-[#FEE2E2] border-b border-rose-100/90 [&>td]:bg-[#FEF2F2] hover:[&>td]:bg-[#FEE2E2]"
-                        : "hover:bg-slate-50/50 border-b border-slate-100 [&>td]:bg-[#F8F9FD] hover:[&>td]:bg-slate-50";
+                        ? "[&>td]:bg-[#FEF2F2] hover:[&>td]:bg-[#FEE2E2] [&>td]:border-rose-200"
+                        : "[&>td]:bg-[#EBF1F7] hover:[&>td]:bg-[#E2E9F1] [&>td]:border-slate-200/80";
 
                   const stickyActionBg = order.issueType && order.issueStatus !== 'resolved'
                     ? "bg-[#FFF5F5] group-hover:bg-[#FFEBEB]"
@@ -1998,14 +1998,14 @@ export default function AdminOrders(): React.JSX.Element {
                       ? "bg-[#E8F8EE] group-hover:bg-[#DCF5E3]"
                       : isRowCancelledOrReturned
                         ? "bg-[#FEF2F2] group-hover:bg-[#FEE2E2]"
-                        : "bg-[#F8F9FD] group-hover:bg-slate-50";
+                        : "bg-[#EBF1F7] group-hover:bg-[#E2E9F1]";
 
                   return (
                     <tr 
                       key={order.id} 
                       onClick={() => setSelectedOrder(order)}
                       className={cn(
-                        "transition-colors cursor-pointer group h-16",
+                        "transition-all cursor-pointer group h-16 [&>td]:border-y [&>td]:first:border-l [&>td]:last:border-r [&>td]:first:rounded-l-2xl [&>td]:last:rounded-r-2xl [&>td]:shadow-2xs",
                         rowBgClass
                       )}
                     >

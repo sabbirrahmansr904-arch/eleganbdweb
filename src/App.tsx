@@ -43,7 +43,6 @@ import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import Reviews from './pages/Reviews';
 import Login from './pages/Login';
-import { MetaPixel } from './components/MetaPixel';
 
 // Admin Pages
 import AdminLogin from './pages/admin/AdminLogin';
@@ -196,7 +195,6 @@ function App() {
                             <Toaster position="top-center" reverseOrder={false} />
                             <LiveVisitorTracker />
                             <PixelTracker />
-                            <MetaPixel />
                             <ErrorBoundary>
                               <AppRoutes />
                             </ErrorBoundary>

@@ -21,6 +21,7 @@ import toast from 'react-hot-toast';
 import { db } from '../lib/firebase';
 import { doc, getDoc, getDocs, collection, query, where, setDoc } from 'firebase/firestore';
 import { getCleanProductSizes } from '../utils/productSizeHelper';
+import { trackPurchase, trackInitiateCheckout } from '../utils/pixelTracker';
 
 export default function Checkout() {
   const { items, clearCart, updateQuantity, removeFromCart, updateSize, addToCart } = useCart();
@@ -194,6 +195,11 @@ export default function Checkout() {
       }
     };
     fetchCouponConfig();
+
+    if (items && items.length > 0) {
+      const cartSub = calculateCartSubtotal(items);
+      trackInitiateCheckout(items, cartSub);
+    }
   }, []);
 
   const handleApplyCoupon = async () => {
@@ -420,7 +426,11 @@ export default function Checkout() {
       };
       
       const createdOrder = await addOrder(newOrderPayload);
-      const finalId = createdOrder?.id || newOrderPayload.id;
+      const finalOrder = createdOrder || newOrderPayload;
+      const finalId = finalOrder.id;
+
+      // Track Meta Pixel + Meta Conversions API (CAPI) + GA Purchase Event
+      trackPurchase(finalOrder);
 
       // Save/Update customer information
       try {

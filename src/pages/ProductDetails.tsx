@@ -17,6 +17,7 @@ import { db } from '../lib/firebase';
 import { collection, query, where, orderBy, onSnapshot, addDoc } from 'firebase/firestore';
 import { Review } from '../types';
 import { isPantProduct, getCleanProductSizes, isSizeUsableAndInStock } from '../utils/productSizeHelper';
+import { trackViewContent } from '../utils/pixelTracker';
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -54,7 +55,10 @@ const ProductDetails = () => {
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
-  }, [id]);
+    if (product) {
+      trackViewContent(product);
+    }
+  }, [id, product]);
 
   useEffect(() => {
     const handleScroll = () => {

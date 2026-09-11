@@ -23,6 +23,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useInventory } from '../../contexts/InventoryContext';
 import { useOrders } from '../../contexts/OrderContext';
+import { isCancelledStatus } from '../../utils/orderUtils';
 import { StockTransaction } from '../../types';
 import { cn } from '../../lib/utils';
 import toast from 'react-hot-toast';
@@ -92,7 +93,7 @@ export default function AdminInventoryLog() {
             });
           }
 
-          if (order.status === 'Cancelled') {
+          if (isCancelledStatus(order.status)) {
             const restoreTxId = `ord_tx_in_${order.id}_${sku}_${sz}_${idx}`;
             const restoreNoteLower = `restored: order ${invoiceLabel} (cancelled)`.toLowerCase();
 

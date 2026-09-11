@@ -9,6 +9,7 @@ import { useBranding } from '../contexts/BrandingContext';
 import { formatPrice, cn } from '../lib/utils';
 import { DISTRICT_THANAS } from '../data/locations';
 import { isPantProduct, getCleanProductSizes, isSizeUsableAndInStock } from '../utils/productSizeHelper';
+import { trackPurchase } from '../utils/pixelTracker';
 import toast from 'react-hot-toast';
 
 interface QuickOrderModalProps {
@@ -111,7 +112,8 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
     };
 
     try {
-      await addOrder(newOrder as any);
+      const createdOrder = await addOrder(newOrder as any);
+      trackPurchase(createdOrder || (newOrder as any));
       setIsSubmitting(false);
       setStep('success');
     } catch (err: any) {

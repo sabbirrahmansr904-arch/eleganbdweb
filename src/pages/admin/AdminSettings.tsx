@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { setLocalPixelConfig } from '../../utils/pixelTracker';
 import { 
   Globe, 
   Settings, 
@@ -1125,11 +1126,14 @@ export default function AdminSettings() {
         };
       }
 
-      await setDoc(docRef, {
+      const mergedConfig = {
         ...currentData,
         ...updatedFields,
         updatedAt: Date.now(),
-      });
+      };
+
+      await setDoc(docRef, mergedConfig);
+      setLocalPixelConfig(mergedConfig as any);
 
       toast.success(`${section.split('_').map(w => w.toUpperCase()).join(' ')} saved successfully!`);
     } catch (err) {

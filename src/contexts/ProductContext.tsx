@@ -499,11 +499,15 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const mapped: Product[] = data.map(supabaseRowToProduct);
           const nonDemo = mapped.filter(p => !isDemoProduct(p));
           const normalized = deduplicateProducts(nonDemo.map(normalizeProductCategory));
-          setProducts(normalized);
-          try {
-            localStorage.setItem('eleganbd_products', JSON.stringify(normalized));
-            localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
-          } catch (e) {}
+          setProducts(prev => {
+            const merged = mergeProductsWithLocalCache(normalized, prev);
+            const finalNormalized = deduplicateProducts(merged.map(normalizeProductCategory));
+            try {
+              localStorage.setItem('eleganbd_products', JSON.stringify(finalNormalized));
+              localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
+            } catch (e) {}
+            return finalNormalized;
+          });
         }
       } catch (err) {
         console.warn('[ProductContext] Supabase load notice:', err);
@@ -589,11 +593,15 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
 
       const normalized = deduplicateProducts(prodData.map(normalizeProductCategory));
-      setProducts(normalized);
-      try {
-        localStorage.setItem('eleganbd_products', JSON.stringify(normalized));
-        localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
-      } catch (e) {}
+      setProducts(prev => {
+        const merged = mergeProductsWithLocalCache(normalized, prev);
+        const finalNormalized = deduplicateProducts(merged.map(normalizeProductCategory));
+        try {
+          localStorage.setItem('eleganbd_products', JSON.stringify(finalNormalized));
+          localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
+        } catch (e) {}
+        return finalNormalized;
+      });
       setLoading(false);
     }, (err) => {
       if (!isQuotaError(err)) {

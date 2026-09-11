@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Product } from '../types';
 import { calculateCartSubtotal } from '../lib/utils';
+import { trackAddToCart } from '../utils/pixelTracker';
 
 interface CartItem {
   id: string;
@@ -39,6 +40,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [items]);
 
   const addToCart = (product: Product, size: string, qty: number) => {
+    trackAddToCart(product, qty, size);
     setItems(prev => {
       const existing = prev.find(item => item.product.id === product.id && item.selectedSize === size);
       if (existing) {

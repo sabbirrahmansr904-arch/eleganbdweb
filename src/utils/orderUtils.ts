@@ -1,3 +1,19 @@
+export const isCancelledStatus = (status?: string): boolean => {
+  if (!status) return false;
+  const s = status.toString().trim().toLowerCase();
+  return (
+    s === 'cancelled' ||
+    s === 'canceled' ||
+    s === 'cancel' ||
+    s === 'pick up cancel' ||
+    s === 'pickup cancel' ||
+    s === 'pickup_cancel' ||
+    s === 'pick_up_cancel' ||
+    s.includes('cancel') ||
+    s.includes('বাতিল')
+  );
+};
+
 export const canChangeOrderStatus = (status?: string): boolean => {
   if (!status) return true;
   const s = status.toUpperCase().trim();
@@ -22,6 +38,9 @@ export const canChangeOrderStatus = (status?: string): boolean => {
     s === 'PICKUP CANCEL' ||
     s === 'PICKUP_CANCEL' ||
     s === 'PICK_UP_CANCEL' ||
+    s === 'CANCELLED' ||
+    s === 'CANCELED' ||
+    s === 'CANCEL' ||
     s.startsWith('READY')
   );
 };

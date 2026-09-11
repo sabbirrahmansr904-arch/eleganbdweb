@@ -181,34 +181,38 @@ async function startServer() {
     }
   });
 
-  // API route to send Meta Conversion API event
-  app.post("/api/meta-conversion-event", async (req, res) => {
-    const { eventName, eventData, userData } = req.body;
-    const token = process.env.META_CONVERSION_API_TOKEN;
-    const pixelId = process.env.META_PIXEL_ID;
-    
-    if (!token || !pixelId) {
-      return res.status(500).json({ error: "Meta configuration missing" });
-    }
-
+  // Direct robust Server API to save/update product data
+  app.post("/api/products/save", async (req, res) => {
     try {
-      const response = await fetch(`https://graph.facebook.com/v19.0/${pixelId}/events?access_token=${token}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          data: [{
-            event_name: eventName,
-            event_time: Math.floor(Date.now() / 1000),
-            user_data: userData,
-            custom_data: eventData
-          }]
-        })
-      });
-      const data = await response.json();
-      res.json(data);
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: "Failed to send event to Meta" });
+      const { product } = req.body;
+      if (!product || !product.id) {
+        return res.status(400).json({ error: "Invalid product data: missing product ID" });
+      }
+      const prodRef = doc(db, 'products', String(product.id));
+      await setDoc(prodRef, {
+        ...product,
+        updatedAt: product.updatedAt || Date.now()
+      }, { merge: true });
+      return res.json({ success: true, message: "Product saved successfully" });
+    } catch (e: any) {
+      console.error("API product save error:", e);
+      return res.status(500).json({ error: e.message || "Failed to save product" });
+    }
+  });
+
+  // Direct robust Server API to delete product data
+  app.post("/api/products/delete", async (req, res) => {
+    try {
+      const { id } = req.body;
+      if (!id) {
+        return res.status(400).json({ error: "Product ID is required" });
+      }
+      const prodRef = doc(db, 'products', String(id));
+      await deleteDoc(prodRef);
+      return res.json({ success: true, message: "Product deleted successfully" });
+    } catch (e: any) {
+      console.error("API product delete error:", e);
+      return res.status(500).json({ error: e.message || "Failed to delete product" });
     }
   });
 
@@ -233,15 +237,84 @@ async function startServer() {
         memoryConfigCache[cacheKey] = { data, timestamp: now };
         return data;
       }
-    } catch (_err) {
-      // Graceful fallback to previous cache or fallback defaults on quota limit / network error
-      if (cached?.data) {
-        return cached.data;
-      }
+    } catch (err) {
+      console.warn(`[Firestore Cache Warning] Failed to fetch ${collectionName}/${docId}:`, err);
     }
 
     return fallback;
   }
+
+  // API route to send Meta Conversion API event
+  app.post("/api/meta-conversion-event", async (req, res) => {
+    try {
+      const {
+        eventName,
+        eventData,
+        userData,
+        eventId,
+        eventSourceUrl,
+        pixelId: reqPixelId,
+        accessToken: reqToken,
+        testCode: reqTestCode
+      } = req.body;
+
+      let token = (reqToken || process.env.META_CONVERSION_API_TOKEN || '').trim();
+      let pixelId = (reqPixelId || process.env.META_PIXEL_ID || '').trim();
+      let testCode = (reqTestCode || process.env.META_TEST_EVENT_CODE || '').trim();
+
+      if (!token || !pixelId) {
+        try {
+          const pixelConfig = await getCachedDocData("config", "pixel_analytics", null);
+          if (pixelConfig) {
+            if (!pixelId && pixelConfig.facebookPixelId) pixelId = pixelConfig.facebookPixelId.trim();
+            if (!token && pixelConfig.facebookAccessToken) token = pixelConfig.facebookAccessToken.trim();
+            if (!testCode && pixelConfig.facebookTestCode) testCode = pixelConfig.facebookTestCode.trim();
+          }
+        } catch (e) {
+          console.warn("CAPI config lookup notice:", e);
+        }
+      }
+
+      if (!pixelId || !token) {
+        return res.status(400).json({ error: "Meta Facebook Pixel ID or Conversion API Access Token not configured" });
+      }
+
+      const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress || req.ip;
+      const clientUserAgent = req.headers['user-agent'] || '';
+
+      const payload: any = {
+        data: [{
+          event_name: eventName || 'Purchase',
+          event_time: Math.floor(Date.now() / 1000),
+          event_id: eventId || `evt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          action_source: "website",
+          event_source_url: eventSourceUrl || req.headers.referer || "https://eleganbd.com",
+          user_data: {
+            ...userData,
+            client_ip_address: clientIp,
+            client_user_agent: clientUserAgent
+          },
+          custom_data: eventData || {}
+        }]
+      };
+
+      if (testCode) {
+        payload.test_event_code = testCode;
+      }
+
+      const metaRes = await fetch(`https://graph.facebook.com/v19.0/${pixelId}/events?access_token=${token}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await metaRes.json();
+      return res.json(data);
+    } catch (error: any) {
+      console.error("Meta Conversion API error:", error);
+      return res.status(500).json({ error: error?.message || "Failed to send event to Meta" });
+    }
+  });
 
   // API route to proxy fetch Google Sheets CSV data without CORS issues
   app.post("/api/fetch-google-sheet", async (req, res) => {

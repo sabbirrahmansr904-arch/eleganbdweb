@@ -78,6 +78,7 @@ export default function AdminAddProduct() {
   const [showMediaModal, setShowMediaModal] = useState(false);
   const [libraryPhotos, setLibraryPhotos] = useState<{ id: string; url: string; name?: string }[]>([]);
   const [loadingLibrary, setLoadingLibrary] = useState(false);
+  const initializedEditIdRef = useRef<string | null>(null);
 
   const PRESET_COLORS = [
     { name: 'Black', hex: '#111827' },
@@ -161,8 +162,12 @@ export default function AdminAddProduct() {
 
   useEffect(() => {
     if (editId) {
-      const productToEdit = products.find(p => p.id === editId);
+      if (initializedEditIdRef.current === editId) {
+        return;
+      }
+      const productToEdit = products.find(p => String(p.id) === String(editId));
       if (productToEdit) {
+        initializedEditIdRef.current = editId;
         setIsEditMode(true);
         setInitialData(productToEdit);
         setProductName(productToEdit.name || '');
@@ -182,10 +187,13 @@ export default function AdminAddProduct() {
         setIsBestSelling(!!(productToEdit.featured || productToEdit.bestSelling));
         setIsNewArrival(productToEdit.newArrival !== undefined ? productToEdit.newArrival : true);
       }
-    } else if (categories.length > 0) {
-      setSelectedCategory(categories[0].name);
+    } else {
+      initializedEditIdRef.current = null;
+      if (categories.length > 0 && !selectedCategory) {
+        setSelectedCategory(categories[0].name);
+      }
     }
-  }, [editId, products, categories]);
+  }, [editId, products, categories, selectedCategory]);
 
   const toggleSize = (size: string) => {
     if (selectedSizes.includes(size)) {
@@ -218,7 +226,7 @@ export default function AdminAddProduct() {
       setIsUploadingImage(true);
       const toastId = toast.loading('Processing image...');
       
-      const dataUrl = await compressImage(file, 1200, 1200, 0.82);
+      const dataUrl = await compressImage(file, 1200, 1200, 0.82, false, 200000);
       
       setUploadedImages(prev => {
         const next = [...prev];
@@ -231,7 +239,7 @@ export default function AdminAddProduct() {
       });
 
       toast.dismiss(toastId);
-      toast.success('Photo added successfully');
+      toast.success(index < uploadedImages.length ? 'Photo updated successfully' : 'Photo added successfully');
 
       // Auto save to Media Library in background
       autoSaveToMediaLibrary(dataUrl, {
@@ -867,6 +875,19 @@ Wash Care:
                       referrerPolicy="no-referrer" 
                     />
                     <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
+                      <label 
+                        className="bg-white/90 backdrop-blur-md text-gray-700 hover:text-blue-600 p-2 rounded-xl hover:bg-white transition-all shadow-md cursor-pointer flex items-center justify-center"
+                        title="Change / Replace Cover Photo"
+                      >
+                        <Upload size={16} />
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          accept="image/*" 
+                          disabled={isUploadingImage}
+                          onChange={(e) => handleFileChange(coverImageIndex, e)} 
+                        />
+                      </label>
                       <button
                         type="button"
                         onClick={() => setPreviewModalImage(uploadedImages[coverImageIndex])}
@@ -947,6 +968,19 @@ Wash Care:
                       </span>
                     )}
                     <div className="absolute top-1.5 right-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all z-10" onClick={e => e.stopPropagation()}>
+                      <label
+                        className="bg-white/90 text-gray-700 hover:text-blue-600 p-1.5 rounded-lg transition-all shadow-md cursor-pointer flex items-center justify-center"
+                        title="Replace this photo"
+                      >
+                        <Upload size={12} />
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          accept="image/*" 
+                          disabled={isUploadingImage}
+                          onChange={(e) => handleFileChange(i, e)} 
+                        />
+                      </label>
                       <button
                         type="button"
                         onClick={() => setPreviewModalImage(img)}
