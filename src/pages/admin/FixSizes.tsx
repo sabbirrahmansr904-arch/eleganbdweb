@@ -1,6 +1,7 @@
 import React from 'react';
 import { db } from '../../lib/firebase';
-import { collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
+import { collection, query, getDocs, updateDoc } from 'firebase/firestore';
+import { isPantProduct } from '../../utils/productSizeHelper';
 import toast from 'react-hot-toast';
 
 const FixSizes = () => {
@@ -15,7 +16,7 @@ const FixSizes = () => {
       let count = 0;
       for (const doc of snapshot.docs) {
         const data = doc.data();
-        if (data.category === 'Formal Pant' || data.category === 'Formal Pants') {
+        if (isPantProduct(data)) {
           await updateDoc(doc.ref, {
             sizes: newSizes,
             sizeStock: newSizeStock
@@ -23,7 +24,7 @@ const FixSizes = () => {
           count++;
         }
       }
-      toast.success(`Sizes updated for ${count} Formal Pants!`);
+      toast.success(`Sizes updated for ${count} Pant products!`);
     } catch (error) {
       console.error(error);
       toast.error('Failed to update sizes');
@@ -34,9 +35,9 @@ const FixSizes = () => {
     <div className="p-10">
       <button 
         onClick={fixSizes}
-        className="bg-black text-white px-6 py-3 rounded-xl font-black uppercase tracking-widest text-xs"
+        className="bg-black text-white px-6 py-3 rounded-xl font-black uppercase tracking-widest text-xs cursor-pointer"
       >
-        Fix Sizes for Formal Pants
+        Fix Sizes for All Pants (28–40)
       </button>
     </div>
   );

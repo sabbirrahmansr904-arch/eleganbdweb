@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ShoppingBag, Star, ChevronRight, Truck, RotateCcw, ShieldCheck } from 'lucide-react';
 import { Product } from '../types';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useCart } from '../contexts/CartContext';
 import { formatPrice, cn } from '../lib/utils';
+import { isPantProduct, getCleanProductSizes } from '../utils/productSizeHelper';
 import toast from 'react-hot-toast';
 
 interface QuickViewModalProps {
@@ -17,9 +18,18 @@ export default function QuickViewModal({ product, isOpen, onClose }: QuickViewMo
   const { currency, rate } = useCurrency();
   const { addToCart } = useCart();
   const isBag = (product.category || '').toLowerCase().includes('bag');
-  const [selectedSize, setSelectedSize] = useState(product.sizes[0] || '');
+  const isPant = isPantProduct(product);
+  const cleanSizes = useMemo(() => getCleanProductSizes(product), [product]);
+
+  const [selectedSize, setSelectedSize] = useState(() => cleanSizes[0] || '');
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
+
+  useEffect(() => {
+    if (cleanSizes.length > 0 && !cleanSizes.includes(selectedSize)) {
+      setSelectedSize(cleanSizes[0]);
+    }
+  }, [cleanSizes, selectedSize]);
 
   const handleAddToCart = () => {
     if (!selectedSize) {
@@ -111,14 +121,17 @@ export default function QuickViewModal({ product, isOpen, onClose }: QuickViewMo
 
                 {/* Sizes */}
                 <div className="space-y-3">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest">{isBag ? 'Select QN' : 'Select Size'}</h4>
+                  <h4 className="text-[10px] font-black uppercase tracking-widest">
+                    {isBag ? 'Select QN' : isPant ? 'Select Waist Size (28–40)' : 'Select Size'}
+                  </h4>
                   <div className="flex flex-wrap gap-2">
-                    {product.sizes.map(size => (
+                    {cleanSizes.map(size => (
                       <button
                         key={size}
+                        type="button"
                         onClick={() => setSelectedSize(size)}
                         className={cn(
-                          "w-10 h-10 flex items-center justify-center text-xs font-bold border transition-all",
+                          "w-10 h-10 flex items-center justify-center text-xs font-bold border transition-all cursor-pointer",
                           selectedSize === size ? "bg-brand-black text-white border-brand-black" : "bg-white text-brand-black border-gray-200 hover:border-brand-gold"
                         )}
                       >

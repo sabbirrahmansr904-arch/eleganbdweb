@@ -57,6 +57,21 @@ export const ParcelLiveStatusBadgeComponent: React.FC<ParcelLiveStatusBadgeProps
         // Check if status is a return / cancel first so it never triggers delivery success
         const isReturnOrCancel = lower.includes('return') || lower.includes('cancel') || lower === 'partial_delivery_return';
 
+        const isTransitOrHubOrAssign = 
+          lower.includes('hub') ||
+          lower.includes('assign') ||
+          lower.includes('transit') ||
+          lower.includes('out for') ||
+          lower.includes('progress') ||
+          lower.includes('hold') ||
+          lower.includes('pickup') ||
+          lower.includes('pending') ||
+          lower.includes('way');
+
+        const isStrictlyDeliveredCourier = 
+          !isTransitOrHubOrAssign && 
+          (lower === 'delivered' || lower === 'success' || lower === 'successful' || lower === 'delivered / success' || lower === 'delivered/success' || lower === 'delivery_complete');
+
         if (isReturnOrCancel) {
           if (order.status !== 'Returned' && order.status !== 'Cancelled') {
             try {
@@ -75,9 +90,9 @@ export const ParcelLiveStatusBadgeComponent: React.FC<ParcelLiveStatusBadgeProps
               console.warn("Could not auto-update returned status:", err);
             }
           }
-        } else if (lower.includes('deliver') || lower.includes('success') || lower === 'delivery_complete' || lower === 'delivered') {
-          // Only if strictly delivered and NOT return/cancel
-          if (!isDeliveredOrSuccess(order.status)) {
+        } else if (isStrictlyDeliveredCourier) {
+          // Strictly delivered only
+          if (order.status !== 'Delivered') {
             try {
               if (updateOrder) {
                 await updateOrder(order.id, {
@@ -93,6 +108,23 @@ export const ParcelLiveStatusBadgeComponent: React.FC<ParcelLiveStatusBadgeProps
               toast.success(`অর্ডার #${shortId} পার্সেল ডেলিভার্ড হওয়ায় স্ট্যাটাস অটো SUCCESS করা হয়েছে!`);
             } catch (err) {
               console.warn("Could not auto-update delivered order status:", err);
+            }
+          }
+        } else if (isTransitOrHubOrAssign) {
+          // "kono order sudhu matro only (Delivered) Lekha na utha porjonto order ta success dekhabe na seta shipped hoye thakbe"
+          if (order.status === 'Delivered') {
+            try {
+              if (updateOrder) {
+                await updateOrder(order.id, {
+                  ...order,
+                  status: 'Shipped',
+                  courierStatus: data.status
+                }, true);
+              } else if (updateOrderStatus) {
+                await updateOrderStatus(order.id, 'Shipped', true);
+              }
+            } catch (err) {
+              console.warn("Could not revert delivered status to shipped:", err);
             }
           }
         }
@@ -134,14 +166,15 @@ export const ParcelLiveStatusBadgeComponent: React.FC<ParcelLiveStatusBadgeProps
     if (lower.includes('return') || lower.includes('cancel')) {
       return { bg: 'bg-rose-50 text-rose-700 border-rose-200', icon: AlertCircle, label };
     }
-    if (lower.includes('deliver') || lower.includes('success')) {
-      return { bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: PackageCheck, label };
-    }
+    // "Jeigulo at to Delivery hub ba assign for delivery emon kisu thakle seta success dhora jabe na"
     if (lower.includes('pickup') || lower.includes('waiting') || lower.includes('assign') || lower.includes('hold')) {
       return { bg: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock, label };
     }
-    if (lower.includes('transit') || lower.includes('way') || lower.includes('hub') || lower.includes('sort') || lower.includes('pending') || lower.includes('ship')) {
+    if (lower.includes('transit') || lower.includes('way') || lower.includes('hub') || lower.includes('sort') || lower.includes('pending') || lower.includes('ship') || lower.includes('out for')) {
       return { bg: 'bg-blue-50 text-blue-700 border-blue-200', icon: Send, label };
+    }
+    if (lower === 'delivered' || lower === 'success' || lower.includes('delivered') || lower.includes('delivery_complete')) {
+      return { bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: PackageCheck, label };
     }
     return { bg: 'bg-indigo-50 text-indigo-700 border-indigo-200', icon: Truck, label };
   };

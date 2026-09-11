@@ -11,6 +11,7 @@ import {
   MapPin, 
   Mail, 
   Calendar, 
+  Clock,
   Truck, 
   Tag, 
   FileText, 
@@ -30,6 +31,13 @@ interface OrderItemEntry {
   quantity: number;
   price: number;
 }
+
+const getDhakaNow = () => {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' });
+  const timeStr = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit', hour12: false });
+  return { dateStr, timeStr };
+};
 
 interface CreateOrderModalProps {
   isOpen: boolean;
@@ -69,7 +77,8 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
   const [customerCity, setCustomerCity] = useState('');
   const [customerThana, setCustomerThana] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
-  const [orderDate, setOrderDate] = useState(new Date().toISOString().slice(0, 10));
+  const [orderDate, setOrderDate] = useState(() => getDhakaNow().dateStr);
+  const [orderTime, setOrderTime] = useState(() => getDhakaNow().timeStr);
   const [deliveryPartner, setDeliveryPartner] = useState('');
   const [invoiceBy, setInvoiceBy] = useState('Sabbir');
   const [invoiceNo, setInvoiceNo] = useState('');
@@ -146,11 +155,21 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
       setTrackingId(editingOrder.trackingId || (editingOrder as any).pathaoConsignmentId || (editingOrder as any).trackingCode || '');
       setInternalNote(editingOrder.notes || '');
       setInvoiceBy((editingOrder.invoiceBy as any) || 'Sabbir');
-      setOrderDate(
-        editingOrder.createdAt 
-          ? new Date(editingOrder.createdAt).toISOString().slice(0, 10) 
-          : new Date().toISOString().slice(0, 10)
-      );
+      if (editingOrder.createdAt) {
+        const d = new Date(editingOrder.createdAt);
+        if (!isNaN(d.getTime())) {
+          setOrderDate(d.toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' }));
+          setOrderTime(d.toLocaleTimeString('en-GB', { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit', hour12: false }));
+        } else {
+          const now = getDhakaNow();
+          setOrderDate(now.dateStr);
+          setOrderTime(now.timeStr);
+        }
+      } else {
+        const now = getDhakaNow();
+        setOrderDate(now.dateStr);
+        setOrderTime(now.timeStr);
+      }
       setInvoiceNo(editingOrder.invoiceNo ? String(editingOrder.invoiceNo) : (editingOrder.id || ''));
 
       if (editingOrder.items && editingOrder.items.length > 0) {
@@ -182,7 +201,9 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
       setTrackingId('');
       setInternalNote('');
       setDeliveryDate('');
-      setOrderDate(new Date().toISOString().slice(0, 10));
+      const now = getDhakaNow();
+      setOrderDate(now.dateStr);
+      setOrderTime(now.timeStr);
       const autoNext = typeof getNextOrderId === 'function' ? getNextOrderId() : '';
       setInvoiceNo(autoNext);
       setOrderItems([]);
@@ -241,6 +262,18 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
       toast.success(`Autofilled for ${matchedCustomer.name}!`);
     }
   }, [matchedCustomer]);
+
+  const calculateCreatedAt = useCallback((fallbackIso?: string): string => {
+    if (orderDate) {
+      const timeToUse = (orderTime && orderTime.trim()) ? orderTime.trim() : getDhakaNow().timeStr;
+      const [hh = '00', mm = '00'] = timeToUse.split(':');
+      const constructed = new Date(`${orderDate}T${hh.padStart(2, '0')}:${mm.padStart(2, '0')}:00+06:00`);
+      if (!isNaN(constructed.getTime())) {
+        return constructed.toISOString();
+      }
+    }
+    return fallbackIso || new Date().toISOString();
+  }, [orderDate, orderTime]);
 
   const handleAddCustomInvoiceBy = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -330,7 +363,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
           pathaoConsignmentId: (deliveryPartner === 'Pathao' || !deliveryPartner) ? (trackingToSave || (editingOrder as any).pathaoConsignmentId || '') : (editingOrder as any).pathaoConsignmentId,
           courierCharge: courierChargeToSave,
           courierPayoutAmount: courierPayoutToSave,
-          createdAt: orderDate ? new Date(orderDate + 'T12:00:00Z').toISOString() : editingOrder.createdAt,
+          createdAt: calculateCreatedAt(editingOrder.createdAt),
           invoiceNo: invoiceNo ? parseInt(invoiceNo, 10) : (editingOrder.invoiceNo || undefined)
         };
 
@@ -355,7 +388,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
           total: collectableAmount,
           status: 'Pending',
           paymentMethod: (advancePaymentMethod.toLowerCase() as any) || 'cod',
-          createdAt: orderDate ? new Date(orderDate + 'T12:00:00Z').toISOString() : new Date().toISOString(),
+          createdAt: calculateCreatedAt(),
           notes: internalNote || '',
           discount: discountAmount,
           advancePayment,
@@ -715,15 +748,42 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                     </div>
 
                     <div className="space-y-1 text-left">
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">ORDER DATE (CREATE DATE)</label>
-                      <div className="relative">
-                        <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
-                        <input 
-                          type="date" 
-                          value={orderDate}
-                          onChange={(e) => setOrderDate(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 text-xs font-semibold rounded-xl text-slate-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all shadow-xs"
-                        />
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">ORDER DATE & TIME (রিয়েল টাইম)</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const now = getDhakaNow();
+                            setOrderDate(now.dateStr);
+                            setOrderTime(now.timeStr);
+                            toast.success("Real-time timestamp synced!", { id: "real-time-sync" });
+                          }}
+                          className="text-[10px] font-extrabold text-indigo-600 hover:text-indigo-800 inline-flex items-center gap-1 cursor-pointer transition-colors bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded-md border border-indigo-100"
+                          title="এখনকার রিয়েল তারিখ ও সময় সেট করুন"
+                        >
+                          <Clock className="w-2.5 h-2.5 stroke-[2.5]" />
+                          <span>Real-Time</span>
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="relative">
+                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5 pointer-events-none" />
+                          <input 
+                            type="date" 
+                            value={orderDate}
+                            onChange={(e) => setOrderDate(e.target.value)}
+                            className="w-full pl-8 pr-2 py-2 bg-white border border-slate-200 text-xs font-semibold rounded-xl text-slate-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all shadow-xs"
+                          />
+                        </div>
+                        <div className="relative">
+                          <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5 pointer-events-none" />
+                          <input 
+                            type="time" 
+                            value={orderTime}
+                            onChange={(e) => setOrderTime(e.target.value)}
+                            className="w-full pl-8 pr-2 py-2 bg-white border border-slate-200 text-xs font-semibold rounded-xl text-slate-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all shadow-xs"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>

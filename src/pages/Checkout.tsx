@@ -20,6 +20,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import { db } from '../lib/firebase';
 import { doc, getDoc, getDocs, collection, query, where, setDoc } from 'firebase/firestore';
+import { getCleanProductSizes } from '../utils/productSizeHelper';
 
 export default function Checkout() {
   const { items, clearCart, updateQuantity, removeFromCart, updateSize, addToCart } = useCart();
@@ -793,9 +794,7 @@ export default function Checkout() {
               </div>
             ) : (
               items.map((item) => {
-                const availableSizes = item.product.sizes && item.product.sizes.length > 0 
-                  ? item.product.sizes 
-                  : ['S', 'M', 'L', 'XL', 'XXL'];
+                const availableSizes = getCleanProductSizes(item.product);
 
                 return (
                   <div key={item.id} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-gray-50/40 p-3 rounded-2xl border border-gray-150/80 hover:border-gray-200 transition-all shadow-3xs group">

@@ -147,16 +147,32 @@ export const PathaoSyncModal: React.FC<PathaoSyncModalProps> = ({
 
           const isReturnOrCancel = lower.includes('return') || lower.includes('cancel') || lower === 'partial_delivery_return';
 
+          const isTransitOrHubOrAssign = 
+            lower.includes('hub') ||
+            lower.includes('assign') ||
+            lower.includes('transit') ||
+            lower.includes('out for') ||
+            lower.includes('progress') ||
+            lower.includes('hold') ||
+            lower.includes('pickup') ||
+            lower.includes('pending') ||
+            lower.includes('way');
+
+          const isStrictlyDeliveredCourier = 
+            !isTransitOrHubOrAssign && 
+            (lower === 'delivered' || lower === 'success' || lower === 'successful' || lower === 'delivered / success' || lower === 'delivered/success' || lower === 'delivery_complete');
+
           if (isReturnOrCancel) {
             newStatus = 'Returned';
             isReturned = true;
             returnedTotal++;
-          } else if (lower.includes('deliver') || lower.includes('success') || lower === 'delivery_complete' || lower === 'delivered') {
+          } else if (isStrictlyDeliveredCourier) {
             newStatus = 'Delivered';
             isDelivered = true;
             deliveredTotal++;
           } else {
-            if (!isDeliveredOrSuccess(oldStatus) && oldStatus !== 'Returned' && oldStatus !== 'Cancelled') {
+            // "kono order sudhu matro only (Delivered) Lekha na utha porjonto order ta success dekhabe na seta shipped hoye thakbe"
+            if (oldStatus !== 'Returned' && oldStatus !== 'Cancelled') {
               newStatus = 'Shipped';
             }
           }

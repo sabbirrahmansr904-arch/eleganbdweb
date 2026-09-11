@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Product } from '../types';
 import { db } from '../lib/firebase';
-import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import { supabase, productToSupabaseRow, supabaseRowToProduct } from '../lib/supabase';
 import { handleFirestoreError, OperationType, isQuotaError, isFirestoreQuotaExceeded } from '../lib/firestoreUtils';
+import { isPantProduct, getCleanProductSizes } from '../utils/productSizeHelper';
 
 interface ProductContextType {
   products: Product[];
@@ -103,25 +104,44 @@ const normalizeProductCategory = (p: Product): Product => {
     category = 'Formal Shirt';
   } else if (lowerCategory === 'drop shoulder t-shirt' || lowerCategory === 'drop-shoulder-t-shirt' || lowerCategory === 'panjabi' || lowerCategory === 'polo t-shirt' || lowerCategory === 'polo-t-shirt' || lowerCategory === 'polo t shirt') {
     category = 'Polo T-shirt';
-  } else if (lowerCategory === 'casual shirt' || lowerCategory === 'casual-shirt' || lowerCategory === 'woman palazzo' || lowerCategory === 'formal pant' || lowerCategory === 'formal-pant') {
+  } else if (lowerCategory === 'casual shirt' || lowerCategory === 'casual-shirt') {
+    category = 'Casual Shirt';
+  } else if (lowerCategory === 'woman palazzo' || lowerCategory === 'formal pant' || lowerCategory === 'formal-pant' || lowerCategory.includes('pant') || lowerCategory.includes('chino') || lowerCategory.includes('trouser') || lowerCategory.includes('jeans')) {
     category = 'Formal Pant';
   } else if (lowerCategory === 'premium shirt' || lowerCategory === 'premium-shirt') {
     category = 'Premium Shirt';
   }
 
+  const isPant = isPantProduct({ ...p, category });
+
   // Clean sizeStock & sizes
   const rawSizeStock = (p.sizeStock && typeof p.sizeStock === 'object') ? p.sizeStock : {};
   const cleanedSizeStock: Record<string, number> = {};
   
-  let validSizes: string[] = Array.isArray(p.sizes) ? p.sizes.filter(Boolean) : [];
-  if (validSizes.length === 0 && Object.keys(rawSizeStock).length > 0) {
-    validSizes = Object.keys(rawSizeStock).filter(k => k !== 'stock' && k !== 'total' && k !== 'undefined');
-  }
+  let validSizes = getCleanProductSizes({ ...p, category });
 
-  // Ensure all configured sizes have a non-negative number
-  validSizes.forEach(sz => {
-    cleanedSizeStock[sz] = Math.max(0, Number(rawSizeStock[sz]) || 0);
-  });
+  if (isPant) {
+    // For pants: strictly enforce 28-40 numeric waist sizes and guarantee each has usable stock
+    const defaultStockPerSize = Math.max(5, Math.floor((p.stock || 35) / validSizes.length));
+    validSizes.forEach(sz => {
+      const existingVal = Number(rawSizeStock[sz]);
+      cleanedSizeStock[sz] = (!isNaN(existingVal) && existingVal > 0) ? existingVal : defaultStockPerSize;
+    });
+
+    // Auto-heal in Firestore if this product previously had invalid letter sizes (M, L, XL, etc.)
+    if (p.id && Array.isArray(p.sizes) && p.sizes.some(s => /[a-zA-Z]/.test(String(s)))) {
+      try {
+        updateDoc(doc(db, 'products', p.id), {
+          sizes: validSizes,
+          sizeStock: cleanedSizeStock
+        }).catch(() => {});
+      } catch (e) {}
+    }
+  } else {
+    validSizes.forEach(sz => {
+      cleanedSizeStock[sz] = Math.max(0, Number(rawSizeStock[sz]) || 0);
+    });
+  }
 
   // Calculate actual total stock strictly from size breakdown if sizes exist
   let calculatedStock = 0;

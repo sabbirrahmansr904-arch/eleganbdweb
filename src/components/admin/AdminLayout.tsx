@@ -60,7 +60,7 @@ import {
 } from 'lucide-react';
 import { VerifiedBadge } from './VerifiedBadge';
 import { cn, formatPrice } from '../../lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { useBranding } from '../../contexts/BrandingContext';
 import { useOrders } from '../../contexts/OrderContext';
 import { useProducts } from '../../contexts/ProductContext';
@@ -239,7 +239,7 @@ export default function AdminLayout() {
       link: string;
     }> = [];
 
-    (orders || []).forEach(order => {
+    (orders || []).slice(0, 30).forEach(order => {
       if (!order) return;
       const orderId = order.id ? String(order.id) : '';
       const orderShortId = orderId ? orderId.slice(-6).toUpperCase() : 'UNKNOWN';
@@ -282,7 +282,7 @@ export default function AdminLayout() {
       }
     });
 
-    (products || []).forEach(product => {
+    (products || []).slice(0, 20).forEach(product => {
       if (!product) return;
       const productTime = (product as any).createdAt ? new Date((product as any).createdAt) : new Date();
       items.push({
@@ -430,10 +430,24 @@ export default function AdminLayout() {
     }
   ];
 
-  const menuGroups = rawMenuGroups.map(group => ({
-    title: group.title,
-    items: group.items.filter(item => item.perm && isPermitted(item.perm))
-  })).filter(group => group.items.length > 0);
+  const menuGroups = useMemo(() => {
+    return rawMenuGroups.map(group => ({
+      title: group.title,
+      items: group.items.filter(item => item.perm && isPermitted(item.perm))
+    })).filter(group => group.items.length > 0);
+  }, [permissions, isSuperAdmin]);
+
+  // Lock background scroll when mobile sidebar is open to prevent touch lag
+  React.useEffect(() => {
+    if (isMobileOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileOpen]);
 
   // Auto-redirect if on root /admin without dashboard permission
   React.useEffect(() => {
@@ -480,9 +494,9 @@ export default function AdminLayout() {
 
   const toggleSidebar = () => {
     if (window.innerWidth < 1024) {
-      setIsMobileOpen(!isMobileOpen);
+      setIsMobileOpen(prev => !prev);
     } else {
-      setIsSidebarOpen(!isSidebarOpen);
+      setIsSidebarOpen(prev => !prev);
     }
   };
 
@@ -496,15 +510,17 @@ export default function AdminLayout() {
                initial={{ opacity: 0 }}
                animate={{ opacity: 1 }}
                exit={{ opacity: 0 }}
+               transition={{ duration: 0.15, ease: 'easeOut' }}
                onClick={() => setIsMobileOpen(false)}
-               className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] lg:hidden"
+               className="fixed inset-0 bg-slate-950/50 z-[60] lg:hidden touch-manipulation"
             />
             <motion.aside
                initial={{ x: '-100%' }}
                animate={{ x: 0 }}
                exit={{ x: '-100%' }}
-               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-               className="fixed inset-y-0 left-0 w-72 bg-[#EAEFF5] z-[70] lg:hidden flex flex-col shadow-2xl border-r border-[#DCE4EE]"
+               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+               style={{ willChange: 'transform' }}
+               className="fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-[#EAEFF5] z-[70] lg:hidden flex flex-col shadow-2xl border-r border-[#DCE4EE] transform-gpu touch-manipulation"
             >
               <div className="p-3 border-b border-[#DCE4EE] bg-[#EAEFF5]">
                 <div className="flex items-center justify-between p-2.5 bg-[#E6ECF4] rounded-2xl border border-white/90 shadow-[-4px_-4px_10px_rgba(255,255,255,0.95),4px_4px_12px_rgba(165,180,205,0.32)]">
@@ -516,7 +532,11 @@ export default function AdminLayout() {
                       Elegan Admin
                     </span>
                   </Link>
-                  <button onClick={() => setIsMobileOpen(false)} className="p-2 rounded-xl bg-[#E6ECF4] hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer">
+                  <button 
+                    onClick={() => setIsMobileOpen(false)} 
+                    className="p-2 rounded-xl bg-[#E6ECF4] active:scale-90 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer touch-manipulation"
+                    aria-label="Close menu"
+                  >
                     <X size={18} />
                   </button>
                 </div>
@@ -764,7 +784,8 @@ export default function AdminLayout() {
           <div className="flex items-center space-x-4">
             <button 
               onClick={toggleSidebar}
-              className="text-black bg-[#E6ECF4] hover:bg-[#DEE5F0] transition-colors p-2.5 rounded-2xl border border-white/90 shadow-[-3px_-3px_8px_rgba(255,255,255,0.95),3px_3px_8px_rgba(165,180,205,0.3)] cursor-pointer"
+              className="text-black bg-[#E6ECF4] active:scale-90 hover:bg-[#DEE5F0] transition-transform p-2.5 rounded-2xl border border-white/90 shadow-[-3px_-3px_8px_rgba(255,255,255,0.95),3px_3px_8px_rgba(165,180,205,0.3)] cursor-pointer touch-manipulation"
+              aria-label="Toggle navigation menu"
             >
               {isMobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>

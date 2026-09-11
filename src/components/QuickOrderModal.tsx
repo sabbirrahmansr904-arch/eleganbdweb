@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Phone, User, MapPin, Truck, CheckCircle2 } from 'lucide-react';
 import { Product } from '../types';
@@ -8,6 +8,7 @@ import { useProducts } from '../contexts/ProductContext';
 import { useBranding } from '../contexts/BrandingContext';
 import { formatPrice, cn } from '../lib/utils';
 import { DISTRICT_THANAS } from '../data/locations';
+import { isPantProduct, getCleanProductSizes } from '../utils/productSizeHelper';
 import toast from 'react-hot-toast';
 
 interface QuickOrderModalProps {
@@ -22,10 +23,18 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
   const { updateProduct } = useProducts();
   const { shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter } = useBranding();
   const isBag = (product.category || '').toLowerCase().includes('bag');
+  const isPant = isPantProduct(product);
+  const cleanSizes = useMemo(() => getCleanProductSizes(product), [product]);
   
   const [step, setStep] = useState<'form' | 'success'>('form');
-  const [selectedSize, setSelectedSize] = useState(product.sizes[0] || '');
+  const [selectedSize, setSelectedSize] = useState(() => cleanSizes[0] || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (cleanSizes.length > 0 && !cleanSizes.includes(selectedSize)) {
+      setSelectedSize(cleanSizes[0]);
+    }
+  }, [cleanSizes, selectedSize]);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -155,16 +164,18 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
 
                   {/* Size Selector */}
                   <div>
-                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-2">{isBag ? 'Select QN' : 'Select Size'}</label>
+                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-2">
+                      {isBag ? 'Select QN' : isPant ? 'Select Waist Size (28–40)' : 'Select Size'}
+                    </label>
                     <div className="flex flex-wrap gap-2">
-                      {product.sizes.map(size => (
+                      {cleanSizes.map(size => (
                         <button
                           key={size}
                           type="button"
                           onClick={() => setSelectedSize(size)}
                           className={cn(
-                            "w-10 h-10 flex items-center justify-center text-xs font-bold border transition-all",
-                            selectedSize === size ? "bg-brand-black text-white border-brand-black" : "bg-white text-brand-black border-gray-200"
+                            "w-10 h-10 flex items-center justify-center text-xs font-bold border transition-all cursor-pointer",
+                            selectedSize === size ? "bg-brand-black text-white border-brand-black" : "bg-white text-brand-black border-gray-200 hover:border-black"
                           )}
                         >
                           {size}

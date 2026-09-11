@@ -36,9 +36,10 @@ import { autoSaveToMediaLibrary } from '../../utils/mediaLibrary';
 import { compressImage } from '../../utils/imageCompressor';
 import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { isPantProduct, STANDARD_PANT_SIZES } from '../../utils/productSizeHelper';
 
 const SHIRT_SIZES = ['M', 'L', 'XL', 'XXL'];
-const PANT_SIZES = ['28', '30', '32', '34', '36', '38', '40'];
+const PANT_SIZES = STANDARD_PANT_SIZES;
 
 export default function AdminAddProduct() {
   const navigate = useNavigate();
@@ -199,9 +200,11 @@ export default function AdminAddProduct() {
   };
 
   const getSizesForCategory = () => {
+    if (isPantProduct({ category: selectedCategory, name: productName })) {
+      return PANT_SIZES;
+    }
     const cat = selectedCategory.toLowerCase();
     if (cat.includes('bag')) return ['QN'];
-    if (cat.includes('pant')) return PANT_SIZES;
     if (cat.includes('shirt')) return SHIRT_SIZES;
     return ['40', '42', '44', '46', '48', '50', '52', '54', '56', '58', '60', '62', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL', '7XL', '8XL', '9XL', '10XL', '11XL'];
   };
@@ -321,8 +324,30 @@ export default function AdminAddProduct() {
       sizeStock[s] = Number(quantities[s]) || 0;
     });
 
-    const calculatedStock = Object.values(sizeStock).length > 0 
-      ? Object.values(sizeStock).reduce((a, b) => a + b, 0)
+    const isPant = isPantProduct({ category: selectedCategory, name: trimmedName });
+    let finalSizes = [...selectedSizes];
+    let finalSizeStock = { ...sizeStock };
+
+    if (isPant) {
+      // Strictly filter out any letter sizes like M, L, XL for pants
+      const numericPantSizes = finalSizes.filter(s => {
+        const n = parseInt(s, 10);
+        return !isNaN(n) && n >= 26 && n <= 44 && !/[a-zA-Z]/.test(s);
+      });
+      if (numericPantSizes.length > 0) {
+        finalSizes = Array.from(new Set(numericPantSizes)).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+      } else {
+        finalSizes = [...PANT_SIZES];
+      }
+      const cleanStock: Record<string, number> = {};
+      finalSizes.forEach(s => {
+        cleanStock[s] = Number(finalSizeStock[s]) || 0;
+      });
+      finalSizeStock = cleanStock;
+    }
+
+    const calculatedStock = Object.values(finalSizeStock).length > 0 
+      ? Object.values(finalSizeStock).reduce((a, b) => a + b, 0)
       : (Number(initialData.stock) || 0);
 
     const productData: any = {
@@ -340,10 +365,10 @@ export default function AdminAddProduct() {
       material: (fabric || '').trim(),
       fitType: (fitType || '').trim(),
       stock: calculatedStock,
-      sizeStock,
+      sizeStock: finalSizeStock,
       description: description || '',
       images: images,
-      sizes: selectedSizes,
+      sizes: finalSizes,
       newArrival: isNewArrival,
       featured: isBestSelling,
       bestSelling: isBestSelling,

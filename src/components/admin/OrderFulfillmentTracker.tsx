@@ -5,7 +5,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Order } from '../../types';
-import { isDeliveredOrSuccess } from '../../utils/orderUtils';
+import { isDeliveredOrSuccess, isOrderDeliveredOrEligible } from '../../utils/orderUtils';
 import { 
   BarChart3, 
   Table as TableIcon, 
@@ -105,7 +105,7 @@ export default function OrderFulfillmentTracker({ orders = [] }: OrderFulfillmen
 
     filteredOrders.forEach(o => {
       const st = (o.status || '').toLowerCase().trim();
-      if (isDeliveredOrSuccess(st)) {
+      if (isOrderDeliveredOrEligible(o)) {
         deliveredCount++;
       } else if (
         st === 'cancelled' || 
@@ -208,7 +208,7 @@ export default function OrderFulfillmentTracker({ orders = [] }: OrderFulfillmen
 
         slot.taken += 1;
         const st = (o.status || '').toLowerCase().trim();
-        if (isDeliveredOrSuccess(st)) {
+        if (isOrderDeliveredOrEligible(o)) {
           slot.delivered += 1;
         } else if (
           st === 'cancelled' || 

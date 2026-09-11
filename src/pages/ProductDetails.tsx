@@ -16,6 +16,7 @@ import AllProductsImageScroll from '../components/AllProductsImageScroll';
 import { db } from '../lib/firebase';
 import { collection, query, where, orderBy, onSnapshot, addDoc } from 'firebase/firestore';
 import { Review } from '../types';
+import { isPantProduct, getCleanProductSizes, isSizeUsableAndInStock } from '../utils/productSizeHelper';
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -28,10 +29,11 @@ const ProductDetails = () => {
   const product = products.find(p => p.id === id);
 
   const isBag = (product?.category || '').toLowerCase().includes('bag');
+  const isPant = isPantProduct(product);
   const isFormalShirt = (product?.category || '').toLowerCase().includes('formal');
-  const isPant = (product?.category || '').toLowerCase().includes('pant') || (product?.category || '').toLowerCase().includes('chino');
   const isShirt = (product?.category || '').toLowerCase().includes('shirt') || (product?.category || '').toLowerCase().includes('polo');
   const defaultFabric = isPant ? 'Woven Cotton Fabrics' : isShirt ? 'Refine Cotton' : (product?.fabric || product?.material || 'Premium Fabric');
+  const displaySizes = useMemo(() => getCleanProductSizes(product), [product]);
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState('');
   const [quantity, setQuantity] = useState(1);
@@ -80,7 +82,8 @@ const ProductDetails = () => {
       else if (weightNum <= 65) recommended = '32';
       else if (weightNum <= 74) recommended = '34';
       else if (weightNum <= 82) recommended = '36';
-      else recommended = '38';
+      else if (weightNum <= 90) recommended = '38';
+      else recommended = '40';
     } else {
       // Shirt/Polo
       if (weightNum < 55) recommended = 'S';
@@ -196,10 +199,12 @@ const ProductDetails = () => {
   };
 
   useEffect(() => {
-    if (product && product.sizes && product.sizes.length > 0) {
-      const sortedSizes = [...product.sizes].sort((a, b) => parseInt(a) - parseInt(b));
-      const firstAvailable = sortedSizes.find(size => (product.sizeStock?.[size] || 0) > 0);
-      setSelectedSize(firstAvailable || sortedSizes[0]);
+    if (product) {
+      const cleanSizes = getCleanProductSizes(product);
+      if (cleanSizes && cleanSizes.length > 0) {
+        const firstAvailable = cleanSizes.find(size => isSizeUsableAndInStock(product, size));
+        setSelectedSize(firstAvailable || cleanSizes[0]);
+      }
     }
   }, [product]);
 
@@ -383,7 +388,16 @@ const ProductDetails = () => {
             {/* Size Selector */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-black">
-                <h4 className="text-[11px] font-black uppercase tracking-widest">{isBag ? 'Select QN' : 'Select Size'}</h4>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-[11px] font-black uppercase tracking-widest">
+                    {isBag ? 'Select QN' : isPant ? 'Select Waist Size (28–40)' : 'Select Size'}
+                  </h4>
+                  {isPant && (
+                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
+                      Standard Waist 28–40
+                    </span>
+                  )}
+                </div>
                 {!isBag && (
                   <div className="flex items-center gap-2">
                     <button 
@@ -398,17 +412,17 @@ const ProductDetails = () => {
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
-                {[...(product.sizes || [])].sort((a, b) => parseInt(a) - parseInt(b)).map(size => {
-                  const stock = product.sizeStock?.[size] || 0;
-                  const isAvailable = stock > 0;
+                {displaySizes.map(size => {
+                  const isAvailable = isSizeUsableAndInStock(product, size);
                   return (
                     <button
                       key={size}
+                      type="button"
                       onClick={() => isAvailable && setSelectedSize(size)}
                       disabled={!isAvailable}
                       className={cn(
-                        "w-12 h-12 flex items-center justify-center text-xs font-bold border transition-all rounded-[4px]",
-                        selectedSize === size ? "bg-black text-white border-black" : "bg-transparent text-black border-gray-200 hover:border-black",
+                        "w-12 h-12 flex items-center justify-center text-xs font-bold border transition-all rounded-[4px] cursor-pointer",
+                        selectedSize === size ? "bg-black text-white border-black shadow-sm" : "bg-transparent text-black border-gray-200 hover:border-black",
                         !isAvailable && "opacity-30 cursor-not-allowed line-through"
                       )}
                     >

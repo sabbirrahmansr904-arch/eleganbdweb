@@ -3,6 +3,7 @@ import { Order } from '../../types';
 import { formatPrice } from '../../lib/utils';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { Barcode } from '../Barcode';
+import { formatOrderDate } from '../../utils/orderUtils';
 
 interface InvoiceProps {
   order: Order;
@@ -22,17 +23,7 @@ export default function InvoiceTemplate({ order, preview = false }: InvoiceProps
       : String(order.invoiceNo || order.id || '2670000'));
 
   const formatDate = (dateInput: any) => {
-    try {
-      if (!dateInput) return '';
-      const date = new Date(dateInput);
-      if (isNaN(date.getTime())) return '';
-      const day = String(date.getDate()).padStart(2, '0');
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const year = String(date.getFullYear()).slice(-2);
-      return `${day}/${month}/${year}`;
-    } catch (e) {
-      return '';
-    }
+    return formatOrderDate(dateInput);
   };
 
   return (

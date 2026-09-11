@@ -52,7 +52,16 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatPrice, cn } from '../../lib/utils';
-import { isDeliveredOrSuccess, compareOrdersByInvoice, formatInvoiceNumber, canChangeOrderStatus } from '../../utils/orderUtils';
+import { 
+  isDeliveredOrSuccess, 
+  compareOrdersByInvoice, 
+  formatInvoiceNumber, 
+  canChangeOrderStatus,
+  formatOrderDate,
+  formatOrderTime,
+  formatOrderDateTime,
+  formatOrderDateTimeStr
+} from '../../utils/orderUtils';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { useOrders } from '../../contexts/OrderContext';
 import { useProducts } from '../../contexts/ProductContext';
@@ -63,34 +72,6 @@ import { DISTRICT_THANAS } from '../../data/locations';
 import { parseCustomerAddress } from '../../utils/addressParser';
 import { Html5Qrcode } from 'html5-qrcode';
 import { bookPathaoOrder, bookSteadfastOrder, trackCourierOrder } from '../../utils/apiClient';
-
-const formatOrderDate = (dateStr: string) => {
-  try {
-    const dateObj = new Date(dateStr);
-    return dateObj.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  } catch (err) {
-    return dateStr;
-  }
-};
-
-const formatOrderDateTimeStr = (dateStr: string) => {
-  try {
-    const dateObj = new Date(dateStr);
-    return dateObj.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-  } catch (err) {
-    return dateStr;
-  }
-};
 
 const normalizeStatus = (status: string): string => {
   const s = (status || '').toUpperCase().trim();
@@ -344,19 +325,6 @@ export default function AdminOrders(): React.JSX.Element {
       return 'Office Sale';
     }
     return 'Website order';
-  }, []);
-
-  // Helper date-time formatter for issues
-  const formatOrderDateTime = React.useCallback((dateStr: string) => {
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return { date: 'N/A', time: 'N/A' };
-      const datePart = d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
-      const timePart = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-      return { date: datePart, time: timePart };
-    } catch {
-      return { date: 'N/A', time: 'N/A' };
-    }
   }, []);
 
   // Helper issue flag
@@ -1694,29 +1662,29 @@ export default function AdminOrders(): React.JSX.Element {
                 )}
                 {filteredOrders.slice(0, visibleCount).map((order) => {
               const s = normalizeStatus(order.status).toUpperCase();
-              const isSuccess = s === 'SUCCESS' || s === 'DELIVERED';
+              const isSuccess = s === 'SUCCESS' || s === 'DELIVERED' || isDeliveredOrSuccess(order.status);
               const isCancelledOrReturned = s === 'CANCELLED' || s === 'RETURNED' || s === 'PICK UP CANCEL' || s.includes('CANCEL') || s.includes('RETURN');
 
               const cardBg = isSuccess
-                ? "bg-[#F0FDF4] border-emerald-200 shadow-sm hover:border-emerald-300"
+                ? "bg-[#E8F8EE] border-emerald-300/80 shadow-xs hover:border-emerald-400"
                 : isCancelledOrReturned
                   ? "bg-[#FEF2F2] border-rose-200 shadow-sm hover:border-rose-300"
                   : "bg-[#F8F9FD] border-slate-100 shadow-sm";
 
               const itemsBoxBg = isSuccess
-                ? "bg-white/85 border border-emerald-100/90 shadow-3xs"
+                ? "bg-white/90 border border-emerald-200/90 shadow-3xs"
                 : isCancelledOrReturned
                   ? "bg-white/85 border border-rose-100/90 shadow-3xs"
                   : "bg-slate-50";
 
               const dividerClass = isSuccess
-                ? "border-emerald-200/70"
+                ? "border-emerald-200/80"
                 : isCancelledOrReturned
                   ? "border-rose-200/70"
                   : "border-slate-100";
 
               const buttonClass = isSuccess
-                ? "p-2 bg-white/90 border border-emerald-100/80 rounded-lg transition-all text-emerald-800 hover:text-emerald-950 hover:bg-emerald-100/60 cursor-pointer shadow-3xs"
+                ? "p-2 bg-white/95 border border-emerald-200/90 rounded-lg transition-all text-emerald-800 hover:text-emerald-950 hover:bg-emerald-100/80 cursor-pointer shadow-3xs"
                 : isCancelledOrReturned
                   ? "p-2 bg-white/90 border border-rose-100/80 rounded-lg transition-all text-rose-800 hover:text-rose-950 hover:bg-rose-100/60 cursor-pointer shadow-3xs"
                   : "p-2 bg-slate-50 rounded-lg transition-all text-slate-400 hover:text-slate-700 cursor-pointer";
@@ -2013,24 +1981,24 @@ export default function AdminOrders(): React.JSX.Element {
                     : 'No items';
 
                   const rowStatus = normalizeStatus(order.status).toUpperCase();
-                  const isRowSuccess = rowStatus === 'SUCCESS' || rowStatus === 'DELIVERED';
+                  const isRowSuccess = rowStatus === 'SUCCESS' || rowStatus === 'DELIVERED' || isDeliveredOrSuccess(order.status);
                   const isRowCancelledOrReturned = rowStatus === 'CANCELLED' || rowStatus === 'RETURNED' || rowStatus === 'PICK UP CANCEL' || rowStatus.includes('CANCEL') || rowStatus.includes('RETURN');
 
                   const rowBgClass = order.issueType && order.issueStatus !== 'resolved'
-                    ? "bg-[#FFF5F5]/60 hover:bg-[#FFF5F5]/90 border-b border-rose-100"
+                    ? "bg-[#FFF5F5] hover:bg-[#FFEBEB] border-b border-rose-100 [&>td]:bg-[#FFF5F5] hover:[&>td]:bg-[#FFEBEB]"
                     : isRowSuccess
-                      ? "bg-[#F0FDF4]/70 hover:bg-[#F0FDF4] border-b border-emerald-100/90"
+                      ? "bg-[#E8F8EE] hover:bg-[#DCF5E3] border-b border-emerald-200/90 [&>td]:bg-[#E8F8EE] hover:[&>td]:bg-[#DCF5E3]"
                       : isRowCancelledOrReturned
-                        ? "bg-[#FEF2F2]/70 hover:bg-[#FEF2F2] border-b border-rose-100/90"
-                        : "hover:bg-slate-50/50 border-b border-slate-100";
+                        ? "bg-[#FEF2F2] hover:bg-[#FEE2E2] border-b border-rose-100/90 [&>td]:bg-[#FEF2F2] hover:[&>td]:bg-[#FEE2E2]"
+                        : "hover:bg-slate-50/50 border-b border-slate-100 [&>td]:bg-[#F8F9FD] hover:[&>td]:bg-slate-50";
 
                   const stickyActionBg = order.issueType && order.issueStatus !== 'resolved'
-                    ? "bg-[#FFF5F5]"
+                    ? "bg-[#FFF5F5] group-hover:bg-[#FFEBEB]"
                     : isRowSuccess
-                      ? "bg-[#F0FDF4]"
+                      ? "bg-[#E8F8EE] group-hover:bg-[#DCF5E3]"
                       : isRowCancelledOrReturned
-                        ? "bg-[#FEF2F2]"
-                        : "bg-[#F8F9FD]";
+                        ? "bg-[#FEF2F2] group-hover:bg-[#FEE2E2]"
+                        : "bg-[#F8F9FD] group-hover:bg-slate-50";
 
                   return (
                     <tr 
@@ -2299,7 +2267,10 @@ export default function AdminOrders(): React.JSX.Element {
                       {/* Actions */}
                       <td className={cn("py-2.5 px-4 sticky right-0 z-10 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)] transition-colors", stickyActionBg)}>
                         <div className="flex items-center justify-center">
-                          <div className="flex items-center gap-0.5 bg-[#F8FAFC] p-0.5 rounded-lg border border-[#EDF2F7] shadow-sm">
+                          <div className={cn(
+                            "flex items-center gap-0.5 p-0.5 rounded-lg border shadow-sm transition-colors",
+                            isRowSuccess ? "bg-white/95 border-emerald-300/80 shadow-3xs" : "bg-[#F8FAFC] border-[#EDF2F7]"
+                          )}>
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -3794,6 +3765,16 @@ export default function AdminOrders(): React.JSX.Element {
                             <span className="text-sm font-black text-indigo-600 font-mono block whitespace-nowrap">
                               {selectedOrder.invoiceNo ? String(selectedOrder.invoiceNo) : (selectedOrder.id || '').replace(/^ORD-?/i, '')}
                             </span>
+                          </div>
+                          <div className="col-span-2 border-t border-slate-100/80 pt-3">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Order Placed Date & Time (রিয়েল টাইম)</span>
+                            <div className="flex items-center gap-2 text-xs font-black text-slate-800 font-mono">
+                              <Calendar size={13} className="text-slate-400 stroke-[2.5]" />
+                              <span>{formatOrderDateTime(selectedOrder.createdAt).date}</span>
+                              <span className="text-slate-300">•</span>
+                              <Clock size={13} className="text-slate-400 stroke-[2.5]" />
+                              <span>{formatOrderDateTime(selectedOrder.createdAt).time}</span>
+                            </div>
                           </div>
                           <div className="col-span-2">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Status</span>

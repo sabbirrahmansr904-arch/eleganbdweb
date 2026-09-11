@@ -23,6 +23,7 @@ import {
   TrendingDown, 
   ShoppingBag, 
   Package, 
+  PackageCheck,
   Sparkles,
   Inbox,
   ChevronDown,
@@ -33,6 +34,7 @@ import {
   Users,
   Calendar
 } from 'lucide-react';
+import { isDeliveredOrSuccess, isOrderDeliveredOrEligible } from '../../utils/orderUtils';
 import { PieChart, Pie, Cell, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import toast from 'react-hot-toast';
 import OrderFulfillmentTracker from '../../components/admin/OrderFulfillmentTracker';
@@ -968,8 +970,16 @@ export default function AdminDashboard(): React.JSX.Element {
     return 0;
   }, [orders]);
 
-  const dynamicTotalOrdersCount = useMemo(() => {
-    return orders?.length || 0;
+  const dynamicDeliveredOrdersCount = useMemo(() => {
+    if (!orders || orders.length === 0) return 0;
+    return orders.filter(o => isOrderDeliveredOrEligible(o)).length;
+  }, [orders]);
+
+  const dynamicDeliveredOrdersAmount = useMemo(() => {
+    if (!orders || orders.length === 0) return 0;
+    return orders
+      .filter(o => isOrderDeliveredOrEligible(o))
+      .reduce((sum, o) => sum + (Number(o.total) || 0), 0);
   }, [orders]);
 
   const dynamicTotalProductsSoldUnits = useMemo(() => {
@@ -996,7 +1006,7 @@ export default function AdminDashboard(): React.JSX.Element {
   // Real-time Month-over-Month growth trends
   const monthlyStats = useMemo(() => {
     if (!orders || orders.length === 0) {
-      return { salesGrowth: 0, ordersGrowth: 0, revenueGrowth: 0, customersGrowth: 0 };
+      return { salesGrowth: 0, ordersGrowth: 0, deliveredGrowth: 0, revenueGrowth: 0, customersGrowth: 0 };
     }
 
     const now = new Date();
@@ -1011,6 +1021,8 @@ export default function AdminDashboard(): React.JSX.Element {
     let lastMonthSales = 0;
     let thisMonthOrders = 0;
     let lastMonthOrders = 0;
+    let thisMonthDelivered = 0;
+    let lastMonthDelivered = 0;
 
     const thisMonthCusts = new Set<string>();
     const lastMonthCusts = new Set<string>();
@@ -1022,15 +1034,18 @@ export default function AdminDashboard(): React.JSX.Element {
       const isLastMonth = d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
 
       const custKey = o.phone || o.customerId || o.customerEmail || 'unknown';
+      const isDelivered = isOrderDeliveredOrEligible(o);
 
       if (isThisMonth) {
         thisMonthOrders++;
+        if (isDelivered) thisMonthDelivered++;
         if (custKey !== 'unknown') thisMonthCusts.add(custKey);
         if (o.status !== 'Cancelled' && o.status !== 'PICK UP CANCEL') {
           thisMonthSales += o.total || 0;
         }
       } else if (isLastMonth) {
         lastMonthOrders++;
+        if (isDelivered) lastMonthDelivered++;
         if (custKey !== 'unknown') lastMonthCusts.add(custKey);
         if (o.status !== 'Cancelled' && o.status !== 'PICK UP CANCEL') {
           lastMonthSales += o.total || 0;
@@ -1046,6 +1061,7 @@ export default function AdminDashboard(): React.JSX.Element {
     return {
       salesGrowth: calcGrowth(thisMonthSales, lastMonthSales),
       ordersGrowth: calcGrowth(thisMonthOrders, lastMonthOrders),
+      deliveredGrowth: calcGrowth(thisMonthDelivered, lastMonthDelivered),
       revenueGrowth: calcGrowth(thisMonthSales, lastMonthSales),
       customersGrowth: calcGrowth(thisMonthCusts.size, lastMonthCusts.size)
     };
@@ -1143,7 +1159,7 @@ export default function AdminDashboard(): React.JSX.Element {
       return {
         id: displayInvoice,
         customerName: custName,
-        date: o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recently',
+        date: o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-GB', { timeZone: 'Asia/Dhaka', day: 'numeric', month: 'short', year: 'numeric' }) : 'Recently',
         items: o.items ? o.items.reduce((sum, item) => sum + (item.quantity || 1), 0) : 1,
         amount: formatPrice(o.total || 0, currency, rate),
         statusText,
@@ -1259,34 +1275,43 @@ export default function AdminDashboard(): React.JSX.Element {
           </div>
         </div>
 
-        {/* CARD 2: Total Orders */}
-        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:shadow-xs transition-all">
+        {/* CARD 2: Order Delivered */}
+        <div id="card-metric-order-delivered" className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:shadow-xs transition-all">
           <div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-[#ECFDF5] text-[#10B981] flex items-center justify-center shadow-2xs">
-                  <Package className="w-5 h-5" />
+                  <PackageCheck className="w-5 h-5" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-gray-400">Total Orders</span>
+                  <span className="text-xs font-bold text-gray-400">Order Delivered</span>
                 </div>
               </div>
-              <button className="text-gray-400 hover:text-gray-900 p-1 rounded-lg hover:bg-gray-50 transition-colors">
+              <button id="btn-delivered-metric-options" className="text-gray-400 hover:text-gray-900 p-1 rounded-lg hover:bg-gray-50 transition-colors" title="Options">
                 <MoreVertical className="w-4 h-4" />
               </button>
             </div>
             
             <div className="mt-4">
-              <h3 className="text-2xl font-black text-gray-900 tracking-tight">
-                {dynamicTotalOrdersCount.toLocaleString()}
-              </h3>
+              <div className="flex items-baseline gap-2">
+                <h3 className="text-2xl font-black text-gray-900 tracking-tight">
+                  {dynamicDeliveredOrdersCount.toLocaleString()}
+                </h3>
+                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/50">
+                  Orders
+                </span>
+              </div>
+              <p className="text-[11px] font-black text-emerald-600/90 mt-1 flex items-center gap-1">
+                <span>{formatPrice(dynamicDeliveredOrdersAmount, currency, rate)}</span>
+                <span className="text-gray-400 font-bold text-[10px]">(মোট ডেলিভারি মূল্য)</span>
+              </p>
             </div>
           </div>
 
           {/* Trend & Sparkline */}
           <div className="flex items-end justify-between mt-2 pt-2 border-t border-gray-50/50">
-            <span className={`inline-flex items-center gap-1 text-[11px] font-black ${monthlyStats.ordersGrowth >= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'} px-2 py-0.5 rounded-md`}>
-              {monthlyStats.ordersGrowth >= 0 ? `↑ ${monthlyStats.ordersGrowth}%` : `↓ ${Math.abs(monthlyStats.ordersGrowth)}%`} <span className="text-gray-400 font-bold text-[10px]">vs last month</span>
+            <span className={`inline-flex items-center gap-1 text-[11px] font-black ${monthlyStats.deliveredGrowth >= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'} px-2 py-0.5 rounded-md`}>
+              {monthlyStats.deliveredGrowth >= 0 ? `↑ ${monthlyStats.deliveredGrowth}%` : `↓ ${Math.abs(monthlyStats.deliveredGrowth)}%`} <span className="text-gray-400 font-bold text-[10px]">vs last month</span>
             </span>
             <div className="w-20 h-8">
               <svg width="80" height="32" viewBox="0 0 80 32" className="text-[#10B981]">

@@ -38,6 +38,7 @@ export default function SizeGuide() {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
+                        <tr><td className="py-3">28</td><td className="py-3">28</td><td className="py-3">39</td></tr>
                         <tr><td className="py-3">30</td><td className="py-3">30</td><td className="py-3">40</td></tr>
                         <tr><td className="py-3">32</td><td className="py-3">32</td><td className="py-3">40</td></tr>
                         <tr><td className="py-3">34</td><td className="py-3">34</td><td className="py-3">41</td></tr>
