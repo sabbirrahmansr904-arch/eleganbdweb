@@ -279,10 +279,10 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
     fetchFromSupabase();
 
-    // Background sync check every 12 seconds for cross-device updates (Realtime channel provides instant 0ms updates)
+    // Background sync check every 60 seconds for cross-device fallback (Realtime channel & BroadcastChannel provide instant updates)
     const pollInterval = setInterval(() => {
-      if (isMounted) fetchFromSupabase(true);
-    }, 12000);
+      if (isMounted && document.visibilityState === 'visible') fetchFromSupabase(true);
+    }, 60000);
 
     // Instant sync on window focus/tab switch
     const handleFocus = () => {
