@@ -3,6 +3,19 @@ import { db } from '../lib/firebase';
 import { collection, onSnapshot, doc, getDocs, writeBatch, query, limit } from 'firebase/firestore';
 import { ActiveVisitor, TrafficSummary } from '../types';
 
+function parseSafeNumber(val: any, fallback = 0): number {
+  if (typeof val === 'number') {
+    return isNaN(val) ? fallback : val;
+  }
+  if (val && typeof val === 'object') {
+    if (typeof val.value === 'number') return val.value;
+    if (typeof val.count === 'number') return val.count;
+    return fallback;
+  }
+  const parsed = Number(val);
+  return isNaN(parsed) ? fallback : parsed;
+}
+
 export function useLiveVisitors() {
   const [visitors, setVisitors] = useState<ActiveVisitor[]>([]);
   const [summary, setSummary] = useState<TrafficSummary>({
@@ -31,19 +44,19 @@ export function useLiveVisitors() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const items: ActiveVisitor[] = [];
       snapshot.forEach((docSnap) => {
-        const data = docSnap.data();
+        const data = docSnap.data() || {};
         items.push({
-          id: docSnap.id,
-          path: data.path || '/',
-          pageTitle: data.pageTitle || '',
-          referrer: data.referrer || 'Direct',
-          device: data.device || 'Desktop',
-          browser: data.browser || 'Unknown',
-          os: data.os || 'Unknown',
-          screen: data.screen || '',
-          firstSeen: data.firstSeen || Date.now(),
-          lastActive: data.lastActive || Date.now(),
-          pageViews: data.pageViews || 1,
+          id: String(docSnap.id || ''),
+          path: typeof data.path === 'string' ? data.path : '/',
+          pageTitle: typeof data.pageTitle === 'string' ? data.pageTitle : '',
+          referrer: typeof data.referrer === 'string' ? data.referrer : 'Direct',
+          device: typeof data.device === 'string' ? data.device : 'Desktop',
+          browser: typeof data.browser === 'string' ? data.browser : 'Unknown',
+          os: typeof data.os === 'string' ? data.os : 'Unknown',
+          screen: typeof data.screen === 'string' ? data.screen : '',
+          firstSeen: parseSafeNumber(data.firstSeen, Date.now()),
+          lastActive: parseSafeNumber(data.lastActive, Date.now()),
+          pageViews: parseSafeNumber(data.pageViews, 1),
           isOnline: data.isOnline !== false,
           isAdminSession: Boolean(data.isAdminSession)
         });
@@ -62,13 +75,13 @@ export function useLiveVisitors() {
     const summaryRef = doc(db, 'site_analytics', 'summary');
     const unsubSummary = onSnapshot(summaryRef, (docSnap) => {
       if (docSnap.exists()) {
-        const data = docSnap.data();
+        const data = docSnap.data() || {};
         setSummary({
-          todayVisits: data.todayVisits || 0,
-          todayPageViews: data.todayPageViews || 0,
-          totalVisits: data.totalVisits || 0,
-          totalPageViews: data.totalPageViews || 0,
-          lastUpdated: data.lastUpdated || Date.now()
+          todayVisits: parseSafeNumber(data.todayVisits, 0),
+          todayPageViews: parseSafeNumber(data.todayPageViews, 0),
+          totalVisits: parseSafeNumber(data.totalVisits, 0),
+          totalPageViews: parseSafeNumber(data.totalPageViews, 0),
+          lastUpdated: parseSafeNumber(data.lastUpdated, Date.now())
         });
       }
     }, () => {});

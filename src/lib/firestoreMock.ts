@@ -157,6 +157,44 @@ export async function runTransaction(dbInstance: any, updateFunction: (transacti
 
 // Async Data Operations via Supabase / Local Storage
 
+function resolveTransforms(existing: any, updateData: any, isMerge: boolean) {
+  const base = isMerge && existing && typeof existing === 'object' ? { ...existing } : {};
+  if (!updateData || typeof updateData !== 'object') return updateData;
+
+  const result = { ...base };
+  for (const [key, val] of Object.entries(updateData)) {
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      if ((val as any).type === 'increment') {
+        const incVal = Number((val as any).value) || 0;
+        const current = Number(result[key]) || 0;
+        result[key] = current + incVal;
+        continue;
+      }
+      if ((val as any).type === 'arrayUnion') {
+        const arr = Array.isArray(result[key]) ? [...result[key]] : [];
+        const elements = Array.isArray((val as any).elements) ? (val as any).elements : [];
+        elements.forEach(el => {
+          if (!arr.includes(el)) arr.push(el);
+        });
+        result[key] = arr;
+        continue;
+      }
+      if ((val as any).type === 'arrayRemove') {
+        const arr = Array.isArray(result[key]) ? [...result[key]] : [];
+        const elements = Array.isArray((val as any).elements) ? (val as any).elements : [];
+        result[key] = arr.filter(el => !elements.includes(el));
+        continue;
+      }
+      if ((val as any).type === 'deleteField') {
+        delete result[key];
+        continue;
+      }
+    }
+    result[key] = val;
+  }
+  return result;
+}
+
 export async function setDoc(docRef: MockRef, data: any, options?: { merge?: boolean }) {
   const { collectionName, id } = docRef;
   if (!id) return;
@@ -172,8 +210,15 @@ export async function setDoc(docRef: MockRef, data: any, options?: { merge?: boo
     return;
   }
 
-  // Generic document storage in Supabase
-  await saveDocumentToSupabase(collectionName, id, data);
+  // Generic document storage in Supabase with field transforms
+  const isMerge = Boolean(options?.merge);
+  let finalData = data;
+  if (isMerge || Object.values(data || {}).some(v => v && typeof v === 'object' && (v as any).type)) {
+    const existing = await fetchDocumentFromSupabase(collectionName, id);
+    finalData = resolveTransforms(existing, data, isMerge);
+  }
+
+  await saveDocumentToSupabase(collectionName, id, finalData);
 }
 
 export async function addDoc(collectionRef: MockRef, data: any) {

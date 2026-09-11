@@ -305,10 +305,10 @@ export default function AdminLiveVisitors() {
             </div>
           </div>
           <div className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-            {summary.todayVisits || visitors.length}
+            {Number(summary?.todayVisits) || visitors.length}
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            Page Views Today: <span className="font-bold text-slate-800">{summary.todayPageViews || visitors.reduce((a, b) => a + (b.pageViews || 1), 0)}</span>
+            Page Views Today: <span className="font-bold text-slate-800">{Number(summary?.todayPageViews) || visitors.reduce((a, b) => a + (Number(b.pageViews) || 1), 0)}</span>
           </p>
         </div>
       </div>
@@ -679,35 +679,35 @@ export default function AdminLiveVisitors() {
                 <div className="flex justify-between items-center py-1.5 border-b border-gray-200">
                   <span className="text-gray-500 font-medium">Device & OS</span>
                   <span className="font-bold text-slate-900">
-                    {selectedVisitor.device} • {selectedVisitor.os}
+                    {String(selectedVisitor.device || 'Desktop')} • {String(selectedVisitor.os || 'Unknown')}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center py-1.5 border-b border-gray-200">
                   <span className="text-gray-500 font-medium">Browser</span>
-                  <span className="font-bold text-slate-900">{selectedVisitor.browser}</span>
+                  <span className="font-bold text-slate-900">{String(selectedVisitor.browser || 'Unknown')}</span>
                 </div>
 
                 <div className="flex justify-between items-center py-1.5 border-b border-gray-200">
                   <span className="text-gray-500 font-medium">Referral Source</span>
-                  <span className="font-bold text-slate-900">{selectedVisitor.referrer || 'Direct'}</span>
+                  <span className="font-bold text-slate-900">{String(selectedVisitor.referrer || 'Direct')}</span>
                 </div>
 
                 <div className="flex justify-between items-center py-1.5 border-b border-gray-200">
                   <span className="text-gray-500 font-medium">Page Views in Session</span>
-                  <span className="font-bold text-slate-900">{selectedVisitor.pageViews} views</span>
+                  <span className="font-bold text-slate-900">{Number(selectedVisitor.pageViews) || 1} views</span>
                 </div>
 
                 <div className="flex justify-between items-center py-1.5 border-b border-gray-200">
                   <span className="text-gray-500 font-medium">First Seen</span>
                   <span className="font-bold text-slate-900">
-                    {new Date(selectedVisitor.firstSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    {new Date(Number(selectedVisitor.firstSeen) || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center py-1.5">
                   <span className="text-gray-500 font-medium">Last Ping</span>
-                  <span className="font-bold text-slate-900">{getRelativeTime(selectedVisitor.lastActive)}</span>
+                  <span className="font-bold text-slate-900">{getRelativeTime(Number(selectedVisitor.lastActive) || Date.now())}</span>
                 </div>
               </div>
 
