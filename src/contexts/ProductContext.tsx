@@ -332,38 +332,24 @@ const normalizeProductCategory = (p: Product): Product => {
     category = 'Premium Shirt';
   }
 
-  const isPant = isPantProduct({ ...p, category });
-
-  // Clean sizeStock & sizes
+  // Strictly respect the user's selected sizes and allocated quantities
   const rawSizeStock = (p.sizeStock && typeof p.sizeStock === 'object') ? p.sizeStock : {};
   const cleanedSizeStock: Record<string, number> = {};
   
-  let validSizes = getCleanProductSizes({ ...p, category });
+  // Use product's saved sizes if available
+  const rawSizes = Array.isArray(p.sizes) ? p.sizes.map(String).filter(Boolean) : [];
+  const validSizes = rawSizes.length > 0 ? rawSizes : getCleanProductSizes({ ...p, category });
 
-  if (isPant) {
-    // For pants: strictly enforce 28-40 numeric waist sizes and guarantee each has usable stock
-    const defaultStockPerSize = Math.max(5, Math.floor((p.stock || 35) / validSizes.length));
-    validSizes.forEach(sz => {
-      const existingVal = Number(rawSizeStock[sz]);
-      cleanedSizeStock[sz] = (!isNaN(existingVal) && existingVal > 0) ? existingVal : defaultStockPerSize;
-    });
-
-    // Auto-heal in Firestore if this product previously had invalid letter sizes (M, L, XL, etc.)
-    if (p.id && Array.isArray(p.sizes) && p.sizes.some(s => /[a-zA-Z]/.test(String(s)))) {
-      try {
-        updateDoc(doc(db, 'products', p.id), {
-          sizes: validSizes,
-          sizeStock: cleanedSizeStock
-        }).catch(() => {});
-      } catch (e) {}
+  validSizes.forEach(sz => {
+    const existingVal = rawSizeStock[sz];
+    if (existingVal !== undefined && existingVal !== null && !isNaN(Number(existingVal))) {
+      cleanedSizeStock[sz] = Math.max(0, Number(existingVal));
+    } else {
+      cleanedSizeStock[sz] = 0;
     }
-  } else {
-    validSizes.forEach(sz => {
-      cleanedSizeStock[sz] = Math.max(0, Number(rawSizeStock[sz]) || 0);
-    });
-  }
+  });
 
-  // Calculate actual total stock strictly from size breakdown if sizes exist
+  // Calculate total stock directly from the size quantities sum
   let calculatedStock = 0;
   if (validSizes.length > 0) {
     calculatedStock = validSizes.reduce((sum, sz) => sum + (cleanedSizeStock[sz] || 0), 0);

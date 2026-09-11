@@ -318,33 +318,12 @@ export default function AdminAddProduct() {
       images.unshift(cover);
     }
 
-    // Size breakdown
-    const sizeStock: Record<string, number> = {};
-    selectedSizes.forEach(s => {
-      sizeStock[s] = Number(quantities[s]) || 0;
+    // Size breakdown strictly from what user selected
+    const finalSizes = [...selectedSizes];
+    const finalSizeStock: Record<string, number> = {};
+    finalSizes.forEach(s => {
+      finalSizeStock[s] = Number(quantities[s]) || 0;
     });
-
-    const isPant = isPantProduct({ category: selectedCategory, name: trimmedName });
-    let finalSizes = [...selectedSizes];
-    let finalSizeStock = { ...sizeStock };
-
-    if (isPant) {
-      // Strictly filter out any letter sizes like M, L, XL for pants
-      const numericPantSizes = finalSizes.filter(s => {
-        const n = parseInt(s, 10);
-        return !isNaN(n) && n >= 26 && n <= 44 && !/[a-zA-Z]/.test(s);
-      });
-      if (numericPantSizes.length > 0) {
-        finalSizes = Array.from(new Set(numericPantSizes)).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
-      } else {
-        finalSizes = [...PANT_SIZES];
-      }
-      const cleanStock: Record<string, number> = {};
-      finalSizes.forEach(s => {
-        cleanStock[s] = Number(finalSizeStock[s]) || 0;
-      });
-      finalSizeStock = cleanStock;
-    }
 
     const calculatedStock = Object.values(finalSizeStock).length > 0 
       ? Object.values(finalSizeStock).reduce((a, b) => a + b, 0)

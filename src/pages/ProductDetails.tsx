@@ -202,11 +202,18 @@ const ProductDetails = () => {
     if (product) {
       const cleanSizes = getCleanProductSizes(product);
       if (cleanSizes && cleanSizes.length > 0) {
-        const firstAvailable = cleanSizes.find(size => isSizeUsableAndInStock(product, size));
-        setSelectedSize(firstAvailable || cleanSizes[0]);
+        setSelectedSize(prev => {
+          // If already selected a valid and in-stock size, keep it!
+          if (prev && cleanSizes.includes(prev) && isSizeUsableAndInStock(product, prev)) {
+            return prev;
+          }
+          // Otherwise pick the first available in-stock size
+          const firstAvailable = cleanSizes.find(size => isSizeUsableAndInStock(product, size));
+          return firstAvailable || cleanSizes[0] || '';
+        });
       }
     }
-  }, [product]);
+  }, [id, product?.id]);
 
   if (!product) {
     if (loading) {
@@ -225,7 +232,11 @@ const ProductDetails = () => {
 
   const handleAddToCart = () => {
     if (!selectedSize) {
-      toast.error('Please select a size');
+      toast.error('দয়া করে একটি সাইজ সিলেক্ট করুন (Please select a size)');
+      return;
+    }
+    if (!isSizeUsableAndInStock(product, selectedSize)) {
+      toast.error(`দুঃখিত, সাইজ ${selectedSize} বর্তমানে স্টকে নেই (Out of stock)`);
       return;
     }
     addToCart(product, selectedSize, quantity);
@@ -234,7 +245,11 @@ const ProductDetails = () => {
 
   const handleBuyNow = () => {
     if (!selectedSize) {
-      toast.error('Please select a size');
+      toast.error('দয়া করে একটি সাইজ সিলেক্ট করুন (Please select a size)');
+      return;
+    }
+    if (!isSizeUsableAndInStock(product, selectedSize)) {
+      toast.error(`দুঃখিত, সাইজ ${selectedSize} বর্তমানে স্টকে নেই (Out of stock)`);
       return;
     }
     addToCart(product, selectedSize, quantity);
@@ -411,22 +426,40 @@ const ProductDetails = () => {
                   </div>
                 )}
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2.5">
                 {displaySizes.map(size => {
                   const isAvailable = isSizeUsableAndInStock(product, size);
+                  const isSelected = selectedSize === size;
                   return (
                     <button
                       key={size}
                       type="button"
-                      onClick={() => isAvailable && setSelectedSize(size)}
+                      onClick={() => {
+                        if (!isAvailable) {
+                          toast.error(`সাইজ ${size} এর স্টক শেষ (Out of stock)`);
+                          return;
+                        }
+                        setSelectedSize(size);
+                      }}
                       disabled={!isAvailable}
+                      title={!isAvailable ? `সাইজ ${size} স্টক শেষ (Out of Stock)` : `সাইজ ${size}`}
                       className={cn(
-                        "w-12 h-12 flex items-center justify-center text-xs font-bold border transition-all rounded-[4px] cursor-pointer",
-                        selectedSize === size ? "bg-black text-white border-black shadow-sm" : "bg-transparent text-black border-gray-200 hover:border-black",
-                        !isAvailable && "opacity-30 cursor-not-allowed line-through"
+                        "relative w-12 h-12 flex flex-col items-center justify-center text-xs font-bold border transition-all rounded-[4px] select-none",
+                        isSelected && isAvailable
+                          ? "bg-black text-white border-black shadow-sm ring-2 ring-black/20" 
+                          : isAvailable
+                            ? "bg-white text-black border-gray-200 hover:border-black hover:bg-gray-50 cursor-pointer"
+                            : "bg-gray-100 text-gray-400 border-gray-200 border-dashed cursor-not-allowed opacity-50 overflow-hidden"
                       )}
                     >
-                      {size}
+                      <span className={cn(!isAvailable && "line-through text-gray-400")}>{size}</span>
+                      
+                      {/* Clear crossed-out diagonal line for unavailable size */}
+                      {!isAvailable && (
+                        <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                          <span className="w-[140%] h-[1.5px] bg-red-500/80 rotate-45 transform origin-center absolute"></span>
+                        </span>
+                      )}
                     </button>
                   );
                 })}

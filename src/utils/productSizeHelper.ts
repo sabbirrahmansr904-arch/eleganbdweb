@@ -78,41 +78,29 @@ export const getCleanProductSizes = (
 
 /**
  * Checks if a specific size is available / in-stock / usable for the user to select.
- * Guarantees that pant sizes 28-40 are usable when the product is in stock.
+ * If sizeStock has stock > 0 for this size, returns true.
+ * If sizeStock is specified for the product and this size has 0 or is absent, returns false.
  */
 export const isSizeUsableAndInStock = (
-  product: { category?: string; name?: string; stock?: number; sizeStock?: Record<string, number> } | null | undefined,
+  product: { category?: string; name?: string; stock?: number; sizeStock?: Record<string, number | string>; sizes?: string[] } | null | undefined,
   size: string
 ): boolean => {
   if (!product) return false;
 
-  const totalStock = typeof product.stock === 'number' ? product.stock : 10;
+  const totalStock = typeof product.stock === 'number' ? product.stock : Number(product.stock) || 0;
   if (totalStock <= 0) return false;
 
   const rawSizeStock = product.sizeStock;
 
   // If there's an explicit stock count for this size
-  if (rawSizeStock && typeof rawSizeStock[size] === 'number') {
-    return rawSizeStock[size] > 0;
-  }
-
-  // If it's a pant, and sizeStock didn't have this numeric size (e.g. was stored with M/L/XL or not set),
-  // make all standard pant sizes (28-40) usable as long as the product is in stock!
-  if (isPantProduct(product)) {
-    const hasExplicitPantStockKey = rawSizeStock && Object.keys(rawSizeStock).some(k => {
-      const n = parseInt(k, 10);
-      return !isNaN(n) && n >= 26 && n <= 44 && (rawSizeStock[k] || 0) > 0;
-    });
-
-    // If no explicit numeric stock entries exist (only letter sizes or empty), then all 28-40 sizes are usable
-    if (!hasExplicitPantStockKey) {
-      return totalStock > 0;
+  if (rawSizeStock && typeof rawSizeStock === 'object' && Object.keys(rawSizeStock).length > 0) {
+    if (rawSizeStock[size] !== undefined && rawSizeStock[size] !== null) {
+      const num = Number(rawSizeStock[size]);
+      return !isNaN(num) && num > 0;
     }
+    // Size is explicitly not in stock (0 or omitted in stock breakdown)
+    return false;
   }
 
-  if (!rawSizeStock || Object.keys(rawSizeStock).length === 0) {
-    return totalStock > 0;
-  }
-
-  return (rawSizeStock[size] || 0) > 0;
+  return totalStock > 0;
 };

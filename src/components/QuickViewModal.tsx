@@ -5,7 +5,7 @@ import { Product } from '../types';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useCart } from '../contexts/CartContext';
 import { formatPrice, cn } from '../lib/utils';
-import { isPantProduct, getCleanProductSizes } from '../utils/productSizeHelper';
+import { isPantProduct, getCleanProductSizes, isSizeUsableAndInStock } from '../utils/productSizeHelper';
 import toast from 'react-hot-toast';
 
 interface QuickViewModalProps {
@@ -21,19 +21,31 @@ export default function QuickViewModal({ product, isOpen, onClose }: QuickViewMo
   const isPant = isPantProduct(product);
   const cleanSizes = useMemo(() => getCleanProductSizes(product), [product]);
 
-  const [selectedSize, setSelectedSize] = useState(() => cleanSizes[0] || '');
+  const [selectedSize, setSelectedSize] = useState(() => {
+    const firstAvailable = cleanSizes.find(size => isSizeUsableAndInStock(product, size));
+    return firstAvailable || cleanSizes[0] || '';
+  });
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
 
   useEffect(() => {
-    if (cleanSizes.length > 0 && !cleanSizes.includes(selectedSize)) {
-      setSelectedSize(cleanSizes[0]);
+    if (cleanSizes.length > 0) {
+      if (!selectedSize || !isSizeUsableAndInStock(product, selectedSize)) {
+        const firstAvailable = cleanSizes.find(size => isSizeUsableAndInStock(product, size));
+        if (firstAvailable) {
+          setSelectedSize(firstAvailable);
+        }
+      }
     }
-  }, [cleanSizes, selectedSize]);
+  }, [cleanSizes, product]);
 
   const handleAddToCart = () => {
     if (!selectedSize) {
       toast.error(isBag ? 'Please select QN' : 'Please select a size');
+      return;
+    }
+    if (!isSizeUsableAndInStock(product, selectedSize)) {
+      toast.error(`দুঃখিত, সাইজ ${selectedSize} বর্তমানে স্টকে নেই (Out of stock)`);
       return;
     }
     addToCart(product, selectedSize, quantity);
@@ -125,19 +137,40 @@ export default function QuickViewModal({ product, isOpen, onClose }: QuickViewMo
                     {isBag ? 'Select QN' : isPant ? 'Select Waist Size (28–40)' : 'Select Size'}
                   </h4>
                   <div className="flex flex-wrap gap-2">
-                    {cleanSizes.map(size => (
-                      <button
-                        key={size}
-                        type="button"
-                        onClick={() => setSelectedSize(size)}
-                        className={cn(
-                          "w-10 h-10 flex items-center justify-center text-xs font-bold border transition-all cursor-pointer",
-                          selectedSize === size ? "bg-brand-black text-white border-brand-black" : "bg-white text-brand-black border-gray-200 hover:border-brand-gold"
-                        )}
-                      >
-                        {size}
-                      </button>
-                    ))}
+                    {cleanSizes.map(size => {
+                      const isAvailable = isSizeUsableAndInStock(product, size);
+                      const isSelected = selectedSize === size;
+                      return (
+                        <button
+                          key={size}
+                          type="button"
+                          onClick={() => {
+                            if (!isAvailable) {
+                              toast.error(`সাইজ ${size} এর স্টক শেষ (Out of stock)`);
+                              return;
+                            }
+                            setSelectedSize(size);
+                          }}
+                          disabled={!isAvailable}
+                          title={!isAvailable ? `সাইজ ${size} স্টক শেষ` : `সাইজ ${size}`}
+                          className={cn(
+                            "relative w-10 h-10 flex flex-col items-center justify-center text-xs font-bold border transition-all select-none",
+                            isSelected && isAvailable
+                              ? "bg-brand-black text-white border-brand-black" 
+                              : isAvailable
+                                ? "bg-white text-brand-black border-gray-200 hover:border-brand-gold cursor-pointer"
+                                : "bg-gray-100 text-gray-400 border-gray-200 border-dashed cursor-not-allowed opacity-50 overflow-hidden"
+                          )}
+                        >
+                          <span className={cn(!isAvailable && "line-through text-gray-400")}>{size}</span>
+                          {!isAvailable && (
+                            <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                              <span className="w-[140%] h-[1.5px] bg-red-500/80 rotate-45 transform origin-center absolute"></span>
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 

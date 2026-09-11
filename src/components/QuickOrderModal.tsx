@@ -8,7 +8,7 @@ import { useProducts } from '../contexts/ProductContext';
 import { useBranding } from '../contexts/BrandingContext';
 import { formatPrice, cn } from '../lib/utils';
 import { DISTRICT_THANAS } from '../data/locations';
-import { isPantProduct, getCleanProductSizes } from '../utils/productSizeHelper';
+import { isPantProduct, getCleanProductSizes, isSizeUsableAndInStock } from '../utils/productSizeHelper';
 import toast from 'react-hot-toast';
 
 interface QuickOrderModalProps {
@@ -27,14 +27,22 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
   const cleanSizes = useMemo(() => getCleanProductSizes(product), [product]);
   
   const [step, setStep] = useState<'form' | 'success'>('form');
-  const [selectedSize, setSelectedSize] = useState(() => cleanSizes[0] || '');
+  const [selectedSize, setSelectedSize] = useState(() => {
+    const firstAvailable = cleanSizes.find(size => isSizeUsableAndInStock(product, size));
+    return firstAvailable || cleanSizes[0] || '';
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (cleanSizes.length > 0 && !cleanSizes.includes(selectedSize)) {
-      setSelectedSize(cleanSizes[0]);
+    if (cleanSizes.length > 0) {
+      if (!selectedSize || !isSizeUsableAndInStock(product, selectedSize)) {
+        const firstAvailable = cleanSizes.find(size => isSizeUsableAndInStock(product, size));
+        if (firstAvailable) {
+          setSelectedSize(firstAvailable);
+        }
+      }
     }
-  }, [cleanSizes, selectedSize]);
+  }, [cleanSizes, product]);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -168,19 +176,40 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
                       {isBag ? 'Select QN' : isPant ? 'Select Waist Size (28–40)' : 'Select Size'}
                     </label>
                     <div className="flex flex-wrap gap-2">
-                      {cleanSizes.map(size => (
-                        <button
-                          key={size}
-                          type="button"
-                          onClick={() => setSelectedSize(size)}
-                          className={cn(
-                            "w-10 h-10 flex items-center justify-center text-xs font-bold border transition-all cursor-pointer",
-                            selectedSize === size ? "bg-brand-black text-white border-brand-black" : "bg-white text-brand-black border-gray-200 hover:border-black"
-                          )}
-                        >
-                          {size}
-                        </button>
-                      ))}
+                      {cleanSizes.map(size => {
+                        const isAvailable = isSizeUsableAndInStock(product, size);
+                        const isSelected = selectedSize === size;
+                        return (
+                          <button
+                            key={size}
+                            type="button"
+                            onClick={() => {
+                              if (!isAvailable) {
+                                toast.error(`সাইজ ${size} এর স্টক শেষ (Out of stock)`);
+                                return;
+                              }
+                              setSelectedSize(size);
+                            }}
+                            disabled={!isAvailable}
+                            title={!isAvailable ? `সাইজ ${size} স্টক শেষ` : `সাইজ ${size}`}
+                            className={cn(
+                              "relative w-10 h-10 flex flex-col items-center justify-center text-xs font-bold border transition-all select-none",
+                              isSelected && isAvailable
+                                ? "bg-brand-black text-white border-brand-black" 
+                                : isAvailable
+                                  ? "bg-white text-brand-black border-gray-200 hover:border-black cursor-pointer"
+                                  : "bg-gray-100 text-gray-400 border-gray-200 border-dashed cursor-not-allowed opacity-50 overflow-hidden"
+                            )}
+                          >
+                            <span className={cn(!isAvailable && "line-through text-gray-400")}>{size}</span>
+                            {!isAvailable && (
+                              <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <span className="w-[140%] h-[1.5px] bg-red-500/80 rotate-45 transform origin-center absolute"></span>
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
