@@ -2223,21 +2223,21 @@ export default function AdminOrders(): React.JSX.Element {
                       </td>
 
                       {/* Name */}
-                      <td className="py-4 px-4 text-xs text-slate-800">
-                        <div className="font-bold text-slate-850">{order.customerName || 'Anonymous Customer'}</div>
-                        {(() => {
-                          const trust = analyzeCustomerTrust(order, orders);
-                          return (
-                            <div className="mt-1">
+                      <td className="py-4 px-4 text-xs text-slate-800 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-850">{order.customerName || 'Anonymous Customer'}</span>
+                          {(() => {
+                            const trust = analyzeCustomerTrust(order, orders);
+                            return (
                               <span 
-                                className={cn("inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-extrabold border tracking-tight shadow-3xs", trust.badgeColor)}
+                                className={cn("inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-extrabold border tracking-tight whitespace-nowrap shrink-0 shadow-3xs", trust.badgeColor)}
                                 title={trust.reasons.join(' • ')}
                               >
                                 {trust.title}
                               </span>
-                            </div>
-                          );
-                        })()}
+                            );
+                          })()}
+                        </div>
                       </td>
 
                       {/* Phone */}
