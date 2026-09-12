@@ -236,81 +236,85 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     };
 
-    // A. Fetch orders from Supabase with timeout prevention and safety locks
+    // A. Multi-channel Orders Synchronizer with Local Server API Priority & Supabase Fallback
     const isFetchingRef = { current: false };
 
-    const fetchFromSupabase = async (limitRecent = false) => {
+    const syncOrders = async (isBackground = false) => {
       if (isFetchingRef.current) return;
       isFetchingRef.current = true;
       try {
-        let query = supabase
-          .from('orders')
-          .select('*')
-          .order('created_at', { ascending: false });
-          
-        if (limitRecent) {
-          query = query.limit(200);
-        } else {
-          query = query.limit(1000);
+        let fetchedList: Order[] | null = null;
+
+        // 1. Try local same-origin server endpoint first (lightning-fast, never blocked by mobile network/adblockers)
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          const res = await fetch('/api/orders', {
+            signal: controller.signal,
+            headers: { 'Cache-Control': 'no-cache' }
+          });
+          clearTimeout(timeoutId);
+          if (res.ok) {
+            const json = await res.json();
+            if (json && json.success && Array.isArray(json.orders) && json.orders.length > 0) {
+              fetchedList = json.orders;
+            }
+          }
+        } catch (apiErr) {
+          // Fallback to Supabase
         }
 
-        const { data, error } = await query;
+        // 2. Direct Supabase Query fallback
+        if (!fetchedList) {
+          let query = supabase
+            .from('orders')
+            .select('*')
+            .order('created_at', { ascending: false });
+            
+          if (isBackground) {
+            query = query.limit(200);
+          } else {
+            query = query.limit(1000);
+          }
 
-        if (error) {
-          console.warn('[OrderContext] Supabase fetch notice:', error.message);
-          // CRITICAL: NEVER wipe out existing orders or localStorage on error/timeout!
-        } else if (data && Array.isArray(data) && isMounted) {
-          const mapped: Order[] = data.map(supabaseRowToOrder);
-          if (mapped.length > 0) {
-            if (limitRecent) {
-              mergeAndSetOrders(mapped);
-            } else {
-              replaceAndSetOrders(mapped);
-            }
-          } else if (!limitRecent) {
-            // Supabase is empty (0 records) - auto-migrate any local cached orders to Supabase
-            try {
-              const cached = localStorage.getItem(CACHE_KEY) || localStorage.getItem('eleganbd_orders');
-              if (cached) {
-                const parsed = JSON.parse(cached);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                  console.log(`[OrderContext] Auto-pushing ${parsed.length} local orders to empty Supabase DB...`);
-                  const rows = parsed.map(orderToSupabaseRow);
-                  const BATCH = 50;
-                  for (let i = 0; i < rows.length; i += BATCH) {
-                    const chunk = rows.slice(i, i + BATCH);
-                    supabase.from('orders').upsert(chunk, { onConflict: 'id' }).then(({ error: upsertErr }) => {
-                      if (!upsertErr) {
-                        console.log(`[OrderContext] Uploaded ${chunk.length} orders chunk to Supabase`);
-                      }
-                    });
-                  }
-                }
-              }
-            } catch (e) {}
+          const { data, error } = await query;
+          if (!error && data && Array.isArray(data) && data.length > 0) {
+            fetchedList = data.map(supabaseRowToOrder);
+          }
+        }
+
+        if (fetchedList && Array.isArray(fetchedList) && isMounted) {
+          if (isBackground) {
+            mergeAndSetOrders(fetchedList);
+          } else {
+            replaceAndSetOrders(fetchedList);
           }
         }
       } catch (err) {
-        console.warn('[OrderContext] Supabase load exception:', err);
+        console.warn('[OrderContext] Orders load exception:', err);
       } finally {
         isFetchingRef.current = false;
         if (isMounted) setLoading(false);
       }
     };
 
-    fetchFromSupabase();
+    // Initial load
+    syncOrders(false);
 
-    // Background sync check every 60 seconds for cross-device fallback (Realtime channel & BroadcastChannel provide instant updates)
+    // Fast 5-second polling loop so mobile devices see new website/mobile orders immediately
     const pollInterval = setInterval(() => {
-      if (isMounted && document.visibilityState === 'visible') fetchFromSupabase(true);
-    }, 60000);
+      if (isMounted && typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        syncOrders(true);
+      }
+    }, 5000);
 
-    // Instant sync on window focus/tab switch
+    // Instant sync on window focus, mobile screen unlock, or tab switch
     const handleFocus = () => {
-      if (isMounted) fetchFromSupabase(true);
+      if (isMounted) syncOrders(true);
     };
     window.addEventListener('focus', handleFocus);
     window.addEventListener('visibilitychange', handleFocus);
+    window.addEventListener('online', handleFocus);
 
     // B. Broadcast Channel Listener (0ms inter-tab sync)
     let bc: BroadcastChannel | null = null;
@@ -326,7 +330,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             const delId = String(payload);
             setOrders(prev => prev.filter(o => o.id !== delId && String(o.invoiceNo) !== delId));
           } else if (type === 'ORDERS_REFRESH') {
-            fetchFromSupabase(true);
+            syncOrders(true);
           }
         };
       }
@@ -361,6 +365,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       clearInterval(pollInterval);
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('visibilitychange', handleFocus);
+      window.removeEventListener('online', handleFocus);
       if (bc) {
         try { bc.close(); } catch {}
       }
@@ -373,6 +378,21 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const refreshOrders = useCallback(async () => {
     setLoading(true);
     try {
+      // 1. Try local server API
+      try {
+        const res = await fetch('/api/orders', { headers: { 'Cache-Control': 'no-cache' } });
+        if (res.ok) {
+          const json = await res.json();
+          if (json && json.success && Array.isArray(json.orders)) {
+            const sorted = [...json.orders].sort((a, b) => compareOrdersByInvoice(a, b, 'desc'));
+            setOrders(sorted);
+            saveOrdersToCache(sorted);
+            return;
+          }
+        }
+      } catch (err) {}
+
+      // 2. Direct Supabase fallback
       const { data, error } = await supabase
         .from('orders')
         .select('*')
@@ -799,6 +819,15 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       });
       setLastOrder(newOrder);
       broadcastSync('ORDER_CREATED', newOrder);
+
+      // Server API instant sync for multi-device & mobile visibility
+      try {
+        fetch('/api/orders/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newOrder),
+        }).catch(err => console.warn('[OrderContext] Server order sync notice:', err));
+      } catch (err) {}
 
       // 2. Background Supabase Upsert (Non-blocking)
       const sbRow = orderToSupabaseRow(newOrder);

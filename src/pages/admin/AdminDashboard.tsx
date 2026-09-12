@@ -1703,8 +1703,8 @@ export default function AdminDashboard(): React.JSX.Element {
             </div>
 
             {/* Custom high-fidelity orders table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+            <div className="overflow-x-auto no-scrollbar">
+              <table className="w-full text-left border-collapse min-w-[540px]">
                 <thead>
                   <tr className="border-b border-gray-100 text-[10px] font-black uppercase tracking-wider text-gray-400">
                     <th className="pb-3">Invoice No</th>

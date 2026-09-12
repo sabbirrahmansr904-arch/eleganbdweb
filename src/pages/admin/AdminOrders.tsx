@@ -1646,10 +1646,9 @@ export default function AdminOrders(): React.JSX.Element {
 
 
         {/* Table/Card representation */}
-        <div className="overflow-x-auto elegant-scrollbar pb-3">
-          {/* Mobile Card View */}
-          <div className="md:hidden space-y-4 px-4">
-            {loading && orders.length === 0 ? (
+        {/* Mobile Card View - clean full-width vertical layout so all orders are visible on mobile */}
+        <div className="md:hidden space-y-3.5">
+          {loading && orders.length === 0 ? (
               <div className="py-12 text-center bg-white rounded-2xl border border-slate-150 p-6">
                 <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
                 <p className="text-sm font-black text-[#0D1829] uppercase tracking-wide">Loading Orders...</p>
@@ -1706,7 +1705,41 @@ export default function AdminOrders(): React.JSX.Element {
                     </button>
                   </div>
                 )}
-                {filteredOrders.slice(0, visibleCount).map((order) => {
+                {/* Mobile Orders Count Header with Realtime Indicator & Refresh */}
+                <div className="flex items-center justify-between px-2.5 py-2 text-xs text-slate-700 font-bold bg-white/95 border border-slate-200/90 rounded-xl mb-2.5 shadow-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                    </span>
+                    <span className="text-xs">
+                      মোট অর্ডার: <strong className="text-emerald-700 font-black text-sm">{filteredOrders.length}টি</strong>
+                    </span>
+                    {isAnyFilterActive && orders.length !== filteredOrders.length && (
+                      <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 font-bold">
+                        (সর্বমোট {orders.length})
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        await refreshOrders();
+                        toast.success(`অর্ডার সিঙ্ক সম্পন্ন (${orders.length}টি)`, { duration: 1500 });
+                      }}
+                      disabled={loading}
+                      className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 border border-slate-200"
+                      title="নতুন অর্ডার সিঙ্ক করুন"
+                    >
+                      <RefreshCw className={cn("w-3 h-3 text-slate-600", loading && "animate-spin text-emerald-600")} />
+                      <span>{loading ? "সিঙ্ক..." : "রিফ্রেশ"}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {filteredOrders.map((order) => {
               const s = normalizeStatus(order.status).toUpperCase();
               const isSuccess = s === 'SUCCESS' || s === 'DELIVERED' || isDeliveredOrSuccess(order.status);
               const isCancelledOrReturned = s === 'CANCELLED' || s === 'RETURNED' || s === 'PICK UP CANCEL' || s.includes('CANCEL') || s.includes('RETURN');
@@ -1907,28 +1940,16 @@ export default function AdminOrders(): React.JSX.Element {
                 </div>
               );
             })}
-            {filteredOrders.length > visibleCount && (
-              <div className="pt-2 pb-1 flex flex-col gap-2">
-                <button
-                  onClick={() => setVisibleCount(prev => prev + 9)}
-                  className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-98 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <span>More ({filteredOrders.length - visibleCount} Remaining)</span>
-                </button>
-                <button
-                  onClick={() => setVisibleCount(filteredOrders.length)}
-                  className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 active:scale-98 text-slate-700 font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <span>Show All ({filteredOrders.length})</span>
-                </button>
-              </div>
-            )}
+            <div className="py-4 text-center text-xs font-bold text-slate-400 bg-slate-50/70 border border-slate-200/70 rounded-2xl">
+              সব {filteredOrders.length}টি অর্ডার সফলভাবে লোড হয়েছে
+            </div>
           </>
         )}
       </div>
 
-          {/* Desktop Table View */}
-          <table className="hidden md:table w-full text-left border-separate border-spacing-y-3 min-w-[1500px]">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto elegant-scrollbar pb-3">
+          <table className="w-full text-left border-separate border-spacing-y-3 min-w-[1500px]">
             <thead>
               <tr className="text-[11px] font-black tracking-wider text-slate-500 h-10 select-none uppercase">
                 <th className="py-3 px-4 font-semibold text-left w-12">

@@ -149,6 +149,58 @@ async function startServer() {
     }
   });
 
+  // Production API endpoint to fetch all orders with guaranteed high-speed reliability
+  app.get("/api/orders", async (req, res) => {
+    try {
+      const orderSnaps = await getDocs(collection(db, 'orders'));
+      const ordersList = orderSnaps.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      ordersList.sort((a: any, b: any) => {
+        const invA = Number(a.invoiceNo) || 0;
+        const invB = Number(b.invoiceNo) || 0;
+        if (invA && invB && invA !== invB) return invB - invA;
+        const timeA = new Date(a.createdAt || 0).getTime();
+        const timeB = new Date(b.createdAt || 0).getTime();
+        return timeB - timeA;
+      });
+
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      return res.json({ success: true, count: ordersList.length, orders: ordersList });
+    } catch (e: any) {
+      console.error("[Server API] /api/orders error:", e);
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  // Production API endpoint to create and instantly persist orders across devices
+  app.post("/api/orders/create", async (req, res) => {
+    try {
+      const orderData = req.body;
+      if (!orderData || !orderData.id) {
+        return res.status(400).json({ error: "Missing order data or ID" });
+      }
+
+      await setDoc(doc(db, 'orders', String(orderData.id)), orderData);
+
+      try {
+        const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://wnnnjroxyuxsbolbcdil.supabase.co';
+        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_p2B8pChEnm9esPFTCLGYXg_Ype4-7NI';
+        const { createClient } = await import('@supabase/supabase-js');
+        const sb = createClient(supabaseUrl, supabaseKey);
+        const { orderToSupabaseRow } = await import('./src/lib/supabase.js');
+        const row = orderToSupabaseRow(orderData);
+        await sb.from('orders').upsert(row, { onConflict: 'id' });
+      } catch (sbErr) {
+        console.warn("[Server API] Direct Supabase upsert notice:", sbErr);
+      }
+
+      return res.json({ success: true, id: orderData.id });
+    } catch (e: any) {
+      console.error("[Server API] /api/orders/create error:", e);
+      return res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/debug-banners", async (req, res) => {
     try {
       const bannerSnaps = await getDocs(collection(db, 'banners'));
