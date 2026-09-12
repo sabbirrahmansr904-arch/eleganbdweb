@@ -290,34 +290,43 @@ export const isDemoProduct = (p: Product | null | undefined): boolean => {
 };
 
 export const getCanonicalProductKey = (p: Product): string => {
-  if (!p) return '';
+  if (!p || typeof p !== 'object') return '';
+  
   const sku = (p.sku || '').trim().toLowerCase();
   const name = (p.name || '').trim().toLowerCase();
   const color = (p.color || '').trim().toLowerCase();
   const category = (p.category || '').trim().toLowerCase();
 
-  const fullText = `${sku} ${name} ${color} ${category}`;
-
-  let catType = 'other';
-  if (category.includes('pant') || category.includes('trouser') || name.includes('pant') || name.includes('trouser')) {
-    catType = 'pant';
-  } else if (category.includes('shirt') || name.includes('shirt') || category.includes('polo') || name.includes('polo')) {
-    catType = 'shirt';
+  // If SKU is present and unique (e.g. FP-01, FP-02)
+  if (sku && sku.length >= 3) {
+    return `sku_${sku}`;
   }
 
-  // Match numeric code (e.g. FP-01, FP-1, Code FP 1, Code 1, FS-01, FS-1)
-  const codeMatch = fullText.match(/\b(?:code|fp|fs|pant|shirt|p|item|art)[\s-_#]*0*(\d+)/i) || fullText.match(/0*(\d+)/);
+  // Check for explicit product code (e.g. Code: FP 1, FP-01, Code 1)
+  const fullText = `${name} ${sku} ${color}`;
+  const codeMatch = fullText.match(/\b(?:code|fp|fs)[\s-_#]*0*(\d+)\b/i);
   if (codeMatch && codeMatch[1]) {
-    const codeNum = parseInt(codeMatch[1], 10);
-    return `${catType}_code_${codeNum}`;
+    const isPant = category.includes('pant') || name.includes('pant');
+    const prefix = isPant ? 'pant' : 'shirt';
+    return `${prefix}_code_${parseInt(codeMatch[1], 10)}`;
   }
 
-  const normColor = color.replace(/[^a-z0-9]/g, '');
   const normName = name.replace(/[^a-z0-9]/g, '');
-  return `${catType}_${normColor || normName}`;
+  const normColor = color.replace(/[^a-z0-9]/g, '');
+
+  if (normName && normColor) {
+    return `nc_${normName}_${normColor}`;
+  }
+
+  if (normName) {
+    return `n_${normName}`;
+  }
+
+  return `id_${String(p.id || '').toLowerCase()}`;
 };
 
 const deduplicateProducts = (list: Product[]): Product[] => {
+  if (!Array.isArray(list)) return [];
   const seenIds = new Set<string>();
   const seenCanonical = new Set<string>();
   const deletedSet = getDeletedIds();
@@ -325,7 +334,7 @@ const deduplicateProducts = (list: Product[]): Product[] => {
   return list.filter(p => {
     if (!p || !p.id) return false;
     const strId = String(p.id).trim();
-    if (deletedSet.has(strId)) return false;
+    if (!strId || deletedSet.has(strId)) return false;
 
     const lowerId = strId.toLowerCase();
     if (seenIds.has(lowerId)) return false;

@@ -24,9 +24,6 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   public static getDerivedStateFromError(error: Error): State {
-    if (isQuotaError(error)) {
-      return { hasError: false, error: null, errorInfo: null };
-    }
     return { hasError: true, error, errorInfo: null };
   }
 

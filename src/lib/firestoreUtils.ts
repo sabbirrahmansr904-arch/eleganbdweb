@@ -70,22 +70,8 @@ export function isQuotaError(error: unknown): boolean {
                   lowerStr.includes('resource_exhausted') ||
                   lowerStr.includes('free daily read units') ||
                   lowerStr.includes('free daily write units') ||
-                  lowerStr.includes('write units') ||
-                  lowerStr.includes('write stream') ||
-                  lowerStr.includes('grpcconnection') ||
-                  lowerStr.includes('rpc') ||
-                  lowerStr.includes('quota metric') ||
                   lowerStr.includes('exceeded free quota') ||
                   lowerStr.includes('exceeded quota') ||
-                  lowerStr.includes('free tier database') ||
-                  lowerStr.includes('firestore.googleapis.com') ||
-                  lowerStr.includes('project_number') ||
-                  lowerStr.includes('retry after quota limits') ||
-                  lowerStr.includes('cannot exceed free quota') ||
-                  lowerStr.includes('internal assertion failed') ||
-                  lowerStr.includes('unexpected state') ||
-                  lowerStr.includes('ca9') ||
-                  lowerStr.includes('b815') ||
                   (error as any)?.code === 'resource-exhausted' ||
                   (error as any)?.code === 'RESOURCE_EXHAUSTED';
 
