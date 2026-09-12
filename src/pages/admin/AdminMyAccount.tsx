@@ -30,7 +30,7 @@ import { autoSaveToMediaLibrary } from '../../utils/mediaLibrary';
 import { AdminProfile } from './AdminAccounts';
 
 export default function AdminMyAccount() {
-  const { currentUser, isSuperAdmin, isCEO, department: authDept, permissions } = useAuth();
+  const { currentUser, isSuperAdmin, isCEO, department: authDept, permissions, updateUserPhoto } = useAuth();
   
   const userEmail = currentUser?.email || 'admin@eleganbd.com';
   const cleanEmail = userEmail.toLowerCase().trim();
@@ -40,6 +40,26 @@ export default function AdminMyAccount() {
   const canEdit = true;
   const isMasterAdmin = true;
 
+  const getInitialPhoto = () => {
+    if (currentUser?.photoURL) return currentUser.photoURL;
+    try {
+      const local = localStorage.getItem('elegan_admin_profiles');
+      if (local) {
+        const list = JSON.parse(local);
+        const found = list.find((p: any) => p.email?.toLowerCase() === cleanEmail);
+        if (found?.photoURL) return found.photoURL;
+      }
+    } catch (e) {}
+    try {
+      const sess = localStorage.getItem('elegan_admin_session');
+      if (sess) {
+        const p = JSON.parse(sess);
+        if (p?.photoURL) return p.photoURL;
+      }
+    } catch (e) {}
+    return '';
+  };
+
   const [profile, setProfile] = useState<AdminProfile>({
     id: emailDocKey,
     name: currentUser?.displayName || userEmail.split('@')[0],
@@ -47,7 +67,7 @@ export default function AdminMyAccount() {
     phone: '',
     position: isCEO ? 'CEO & Founder' : 'Sales Executive',
     department: authDept || (isCEO ? 'CEO & Founder' : 'Sales Executive Department'),
-    photoURL: currentUser?.photoURL || '',
+    photoURL: getInitialPhoto(),
     status: 'Active',
     bio: '',
     createdAt: Date.now()
@@ -115,6 +135,7 @@ export default function AdminMyAccount() {
           setProfile(prev => ({
             ...prev,
             ...data,
+            photoURL: data.photoURL || prev.photoURL || '',
             id: docSnap.id,
             email: userEmail
           }));
@@ -146,6 +167,7 @@ export default function AdminMyAccount() {
       toast.loading('Processing image...', { id: 'avatar-compress-my' });
       const compressed = await compressAvatar(file);
       setProfile(prev => ({ ...prev, photoURL: compressed }));
+      updateUserPhoto(compressed);
       autoSaveToMediaLibrary(compressed, {
         name: `Profile Picture - ${profile.name || userEmail}`,
         category: 'Staff Profiles',
@@ -209,6 +231,10 @@ export default function AdminMyAccount() {
       }
       const updatedList = [...list.filter(p => p.email.toLowerCase() !== userEmail.toLowerCase()), payload];
       localStorage.setItem('elegan_admin_profiles', JSON.stringify(updatedList));
+
+      if (safePhotoURL) {
+        updateUserPhoto(safePhotoURL);
+      }
 
       // Notify all components in the tab
       window.dispatchEvent(new Event('elegan_profile_updated'));

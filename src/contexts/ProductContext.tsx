@@ -364,6 +364,7 @@ function cleanFirestoreData(data: Record<string, any>): Record<string, any> {
 }
 
 const normalizeProductCategory = (p: Product): Product => {
+  if (!p || typeof p !== 'object') return p;
   let category = p.category || '';
   const lowerCategory = category.toLowerCase().trim();
   if (lowerCategory === 'formal shirt' || lowerCategory === 'formal-shirt' || lowerCategory === 'premium formal shirt' || lowerCategory === 'premium-formal-shirt') {

@@ -24,6 +24,7 @@ interface AuthContextType {
   signUpWithEmail: (e: string, p: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshAdminStatus: () => Promise<void>;
+  updateUserPhoto: (photoURL: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -653,7 +654,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signInWithEmail, 
       signUpWithEmail, 
       signOut, 
-      refreshAdminStatus 
+      refreshAdminStatus,
+      updateUserPhoto: (photoURL: string) => {
+        setCurrentUser(prev => prev ? ({ ...prev, photoURL } as User) : null);
+        try {
+          const saved = localStorage.getItem('elegan_admin_session');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            parsed.photoURL = photoURL;
+            localStorage.setItem('elegan_admin_session', JSON.stringify(parsed));
+          }
+        } catch (e) {}
+        window.dispatchEvent(new Event('elegan_profile_updated'));
+      }
     }}>
       {children}
     </AuthContext.Provider>

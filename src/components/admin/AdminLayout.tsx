@@ -91,6 +91,7 @@ export default function AdminLayout() {
   const profileRef = React.useRef<HTMLDivElement>(null);
 
   const [userProfile, setUserProfile] = useState<{ name?: string; photoURL?: string; position?: string; department?: string } | null>(null);
+  const [imgError, setImgError] = useState(false);
 
   React.useEffect(() => {
     if (!currentUser?.email) return;
@@ -104,7 +105,13 @@ export default function AdminLayout() {
         if (local) {
           const list = JSON.parse(local);
           const found = list.find((p: any) => p.email?.toLowerCase() === cleanEmail);
-          if (found) setUserProfile(found);
+          if (found) {
+            setUserProfile(prev => ({
+              ...prev,
+              ...found,
+              photoURL: found.photoURL || prev?.photoURL || ''
+            }));
+          }
         }
       } catch (e) {}
     };
@@ -126,7 +133,12 @@ export default function AdminLayout() {
       const docRef = doc(db, 'admin_profiles', emailKey);
       unsubProfile = onSnapshot(docRef, (docSnap) => {
         if (docSnap.exists()) {
-          setUserProfile(prev => ({ ...prev, ...(docSnap.data() as any) }));
+          const data = docSnap.data() as any;
+          setUserProfile(prev => ({
+            ...prev,
+            ...data,
+            photoURL: data?.photoURL || prev?.photoURL || ''
+          }));
         }
       });
     } catch (e) {}
@@ -141,7 +153,8 @@ export default function AdminLayout() {
             ...prev,
             name: prev?.name || pData.name,
             department: pData.department || prev?.department,
-            position: pData.position || prev?.position || (pData.department ? `${pData.department.split(' ')[0]} Officer` : undefined)
+            position: pData.position || prev?.position || (pData.department ? `${pData.department.split(' ')[0]} Officer` : undefined),
+            photoURL: pData.photoURL || prev?.photoURL || ''
           }));
         }
       });
@@ -157,7 +170,31 @@ export default function AdminLayout() {
 
   const userInitials = (userProfile?.name?.slice(0, 2) || currentUser?.email?.slice(0, 2) || 'AD').toUpperCase();
   const activeDepartment = userProfile?.position || userProfile?.department || department || (isCEO ? 'CEO & Founder' : isSuperAdmin ? 'Super Admin' : 'Sales Executive Department');
-  const userPhoto = userProfile?.photoURL || currentUser?.photoURL || '';
+  
+  const userPhoto = React.useMemo(() => {
+    if (userProfile?.photoURL) return userProfile.photoURL;
+    if (currentUser?.photoURL) return currentUser.photoURL;
+    try {
+      const saved = localStorage.getItem('elegan_admin_profiles');
+      if (saved && currentUser?.email) {
+        const list = JSON.parse(saved);
+        const found = list.find((p: any) => p.email?.toLowerCase() === currentUser.email.toLowerCase());
+        if (found?.photoURL) return found.photoURL;
+      }
+    } catch (e) {}
+    try {
+      const sess = localStorage.getItem('elegan_admin_session');
+      if (sess) {
+        const parsed = JSON.parse(sess);
+        if (parsed?.photoURL) return parsed.photoURL;
+      }
+    } catch (e) {}
+    return '';
+  }, [userProfile?.photoURL, currentUser?.photoURL, currentUser?.email]);
+
+  React.useEffect(() => {
+    setImgError(false);
+  }, [userPhoto]);
 
   const getDepartmentBadgeStyle = (dept?: string) => {
     const d = String(dept || '');
@@ -598,8 +635,8 @@ export default function AdminLayout() {
               </nav>
               <div className="p-3.5 border-t border-[#DCE4EE] bg-[#EAEFF5]">
                 <div className="flex items-center gap-3 mb-3 p-2.5 bg-[#E6ECF4] rounded-2xl border border-white/90 shadow-[-4px_-4px_10px_rgba(255,255,255,0.95),4px_4px_12px_rgba(165,180,205,0.32)]">
-                  {currentUser?.photoURL ? (
-                    <img src={currentUser.photoURL} alt="User Profile" className="w-9 h-9 rounded-full object-cover border border-white shrink-0 shadow-inner" />
+                  {userPhoto && !imgError ? (
+                    <img src={userPhoto} alt="User Profile" onError={() => setImgError(true)} className="w-9 h-9 rounded-full object-cover border border-white shrink-0 shadow-inner" />
                   ) : (
                     <div className="w-9 h-9 bg-[#1E293B] text-white rounded-full flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
                       {userInitials}
@@ -775,8 +812,8 @@ export default function AdminLayout() {
                 title={`${currentUser?.email} (${activeDepartment})`}
                 className="w-10 h-10 bg-[#1E293B] text-white rounded-full flex items-center justify-center font-black text-xs hover:scale-105 transition-all shadow-xs overflow-hidden"
               >
-                {userPhoto ? (
-                  <img src={userPhoto} alt="Profile" className="w-full h-full object-cover" />
+                {userPhoto && !imgError ? (
+                  <img src={userPhoto} alt="Profile" onError={() => setImgError(true)} className="w-full h-full object-cover" />
                 ) : (
                   userInitials
                 )}
@@ -842,8 +879,8 @@ export default function AdminLayout() {
                     {activeDepartment}
                   </span>
                 </div>
-                {userPhoto ? (
-                  <img src={userPhoto} alt="Profile" className="w-9 h-9 rounded-full object-cover border-2 border-gray-200 shadow-2xs" />
+                {userPhoto && !imgError ? (
+                  <img src={userPhoto} alt="Profile" onError={() => setImgError(true)} className="w-9 h-9 rounded-full object-cover border-2 border-gray-200 shadow-2xs" />
                 ) : (
                   <div className="w-9.5 h-9.5 bg-black text-white rounded-full flex items-center justify-center font-black text-xs border-2 border-gray-100 shadow-2xs">
                     {userInitials}
@@ -861,8 +898,8 @@ export default function AdminLayout() {
                     className="absolute right-0 mt-3 w-80 sm:w-88 bg-[#F8F9FD] dark:bg-[#121824] rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-800 p-5 z-[100] text-left"
                   >
                     <div className="flex items-center gap-3.5 pb-4 border-b border-gray-100 dark:border-gray-800">
-                      {userPhoto ? (
-                        <img src={userPhoto} alt="Profile" className="w-12 h-12 rounded-2xl object-cover border-2 border-gray-200 shrink-0" />
+                      {userPhoto && !imgError ? (
+                        <img src={userPhoto} alt="Profile" onError={() => setImgError(true)} className="w-12 h-12 rounded-2xl object-cover border-2 border-gray-200 shrink-0" />
                       ) : (
                         <div className="w-12 h-12 bg-black text-white rounded-2xl flex items-center justify-center font-black text-base shrink-0 shadow-md">
                           {userInitials}

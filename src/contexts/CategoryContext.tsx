@@ -23,9 +23,10 @@ const DEFAULT_CATEGORIES: Category[] = [
 ];
 
 export const sortCategories = (list: Category[]): Category[] => {
-  return [...list].sort((a, b) => {
-    const aName = (a.name || '').toLowerCase();
-    const bName = (b.name || '').toLowerCase();
+  if (!Array.isArray(list)) return [];
+  return [...list].filter(Boolean).sort((a, b) => {
+    const aName = ((a && a.name) || '').toLowerCase();
+    const bName = ((b && b.name) || '').toLowerCase();
     
     const isAPant = aName.includes('pant') || aName.includes('trouser');
     const isBPant = bName.includes('pant') || bName.includes('trouser');

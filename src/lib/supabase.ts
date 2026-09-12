@@ -234,14 +234,17 @@ export function productToSupabaseRow(p: any): SupabaseProductRow {
     description: p.description || '',
     rating: typeof p.rating === 'number' ? p.rating : 0,
     is_top_rated: Boolean(p.isTopRated),
-    new_arrival: Boolean(p.newArrival),
-    featured: Boolean(p.featured),
+    new_arrival: p.newArrival !== undefined ? Boolean(p.newArrival) : true,
+    featured: Boolean(p.featured || p.bestSelling),
     updated_at: new Date().toISOString()
   };
 }
 
 export function supabaseRowToProduct(row: SupabaseProductRow): any {
+  const isBest = Boolean(row.featured || (row as any).bestSelling || (row as any).best_selling);
+  const isNew = row.new_arrival !== undefined ? Boolean(row.new_arrival) : Boolean((row as any).newArrival ?? true);
   return {
+    ...row,
     id: row.id,
     name: row.name,
     price: Number(row.price) || 0,
@@ -258,8 +261,9 @@ export function supabaseRowToProduct(row: SupabaseProductRow): any {
     description: row.description || '',
     rating: row.rating || 0,
     isTopRated: Boolean(row.is_top_rated),
-    newArrival: Boolean(row.new_arrival),
-    featured: Boolean(row.featured)
+    newArrival: isNew,
+    featured: isBest,
+    bestSelling: isBest
   };
 }
 
