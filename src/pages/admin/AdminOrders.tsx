@@ -160,7 +160,7 @@ export default function AdminOrders(): React.JSX.Element {
     setFilterDelivery('All');
     setStartDate('');
     setEndDate('');
-    setVisibleCount(10);
+    setVisibleCount(9);
   };
   const isAnyFilterActive = searchQuery.trim() !== '' || filterStatus !== 'All' || filterIssue !== 'All' || filterPartner !== 'All' || filterCourier !== 'All' || filterCreator !== 'All' || filterDelivery !== 'All' || startDate !== '' || endDate !== '';
   
@@ -201,8 +201,8 @@ export default function AdminOrders(): React.JSX.Element {
   const [cameraPermissionError, setCameraPermissionError] = useState<string | null>(null);
   const [isCameraScannerActive, setIsCameraScannerActive] = useState(false);
   
-  // Pagination State (Show first 10 orders initially, then load more)
-  const [visibleCount, setVisibleCount] = useState(10);
+  // Pagination State (Show first 9 orders initially, then load more)
+  const [visibleCount, setVisibleCount] = useState(9);
   
   // Bulk Selection
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
@@ -278,7 +278,7 @@ export default function AdminOrders(): React.JSX.Element {
   });
 
   useEffect(() => {
-    setVisibleCount(10);
+    setVisibleCount(9);
   }, [searchQuery, filterStatus, filterIssue, filterPartner, filterCourier, filterCreator, filterDelivery, startDate, endDate]);
 
   useEffect(() => {
@@ -1910,7 +1910,7 @@ export default function AdminOrders(): React.JSX.Element {
             {filteredOrders.length > visibleCount && (
               <div className="pt-2 pb-1 flex flex-col gap-2">
                 <button
-                  onClick={() => setVisibleCount(prev => prev + 10)}
+                  onClick={() => setVisibleCount(prev => prev + 9)}
                   className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-98 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span>More ({filteredOrders.length - visibleCount} Remaining)</span>
@@ -2276,13 +2276,25 @@ export default function AdminOrders(): React.JSX.Element {
 
                       {/* Size */}
                       <td className="py-4 px-4 whitespace-nowrap text-xs">
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex items-center gap-1.5 whitespace-nowrap">
                           {Array.isArray(order.items) && order.items.length > 0 ? (
-                            order.items.map((item, idx) => (
-                              <span key={idx} className="bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 text-[10px] font-black text-slate-700 font-mono">
-                                {item?.selectedSize || 'Free'}{(item?.quantity || 1) > 1 ? ` (x${item.quantity})` : ' (x1)'}
-                              </span>
-                            ))
+                            (() => {
+                              const sizeMap = new Map<string, number>();
+                              order.items.forEach((item) => {
+                                const s = (item?.selectedSize || 'Free').trim();
+                                const q = Number(item?.quantity) || 1;
+                                sizeMap.set(s, (sizeMap.get(s) || 0) + q);
+                              });
+
+                              return Array.from(sizeMap.entries()).map(([sz, qty], idx) => (
+                                <span 
+                                  key={idx} 
+                                  className="inline-flex items-center justify-center bg-slate-100 border border-slate-200 rounded-lg px-2 py-0.5 text-[10px] font-black text-slate-700 font-mono whitespace-nowrap shrink-0 shadow-3xs"
+                                >
+                                  {sz} (x{qty})
+                                </span>
+                              ));
+                            })()
                           ) : (
                             <span className="text-slate-400">—</span>
                           )}
@@ -2561,7 +2573,7 @@ export default function AdminOrders(): React.JSX.Element {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setVisibleCount(prev => prev + 10);
+                    setVisibleCount(prev => prev + 9);
                   }}
                   className="px-8 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center justify-center gap-2 active:scale-95"
                 >
