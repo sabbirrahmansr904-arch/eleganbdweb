@@ -266,23 +266,19 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       fetchDocumentsFromSupabase('bank_accounts'),
       fetchDocumentsFromSupabase('bank_transactions')
     ]).then(([accountsData, txData]) => {
-      let currentAccs = bankAccounts;
-      let currentTxs = bankTransactions;
+      setBankTransactions(prevTxs => {
+        const mergedTxs = Array.isArray(txData) && txData.length > 0 ? mergeTransactions(prevTxs, txData) : prevTxs;
+        try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(mergedTxs)); } catch {}
 
-      if (Array.isArray(accountsData) && accountsData.length > 0) {
-        currentAccs = mergeAccounts(currentAccs, accountsData);
-      }
-      if (Array.isArray(txData) && txData.length > 0) {
-        currentTxs = mergeTransactions(currentTxs, txData);
-      }
+        setBankAccounts(prevAccs => {
+          const mergedAccs = Array.isArray(accountsData) && accountsData.length > 0 ? mergeAccounts(prevAccs, accountsData) : prevAccs;
+          const recalculated = computeBalances(mergedAccs, mergedTxs);
+          try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
+          return recalculated;
+        });
 
-      const recalculated = computeBalances(currentAccs, currentTxs);
-      setBankAccounts(recalculated);
-      setBankTransactions(currentTxs);
-      try {
-        localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated));
-        localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(currentTxs));
-      } catch {}
+        return mergedTxs;
+      });
 
       setLoading(false);
     }).catch(() => setLoading(false));
@@ -298,14 +294,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const incomingAccounts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as BankAccount));
           setBankAccounts(prev => {
             const merged = mergeAccounts(prev, incomingAccounts);
-            const recalculated = computeBalances(merged, bankTransactions);
-            try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
-            return recalculated;
+            setBankTransactions(currentTxs => {
+              const recalculated = computeBalances(merged, currentTxs);
+              try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
+              return currentTxs;
+            });
+            return prev;
           });
         }
       }, () => setLoading(false));
 
-      const unsubTransactions = onSnapshot(query(collection(db, 'bank_transactions'), orderBy('date', 'desc')), (snapshot) => {
+      const unsubTransactions = onSnapshot(collection(db, 'bank_transactions'), (snapshot) => {
         if (snapshot.docs.length > 0) {
           const incomingTxs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as BankTransaction));
           setBankTransactions(prev => {
@@ -391,16 +390,29 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
 
     setBankTransactions(prev => {
-      const updated = [newTx, ...prev];
-      try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(updated)); } catch {}
-      return updated;
+      const updatedList = mergeTransactions(prev, [newTx]);
+      try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(updatedList)); } catch {}
+
+      setBankAccounts(accs => {
+        const recalculated = computeBalances(accs, updatedList);
+        try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
+        
+        (async () => {
+          for (const acc of recalculated) {
+            await saveDocumentToSupabase('bank_accounts', acc.id, acc);
+            try {
+              await setDoc(doc(db, 'bank_accounts', acc.id), acc, { merge: true });
+            } catch {}
+          }
+        })();
+
+        return recalculated;
+      });
+
+      return updatedList;
     });
 
     await saveDocumentToSupabase('bank_transactions', id, newTx);
-    await recalculateBalances(bankAccounts, [
-      ...bankTransactions,
-      newTx
-    ]);
 
     try {
       await setDoc(doc(db, 'bank_transactions', id), newTx);
@@ -408,15 +420,36 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const updateBankTransaction = async (id: string, updatedFields: Partial<BankTransaction>) => {
-    const updatedList = bankTransactions.map(tx => tx.id === id ? { ...tx, ...updatedFields } : tx);
-    setBankTransactions(updatedList);
-    try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(updatedList)); } catch {}
+    let targetTx: BankTransaction | undefined;
 
-    const targetTx = updatedList.find(t => t.id === id);
+    setBankTransactions(prev => {
+      const updatedList = prev.map(tx => tx.id === id ? { ...tx, ...updatedFields } : tx);
+      targetTx = updatedList.find(t => t.id === id);
+      try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(updatedList)); } catch {}
+
+      setBankAccounts(accs => {
+        const recalculated = computeBalances(accs, updatedList);
+        try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
+        
+        (async () => {
+          for (const acc of recalculated) {
+            await saveDocumentToSupabase('bank_accounts', acc.id, acc);
+            try {
+              await setDoc(doc(db, 'bank_accounts', acc.id), acc, { merge: true });
+            } catch {}
+          }
+        })();
+
+        return recalculated;
+      });
+
+      return updatedList;
+    });
+
     if (targetTx) {
       await saveDocumentToSupabase('bank_transactions', id, targetTx);
     }
-    await recalculateBalances(bankAccounts, updatedList);
+
     toast.success('লেনদেন আপডেট করা হয়েছে!');
 
     try {
@@ -426,15 +459,35 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const toggleTransactionStatus = async (id: string, currentStatus?: 'unpaid' | 'paid') => {
     const nextStatus = currentStatus === 'paid' ? 'unpaid' : 'paid';
-    const updatedList = bankTransactions.map(tx => tx.id === id ? { ...tx, status: nextStatus as 'unpaid' | 'paid' } : tx);
-    setBankTransactions(updatedList);
-    try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(updatedList)); } catch {}
+    let targetTx: BankTransaction | undefined;
 
-    const targetTx = updatedList.find(t => t.id === id);
+    setBankTransactions(prev => {
+      const updatedList = prev.map(tx => tx.id === id ? { ...tx, status: nextStatus as 'unpaid' | 'paid' } : tx);
+      targetTx = updatedList.find(t => t.id === id);
+      try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(updatedList)); } catch {}
+
+      setBankAccounts(accs => {
+        const recalculated = computeBalances(accs, updatedList);
+        try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
+
+        (async () => {
+          for (const acc of recalculated) {
+            await saveDocumentToSupabase('bank_accounts', acc.id, acc);
+            try {
+              await setDoc(doc(db, 'bank_accounts', acc.id), acc, { merge: true });
+            } catch {}
+          }
+        })();
+
+        return recalculated;
+      });
+
+      return updatedList;
+    });
+
     if (targetTx) {
       await saveDocumentToSupabase('bank_transactions', id, targetTx);
     }
-    await recalculateBalances(bankAccounts, updatedList);
 
     if (nextStatus === 'paid') {
       toast.success('লেনদেনটি PAID (পরিশোধিত) করা হয়েছে!');
@@ -448,12 +501,30 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const deleteBankTransaction = async (id: string) => {
-    const updatedList = bankTransactions.filter(tx => tx.id !== id);
-    setBankTransactions(updatedList);
-    try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(updatedList)); } catch {}
+    setBankTransactions(prev => {
+      const updatedList = prev.filter(tx => tx.id !== id);
+      try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(updatedList)); } catch {}
+
+      setBankAccounts(accs => {
+        const recalculated = computeBalances(accs, updatedList);
+        try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
+
+        (async () => {
+          for (const acc of recalculated) {
+            await saveDocumentToSupabase('bank_accounts', acc.id, acc);
+            try {
+              await setDoc(doc(db, 'bank_accounts', acc.id), acc, { merge: true });
+            } catch {}
+          }
+        })();
+
+        return recalculated;
+      });
+
+      return updatedList;
+    });
 
     await deleteDocumentFromSupabase('bank_transactions', id);
-    await recalculateBalances(bankAccounts, updatedList);
     toast.success('লেনদেন সফলভাবে মুছে ফেলা হয়েছে!');
 
     try {

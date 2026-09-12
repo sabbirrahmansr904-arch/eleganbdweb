@@ -8,12 +8,14 @@ interface ProductCardProps {
   product: Product;
   loading?: 'eager' | 'lazy';
   badgeText?: string;
+  showPantDiscountBadge?: boolean;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = React.memo(({
   product,
   loading = 'eager',
-  badgeText
+  badgeText,
+  showPantDiscountBadge = true
 }) => {
   const { currency, rate } = useCurrency();
   const discount = product.discount || 0;
@@ -96,6 +98,13 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
               </div>
             )}
           </Link>
+
+          {/* 25% OFF Red Box for Pants in ALL COLLECTIONS */}
+          {showPantDiscountBadge && isPant && (
+            <div className="absolute top-2.5 left-2.5 bg-red-600 text-white px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider shadow-sm z-10">
+              25% OFF
+            </div>
+          )}
 
           {/* Badge */}
           {badgeText && (

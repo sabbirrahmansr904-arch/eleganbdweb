@@ -57,6 +57,13 @@ const ProductDetails = () => {
   const trackedProductIdRef = React.useRef<string | null>(null);
 
   useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    setSelectedImage(0);
+  }, [id]);
+
+  useEffect(() => {
     if (product && trackedProductIdRef.current !== product.id) {
       trackedProductIdRef.current = product.id;
       trackViewContent(product);
