@@ -1721,25 +1721,6 @@ async function startServer() {
       server: { middlewareMode: true },
       appType: "spa",
     });
-
-    // Intercept main HTML page requests in dev mode to inject absolute OG image URLs
-    app.use(async (req, res, next) => {
-      const isHtmlReq = req.headers.accept?.includes('text/html') && !req.path.includes('.') && req.method === 'GET';
-      if (isHtmlReq) {
-        try {
-          const fs = await import('fs');
-          const indexPath = path.join(process.cwd(), 'index.html');
-          let rawHtml = fs.readFileSync(indexPath, 'utf-8');
-          rawHtml = await vite.transformIndexHtml(req.originalUrl, rawHtml);
-          return await serveDynamicHtml(req, res, rawHtml);
-        } catch (e) {
-          next(e);
-        }
-      } else {
-        next();
-      }
-    });
-
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');

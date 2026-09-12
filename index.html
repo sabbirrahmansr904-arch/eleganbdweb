@@ -63,12 +63,21 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(err => {
-            console.warn('SW registration skipped:', err);
+      if ('serviceWorker' in navigator) {
+        // Automatically unregister broken/stale service workers in preview or dev environments
+        if (window.location.hostname.includes('run.app') || window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1')) {
+          navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            for (let reg of registrations) {
+              reg.unregister();
+            }
           });
-        });
+        } else if (window.location.protocol === 'https:') {
+          window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/sw.js').catch(function(err) {
+              console.warn('SW registration skipped:', err);
+            });
+          });
+        }
       }
     </script>
   </body>

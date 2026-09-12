@@ -33,7 +33,7 @@ export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
     fitType: 'Tailored Slim Fit',
     images: [
       'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&auto=format&fit=crop&q=80'
+      'https://images.unsplash.com/photo-1473966968600-fa809b869a1a?w=800&auto=format&fit=crop&q=80'
     ],
     sizes: ['28', '30', '32', '34', '36', '38'],
     stock: 120,
@@ -56,7 +56,7 @@ export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
     fabric: 'Gabardine Stretch Cotton',
     fitType: 'Tailored Slim Fit',
     images: [
-      'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1473966968600-fa809b869a1a?w=800&auto=format&fit=crop&q=80',
       'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&auto=format&fit=crop&q=80'
     ],
     sizes: ['28', '30', '32', '34', '36', '38'],
@@ -81,7 +81,7 @@ export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
     fitType: 'Tailored Slim Fit',
     images: [
       'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&auto=format&fit=crop&q=80'
+      'https://images.unsplash.com/photo-1473966968600-fa809b869a1a?w=800&auto=format&fit=crop&q=80'
     ],
     sizes: ['28', '30', '32', '34', '36', '38'],
     stock: 95,
@@ -104,7 +104,7 @@ export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
     fabric: 'Gabardine Stretch Cotton',
     fitType: 'Tailored Slim Fit',
     images: [
-      'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1473966968600-fa809b869a1a?w=800&auto=format&fit=crop&q=80',
       'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&auto=format&fit=crop&q=80'
     ],
     sizes: ['28', '30', '32', '34', '36', '38'],
@@ -129,7 +129,7 @@ export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
     fitType: 'Tailored Slim Fit',
     images: [
       'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&auto=format&fit=crop&q=80'
+      'https://images.unsplash.com/photo-1473966968600-fa809b869a1a?w=800&auto=format&fit=crop&q=80'
     ],
     sizes: ['28', '30', '32', '34', '36', '38'],
     stock: 90,
@@ -153,7 +153,7 @@ export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
     fitType: 'Tailored Slim Fit',
     images: [
       'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&auto=format&fit=crop&q=80'
+      'https://images.unsplash.com/photo-1473966968600-fa809b869a1a?w=800&auto=format&fit=crop&q=80'
     ],
     sizes: ['28', '30', '32', '34', '36', '38'],
     stock: 85,
@@ -177,7 +177,7 @@ export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
     fitType: 'Tailored Slim Fit',
     images: [
       'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&auto=format&fit=crop&q=80'
+      'https://images.unsplash.com/photo-1473966968600-fa809b869a1a?w=800&auto=format&fit=crop&q=80'
     ],
     sizes: ['28', '30', '32', '34', '36', '38'],
     stock: 95,
@@ -230,6 +230,54 @@ export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
     sizes: ['M', 'L', 'XL', 'XXL'],
     stock: 130,
     sizeStock: { 'M': 30, 'L': 45, 'XL': 35, 'XXL': 20 },
+    newArrival: true,
+    featured: true,
+    bestSelling: true,
+    rating: 5,
+    isTopRated: true
+  },
+  {
+    id: 'fs-3',
+    sku: 'FS-03',
+    name: "Men's Premium Formal Shirt - NAVY BLUE",
+    price: 699,
+    regularPrice: 1050,
+    description: "Executive Royal Navy Blue Refine Cotton formal shirt. Premium fabric, tailored slim fit for modern professionals.",
+    category: 'Formal Shirt',
+    color: 'Navy Blue',
+    fabric: 'Refine Cotton 100%',
+    fitType: 'Regular Slim Fit',
+    images: [
+      'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&auto=format&fit=crop&q=80'
+    ],
+    sizes: ['M', 'L', 'XL', 'XXL'],
+    stock: 120,
+    sizeStock: { 'M': 25, 'L': 40, 'XL': 35, 'XXL': 20 },
+    newArrival: true,
+    featured: true,
+    bestSelling: true,
+    rating: 5,
+    isTopRated: true
+  },
+  {
+    id: 'fs-4',
+    sku: 'FS-04',
+    name: "Men's Premium Formal Shirt - SKY BLUE",
+    price: 699,
+    regularPrice: 1050,
+    description: "Classic Sky Blue Refine Cotton formal shirt. Crisp corporate look with ultimate comfort and breathability.",
+    category: 'Formal Shirt',
+    color: 'Sky Blue',
+    fabric: 'Refine Cotton 100%',
+    fitType: 'Regular Slim Fit',
+    images: [
+      'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=800&auto=format&fit=crop&q=80'
+    ],
+    sizes: ['M', 'L', 'XL', 'XXL'],
+    stock: 110,
+    sizeStock: { 'M': 25, 'L': 35, 'XL': 30, 'XXL': 20 },
     newArrival: true,
     featured: true,
     bestSelling: true,
@@ -426,15 +474,17 @@ const normalizeProductCategory = (p: Product): Product => {
 const mergeProductsWithLocalCache = (incoming: Product[], local: Product[]): Product[] => {
   const localMap = new Map<string, Product>();
   local.forEach(p => {
-    if (p && p.id) localMap.set(p.id, p);
+    if (p && p.id && !isDemoProduct(p)) localMap.set(String(p.id), p);
   });
 
   const mergedMap = new Map<string, Product>();
 
   incoming.forEach(inc => {
-    const loc = localMap.get(inc.id);
+    if (!inc || !inc.id || isDemoProduct(inc)) return;
+    const cleanId = String(inc.id);
+    const loc = localMap.get(cleanId);
     if (!loc) {
-      mergedMap.set(inc.id, inc);
+      mergedMap.set(cleanId, inc);
     } else {
       // Incoming (live DB/server product) takes precedence for image and details
       const incImages = (Array.isArray(inc.images) && inc.images.length > 0)
@@ -456,34 +506,56 @@ const mergeProductsWithLocalCache = (incoming: Product[], local: Product[]): Pro
         image: mainImage,
         updatedAt: Math.max((inc as any).updatedAt || 0, (loc as any).updatedAt || 0, Date.now())
       };
-      mergedMap.set(inc.id, mergedProduct);
+      mergedMap.set(cleanId, mergedProduct);
     }
   });
 
   local.forEach(loc => {
-    if (!mergedMap.has(loc.id)) {
-      mergedMap.set(loc.id, loc);
+    if (loc && loc.id && !isDemoProduct(loc)) {
+      const cleanId = String(loc.id);
+      if (!mergedMap.has(cleanId)) {
+        mergedMap.set(cleanId, loc);
+      }
     }
   });
 
-  return Array.from(mergedMap.values());
+  return Array.from(mergedMap.values()).filter(p => !isDemoProduct(p));
 };
 
 export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [products, setProducts] = useState<Product[]>(() => {
     try {
       const locallySaved = localStorage.getItem('eleganbd_products');
+      let baseList: Product[] = [];
       if (locallySaved !== null) {
         const parsed = JSON.parse(locallySaved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const nonDemo = parsed.filter(p => !isDemoProduct(p));
-          if (nonDemo.length > 0) {
-            return deduplicateProducts(nonDemo.map(normalizeProductCategory));
-          }
+        if (Array.isArray(parsed)) {
+          baseList = parsed.filter(p => !isDemoProduct(p)).map(normalizeProductCategory);
         }
+      } else {
+        baseList = CANONICAL_DEFAULT_PRODUCTS.filter(p => !isDemoProduct(p)).map(normalizeProductCategory);
       }
+
+      const map = new Map<string, Product>();
+      baseList.forEach(p => {
+        if (!isDemoProduct(p)) {
+          map.set(String(p.id), p);
+        }
+      });
+
+      CANONICAL_DEFAULT_PRODUCTS.forEach(can => {
+        if (!isDemoProduct(can) && map.has(String(can.id))) {
+          const existing = map.get(String(can.id))!;
+          map.set(String(can.id), {
+            ...existing,
+            images: can.images,
+            image: can.images[0] || existing.image
+          });
+        }
+      });
+      return deduplicateProducts(Array.from(map.values())).filter(p => !isDemoProduct(p));
     } catch (e) {}
-    return CANONICAL_DEFAULT_PRODUCTS;
+    return CANONICAL_DEFAULT_PRODUCTS.filter(p => !isDemoProduct(p));
   });
 
   const [loading, setLoading] = useState<boolean>(true);
@@ -500,18 +572,16 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setLoading(true);
     try {
       const cached = localStorage.getItem('eleganbd_products');
-      if (cached) {
+      if (cached !== null) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const nonDemo = parsed.filter(p => !isDemoProduct(p));
-          if (nonDemo.length > 0) {
-            setProducts(deduplicateProducts(nonDemo.map(normalizeProductCategory)));
-            setLoading(false);
-            return;
-          }
+        if (Array.isArray(parsed)) {
+          const nonDeleted = parsed.filter(p => !isDemoProduct(p));
+          setProducts(deduplicateProducts(nonDeleted.map(normalizeProductCategory)));
+          setLoading(false);
+          return;
         }
       }
-      setProducts(CANONICAL_DEFAULT_PRODUCTS);
+      setProducts(CANONICAL_DEFAULT_PRODUCTS.filter(p => !isDemoProduct(p)));
     } catch (e) {}
     setLoading(false);
   }, []);
@@ -523,8 +593,8 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
         try {
           const parsed = JSON.parse(e.newValue);
           if (Array.isArray(parsed)) {
-            const nonDemo = parsed.filter(p => !isDemoProduct(p));
-            setProducts(deduplicateProducts(nonDemo.map(normalizeProductCategory)));
+            const nonDeleted = parsed.filter(p => !isDemoProduct(p));
+            setProducts(deduplicateProducts(nonDeleted.map(normalizeProductCategory)));
           }
         } catch (err) {}
       }
@@ -536,8 +606,8 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (cached) {
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed)) {
-            const nonDemo = parsed.filter(p => !isDemoProduct(p));
-            setProducts(deduplicateProducts(nonDemo.map(normalizeProductCategory)));
+            const nonDeleted = parsed.filter(p => !isDemoProduct(p));
+            setProducts(deduplicateProducts(nonDeleted.map(normalizeProductCategory)));
           }
         }
       } catch (err) {}
@@ -565,11 +635,11 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         if (!error && data && Array.isArray(data) && data.length > 0 && isMounted) {
           const mapped: Product[] = data.map(supabaseRowToProduct);
-          const nonDemo = mapped.filter(p => !isDemoProduct(p));
-          const normalized = deduplicateProducts(nonDemo.map(normalizeProductCategory));
+          const nonDeleted = mapped.filter(p => !isDemoProduct(p));
+          const normalized = deduplicateProducts(nonDeleted.map(normalizeProductCategory));
           setProducts(prev => {
-            const merged = mergeProductsWithLocalCache(normalized, prev);
-            const finalNormalized = deduplicateProducts(merged.map(normalizeProductCategory));
+            const merged = mergeProductsWithLocalCache(normalized, prev.filter(p => !isDemoProduct(p)));
+            const finalNormalized = deduplicateProducts(merged.map(normalizeProductCategory)).filter(p => !isDemoProduct(p));
             try {
               localStorage.setItem('eleganbd_products', JSON.stringify(finalNormalized));
               localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
@@ -577,11 +647,12 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
             return finalNormalized;
           });
         } else if (!error && data && Array.isArray(data) && data.length === 0) {
-          // Supabase is empty, push local products to Supabase
+          // Supabase is empty, push local non-deleted products to Supabase
           try {
             const locallySaved = localStorage.getItem('eleganbd_products');
-            const toPush = locallySaved ? JSON.parse(locallySaved) : CANONICAL_DEFAULT_PRODUCTS;
-            if (Array.isArray(toPush) && toPush.length > 0) {
+            const parsedLocal = locallySaved ? JSON.parse(locallySaved) : CANONICAL_DEFAULT_PRODUCTS;
+            const toPush = (Array.isArray(parsedLocal) ? parsedLocal : CANONICAL_DEFAULT_PRODUCTS).filter(p => !isDemoProduct(p));
+            if (toPush.length > 0) {
               const rows = toPush.map(productToSupabaseRow);
               supabase.from('products').upsert(rows, { onConflict: 'id' }).then(({ error: upsertErr }) => {
                 if (!upsertErr) {
@@ -614,7 +685,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
             if (!isDemoProduct(p)) {
               const norm = normalizeProductCategory(p);
               setProducts(prev => {
-                const filtered = prev.filter(item => item.id !== norm.id);
+                const filtered = prev.filter(item => String(item.id) !== String(norm.id) && !isDemoProduct(item));
                 const next = deduplicateProducts([norm, ...filtered]);
                 try { localStorage.setItem('eleganbd_products', JSON.stringify(next)); } catch {}
                 return next;
@@ -622,8 +693,9 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
             }
           } else if (payload.eventType === 'DELETE' && payload.old && (payload.old as any).id) {
             const deletedId = String((payload.old as any).id);
+            addDeletedId(deletedId);
             setProducts(prev => {
-              const next = deduplicateProducts(prev.filter(p => p.id !== deletedId));
+              const next = deduplicateProducts(prev.filter(p => String(p.id) !== deletedId && !isDemoProduct(p)));
               try { localStorage.setItem('eleganbd_products', JSON.stringify(next)); } catch {}
               return next;
             });
