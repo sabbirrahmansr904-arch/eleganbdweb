@@ -161,6 +161,12 @@ html.dark .border-indigo-100 {
   background-color: #e6ecf4 !important;
 }
 
+/* ==========================================================================
+   Admin Universal Card & Box Hover Pop-Up System
+   Provides a smooth, subtle lift (-4px) & soft shadow when hovering any card/box
+   across all admin panel pages (accessed via the 3-line sidebar menu).
+   ========================================================================== */
+
 /* 1. Universal Admin Cards, Panels & Boxes */
 .admin-page-container .bg-white,
 .admin-page-container .bg-white\/50,
@@ -185,21 +191,92 @@ html.dark .border-indigo-100 {
 .admin-page-container .bg-\[\#EAEFF5\],
 .admin-page-container .bg-\[\#F3F6FA\],
 .admin-page-container .bg-\[\#F5F7FA\],
-.admin-soft-box {
+.admin-page-container .bg-\[\#E6ECF4\],
+.admin-soft-box,
+.admin-card-pop,
+.admin-box-hover,
+.admin-page-container .grid > div[class*="rounded-"]:not(button):not(a):not(.fixed):not(.absolute):not([role="dialog"]):not(.no-hover-popup),
+.admin-page-container > div > div[class*="rounded-"]:not(button):not(input):not(select):not(textarea):not(a):not(span):not(table):not(thead):not(tbody):not(tr):not(td):not(th):not(.fixed):not(.absolute):not([role="dialog"]):not([role="menu"]):not([role="tooltip"]):not(.no-hover-popup),
+.admin-page-container > div > div > div[class*="rounded-"][class*="border"]:not(button):not(input):not(select):not(textarea):not(a):not(span):not(table):not(thead):not(tbody):not(tr):not(td):not(th):not(.fixed):not(.absolute):not([role="dialog"]):not([role="menu"]):not([role="tooltip"]):not(.no-hover-popup),
+.admin-page-container > div > div > div[class*="rounded-"][class*="shadow"]:not(button):not(input):not(select):not(textarea):not(a):not(span):not(table):not(thead):not(tbody):not(tr):not(td):not(th):not(.fixed):not(.absolute):not([role="dialog"]):not([role="menu"]):not([role="tooltip"]):not(.no-hover-popup) {
   background-color: #e6ecf4 !important;
   border-radius: 1.25rem !important; /* 20px */
   border: 1px solid rgba(255, 255, 255, 0.8) !important;
   box-shadow: 
     -6px -6px 14px 0px rgba(255, 255, 255, 0.95),
     6px 6px 16px 0px rgba(165, 180, 205, 0.35) !important;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease-out !important;
+  will-change: transform, box-shadow;
 }
 
+/* Subtle Pop-up Hover State for all cards and boxes */
 .admin-page-container .bg-white:hover,
-.admin-soft-box:hover {
+.admin-page-container .bg-white\/50:hover,
+.admin-page-container .bg-white\/70:hover,
+.admin-page-container .bg-white\/80:hover,
+.admin-page-container .bg-white\/90:hover,
+.admin-page-container .bg-gray-50:hover,
+.admin-page-container .bg-gray-50\/50:hover,
+.admin-page-container .bg-gray-50\/80:hover,
+.admin-page-container .bg-gray-100:hover,
+.admin-page-container .bg-slate-50:hover,
+.admin-page-container .bg-slate-100:hover,
+.admin-page-container .bg-slate-200\/50:hover,
+.admin-page-container .bg-\[\#F8F9FD\]:hover,
+.admin-page-container .bg-\[\#F4F6F8\]:hover,
+.admin-page-container .bg-\[\#F9FAFB\]:hover,
+.admin-page-container .bg-\[\#EBF1F6\]:hover,
+.admin-page-container .bg-\[\#FAFAFA\]:hover,
+.admin-page-container .bg-\[\#F8FAFC\]:hover,
+.admin-page-container .bg-\[\#ECEFF5\]:hover,
+.admin-page-container .bg-\[\#F1F3F9\]:hover,
+.admin-page-container .bg-\[\#EAEFF5\]:hover,
+.admin-page-container .bg-\[\#F3F6FA\]:hover,
+.admin-page-container .bg-\[\#F5F7FA\]:hover,
+.admin-page-container .bg-\[\#E6ECF4\]:hover,
+.admin-soft-box:hover,
+.admin-card-pop:hover,
+.admin-box-hover:hover,
+.admin-page-container .grid > div[class*="rounded-"]:not(button):not(a):not(.fixed):not(.absolute):not([role="dialog"]):not(.no-hover-popup):hover,
+.admin-page-container > div > div[class*="rounded-"]:not(button):not(input):not(select):not(textarea):not(a):not(span):not(table):not(thead):not(tbody):not(tr):not(td):not(th):not(.fixed):not(.absolute):not([role="dialog"]):not([role="menu"]):not([role="tooltip"]):not(.no-hover-popup):hover,
+.admin-page-container > div > div > div[class*="rounded-"][class*="border"]:not(button):not(input):not(select):not(textarea):not(a):not(span):not(table):not(thead):not(tbody):not(tr):not(td):not(th):not(.fixed):not(.absolute):not([role="dialog"]):not([role="menu"]):not([role="tooltip"]):not(.no-hover-popup):hover,
+.admin-page-container > div > div > div[class*="rounded-"][class*="shadow"]:not(button):not(input):not(select):not(textarea):not(a):not(span):not(table):not(thead):not(tbody):not(tr):not(td):not(th):not(.fixed):not(.absolute):not([role="dialog"]):not([role="menu"]):not([role="tooltip"]):not(.no-hover-popup):hover {
+  transform: translateY(-4px) !important;
   box-shadow: 
-    -8px -8px 18px 0px rgba(255, 255, 255, 1),
-    8px 8px 20px 0px rgba(160, 175, 200, 0.45) !important;
+    -8px -8px 20px 0px rgba(255, 255, 255, 1),
+    8px 8px 22px 0px rgba(160, 175, 200, 0.45) !important;
+  border-color: rgba(255, 255, 255, 1) !important;
+}
+
+/* Dark Mode Hover Pop-Up Shadow */
+html.dark .admin-page-container .bg-white:hover,
+html.dark .admin-page-container .bg-\[\#F8F9FD\]:hover,
+html.dark .admin-page-container .bg-\[\#E6ECF4\]:hover,
+html.dark .admin-soft-box:hover,
+html.dark .admin-card-pop:hover,
+html.dark .admin-box-hover:hover {
+  box-shadow: 0 16px 28px -6px rgba(0, 0, 0, 0.5), 0 4px 12px -2px rgba(0, 0, 0, 0.3) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Prevent double-transform: child cards/divs do not lift additionally inside an already lifted card */
+.admin-page-container [class*="rounded-"]:hover [class*="rounded-"]:hover,
+.admin-page-container .bg-white:hover .bg-white:hover,
+.admin-page-container .bg-\[\#F8F9FD\]:hover .bg-\[\#F8F9FD\]:hover,
+.admin-page-container .bg-\[\#E6ECF4\]:hover .bg-\[\#E6ECF4\]:hover {
+  transform: none !important;
+}
+
+/* Modals & Dialogs must remain fixed and never float on hover */
+div[class*="fixed"][class*="inset-0"] *,
+div[class*="fixed"][class*="inset-0"] *:hover,
+[role="dialog"] *,
+[role="dialog"] *:hover,
+.admin-page-container div[class*="absolute"][class*="bg-white"]:hover,
+.admin-page-container div[class*="absolute"][class*="shadow-"]:hover,
+.no-hover-popup,
+.no-hover-popup:hover {
+  transform: none !important;
 }
 
 /* Exclude badge overlays & primary CTA buttons from card background override */

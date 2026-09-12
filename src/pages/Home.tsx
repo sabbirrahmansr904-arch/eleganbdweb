@@ -633,7 +633,7 @@ const Home = () => {
             <p className="text-sm font-bold text-gray-500">No products available at the moment.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5 md:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5 md:gap-4 pt-2">
             {bestSellingFilteredProducts.map((product) => (
               <ProductCard key={`bestselling-${product.id}`} product={product} badgeText="BEST SELLING" showPantDiscountBadge={false} />
             ))}
@@ -687,7 +687,7 @@ const Home = () => {
                 onMouseLeave={() => setIsHoveredNewArrival(false)}
                 onTouchStart={() => setIsHoveredNewArrival(true)}
                 onTouchEnd={() => setIsHoveredNewArrival(false)}
-                className="flex gap-2 sm:gap-3 overflow-x-auto pb-3 scroll-smooth snap-x snap-mandatory no-scrollbar"
+                className="flex gap-2 sm:gap-3 overflow-x-auto pt-2 pb-3 scroll-smooth snap-x snap-mandatory no-scrollbar"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 {newArrivalProducts.map((product) => (
@@ -725,7 +725,7 @@ const Home = () => {
             <p className="text-sm font-bold text-gray-500">No products available at the moment.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5 md:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5 md:gap-4 pt-2">
             {sortedProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}

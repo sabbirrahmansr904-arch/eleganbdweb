@@ -75,7 +75,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
   const displayImage = imageError ? secondaryImage : (rawImage || fallbackImage);
 
   return (
-    <div className="group relative bg-white rounded-2xl border border-gray-100/90 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col justify-between h-full">
+    <div className="group relative bg-white rounded-2xl border border-gray-100/90 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-lg hover:-translate-y-1.5 hover:border-gray-200 transition-all duration-300 ease-out overflow-hidden flex flex-col justify-between h-full will-change-transform">
       <div className="flex flex-col flex-1">
         {/* Product Image */}
         <div className="relative w-full aspect-[3/4.2] overflow-hidden bg-[#f4f5f7]">

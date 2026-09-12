@@ -1222,7 +1222,7 @@ export default function AdminDashboard(): React.JSX.Element {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
         
         {/* CARD 1: Total Sales */}
-        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:shadow-xs transition-all">
+        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:-translate-y-1.5 hover:shadow-md hover:border-slate-300/80 transition-all duration-300 ease-out">
           <div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1276,7 +1276,7 @@ export default function AdminDashboard(): React.JSX.Element {
         </div>
 
         {/* CARD 2: Order Delivered */}
-        <div id="card-metric-order-delivered" className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:shadow-xs transition-all">
+        <div id="card-metric-order-delivered" className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:-translate-y-1.5 hover:shadow-md hover:border-slate-300/80 transition-all duration-300 ease-out">
           <div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1339,7 +1339,7 @@ export default function AdminDashboard(): React.JSX.Element {
         </div>
 
         {/* CARD 3: Total Product Sale */}
-        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:shadow-xs transition-all">
+        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:-translate-y-1.5 hover:shadow-md hover:border-slate-300/80 transition-all duration-300 ease-out">
           <div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1396,7 +1396,7 @@ export default function AdminDashboard(): React.JSX.Element {
         </div>
 
         {/* CARD 4: Today Sales */}
-        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:shadow-xs transition-all">
+        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:-translate-y-1.5 hover:shadow-md hover:border-slate-300/80 transition-all duration-300 ease-out">
           <div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1453,7 +1453,7 @@ export default function AdminDashboard(): React.JSX.Element {
         </div>
 
         {/* CARD 5: Sales This Month */}
-        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:shadow-xs transition-all">
+        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:-translate-y-1.5 hover:shadow-md hover:border-slate-300/80 transition-all duration-300 ease-out">
           <div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1512,7 +1512,7 @@ export default function AdminDashboard(): React.JSX.Element {
       </div>
 
       {/* ROW 2: SALES REPORT (FULL WIDTH) */}
-      <div className="w-full bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between">
+      <div className="w-full bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between hover:-translate-y-1 hover:shadow-md hover:border-slate-300/80 transition-all duration-300 ease-out">
         
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4">
           <div>
@@ -1612,7 +1612,7 @@ export default function AdminDashboard(): React.JSX.Element {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* PRODUCT SALES Donut Chart */}
-        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between">
+        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between hover:-translate-y-1 hover:shadow-md hover:border-slate-300/80 transition-all duration-300 ease-out">
           <div>
             <h3 className="text-base font-black text-gray-900 tracking-tight pb-3">Product Sales</h3>
             
@@ -1683,7 +1683,7 @@ export default function AdminDashboard(): React.JSX.Element {
         </div>
 
         {/* RECENT ORDERS TABLE */}
-        <div className="lg:col-span-2 bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between">
+        <div className="lg:col-span-2 bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between hover:-translate-y-1 hover:shadow-md hover:border-slate-300/80 transition-all duration-300 ease-out">
           <div>
             <div className="flex items-center justify-between pb-5">
               <div className="flex items-center gap-2">
@@ -1812,7 +1812,7 @@ export default function AdminDashboard(): React.JSX.Element {
 
       {/* BEST SELLERS SECTION */}
       <div className="pt-2">
-        <div className="bg-[#E6ECF4] border border-white/90 rounded-[28px] p-6 shadow-[-6px_-6px_16px_rgba(255,255,255,0.95),6px_6px_18px_rgba(165,180,205,0.35)] transition-all">
+        <div className="bg-[#E6ECF4] border border-white/90 rounded-[28px] p-6 shadow-[-6px_-6px_16px_rgba(255,255,255,0.95),6px_6px_18px_rgba(165,180,205,0.35)] hover:-translate-y-1 hover:shadow-[-8px_-8px_20px_rgba(255,255,255,1),8px_8px_22px_rgba(165,180,205,0.45)] transition-all duration-300 ease-out">
           <div className="flex items-center gap-3 mb-5 pb-4 border-b border-white/80">
             <div className="w-10 h-10 rounded-2xl bg-[#E2E8F2] border border-white/90 flex items-center justify-center shrink-0 shadow-[inset_2px_2px_4px_rgba(160,175,200,0.25),inset_-2px_-2px_4px_rgba(255,255,255,0.9)]">
               <ShoppingBag className="w-5 h-5 text-[#F43F5E]" />
@@ -1859,7 +1859,7 @@ export default function AdminDashboard(): React.JSX.Element {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
         
         {/* STOCK ALERT CARD */}
-        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between">
+        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between hover:-translate-y-1 hover:shadow-md hover:border-slate-300/80 transition-all duration-300 ease-out">
           <div>
             <div className="flex items-center justify-between pb-5 border-b border-gray-50">
               <div className="flex items-center gap-2">
@@ -1916,7 +1916,7 @@ export default function AdminDashboard(): React.JSX.Element {
         </div>
 
         {/* ACTIVE ADMINS CARD */}
-        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between">
+        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between hover:-translate-y-1 hover:shadow-md hover:border-slate-300/80 transition-all duration-300 ease-out">
           <div>
             <div className="flex items-center justify-between pb-5 border-b border-gray-50">
               <div className="flex items-center gap-2">

@@ -41,7 +41,7 @@ const ScrollProductCard: React.FC<{ product: Product }> = ({ product }) => {
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="min-w-[200px] sm:min-w-[240px] max-w-[240px] bg-white rounded-2xl border border-gray-100 shadow-xs hover:shadow-md transition-all duration-300 snap-start cursor-pointer flex flex-col overflow-hidden group shrink-0"
+      className="min-w-[200px] sm:min-w-[240px] max-w-[240px] bg-white rounded-2xl border border-gray-100 shadow-xs hover:shadow-lg hover:-translate-y-1.5 hover:border-gray-200 transition-all duration-300 ease-out snap-start cursor-pointer flex flex-col overflow-hidden group shrink-0 will-change-transform"
     >
       <div className={cn("relative w-full overflow-hidden", isPant ? "aspect-square bg-white" : "aspect-3/4 bg-gray-50")}>
         <img

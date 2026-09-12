@@ -289,7 +289,7 @@ export default function OrderFulfillmentTracker({ orders = [] }: OrderFulfillmen
   };
 
   return (
-    <div className="w-full bg-[#E6ECF4] border border-white/90 rounded-[28px] p-5 md:p-6 shadow-[-6px_-6px_16px_rgba(255,255,255,0.95),6px_6px_18px_rgba(165,180,205,0.35)] transition-all">
+    <div className="w-full bg-[#E6ECF4] border border-white/90 rounded-[28px] p-5 md:p-6 shadow-[-6px_-6px_16px_rgba(255,255,255,0.95),6px_6px_18px_rgba(165,180,205,0.35)] hover:-translate-y-1 hover:shadow-[-8px_-8px_20px_rgba(255,255,255,1),8px_8px_22px_rgba(165,180,205,0.45)] transition-all duration-300 ease-out">
       
       {/* 1. HEADER SECTION */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 pb-6 border-b border-white/80">
