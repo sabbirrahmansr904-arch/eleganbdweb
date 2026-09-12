@@ -57,6 +57,8 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0C1421" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Elegan BD | Premium Clothing Brand in Bangladesh</title>
     <meta name="description" content="Elegan BD is a premium clothing brand in Bangladesh offering high-quality shirts, pants, and traditional wear. Experience elegance with our crafted collections." />
@@ -85,5 +87,14 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(err => {
+            console.warn('SW registration skipped:', err);
+          });
+        });
+      }
+    </script>
   </body>
 </html>

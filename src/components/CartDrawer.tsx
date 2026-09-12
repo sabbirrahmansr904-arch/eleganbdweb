@@ -1,15 +1,20 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Minus, Plus, ShoppingBag } from 'lucide-react';
+import { X, Minus, Plus, ShoppingBag, Truck, Sparkles, Tag } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import { useCurrency } from '../contexts/CurrencyContext';
-import { formatPrice } from '../lib/utils';
+import { useBranding } from '../contexts/BrandingContext';
+import { formatPrice, getCartPriceBreakdown, checkIsFreeShipping, cn } from '../lib/utils';
 import { useNavigate } from 'react-router-dom';
 
 const CartDrawer: React.FC = () => {
   const { items, isCartOpen, setIsCartOpen, updateQuantity, removeFromCart, total } = useCart();
   const { currency, rate } = useCurrency();
+  const { shippingFreeAfter } = useBranding();
   const navigate = useNavigate();
+
+  const priceBreakdown = getCartPriceBreakdown(items);
+  const freeShippingStatus = checkIsFreeShipping(items);
 
   const handleCheckout = () => {
     setIsCartOpen(false);
@@ -52,6 +57,47 @@ const CartDrawer: React.FC = () => {
                 <X size={20} />
               </button>
             </div>
+
+            {/* Free Shipping Milestone Bar (Formal Pant 3 pcs) */}
+            {items.length > 0 && (
+              <div className={cn(
+                "border-b px-6 py-3 transition-colors",
+                freeShippingStatus.isFree ? "bg-emerald-50/90 border-emerald-100" : "bg-amber-50/80 border-amber-100"
+              )}>
+                <div className="flex items-center justify-between text-xs mb-1.5">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-900">
+                    <Truck size={14} className={freeShippingStatus.isFree ? "text-emerald-600" : "text-amber-600"} />
+                    {freeShippingStatus.isFree ? (
+                      <span className="text-emerald-700 font-extrabold flex items-center gap-1">
+                        <Sparkles size={12} className="text-emerald-500 fill-emerald-500" />
+                        🎉 ৩টি ফরমাল প্যান্টে ফ্রি ডেলিভারি একটিভ!
+                      </span>
+                    ) : (
+                      <span className="text-amber-950">
+                        {freeShippingStatus.pantsCount > 0 ? (
+                          <><b>{freeShippingStatus.pantsCount}/3</b> প্যান্ট যুক্ত — আর <b>{freeShippingStatus.pantsNeeded}টি</b> প্যান্টে ফ্রি ডেলিভারি!</>
+                        ) : (
+                          <>যেকোনো <b>৩টি ফরমাল প্যান্ট</b> অর্ডারে <b>ডেলিভারি সম্পূর্ণ ফ্রি!</b></>
+                        )}
+                      </span>
+                    )}
+                  </div>
+                  <span className={cn("text-[10px] font-black", freeShippingStatus.isFree ? "text-emerald-700" : "text-amber-700")}>
+                    {freeShippingStatus.pantsCount}/3 ({freeShippingStatus.progress}%)
+                  </span>
+                </div>
+                <div className="w-full bg-black/10 rounded-full h-1.5 overflow-hidden">
+                  <motion.div
+                    className={cn(
+                      "h-full rounded-full transition-all duration-500",
+                      freeShippingStatus.isFree ? "bg-emerald-500" : "bg-amber-600"
+                    )}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${freeShippingStatus.progress}%` }}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Cart Items */}
             <div className="flex-1 overflow-y-auto no-scrollbar py-6 px-6 space-y-6">
@@ -126,20 +172,37 @@ const CartDrawer: React.FC = () => {
 
             {/* Footer */}
             {items.length > 0 && (
-              <div className="px-6 py-8 border-t border-gray-100 bg-gray-50/30">
-                <div className="flex items-center justify-between mb-6">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Subtotal</span>
+              <div className="px-6 py-6 border-t border-gray-100 bg-gray-50/30">
+                {priceBreakdown.savings > 0 && (
+                  <div className="flex items-center justify-between py-2 px-3 mb-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800">
+                    <span className="flex items-center gap-1.5">
+                      <Tag size={13} className="text-emerald-600" />
+                      কম্বো সেভিংস (Combo Discount):
+                    </span>
+                    <span className="text-emerald-700 font-black">-{formatPrice(priceBreakdown.savings, currency, rate)}</span>
+                  </div>
+                )}
+                
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block">Subtotal</span>
+                    {priceBreakdown.savings > 0 && (
+                      <span className="text-xs text-gray-400 line-through font-medium">
+                        {formatPrice(priceBreakdown.originalSubtotal, currency, rate)}
+                      </span>
+                    )}
+                  </div>
                   <span className="text-xl font-black text-black">{formatPrice(total, currency, rate)}</span>
                 </div>
                 <button
                   onClick={handleCheckout}
-                  className="w-full bg-[#1e40af] text-white py-4 text-[13px] font-black uppercase tracking-[0.15em] rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/10 active:scale-[0.98]"
+                  className="w-full bg-[#1e40af] text-white py-4 text-[13px] font-black uppercase tracking-[0.15em] rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/10 active:scale-[0.98] cursor-pointer"
                 >
                   Checkout
                 </button>
                 <button
                   onClick={() => setIsCartOpen(false)}
-                  className="w-full mt-4 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-black transition-colors"
+                  className="w-full mt-3 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-black transition-colors cursor-pointer"
                 >
                   Continue Shopping
                 </button>

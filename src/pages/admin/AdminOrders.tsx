@@ -72,6 +72,32 @@ import { DISTRICT_THANAS } from '../../data/locations';
 import { parseCustomerAddress } from '../../utils/addressParser';
 import { Html5Qrcode } from 'html5-qrcode';
 import { bookPathaoOrder, bookSteadfastOrder, trackCourierOrder } from '../../utils/apiClient';
+import { analyzeCustomerTrust } from '../../utils/fraudDetector';
+import AbandonedCheckoutsView from '../../components/admin/orders/AbandonedCheckoutsView';
+import { getLocalAbandonedCheckouts } from '../../utils/abandonedCartHelper';
+import { isPantProduct } from '../../utils/productSizeHelper';
+
+export const getOrderFreeShippingDetails = (order: Order | null | undefined) => {
+  if (!order) return { isFreeShipping: false, isPantPromo: false, pantCount: 0, title: null };
+  const pantCount = Array.isArray(order.items) 
+    ? order.items.filter(i => isPantProduct(i)).reduce((sum, i) => sum + (i.quantity || 1), 0)
+    : 0;
+
+  const isPantPromo = Boolean(
+    order.freeShippingOffer?.includes('প্যান্ট') ||
+    order.freeShippingOffer?.toLowerCase().includes('pant') ||
+    (pantCount >= 3 && (order.deliveryCharge === 0 || order.isFreeShipping))
+  );
+
+  const isAnyFreeShipping = order.deliveryCharge === 0 || order.isFreeShipping === true;
+
+  return {
+    isFreeShipping: isAnyFreeShipping,
+    isPantPromo,
+    pantCount,
+    title: isPantPromo ? '৩টি প্যান্টে ফ্রি ডেলিভারি' : (order.freeShippingOffer || (isAnyFreeShipping ? 'ফ্রি ডেলিভারি' : null))
+  };
+};
 
 const normalizeStatus = (status: string): string => {
   const s = (status || '').toUpperCase().trim();
@@ -209,6 +235,17 @@ export default function AdminOrders(): React.JSX.Element {
   const [showGoogleSheetModal, setShowGoogleSheetModal] = useState(false);
   const [showPathaoSyncModal, setShowPathaoSyncModal] = useState(false);
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
+
+  // Orders vs Abandoned View Mode
+  const [ordersViewMode, setOrdersViewMode] = useState<'orders' | 'abandoned'>('orders');
+  const [abandonedCount, setAbandonedCount] = useState<number>(0);
+
+  useEffect(() => {
+    try {
+      const list = getLocalAbandonedCheckouts();
+      setAbandonedCount(list.filter(c => c.status === 'abandoned').length);
+    } catch (e) {}
+  }, [ordersViewMode]);
 
   // Issue Conversation Modal States
   const [issueConversationOrder, setIssueConversationOrder] = useState<Order | null>(null);
@@ -1427,7 +1464,50 @@ export default function AdminOrders(): React.JSX.Element {
       {/* Outer container */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 p-3.5 md:p-5 shadow-sm space-y-4">
         
-        {/* Interactive Filters Grid / Bar */}
+        {/* View Mode Switcher: Active Orders vs Abandoned Cart Leads */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-150 pb-3">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setOrdersViewMode('orders')}
+              className={cn(
+                "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer",
+                ordersViewMode === 'orders' 
+                  ? "bg-[#0C1421] text-white shadow-sm" 
+                  : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+              )}
+            >
+              <ShoppingCart size={14} />
+              <span>সব অর্ডার ({orders.length})</span>
+            </button>
+
+            <button
+              onClick={() => setOrdersViewMode('abandoned')}
+              className={cn(
+                "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer relative",
+                ordersViewMode === 'abandoned' 
+                  ? "bg-amber-600 text-white shadow-sm" 
+                  : "bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200"
+              )}
+            >
+              <AlertCircle size={14} className={ordersViewMode === 'abandoned' ? 'text-white' : 'text-amber-600'} />
+              <span>হারিয়ে যাওয়া কাস্টমার / Abandoned Carts</span>
+              {abandonedCount > 0 && (
+                <span className={cn(
+                  "px-2 py-0.5 rounded-full text-[10px] font-black",
+                  ordersViewMode === 'abandoned' ? "bg-white text-amber-900" : "bg-amber-600 text-white"
+                )}>
+                  {abandonedCount}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {ordersViewMode === 'abandoned' ? (
+          <AbandonedCheckoutsView />
+        ) : (
+          <>
+            {/* Interactive Filters Grid / Bar */}
         <div className="flex flex-row items-center gap-1.5 bg-[#F8F9FD] dark:bg-slate-800/90 p-2.5 rounded-2xl border border-slate-200/80 shadow-xs overflow-x-auto no-scrollbar whitespace-nowrap">
           {/* Search Input */}
           <div className="relative flex-1 min-w-[220px] sm:min-w-[300px] max-w-[420px] shrink-0">
@@ -1753,8 +1833,22 @@ export default function AdminOrders(): React.JSX.Element {
                       <ParcelLiveStatusBadge order={order} />
                     </div>
                   </div>
-                  <div className="text-sm font-semibold text-slate-700">{order.customerName}</div>
-                  <div className="text-xs text-slate-500 mb-2">{order.phone}</div>
+                  {/* Customer Info & Trust Indicator */}
+                  <div className="flex items-center justify-between gap-2 mb-0.5">
+                    <div className="text-sm font-black text-slate-850">{order.customerName || 'Anonymous Customer'}</div>
+                    {(() => {
+                      const trust = analyzeCustomerTrust(order, orders);
+                      return (
+                        <span 
+                          className={cn("px-2 py-0.5 rounded-full text-[10px] font-extrabold border tracking-tight shrink-0", trust.badgeColor)}
+                          title={trust.reasons.join('\n')}
+                        >
+                          {trust.title}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                  <div className="text-xs font-mono font-semibold text-slate-600 mb-2">{order.phone}</div>
                   
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                     <span className="text-xs text-slate-400 font-medium">{formatOrderDateTimeStr(order.createdAt)}</span>
@@ -1766,6 +1860,26 @@ export default function AdminOrders(): React.JSX.Element {
                   </div>
                   
                   <div className={cn("p-3 rounded-xl mb-4 transition-all", itemsBoxBg)}>
+                    {(() => {
+                      const freeInfo = getOrderFreeShippingDetails(order);
+                      if (freeInfo.isPantPromo) {
+                        return (
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black bg-emerald-100 text-emerald-900 border border-emerald-300 mb-2.5 shadow-3xs">
+                            <Truck size={12} className="text-emerald-700 stroke-[2.5]" />
+                            <span>🎉 ৩টি ফরমাল প্যান্টে ফ্রি ডেলিভারি অফার (ডেলিভারি: ৳০)</span>
+                          </div>
+                        );
+                      }
+                      if (freeInfo.isFreeShipping) {
+                        return (
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black bg-emerald-100 text-emerald-900 border border-emerald-300 mb-2.5 shadow-3xs">
+                            <Truck size={12} className="text-emerald-700 stroke-[2.5]" />
+                            <span>🎉 ফ্রি ডেলিভারি অফার (ডেলিভারি: ৳০)</span>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                     <div className="text-sm font-bold text-slate-800 mb-1">
                       {Array.isArray(order.items) && order.items.length > 0 ? order.items.map(i => i.name).join(', ') : 'No items'}
                     </div>
@@ -2039,6 +2153,31 @@ export default function AdminOrders(): React.JSX.Element {
                       <td className="py-4 px-4 whitespace-nowrap text-xs">
                         <div className="flex flex-col text-left gap-1">
                           <span className="font-bold text-slate-900 font-mono-numbers">{cleanId}</span>
+                          {(() => {
+                            const freeInfo = getOrderFreeShippingDetails(order);
+                            if (freeInfo.isPantPromo) {
+                              return (
+                                <span 
+                                  title="৩টি ফরমাল প্যান্ট অর্ডারে ডেলিভারি চার্জ সম্পূর্ণ ফ্রি"
+                                  className="inline-flex items-center gap-1 self-start px-2 py-0.5 rounded-full text-[9px] font-black tracking-tight bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-3xs"
+                                >
+                                  <Truck size={9} className="stroke-[3] text-emerald-600" />
+                                  ৩টি প্যান্টে ফ্রি ডেলিভারি
+                                </span>
+                              );
+                            }
+                            if (freeInfo.isFreeShipping) {
+                              return (
+                                <span 
+                                  className="inline-flex items-center gap-1 self-start px-2 py-0.5 rounded-full text-[9px] font-black tracking-tight bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                >
+                                  <Truck size={9} className="stroke-[3] text-emerald-600" />
+                                  ফ্রি ডেলিভারি
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
                           {order.issueType && (
                             order.issueStatus === 'resolved' ? (
                               <span className="inline-flex items-center gap-1 self-start px-2 py-0.5 rounded-full text-[9px] font-black tracking-wide bg-[#E6F4EA] text-[#137333] border border-[#CEEAD6]">
@@ -2118,8 +2257,21 @@ export default function AdminOrders(): React.JSX.Element {
                       </td>
 
                       {/* Name */}
-                      <td className="py-4 px-4 text-xs font-bold text-slate-800">
-                        {order.customerName || 'Anonymous Customer'}
+                      <td className="py-4 px-4 text-xs text-slate-800">
+                        <div className="font-bold text-slate-850">{order.customerName || 'Anonymous Customer'}</div>
+                        {(() => {
+                          const trust = analyzeCustomerTrust(order, orders);
+                          return (
+                            <div className="mt-1">
+                              <span 
+                                className={cn("inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-extrabold border tracking-tight shadow-3xs", trust.badgeColor)}
+                                title={trust.reasons.join(' • ')}
+                              >
+                                {trust.title}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Phone */}
@@ -2188,7 +2340,12 @@ export default function AdminOrders(): React.JSX.Element {
 
                       {/* Collectable */}
                       <td className="py-4 px-4 whitespace-nowrap text-xs font-black text-orange-600 font-mono-numbers">
-                        {formatPrice(order.total, currency, rate)}
+                        <div>{formatPrice(order.total, currency, rate)}</div>
+                        {getOrderFreeShippingDetails(order).isPantPromo && (
+                          <div className="text-[9.5px] font-extrabold text-emerald-600 font-sans tracking-tight">
+                            ডেলিভারি: ৳০
+                          </div>
+                        )}
                       </td>
 
                       {/* Note */}
@@ -2432,28 +2589,30 @@ export default function AdminOrders(): React.JSX.Element {
           </table>
         </div>
 
-        {/* Centered More & Show All buttons */}
-        {filteredOrders.length > visibleCount && (
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-6 pb-2">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setVisibleCount(prev => prev + 10);
-              }}
-              className="px-8 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center justify-center gap-2 active:scale-95"
-            >
-              <span>More ({filteredOrders.length - visibleCount} Remaining)</span>
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setVisibleCount(filteredOrders.length);
-              }}
-              className="px-6 py-3.5 bg-[#F8F9FD] border border-gray-200 hover:border-blue-400 text-blue-600 hover:text-blue-700 font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-xs hover:shadow-md cursor-pointer flex items-center justify-center gap-2 active:scale-98"
-            >
-              <span>Show All ({filteredOrders.length})</span>
-            </button>
-          </div>
+            {/* Centered More & Show All buttons */}
+            {filteredOrders.length > visibleCount && (
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-6 pb-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setVisibleCount(prev => prev + 10);
+                  }}
+                  className="px-8 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center justify-center gap-2 active:scale-95"
+                >
+                  <span>More ({filteredOrders.length - visibleCount} Remaining)</span>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setVisibleCount(filteredOrders.length);
+                  }}
+                  className="px-6 py-3.5 bg-[#F8F9FD] border border-gray-200 hover:border-blue-400 text-blue-600 hover:text-blue-700 font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-xs hover:shadow-md cursor-pointer flex items-center justify-center gap-2 active:scale-98"
+                >
+                  <span>Show All ({filteredOrders.length})</span>
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -3669,6 +3828,41 @@ export default function AdminOrders(): React.JSX.Element {
 
                   {/* Scrollable Container with Custom Bento Grid matching screenshot */}
                   <div className="flex-1 overflow-y-auto px-8 pb-8 space-y-6 no-scrollbar min-h-0">
+                    {(() => {
+                      const freeInfo = getOrderFreeShippingDetails(selectedOrder);
+                      if (freeInfo.isPantPromo) {
+                        return (
+                          <div className="bg-emerald-50 border border-emerald-200/90 rounded-2xl p-3.5 flex items-center justify-between text-emerald-950 shadow-xs">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
+                                🎁
+                              </div>
+                              <div className="text-left">
+                                <div className="text-xs font-black text-emerald-950">৩টি ফরমাল প্যান্টে ফ্রি ডেলিভারি অফার কার্যকর!</div>
+                                <div className="text-[11px] text-emerald-800 font-medium">কাস্টমার ৩টি ফরমাল প্যান্ট অর্ডার করায় ডেলিভারি চার্জ সম্পূর্ণ ফ্রি (৳০) পেয়েছে।</div>
+                              </div>
+                            </div>
+                            <span className="bg-emerald-200/80 text-emerald-900 text-[9.5px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shrink-0 border border-emerald-300">
+                              FREE DELIVERY (3 PANTS)
+                            </span>
+                          </div>
+                        );
+                      }
+                      if (freeInfo.isFreeShipping) {
+                        return (
+                          <div className="bg-emerald-50 border border-emerald-200/90 rounded-2xl p-3 flex items-center justify-between text-emerald-950 shadow-xs">
+                            <div className="flex items-center gap-2">
+                              <Truck size={16} className="text-emerald-700" />
+                              <span className="text-xs font-black text-emerald-950">এই অর্ডারে ফ্রি ডেলিভারি (৳০) প্রযোজ্য</span>
+                            </div>
+                            <span className="bg-emerald-200/80 text-emerald-900 text-[9.5px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider border border-emerald-300">
+                              FREE DELIVERY
+                            </span>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       
@@ -3884,9 +4078,20 @@ export default function AdminOrders(): React.JSX.Element {
                         </div>
                         <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
                           <span>Delivery Charge</span>
-                          <span className="font-bold text-slate-800 font-mono">
-                            {formatPrice(selectedOrder.deliveryCharge || 0, currency, rate)}
-                          </span>
+                          {getOrderFreeShippingDetails(selectedOrder).isPantPromo || (selectedOrder.deliveryCharge === 0) ? (
+                            <div className="flex items-center gap-1.5 font-mono">
+                              <span className="text-slate-400 line-through text-[11px]">
+                                {formatPrice((selectedOrder as any).originalDeliveryCharge || (selectedOrder.city?.toLowerCase().includes('dhaka') ? 80 : 120), currency, rate)}
+                              </span>
+                              <span className="font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full text-[11px] font-sans">
+                                ৳০ (৩টি প্যান্টে ফ্রি)
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="font-bold text-slate-800 font-mono">
+                              {formatPrice(selectedOrder.deliveryCharge || 0, currency, rate)}
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
                           <span>Discount</span>

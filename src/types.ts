@@ -91,6 +91,9 @@ export interface Order {
   steadfastConsignmentId?: string;
   courierCharge?: number;
   courierPayoutAmount?: number;
+  isFreeShipping?: boolean;
+  freeShippingOffer?: string;
+  originalDeliveryCharge?: number;
 }
 
 export interface Customer {
@@ -154,6 +157,26 @@ export interface Review {
   rating: number;
   comment: string;
   createdAt: number;
+  images?: string[];
+  isVerified?: boolean;
+}
+
+export interface AbandonedCheckout {
+  id: string;
+  customerName: string;
+  phone: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  thana?: string;
+  items: CartItem[];
+  subtotal: number;
+  deliveryCharge: number;
+  total: number;
+  createdAt: string;
+  lastActiveAt: string;
+  status: 'abandoned' | 'recovered' | 'cancelled';
+  notes?: string;
 }
 
 export interface Partner {

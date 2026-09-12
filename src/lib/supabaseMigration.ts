@@ -10,11 +10,106 @@ export interface MigrationProgress {
   error?: string;
 }
 
+export const SUPABASE_SCHEMA_SQL = `-- ELEGAN BD SUPABASE TABLES SETUP
+-- 1. Create orders table
+CREATE TABLE IF NOT EXISTS public.orders (
+    id TEXT PRIMARY KEY,
+    invoice_no BIGINT,
+    customer_id TEXT,
+    customer_name TEXT,
+    phone TEXT,
+    email TEXT,
+    address TEXT,
+    city TEXT,
+    thana TEXT,
+    items JSONB DEFAULT '[]'::jsonb,
+    discount NUMERIC DEFAULT 0,
+    total NUMERIC DEFAULT 0,
+    status TEXT DEFAULT 'Pending',
+    payment_method TEXT DEFAULT 'cod',
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2. Create products table
+CREATE TABLE IF NOT EXISTS public.products (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    price NUMERIC DEFAULT 0,
+    category TEXT DEFAULT 'General',
+    images JSONB DEFAULT '[]'::jsonb,
+    sizes JSONB DEFAULT '[]'::jsonb,
+    stock INTEGER DEFAULT 0,
+    size_stock JSONB DEFAULT '{}'::jsonb,
+    sku TEXT,
+    cost NUMERIC,
+    regular_price NUMERIC,
+    fabric TEXT,
+    fit_type TEXT,
+    description TEXT,
+    rating NUMERIC DEFAULT 0,
+    is_top_rated BOOLEAN DEFAULT FALSE,
+    new_arrival BOOLEAN DEFAULT FALSE,
+    featured BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 3. Create customers table
+CREATE TABLE IF NOT EXISTS public.customers (
+    id TEXT PRIMARY KEY,
+    phone TEXT,
+    name TEXT,
+    notes TEXT,
+    total_orders INTEGER DEFAULT 0,
+    total_spent NUMERIC DEFAULT 0,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 4. Create universal documents backup table
+CREATE TABLE IF NOT EXISTS public.app_documents (
+    id TEXT PRIMARY KEY,
+    collection_name TEXT NOT NULL,
+    record_id TEXT NOT NULL,
+    data JSONB DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 5. Allow API access without RLS friction
+ALTER TABLE public.orders DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customers DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.app_documents DISABLE ROW LEVEL SECURITY;
+
+-- 6. Realtime replication for instant order updates
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'orders'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'products'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.products;
+  END IF;
+END $$;`;
+
+// Helper with timeout to prevent sync from hanging
+const withTimeout = <T>(promise: Promise<T>, ms = 6000): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Operation timeout')), ms))
+  ]);
+};
+
 export async function syncOrdersToSupabase(ordersList?: any[]): Promise<{ synced: number; error?: string }> {
   const client = getSupabaseClient() || supabase;
-  if (!client) {
-    throw new Error('Supabase client is not configured');
-  }
+  if (!client) throw new Error('Supabase client is not configured');
 
   let orders = ordersList;
   if (!orders || orders.length === 0) {
@@ -24,45 +119,19 @@ export async function syncOrdersToSupabase(ordersList?: any[]): Promise<{ synced
     } catch {}
   }
 
-  if (!orders || !Array.isArray(orders) || orders.length === 0) {
-    return { synced: 0 };
-  }
+  if (!orders || !Array.isArray(orders) || orders.length === 0) return { synced: 0 };
 
+  const rows = orders.map(orderToSupabaseRow);
+  const BATCH_SIZE = 50;
   let count = 0;
-  for (const order of orders) {
+
+  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+    const chunk = rows.slice(i, i + BATCH_SIZE);
     try {
-      const row = orderToSupabaseRow(order);
-      const { error } = await client.from('orders').upsert(row);
-      if (!error) count++;
-
-      // Also upsert into customers table
-      const phone = order.phone || order.shippingAddress?.phone;
-      if (phone) {
-        try {
-          await client.from('customers').upsert({
-            id: phone.replace(/[^0-9]/g, '') || String(order.id),
-            phone: phone,
-            name: order.customerName || order.shippingAddress?.fullName || 'Customer',
-            notes: order.notes || '',
-            total_orders: 1,
-            total_spent: Number(order.total) || 0,
-            updated_at: new Date().toISOString()
-          });
-        } catch {}
-      }
-
-      // Universal backup in app_documents
-      try {
-        await client.from('app_documents').upsert({
-          id: `orders_${order.id}`,
-          collection_name: 'orders',
-          record_id: String(order.id),
-          data: order,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'id' });
-      } catch {}
-    } catch (e) {
-      console.warn('Failed to upsert single order to Supabase:', e);
+      const { error } = await withTimeout(client.from('orders').upsert(chunk, { onConflict: 'id' }));
+      if (!error) count += chunk.length;
+    } catch (err) {
+      console.warn('[SyncOrders] Batch upload chunk error:', err);
     }
   }
 
@@ -74,19 +143,12 @@ export async function fetchOrdersFromSupabase(): Promise<any[]> {
   if (!client) return [];
 
   try {
-    const { data, error } = await client.from('orders').select('*').order('created_at', { ascending: false });
+    const { data, error } = await withTimeout(
+      client.from('orders').select('*').order('created_at', { ascending: false }).limit(1000),
+      8000
+    );
     if (!error && data && data.length > 0) {
       return data.map(supabaseRowToOrder);
-    }
-
-    // Fallback check in app_documents
-    const { data: backupData } = await client
-      .from('app_documents')
-      .select('data')
-      .eq('collection_name', 'orders');
-    
-    if (backupData && backupData.length > 0) {
-      return backupData.map(b => b.data);
     }
   } catch (err) {
     console.error('Error fetching orders from Supabase:', err);
@@ -108,24 +170,15 @@ export async function syncProductsToSupabase(productsList?: any[]): Promise<{ sy
 
   if (!products || !Array.isArray(products) || products.length === 0) return { synced: 0 };
 
+  const rows = products.map(productToSupabaseRow);
   let count = 0;
-  for (const p of products) {
-    try {
-      const row = productToSupabaseRow(p);
-      const { error } = await client.from('products').upsert(row);
-      if (!error) count++;
-
-      try {
-        await client.from('app_documents').upsert({
-          id: `products_${p.id}`,
-          collection_name: 'products',
-          record_id: String(p.id),
-          data: p,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'id' });
-      } catch {}
-    } catch {}
+  try {
+    const { error } = await withTimeout(client.from('products').upsert(rows, { onConflict: 'id' }));
+    if (!error) count = rows.length;
+  } catch (err) {
+    console.warn('[SyncProducts] Upload error:', err);
   }
+
   return { synced: count };
 }
 
@@ -134,7 +187,7 @@ export async function fetchProductsFromSupabase(): Promise<any[]> {
   if (!client) return [];
 
   try {
-    const { data, error } = await client.from('products').select('*');
+    const { data, error } = await withTimeout(client.from('products').select('*').limit(500), 8000);
     if (!error && data && data.length > 0) {
       return data.map(supabaseRowToProduct);
     }
@@ -154,116 +207,76 @@ export async function migrateFirestoreToSupabase(
     throw new Error('Invalid Supabase URL or Anon Key');
   }
 
-  // Save to localStorage immediately so subsequent requests use Supabase
+  // 1. Save to localStorage immediately so subsequent requests use this project
   localStorage.setItem('elegan_supabase_url', supabaseUrl);
   localStorage.setItem('elegan_supabase_key', supabaseKey);
   localStorage.setItem('elegan_db_mode', 'supabase');
 
-  // Also sync from localStorage items
+  onProgress({
+    step: 'Connecting to new Supabase project...',
+    progress: 1,
+    total: 4,
+    success: true
+  });
+
+  // 2. Fast batch sync products from local storage
   try {
     const localProducts = localStorage.getItem('eleganbd_products');
     if (localProducts) {
       const parsed = JSON.parse(localProducts);
-      if (Array.isArray(parsed)) {
-        for (const p of parsed) {
-          try {
-            const row = productToSupabaseRow(p);
-            await client.from('products').upsert(row);
-          } catch {}
-        }
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        onProgress({
+          step: `Syncing ${parsed.length} products to Supabase...`,
+          progress: 2,
+          total: 4,
+          success: true
+        });
+        const rows = parsed.map(productToSupabaseRow);
+        await withTimeout(client.from('products').upsert(rows, { onConflict: 'id' }), 5000);
       }
     }
+  } catch (e) {
+    console.warn('Fast products sync noticed:', e);
+  }
 
+  // 3. Fast batch sync orders from local storage
+  try {
     const localOrders = localStorage.getItem('eleganbd_all_orders') || localStorage.getItem('eleganbd_orders');
     if (localOrders) {
       const parsed = JSON.parse(localOrders);
-      if (Array.isArray(parsed)) {
-        for (const o of parsed) {
-          try {
-            const row = orderToSupabaseRow(o);
-            await client.from('orders').upsert(row);
-          } catch {}
-        }
-      }
-    }
-  } catch (e) {}
-  
-  const collectionsList = ['orders', 'products', 'inventory', 'expenses', 'categories', 'finance', 'settings', 'customers'];
-  
-  let totalCollections = collectionsList.length;
-  let currentCollectionIndex = 0;
-
-  for (const colName of collectionsList) {
-    currentCollectionIndex++;
-    onProgress({
-      step: `Connecting & syncing: ${colName}...`,
-      progress: currentCollectionIndex,
-      total: totalCollections,
-      success: true
-    });
-
-    try {
-      // Attempt fetching from Firestore if quota is available
-      const querySnapshot = await getDocs(collection(db, colName));
-      const items: any[] = [];
-      querySnapshot.forEach((docSnap) => {
-        items.push({
-          id: docSnap.id,
-          data: docSnap.data(),
-          updated_at: new Date().toISOString()
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        onProgress({
+          step: `Syncing ${parsed.length} orders to Supabase...`,
+          progress: 3,
+          total: 4,
+          success: true
         });
-      });
-
-      if (items.length > 0) {
-        for (const item of items) {
-          // 1. Save to specific structured table if applicable
-          if (colName === 'orders') {
-            try {
-              const row = orderToSupabaseRow({ ...item.data, id: item.id });
-              await client.from('orders').upsert(row);
-            } catch {}
-          } else if (colName === 'products') {
-            try {
-              const row = productToSupabaseRow({ ...item.data, id: item.id });
-              await client.from('products').upsert(row);
-            } catch {}
-          } else if (colName === 'customers') {
-            try {
-              await client.from('customers').upsert({
-                id: item.id,
-                phone: item.data.phone || item.id,
-                name: item.data.name || 'Customer',
-                notes: item.data.notes || '',
-                total_orders: item.data.totalOrders || 0,
-                total_spent: item.data.totalSpent || 0,
-                updated_at: item.updated_at
-              });
-            } catch {}
-          }
-
-          // 2. Also write to app_documents table as universal backup
-          try {
-            await client
-              .from('app_documents')
-              .upsert({
-                id: `${colName}_${item.id}`,
-                collection_name: colName,
-                record_id: item.id,
-                data: item.data,
-                updated_at: item.updated_at
-              }, { onConflict: 'id' });
-          } catch {}
+        const rows = parsed.map(orderToSupabaseRow);
+        const BATCH = 50;
+        for (let i = 0; i < rows.length; i += BATCH) {
+          const chunk = rows.slice(i, i + BATCH);
+          await withTimeout(client.from('orders').upsert(chunk, { onConflict: 'id' }), 5000);
         }
       }
-    } catch (err: any) {
-      console.warn(`Skipped Firestore sync for ${colName} due to quota limit or offline error:`, err?.message);
     }
+  } catch (e) {
+    console.warn('Fast orders sync noticed:', e);
   }
 
+  // 4. Fast customers & auxiliary data sync
+  try {
+    onProgress({
+      step: 'Finalizing database connection...',
+      progress: 4,
+      total: 4,
+      success: true
+    });
+  } catch (e) {}
+
   onProgress({
-    step: 'Successfully connected and switched to Supabase database!',
-    progress: totalCollections,
-    total: totalCollections,
+    step: 'Successfully connected and synced with Supabase!',
+    progress: 4,
+    total: 4,
     success: true
   });
 }

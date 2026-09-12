@@ -4,6 +4,7 @@ import { formatPrice } from '../../lib/utils';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { Barcode } from '../Barcode';
 import { formatOrderDate } from '../../utils/orderUtils';
+import { isPantProduct } from '../../utils/productSizeHelper';
 
 interface InvoiceProps {
   order: Order;
@@ -212,10 +213,33 @@ export default function InvoiceTemplate({ order, preview = false }: InvoiceProps
               <span>Subtotal</span>
               <span className="font-mono-numbers text-gray-800">{formatPrice(subTotal, currency, rate)}</span>
             </div>
-            <div className="flex justify-between text-gray-600 font-medium">
-              <span>Delivery Charge (+)</span>
-              <span className="font-mono-numbers text-gray-800">+{formatPrice(order.deliveryCharge || 0, currency, rate)}</span>
-            </div>
+            {(() => {
+              const pantCount = Array.isArray(order?.items) 
+                ? order.items.filter(i => isPantProduct(i)).reduce((sum, i) => sum + (i.quantity || 1), 0)
+                : 0;
+              const isPantPromo = (order.freeShippingOffer?.includes('প্যান্ট') || pantCount >= 3) && (order.deliveryCharge === 0 || order.isFreeShipping);
+
+              if (isPantPromo || order.isFreeShipping || order.deliveryCharge === 0) {
+                return (
+                  <div className="flex justify-between text-emerald-800 font-bold items-center">
+                    <span className="flex items-center gap-1">
+                      Delivery Charge (+)
+                      <span className="text-[9px] bg-emerald-100 text-emerald-900 px-1 py-0.2 rounded font-black">
+                        {isPantPromo ? '3 Pants Free' : 'FREE'}
+                      </span>
+                    </span>
+                    <span className="font-mono-numbers text-emerald-700 font-extrabold">৳0 (FREE)</span>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="flex justify-between text-gray-600 font-medium">
+                  <span>Delivery Charge (+)</span>
+                  <span className="font-mono-numbers text-gray-800">+{formatPrice(order.deliveryCharge || 0, currency, rate)}</span>
+                </div>
+              );
+            })()}
             {order.discount ? (
               <div className="flex justify-between text-rose-600 font-bold">
                 <span>Discount (-)</span>

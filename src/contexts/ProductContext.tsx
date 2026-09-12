@@ -508,6 +508,20 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
             } catch (e) {}
             return finalNormalized;
           });
+        } else if (!error && data && Array.isArray(data) && data.length === 0) {
+          // Supabase is empty, push local products to Supabase
+          try {
+            const locallySaved = localStorage.getItem('eleganbd_products');
+            const toPush = locallySaved ? JSON.parse(locallySaved) : CANONICAL_DEFAULT_PRODUCTS;
+            if (Array.isArray(toPush) && toPush.length > 0) {
+              const rows = toPush.map(productToSupabaseRow);
+              supabase.from('products').upsert(rows, { onConflict: 'id' }).then(({ error: upsertErr }) => {
+                if (!upsertErr) {
+                  console.log(`[ProductContext] Auto-migrated ${rows.length} products to empty Supabase`);
+                }
+              });
+            }
+          } catch (e) {}
         }
       } catch (err) {
         console.warn('[ProductContext] Supabase load notice:', err);

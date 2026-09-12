@@ -267,6 +267,27 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             } else {
               replaceAndSetOrders(mapped);
             }
+          } else if (!limitRecent) {
+            // Supabase is empty (0 records) - auto-migrate any local cached orders to Supabase
+            try {
+              const cached = localStorage.getItem(CACHE_KEY) || localStorage.getItem('eleganbd_orders');
+              if (cached) {
+                const parsed = JSON.parse(cached);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  console.log(`[OrderContext] Auto-pushing ${parsed.length} local orders to empty Supabase DB...`);
+                  const rows = parsed.map(orderToSupabaseRow);
+                  const BATCH = 50;
+                  for (let i = 0; i < rows.length; i += BATCH) {
+                    const chunk = rows.slice(i, i + BATCH);
+                    supabase.from('orders').upsert(chunk, { onConflict: 'id' }).then(({ error: upsertErr }) => {
+                      if (!upsertErr) {
+                        console.log(`[OrderContext] Uploaded ${chunk.length} orders chunk to Supabase`);
+                      }
+                    });
+                  }
+                }
+              }
+            } catch (e) {}
           }
         }
       } catch (err) {

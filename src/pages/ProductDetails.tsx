@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ShoppingCart, Heart, Share2, Maximize2, ChevronRight, ChevronDown, Truck, RotateCcw, ShieldCheck, Star, MessageSquare, Send, User, Banknote, Sparkles, X } from 'lucide-react';
+import { ShoppingCart, Heart, Share2, Maximize2, ChevronRight, ChevronDown, Truck, RotateCcw, ShieldCheck, Star, MessageSquare, Send, User, Banknote, Sparkles, X, Camera, CheckCircle2, Image as ImageIcon } from 'lucide-react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useProducts } from '../contexts/ProductContext';
 import { useCart } from '../contexts/CartContext';
@@ -18,6 +18,7 @@ import { collection, query, where, orderBy, onSnapshot, addDoc } from 'firebase/
 import { Review } from '../types';
 import { isPantProduct, getCleanProductSizes, isSizeUsableAndInStock } from '../utils/productSizeHelper';
 import { trackViewContent } from '../utils/pixelTracker';
+import { compressImageFile } from '../utils/imageCompressor';
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -53,12 +54,14 @@ const ProductDetails = () => {
   const [fitRecommendation, setFitRecommendation] = useState<string | null>(null);
   const [showStickyBar, setShowStickyBar] = useState(false);
 
+  const trackedProductIdRef = React.useRef<string | null>(null);
+
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'instant' });
-    if (product) {
+    if (product && trackedProductIdRef.current !== product.id) {
+      trackedProductIdRef.current = product.id;
       trackViewContent(product);
     }
-  }, [id, product]);
+  }, [product]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -116,7 +119,28 @@ const ProductDetails = () => {
   const [reviewName, setReviewName] = useState('');
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
+  const [reviewImages, setReviewImages] = useState<string[]>([]);
+  const [isCompressingImage, setIsCompressingImage] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  const handleReviewPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setIsCompressingImage(true);
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (!file.type.startsWith('image/')) continue;
+        const { dataUrl } = await compressImageFile(file, { maxWidth: 800, maxHeight: 800, quality: 0.8 });
+        setReviewImages(prev => [...prev, dataUrl]);
+      }
+      toast.success('ছবি যুক্ত করা হয়েছে (Photo attached)');
+    } catch (err) {
+      toast.error('ছবি আপলোডে ত্রুটি');
+    } finally {
+      setIsCompressingImage(false);
+    }
+  };
 
   // Related products (same category)
   const relatedProducts = products
@@ -171,11 +195,14 @@ const ProductDetails = () => {
         userName: reviewName,
         rating: reviewRating,
         comment: reviewComment,
+        images: reviewImages,
+        isVerifiedPurchase: true,
         createdAt: Date.now()
       });
       toast.success('Review submitted!');
       setReviewName('');
       setReviewComment('');
+      setReviewImages([]);
       setReviewRating(5);
     } catch (error) {
       toast.error('Failed to submit review');
@@ -582,14 +609,13 @@ const ProductDetails = () => {
                     </span>
                   </p>
                 )}
-                {shippingFreeAfter > 0 && product.price < shippingFreeAfter && (
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide">
-                    💡 আর মাত্র <span className="font-bold text-black font-mono">{formatPrice(shippingFreeAfter - product.price, currency, rate)}</span> টাকার অর্ডার করলেই ডেলিভারি চার্জ একদম ফ্রি!
+                {isPant ? (
+                  <p className="text-[10.5px] text-emerald-800 leading-normal font-medium bg-emerald-50/80 p-2 rounded-lg border border-emerald-200/70">
+                    💡 <b>অফার:</b> যেকোনো <b>৩টি ফরমাল প্যান্ট</b> অর্ডার করলেই <b>ডেলিভারি চার্জ সম্পূর্ণ ফ্রি!</b>
                   </p>
-                )}
-                {shippingFreeAfter > 0 && product.price >= shippingFreeAfter && (
-                  <p className="text-[10px] text-emerald-600 font-black uppercase tracking-wide">
-                    🎉 অভিনন্দন! আপনার অর্ডারটি ফ্রি ডেলিভারির যোগ্য।
+                ) : (
+                  <p className="text-[10.5px] text-slate-700 leading-normal font-medium bg-amber-50/80 p-2 rounded-lg border border-amber-150">
+                    💡 যেকোনো <b>৩টি ফরমাল প্যান্ট</b> একসাথে অর্ডারে সারা বাংলাদেশে <b>ফ্রি হোম ডেলিভারি!</b>
                   </p>
                 )}
               </div>
@@ -740,7 +766,12 @@ const ProductDetails = () => {
                             {review.userName.charAt(0)}
                           </div>
                           <div>
-                            <p className="text-sm font-black uppercase tracking-tighter italic text-black">{review.userName}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-black uppercase tracking-tighter italic text-black">{review.userName}</p>
+                              <span className="inline-flex items-center gap-0.5 text-[9px] font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                                <CheckCircle2 size={10} /> Verified
+                              </span>
+                            </div>
                             <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{new Date(review.createdAt).toLocaleDateString()}</p>
                           </div>
                         </div>
@@ -751,6 +782,15 @@ const ProductDetails = () => {
                         </div>
                       </div>
                       <p className="text-sm text-gray-600 leading-relaxed italic font-medium">"{review.comment}"</p>
+                      {Array.isArray(review.images) && review.images.length > 0 && (
+                        <div className="flex items-center gap-2 pt-2 overflow-x-auto">
+                          {review.images.map((imgUrl, imgIdx) => (
+                            <div key={imgIdx} className="w-16 h-16 rounded-xl border border-gray-200 overflow-hidden bg-white shrink-0 shadow-3xs">
+                              <img src={imgUrl} alt="Review attachment" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </motion.div>
                   ))}
                 </div>
@@ -796,16 +836,62 @@ const ProductDetails = () => {
                     value={reviewComment}
                     onChange={(e) => setReviewComment(e.target.value)}
                     placeholder="Tell us what you think..."
-                    rows={4}
+                    rows={3}
                     className="w-full bg-white border border-gray-200 rounded-2xl px-5 py-4 text-sm font-bold text-black outline-none focus:border-black transition-all resize-none shadow-sm"
                     required
                   ></textarea>
                 </div>
 
+                {/* Photo Upload for Review */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1 flex items-center justify-between">
+                    <span>প্রোডাক্টের ছবি যুক্ত করুন (Attach Photos)</span>
+                    <span className="text-gray-400">Optional</span>
+                  </label>
+                  
+                  <div className="flex items-center gap-3">
+                    <label className="cursor-pointer px-4 py-2.5 bg-white border border-dashed border-gray-300 hover:border-black rounded-xl text-xs font-bold text-gray-700 flex items-center gap-2 transition-all">
+                      <Camera size={14} className="text-gray-500" />
+                      <span>{isCompressingImage ? 'অপ্টিমাইজ হচ্ছে...' : 'ছবি নির্বাচন করুন'}</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        multiple 
+                        onChange={handleReviewPhotoUpload} 
+                        disabled={isCompressingImage}
+                        className="hidden" 
+                      />
+                    </label>
+
+                    {reviewImages.length > 0 && (
+                      <span className="text-xs font-bold text-emerald-600">
+                        ✓ {reviewImages.length} টি ছবি যুক্ত হয়েছে
+                      </span>
+                    )}
+                  </div>
+
+                  {reviewImages.length > 0 && (
+                    <div className="flex items-center gap-2 pt-1">
+                      {reviewImages.map((img, i) => (
+                        <div key={i} className="relative w-12 h-12 rounded-lg border border-gray-200 overflow-hidden group">
+                          <img src={img} alt="preview" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setReviewImages(prev => prev.filter((_, idx) => idx !== i))}
+                            className="absolute top-0.5 right-0.5 bg-black/70 text-white rounded-full p-0.5 hover:bg-red-600 transition"
+                          >
+                            <X size={10} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <button 
                   type="submit"
-                  disabled={isSubmittingReview}
-                  className="w-full bg-black text-white px-8 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-brand-gold transition-all flex items-center justify-center gap-4 active:scale-[0.98] disabled:opacity-50 shadow-xl"
+                  disabled={isSubmittingReview || isCompressingImage}
+                  className="w-full bg-black text-white px-8 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-brand-gold transition-all flex items-center justify-center gap-4 active:scale-[0.98] disabled:opacity-50 shadow-xl cursor-pointer"
                 >
                   {isSubmittingReview ? 'Submitting...' : 'Post Review'}
                   <Send size={14} />

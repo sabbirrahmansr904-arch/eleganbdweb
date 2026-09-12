@@ -1,0 +1,40 @@
+{
+  "name": "Elegan BD - Premium Clothing Brand",
+  "short_name": "Elegan BD",
+  "description": "Premium clothing brand in Bangladesh offering quality formal shirts, polos, pants, and traditional wear.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0C1421",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Arrivals",
+      "url": "/#new-arrivals",
+      "description": "Browse newest collections"
+    },
+    {
+      "name": "Combo Offers",
+      "url": "/#combo-offers",
+      "description": "View special discount packages"
+    }
+  ]
+}

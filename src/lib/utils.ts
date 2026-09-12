@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { isPantProduct } from '../utils/productSizeHelper';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -29,12 +30,13 @@ export interface SubtotalItem {
     price: number;
     category?: string;
     name?: string;
+    tags?: string[];
   };
   quantity: number;
 }
 
 export function calculateCartSubtotal(items: SubtotalItem[]): number {
-  let shirtItems: { price: number, quantity: number }[] = [];
+  let shirtItems: { price: number; quantity: number }[] = [];
   let otherItemsPriceSum = 0;
   
   items.forEach(item => {
@@ -54,7 +56,6 @@ export function calculateCartSubtotal(items: SubtotalItem[]): number {
   
   if (totalShirts >= 3) {
     const numCombos = Math.floor(totalShirts / 3);
-    const remainderShirts = totalShirts % 3;
     
     // Combo price is 1999 TK for every 3 pieces of shirts
     const comboPriceTotal = numCombos * 1999;
@@ -96,6 +97,11 @@ export function getCartPriceBreakdown(items: SubtotalItem[]) {
       (item.product.name || '').toLowerCase().includes('shirt');
     return isShirt ? sum + item.quantity : sum;
   }, 0);
+
+  // Count total pants (Formal Pant / Pants)
+  const totalPants = items.reduce((sum, item) => {
+    return isPantProduct(item.product) ? sum + item.quantity : sum;
+  }, 0);
   
   return {
     originalSubtotal,
@@ -103,6 +109,56 @@ export function getCartPriceBreakdown(items: SubtotalItem[]) {
     savings,
     hasCombo: totalShirts >= 3,
     numCombos: Math.floor(totalShirts / 3),
-    totalShirts
+    totalShirts,
+    totalPants,
+    hasPantFreeShipping: totalPants >= 3
+  };
+}
+
+/**
+ * Calculates whether an order qualifies for free delivery strictly based on:
+ * 3 or more Formal Pants/Pants ordered (Pants counting progress)
+ */
+export function checkIsFreeShipping(
+  items: SubtotalItem[]
+): {
+  isFree: boolean;
+  pantsCount: number;
+  pantsNeeded: number;
+  progress: number;
+  label: string;
+} {
+  const pantsCount = items.reduce((sum, item) => {
+    return isPantProduct(item.product) ? sum + item.quantity : sum;
+  }, 0);
+
+  const pantsNeeded = Math.max(0, 3 - pantsCount);
+  const progress = Math.min(100, Math.round((pantsCount / 3) * 100));
+
+  if (pantsCount >= 3) {
+    return {
+      isFree: true,
+      pantsCount,
+      pantsNeeded: 0,
+      progress: 100,
+      label: '🎉 ৩টি ফরমাল প্যান্ট অর্ডারে ডেলিভারি চার্জ সম্পূর্ণ ফ্রি!'
+    };
+  }
+
+  let label = '';
+  if (pantsCount === 2) {
+    label = '২টি প্যান্ট যোগ হয়েছে — আর মাত্র ১টি ফরমাল প্যান্ট যোগ করলেই ডেলিভারি চার্জ ফ্রি!';
+  } else if (pantsCount === 1) {
+    label = '১টি প্যান্ট যোগ হয়েছে — ফ্রি ডেলিভারির জন্য আর মাত্র ২টি ফরমাল প্যান্ট প্রয়োজন!';
+  } else {
+    label = 'যেকোনো ৩টি ফরমাল প্যান্ট অর্ডারে ডেলিভারি চার্জ সম্পূর্ণ ফ্রি!';
+  }
+
+  return {
+    isFree: false,
+    pantsCount,
+    pantsNeeded,
+    progress,
+    label
   };
 }

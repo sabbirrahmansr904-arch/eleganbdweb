@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckoutFormData, Order, SavedAddress } from '../types';
-import { formatPrice, cn, calculateCartSubtotal, getCartPriceBreakdown } from '../lib/utils';
+import { formatPrice, cn, calculateCartSubtotal, getCartPriceBreakdown, checkIsFreeShipping } from '../lib/utils';
 import { DISTRICT_THANAS } from '../data/locations';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useOrders } from '../contexts/OrderContext';
@@ -22,6 +22,7 @@ import { db } from '../lib/firebase';
 import { doc, getDoc, getDocs, collection, query, where, setDoc } from 'firebase/firestore';
 import { getCleanProductSizes } from '../utils/productSizeHelper';
 import { trackPurchase, trackInitiateCheckout } from '../utils/pixelTracker';
+import { recordDraftCheckout, clearDraftCheckoutByPhone } from '../utils/abandonedCartHelper';
 
 export default function Checkout() {
   const { items, clearCart, updateQuantity, removeFromCart, updateSize, addToCart } = useCart();
@@ -298,7 +299,8 @@ export default function Checkout() {
   };
 
   const baseShipping = getShippingFee();
-  const shipping = (shippingFreeAfter > 0 && subtotal >= shippingFreeAfter) ? 0 : baseShipping;
+  const freeShippingStatus = checkIsFreeShipping(items);
+  const shipping = freeShippingStatus.isFree ? 0 : baseShipping;
   const discountAmount = discountType === 'percentage'
     ? (subtotal * discount) / 100
     : discount;
@@ -308,6 +310,27 @@ export default function Checkout() {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
+
+  // Auto-record abandoned/draft checkout on user inputs
+  useEffect(() => {
+    if (!formData.phone || formData.phone.trim().length < 6 || items.length === 0) return;
+    const timer = setTimeout(() => {
+      recordDraftCheckout({
+        fullName: formData.fullName,
+        phone: formData.phone,
+        email: formData.email,
+        address: formData.address,
+        city: formData.city,
+        thana: formData.thana,
+        items,
+        subtotal,
+        deliveryCharge: shipping,
+        total
+      });
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [formData.phone, formData.fullName, formData.address, formData.city, formData.thana, items, subtotal, shipping, total]);
 
   const handleSendOtp = async () => {
     const rawPhone = formData.phone.trim();
@@ -414,6 +437,11 @@ export default function Checkout() {
         thana: formData.thana,
         items: items.map(item => ({ ...item.product, selectedSize: item.selectedSize, quantity: item.quantity })),
         deliveryCharge: shipping,
+        isFreeShipping: freeShippingStatus.isFree,
+        freeShippingOffer: freeShippingStatus.isFree 
+          ? (freeShippingStatus.pantsCount >= 3 ? '৩টি ফরমাল প্যান্টে ফ্রি ডেলিভারি' : 'ফ্রি ডেলিভারি অফার') 
+          : undefined,
+        originalDeliveryCharge: freeShippingStatus.isFree ? baseShipping : undefined,
         total: total,
         status: 'Pending',
         paymentMethod: formData.paymentMethod,
@@ -489,6 +517,9 @@ export default function Checkout() {
       setIsProcessing(false);
       setIsComplete(true);
       clearCart();
+      try {
+        clearDraftCheckoutByPhone(formData.phone);
+      } catch (e) {}
       toast.success("Order Placed Successfully!");
     } catch (err: any) {
       console.error("Checkout order placement error:", err);
@@ -779,6 +810,47 @@ export default function Checkout() {
             </span>
           </div>
 
+          {/* Free Shipping Milestone Indicator (Formal Pant 3 pcs) */}
+          {items.length > 0 && (
+            <div className={cn(
+              "border p-3.5 rounded-2xl transition-colors",
+              freeShippingStatus.isFree 
+                ? "bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200" 
+                : "bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200/80"
+            )}>
+              <div className="flex items-center justify-between text-xs mb-1.5 font-bold text-slate-900">
+                <div className="flex items-center gap-1.5">
+                  <Truck size={14} className={freeShippingStatus.isFree ? "text-emerald-600" : "text-amber-600"} />
+                  {freeShippingStatus.isFree ? (
+                    <span className="text-emerald-700 font-extrabold flex items-center gap-1">
+                      🎉 ৩টি ফরমাল প্যান্ট অর্ডারে ডেলিভারি চার্জ সম্পূর্ণ ফ্রি!
+                    </span>
+                  ) : (
+                    <span className="text-amber-950">
+                      {freeShippingStatus.pantsCount > 0 ? (
+                        <><b>{freeShippingStatus.pantsCount}/3</b> প্যান্ট যুক্ত — আর মাত্র <b>{freeShippingStatus.pantsNeeded}টি</b> ফরমাল প্যান্টে ফ্রি ডেলিভারি!</>
+                      ) : (
+                        <>যেকোনো <b>৩টি ফরমাল প্যান্ট</b> অর্ডারে <b>ডেলিভারি সম্পূর্ণ ফ্রি!</b></>
+                      )}
+                    </span>
+                  )}
+                </div>
+                <span className={cn("text-[10px] font-black", freeShippingStatus.isFree ? "text-emerald-800" : "text-amber-800")}>
+                  {freeShippingStatus.pantsCount}/3 ({freeShippingStatus.progress}%)
+                </span>
+              </div>
+              <div className="w-full bg-black/10 rounded-full h-1.5 overflow-hidden">
+                <div 
+                  className={cn(
+                    "h-full rounded-full transition-all duration-500",
+                    freeShippingStatus.isFree ? "bg-emerald-500" : "bg-amber-600"
+                  )}
+                  style={{ width: `${freeShippingStatus.progress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Add More Product Button */}
           <button
             type="button"
@@ -956,7 +1028,14 @@ export default function Checkout() {
             
             <div className="flex justify-between items-center">
               <span>SHIPPING ({baseShipping === 80 ? 'Inside Dhaka' : baseShipping === 110 ? 'Sub Area' : 'Outside Dhaka'})</span>
-              <span className="text-[#0C1421] font-bold font-mono">{formatPrice(shipping, currency, rate)}</span>
+              {freeShippingStatus.isFree ? (
+                <div className="flex items-center gap-1.5 font-mono">
+                  <span className="text-gray-400 line-through text-[10px]">{formatPrice(baseShipping, currency, rate)}</span>
+                  <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">FREE</span>
+                </div>
+              ) : (
+                <span className="text-[#0C1421] font-bold font-mono">{formatPrice(shipping, currency, rate)}</span>
+              )}
             </div>
             
             <div className="flex justify-between items-center pt-5 border-t border-gray-150 normal-case">
