@@ -277,6 +277,11 @@ export default function AdminOrders(): React.JSX.Element {
     rocketLogo: ''
   });
 
+  // Ensure AdminOrders always pulls the freshest orders immediately when entered
+  useEffect(() => {
+    refreshOrders();
+  }, [refreshOrders]);
+
   useEffect(() => {
     setVisibleCount(9);
   }, [searchQuery, filterStatus, filterIssue, filterPartner, filterCourier, filterCreator, filterDelivery, startDate, endDate]);
@@ -1726,8 +1731,9 @@ export default function AdminOrders(): React.JSX.Element {
                       type="button"
                       onClick={async (e) => {
                         e.stopPropagation();
-                        await refreshOrders();
-                        toast.success(`অর্ডার সিঙ্ক সম্পন্ন (${orders.length}টি)`, { duration: 1500 });
+                        const fresh = await refreshOrders();
+                        const count = Array.isArray(fresh) ? fresh.length : orders.length;
+                        toast.success(`অর্ডার সিঙ্ক সম্পন্ন (${count}টি)`, { duration: 1500 });
                       }}
                       disabled={loading}
                       className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 border border-slate-200"

@@ -23,7 +23,7 @@ interface OrderContextType {
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 const BASE_ORDER_ID = 2670000;
-const CACHE_KEY = 'eleganbd_all_orders';
+const CACHE_KEY = 'eleganbd_all_orders_v5';
 
 export const extractNumericId = (idStr: string | number | undefined): number | null => {
   if (!idStr) return null;
@@ -99,10 +99,10 @@ export const saveOrdersToCache = (ordersToCache: Order[]) => {
 export function OrderProvider({ children }: { children: React.ReactNode }) {
   const [orders, setOrders] = useState<Order[]>(() => {
     try {
-      const cached = localStorage.getItem(CACHE_KEY) || localStorage.getItem('eleganbd_orders');
+      const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed) && parsed.length >= 64) {
           return parsed.filter(o => o && o.id);
         }
       }
@@ -112,10 +112,10 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   
   const [loading, setLoading] = useState(() => {
     try {
-      const cached = localStorage.getItem(CACHE_KEY) || localStorage.getItem('eleganbd_orders');
+      const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return false;
+        if (Array.isArray(parsed) && parsed.length >= 64) return false;
       }
     } catch (e) {}
     return true;
@@ -245,42 +245,39 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       try {
         let fetchedList: Order[] | null = null;
 
-        // 1. Try local same-origin server endpoint first (lightning-fast, never blocked by mobile network/adblockers)
+        // 1. Direct Supabase Query (Ultra-fast, CDN backed, source of truth for all 64+ orders)
         try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000);
-          const res = await fetch('/api/orders', {
-            signal: controller.signal,
-            headers: { 'Cache-Control': 'no-cache' }
-          });
-          clearTimeout(timeoutId);
-          if (res.ok) {
-            const json = await res.json();
-            if (json && json.success && Array.isArray(json.orders) && json.orders.length > 0) {
-              fetchedList = json.orders;
-            }
-          }
-        } catch (apiErr) {
-          // Fallback to Supabase
-        }
-
-        // 2. Direct Supabase Query fallback
-        if (!fetchedList) {
-          let query = supabase
+          const { data, error } = await supabase
             .from('orders')
             .select('*')
-            .order('created_at', { ascending: false });
-            
-          if (isBackground) {
-            query = query.limit(200);
-          } else {
-            query = query.limit(1000);
-          }
+            .order('created_at', { ascending: false })
+            .limit(1000);
 
-          const { data, error } = await query;
-          if (!error && data && Array.isArray(data) && data.length > 0) {
+          if (!error && Array.isArray(data) && data.length > 0) {
             fetchedList = data.map(supabaseRowToOrder);
           }
+        } catch (sbErr) {
+          console.warn('[OrderContext] Direct Supabase sync notice:', sbErr);
+        }
+
+        // 2. Local API endpoint fallback (if Supabase is offline)
+        if (!fetchedList || fetchedList.length === 0) {
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2500);
+            const res = await fetch('/api/orders', {
+              signal: controller.signal,
+              headers: { 'Cache-Control': 'no-cache, no-store' }
+            });
+            clearTimeout(timeoutId);
+            const contentType = res.headers.get('content-type') || '';
+            if (res.ok && contentType.includes('application/json')) {
+              const json = await res.json();
+              if (json && json.success && Array.isArray(json.orders) && json.orders.length > 0) {
+                fetchedList = json.orders;
+              }
+            }
+          } catch (apiErr) {}
         }
 
         if (fetchedList && Array.isArray(fetchedList) && isMounted) {
@@ -298,23 +295,24 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    // Initial load
+    // Initial load immediately
     syncOrders(false);
 
-    // Fast 5-second polling loop so mobile devices see new website/mobile orders immediately
+    // Fast 3-second polling loop so mobile devices see new website/mobile orders immediately
     const pollInterval = setInterval(() => {
-      if (isMounted && typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      if (isMounted) {
         syncOrders(true);
       }
-    }, 5000);
+    }, 3000);
 
     // Instant sync on window focus, mobile screen unlock, or tab switch
     const handleFocus = () => {
-      if (isMounted) syncOrders(true);
+      if (isMounted) syncOrders(false);
     };
     window.addEventListener('focus', handleFocus);
     window.addEventListener('visibilitychange', handleFocus);
     window.addEventListener('online', handleFocus);
+    window.addEventListener('touchstart', handleFocus, { passive: true });
 
     // B. Broadcast Channel Listener (0ms inter-tab sync)
     let bc: BroadcastChannel | null = null;
@@ -330,7 +328,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             const delId = String(payload);
             setOrders(prev => prev.filter(o => o.id !== delId && String(o.invoiceNo) !== delId));
           } else if (type === 'ORDERS_REFRESH') {
-            syncOrders(true);
+            syncOrders(false);
           }
         };
       }
@@ -366,6 +364,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('visibilitychange', handleFocus);
       window.removeEventListener('online', handleFocus);
+      window.removeEventListener('touchstart', handleFocus);
       if (bc) {
         try { bc.close(); } catch {}
       }
@@ -375,42 +374,57 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const refreshOrders = useCallback(async () => {
+  const refreshOrders = useCallback(async (): Promise<Order[]> => {
     setLoading(true);
     try {
-      // 1. Try local server API
-      try {
-        const res = await fetch('/api/orders', { headers: { 'Cache-Control': 'no-cache' } });
-        if (res.ok) {
-          const json = await res.json();
-          if (json && json.success && Array.isArray(json.orders)) {
-            const sorted = [...json.orders].sort((a, b) => compareOrdersByInvoice(a, b, 'desc'));
-            setOrders(sorted);
-            saveOrdersToCache(sorted);
-            return;
-          }
-        }
-      } catch (err) {}
-
-      // 2. Direct Supabase fallback
+      // 1. Direct Supabase Query (Source of truth for all 64+ orders)
       const { data, error } = await supabase
         .from('orders')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(1000);
 
-      if (!error && data && Array.isArray(data)) {
+      if (!error && Array.isArray(data) && data.length > 0) {
         const mapped = data.map(supabaseRowToOrder);
-        mapped.sort((a, b) => compareOrdersByInvoice(a, b, 'desc'));
-        setOrders(mapped);
-        saveOrdersToCache(mapped);
+        const valid = mapped.filter(o => {
+          if (!o || !o.id) return false;
+          const idStr = String(o.id);
+          const invStr = o.invoiceNo ? String(o.invoiceNo) : '';
+          return !deletedOrderIdsRef.current.has(idStr) && (!invStr || !deletedOrderIdsRef.current.has(invStr));
+        });
+        valid.sort((a, b) => compareOrdersByInvoice(a, b, 'desc'));
+        setOrders(valid);
+        saveOrdersToCache(valid);
+        return valid;
       }
+
+      // 2. Local server API fallback
+      try {
+        const res = await fetch('/api/orders', { headers: { 'Cache-Control': 'no-cache, no-store' } });
+        const contentType = res.headers.get('content-type') || '';
+        if (res.ok && contentType.includes('application/json')) {
+          const json = await res.json();
+          if (json && json.success && Array.isArray(json.orders)) {
+            const valid = json.orders.filter((o: any) => {
+              if (!o || !o.id) return false;
+              const idStr = String(o.id);
+              const invStr = o.invoiceNo ? String(o.invoiceNo) : '';
+              return !deletedOrderIdsRef.current.has(idStr) && (!invStr || !deletedOrderIdsRef.current.has(invStr));
+            });
+            valid.sort((a: any, b: any) => compareOrdersByInvoice(a, b, 'desc'));
+            setOrders(valid);
+            saveOrdersToCache(valid);
+            return valid;
+          }
+        }
+      } catch (err) {}
     } catch (error) {
-      console.error('[OrderContext] Supabase Refresh error:', error);
+      console.error('[OrderContext] Refresh error:', error);
     } finally {
       setLoading(false);
     }
-  }, []);
+    return orders;
+  }, [orders]);
 
   const restoreOrderStock = async (order: Order) => {
     try {
