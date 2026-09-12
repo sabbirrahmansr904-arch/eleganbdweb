@@ -193,7 +193,7 @@ export default function Login() {
                 <div className="w-8 h-8 rounded-lg bg-black text-white font-black flex items-center justify-center text-lg shadow-md">
                   E
                 </div>
-                <span className="font-black text-2xl uppercase tracking-widest text-black">ELEGAN BD</span>
+                <span className="font-black text-2xl uppercase text-black">ELEGAN BD</span>
               </div>
             )}
           </div>

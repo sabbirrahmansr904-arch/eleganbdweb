@@ -287,8 +287,20 @@ const ProductDetails = () => {
     navigate('/checkout');
   };
 
-  const discount = product.discount || 0;
-  const rating = product.rating || 0;
+  const productImages = useMemo(() => {
+    if (product?.images && product.images.length > 0) {
+      return product.images.filter(Boolean);
+    }
+    return product?.image ? [product.image] : [];
+  }, [product]);
+
+  useEffect(() => {
+    setSelectedImage(0);
+  }, [product?.id, productImages[0]]);
+
+  const currentMainImage = productImages[selectedImage] || productImages[0] || product?.image || '';
+  const discount = product?.discount || (product?.regularPrice && product?.price ? Math.round(((product.regularPrice - product.price) / product.regularPrice) * 100) : 0);
+  const rating = product?.rating || 0;
 
   return (
     <div className="pt-4 md:pt-8 pb-24 bg-white min-h-screen">
@@ -307,7 +319,7 @@ const ProductDetails = () => {
           <div className="lg:col-span-7 flex flex-col md:flex-row gap-4">
             {/* Thumbnails */}
             <div className="order-2 md:order-1 flex md:flex-col gap-3 overflow-x-auto no-scrollbar">
-              {product.images?.map((img, idx) => (
+              {productImages.map((img, idx) => (
                 <button
                   key={idx}
                   onClick={() => setSelectedImage(idx)}
@@ -338,8 +350,8 @@ const ProductDetails = () => {
             >
               <AnimatePresence mode="wait">
                 <motion.img
-                  key={selectedImage}
-                  src={product.images?.[selectedImage]}
+                  key={`${selectedImage}-${currentMainImage}`}
+                  src={currentMainImage}
                   alt={product.name}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -360,7 +372,7 @@ const ProductDetails = () => {
                     exit={{ opacity: 0 }}
                     className="absolute inset-0 pointer-events-none hidden md:block"
                     style={{
-                      backgroundImage: `url(${product.images?.[selectedImage]})`,
+                      backgroundImage: `url(${currentMainImage})`,
                       backgroundPosition: `${zoomPos.x}% ${zoomPos.y}%`,
                       backgroundSize: '200%',
                       backgroundRepeat: 'no-repeat'

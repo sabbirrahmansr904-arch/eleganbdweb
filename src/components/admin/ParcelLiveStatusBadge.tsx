@@ -54,8 +54,13 @@ export const ParcelLiveStatusBadgeComponent: React.FC<ParcelLiveStatusBadgeProps
           }
         }
 
-        // Check if status is a return / cancel first so it never triggers delivery success
-        const isReturnOrCancel = lower.includes('return') || lower.includes('cancel') || lower === 'partial_delivery_return';
+        // Check if Pathao status is Partial Delivery or Exchange -> counts as SUCCESS
+        const isPartialDelivery = lower.includes('partial') || lower === 'partial_delivery' || lower === 'partial_delivered' || lower === 'partial delivery' || lower === 'partial_delivery_return';
+        const isExchange = lower.includes('exchange') || lower === 'exchange' || lower === 'exchange_delivered' || lower === 'exchange_completed' || lower === 'exchange_order';
+        const isPartialOrExchange = isPartialDelivery || isExchange;
+
+        // Check if status is a return / cancel (excluding partial deliveries & exchanges)
+        const isReturnOrCancel = !isPartialOrExchange && (lower.includes('return') || lower.includes('cancel'));
 
         const isTransitOrHubOrAssign = 
           lower.includes('hub') ||
@@ -69,8 +74,9 @@ export const ParcelLiveStatusBadgeComponent: React.FC<ParcelLiveStatusBadgeProps
           lower.includes('way');
 
         const isStrictlyDeliveredCourier = 
-          !isTransitOrHubOrAssign && 
-          (lower === 'delivered' || lower === 'success' || lower === 'successful' || lower === 'delivered / success' || lower === 'delivered/success' || lower === 'delivery_complete');
+          isPartialOrExchange || 
+          (!isTransitOrHubOrAssign && 
+          (lower === 'delivered' || lower === 'success' || lower === 'successful' || lower === 'delivered / success' || lower === 'delivered/success' || lower === 'delivery_complete'));
 
         if (isReturnOrCancel) {
           if (order.status !== 'Returned' && order.status !== 'Cancelled') {
@@ -91,7 +97,7 @@ export const ParcelLiveStatusBadgeComponent: React.FC<ParcelLiveStatusBadgeProps
             }
           }
         } else if (isStrictlyDeliveredCourier) {
-          // Strictly delivered only
+          // Strictly delivered, Partial Delivery, or Exchange -> SUCCESS
           if (order.status !== 'Delivered') {
             try {
               if (updateOrder) {
@@ -105,7 +111,12 @@ export const ParcelLiveStatusBadgeComponent: React.FC<ParcelLiveStatusBadgeProps
                 await updateOrderStatus(order.id, 'Delivered', true);
               }
               const shortId = order.invoiceNo || String(order.id || '').slice(-6) || 'N/A';
-              toast.success(`অর্ডার #${shortId} পার্সেল ডেলিভার্ড হওয়ায় স্ট্যাটাস অটো SUCCESS করা হয়েছে!`);
+              const message = isExchange
+                ? `অর্ডার #${shortId} এক্সচেঞ্জ (Exchange) হওয়ায় স্ট্যাটাস অটো SUCCESS করা হয়েছে!`
+                : isPartialDelivery 
+                  ? `অর্ডার #${shortId} পার্শিয়াল ডেলিভারি (Partial Delivery) হওয়ায় স্ট্যাটাস অটো SUCCESS করা হয়েছে!`
+                  : `অর্ডার #${shortId} পার্সেল ডেলিভার্ড হওয়ায় স্ট্যাটাস অটো SUCCESS করা হয়েছে!`;
+              toast.success(message);
             } catch (err) {
               console.warn("Could not auto-update delivered order status:", err);
             }
@@ -163,6 +174,12 @@ export const ParcelLiveStatusBadgeComponent: React.FC<ParcelLiveStatusBadgeProps
   const getStatusColor = (s: string) => {
     const lower = s.toLowerCase();
     const label = cleanLabel(s);
+    if (lower.includes('partial')) {
+      return { bg: 'bg-emerald-50 text-emerald-800 border-emerald-300 font-extrabold', icon: PackageCheck, label: 'Partial Delivery (Success)' };
+    }
+    if (lower.includes('exchange')) {
+      return { bg: 'bg-emerald-50 text-emerald-800 border-emerald-300 font-extrabold', icon: PackageCheck, label: 'Exchange (Success)' };
+    }
     if (lower.includes('return') || lower.includes('cancel')) {
       return { bg: 'bg-rose-50 text-rose-700 border-rose-200', icon: AlertCircle, label };
     }

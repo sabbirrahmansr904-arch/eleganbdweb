@@ -217,15 +217,36 @@ export default function InvoiceTemplate({ order, preview = false }: InvoiceProps
               const pantCount = Array.isArray(order?.items) 
                 ? order.items.filter(i => isPantProduct(i)).reduce((sum, i) => sum + (i.quantity || 1), 0)
                 : 0;
-              const isPantPromo = (order.freeShippingOffer?.includes('প্যান্ট') || pantCount >= 3) && (order.deliveryCharge === 0 || order.isFreeShipping);
+              const hasExplicitPantOffer = Boolean(
+                order?.freeShippingOffer?.includes('প্যান্ট') ||
+                order?.freeShippingOffer?.toLowerCase().includes('pant')
+              );
+              const isPantPromo = Boolean(
+                hasExplicitPantOffer ||
+                (order?.isFreeShipping === true && pantCount >= 3 && order?.deliveryCharge === 0 && Boolean(order?.freeShippingOffer))
+              );
 
-              if (isPantPromo || order.isFreeShipping || order.deliveryCharge === 0) {
+              if (isPantPromo) {
                 return (
                   <div className="flex justify-between text-emerald-800 font-bold items-center">
                     <span className="flex items-center gap-1">
                       Delivery Charge (+)
                       <span className="text-[9px] bg-emerald-100 text-emerald-900 px-1 py-0.2 rounded font-black">
-                        {isPantPromo ? '3 Pants Free' : 'FREE'}
+                        3 Pants Free
+                      </span>
+                    </span>
+                    <span className="font-mono-numbers text-emerald-700 font-extrabold">৳0 (FREE)</span>
+                  </div>
+                );
+              }
+
+              if (order?.deliveryCharge === 0 && order?.isFreeShipping) {
+                return (
+                  <div className="flex justify-between text-emerald-800 font-bold items-center">
+                    <span className="flex items-center gap-1">
+                      Delivery Charge (+)
+                      <span className="text-[9px] bg-emerald-100 text-emerald-900 px-1 py-0.2 rounded font-black">
+                        FREE
                       </span>
                     </span>
                     <span className="font-mono-numbers text-emerald-700 font-extrabold">৳0 (FREE)</span>

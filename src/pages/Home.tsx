@@ -70,12 +70,6 @@ const Home = () => {
   // Fabric Showcase tab state
   const [activeFabricTab, setActiveFabricTab] = React.useState<'pants' | 'shirts'>('pants');
 
-  // Best Selling Filter Tab state ('pant' | 'shirt')
-  const [bestSellingTab, setBestSellingTab] = React.useState<'pant' | 'shirt'>('pant');
-
-  // New Arrival Filter Tab state ('pant' | 'shirt')
-  const [newArrivalTab, setNewArrivalTab] = React.useState<'pant' | 'shirt'>('pant');
-
   React.useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft(prev => {
@@ -181,24 +175,51 @@ const Home = () => {
     }
   }, [activeHeroBanners.length]);
 
+  // Ensure products list is strictly deduplicated by ID, SKU, and normalized name+color
+  const uniqueProducts = React.useMemo(() => {
+    if (!products || products.length === 0) return [];
+    const seenIds = new Set<string>();
+    const seenSkus = new Set<string>();
+    const seenNameColor = new Set<string>();
+
+    return products.filter(p => {
+      if (!p || !p.id) return false;
+      const idStr = String(p.id).trim().toLowerCase();
+      if (seenIds.has(idStr)) return false;
+
+      const skuStr = (p.sku || '').trim().toLowerCase();
+      if (skuStr && seenSkus.has(skuStr)) return false;
+
+      const nameNorm = (p.name || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+      const colorNorm = (p.color || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+      const nameColorKey = `${nameNorm}_${colorNorm}`;
+      if (nameNorm && seenNameColor.has(nameColorKey)) return false;
+
+      seenIds.add(idStr);
+      if (skuStr) seenSkus.add(skuStr);
+      if (nameNorm) seenNameColor.add(nameColorKey);
+      return true;
+    });
+  }, [products]);
+
   // Sort products: Formal Pants FIRST (Ordered serially by code/SKU), then Formal Shirts SECOND, then others
   const sortedProducts = React.useMemo(() => {
-    if (!products || products.length === 0) return [];
+    if (!uniqueProducts || uniqueProducts.length === 0) return [];
     
-    const isPant = (p: typeof products[0]) => {
+    const isPant = (p: typeof uniqueProducts[0]) => {
       const cat = (p.category || '').toLowerCase();
       const name = (p.name || '').toLowerCase();
       return cat.includes('pant') || cat.includes('trouser') || name.includes('pant') || name.includes('trouser');
     };
 
-    const isShirt = (p: typeof products[0]) => {
+    const isShirt = (p: typeof uniqueProducts[0]) => {
       const cat = (p.category || '').toLowerCase();
       const name = (p.name || '').toLowerCase();
       return cat.includes('shirt') || name.includes('shirt') || cat.includes('polo') || name.includes('polo');
     };
 
     // Helper function to extract numeric code or alphanumeric sequence from product for serial ordering
-    const getProductCodeSortKey = (p: typeof products[0]) => {
+    const getProductCodeSortKey = (p: typeof uniqueProducts[0]) => {
       const sku = (p.sku || '').trim();
       const name = (p.name || '').trim();
       const fullText = `${sku} ${name}`;
@@ -236,7 +257,7 @@ const Home = () => {
       return { hasCode: false, num: 999999, raw: sku || name };
     };
 
-    const sortProductsByCode = (productList: typeof products) => {
+    const sortProductsByCode = (productList: typeof uniqueProducts) => {
       return [...productList].sort((a, b) => {
         const keyA = getProductCodeSortKey(a);
         const keyB = getProductCodeSortKey(b);
@@ -258,39 +279,79 @@ const Home = () => {
       });
     };
 
-    const pants = sortProductsByCode(products.filter(p => isPant(p)));
-    const shirts = sortProductsByCode(products.filter(p => isShirt(p) && !isPant(p)));
-    const others = sortProductsByCode(products.filter(p => !isPant(p) && !isShirt(p)));
+    const pants = sortProductsByCode(uniqueProducts.filter(p => isPant(p)));
+    const shirts = sortProductsByCode(uniqueProducts.filter(p => isShirt(p) && !isPant(p)));
+    const others = sortProductsByCode(uniqueProducts.filter(p => !isPant(p) && !isShirt(p)));
 
     return [...pants, ...shirts, ...others];
-  }, [products]);
+  }, [uniqueProducts]);
 
-  // Best Selling Filtered Products for [ FORMAL PANT ] [ FORMAL SHIRT ] Switcher
-  const bestSellingFilteredProducts = React.useMemo(() => {
-    if (!products || products.length === 0) return [];
-    const isPant = (p: typeof products[0]) => {
+  // Best Selling Products section
+  const bestSellingProducts = React.useMemo(() => {
+    if (!uniqueProducts || uniqueProducts.length === 0) return [];
+    
+    // Check if any products have featured or bestSelling marked explicitly
+    const explicitBestSellers = uniqueProducts.filter(p => p.featured === true || p.bestSelling === true);
+    if (explicitBestSellers.length > 0) {
+      return explicitBestSellers;
+    }
+
+    const isPant = (p: typeof uniqueProducts[0]) => {
       const cat = (p.category || '').toLowerCase();
       const name = (p.name || '').toLowerCase();
       return cat.includes('pant') || cat.includes('trouser') || name.includes('pant') || name.includes('trouser');
     };
 
-    const isShirt = (p: typeof products[0]) => {
+    const isShirt = (p: typeof uniqueProducts[0]) => {
       const cat = (p.category || '').toLowerCase();
       const name = (p.name || '').toLowerCase();
       return cat.includes('shirt') || name.includes('shirt') || cat.includes('polo') || name.includes('polo');
     };
 
-    const pool = products.filter(p => p.featured || p.bestSelling || p.isTopRated || (p.rating && p.rating >= 4.5));
-    const candidates = pool.length >= 4 ? pool : products;
+    const featuredOrTop = uniqueProducts.filter(p => p.featured || p.isTopRated);
+    const pool = featuredOrTop.length >= 4 ? featuredOrTop : uniqueProducts;
 
-    if (bestSellingTab === 'pant') {
-      const matched = candidates.filter(isPant);
-      return matched.length > 0 ? matched : products.filter(isPant);
-    } else {
-      const matched = candidates.filter(p => isShirt(p) && !isPant(p));
-      return matched.length > 0 ? matched : products.filter(p => isShirt(p) && !isPant(p));
+    const pantsInPool = pool.filter(p => isPant(p));
+    const shirtsInPool = pool.filter(p => isShirt(p) && !isPant(p));
+
+    const allPants = uniqueProducts.filter(p => isPant(p));
+    const allShirts = uniqueProducts.filter(p => isShirt(p) && !isPant(p));
+
+    const pants = pantsInPool.length > 0 ? pantsInPool : allPants;
+    const shirts = shirtsInPool.length > 0 ? shirtsInPool : allShirts;
+
+    const result: typeof uniqueProducts = [];
+    let pIdx = 0;
+    let sIdx = 0;
+
+    // Alternate picking pants and shirts so both are prominently displayed
+    while (result.length < 8) {
+      let added = false;
+      if (pIdx < pants.length && !result.some(item => item.id === pants[pIdx].id)) {
+        result.push(pants[pIdx]);
+        pIdx++;
+        added = true;
+      }
+      if (result.length < 8 && sIdx < shirts.length && !result.some(item => item.id === shirts[sIdx].id)) {
+        result.push(shirts[sIdx]);
+        sIdx++;
+        added = true;
+      }
+      if (!added) {
+        const unused = uniqueProducts.filter(p => !result.some(item => item.id === p.id));
+        if (unused.length > 0) {
+          result.push(unused[0]);
+        } else {
+          break;
+        }
+      }
     }
-  }, [products, bestSellingTab]);
+
+    return result;
+  }, [uniqueProducts]);
+
+  // Best Selling Filtered Products
+  const bestSellingFilteredProducts = bestSellingProducts;
 
   // Categories for Shop By Category section
   const displayCategories = React.useMemo(() => {
@@ -300,7 +361,7 @@ const Home = () => {
       if (existingImg && !existingImg.includes('photo-1602810318383-e386cc2a3ccf')) {
         return existingImg;
       }
-      const prod = products.find(p => p.category?.toLowerCase().trim() === catName.toLowerCase().trim());
+      const prod = uniqueProducts.find(p => p.category?.toLowerCase().trim() === catName.toLowerCase().trim());
       if (prod?.images?.[0]) return prod.images[0];
       if ((prod as any)?.image) return (prod as any).image;
 
@@ -324,8 +385,8 @@ const Home = () => {
       });
     });
 
-    if (products && products.length > 0) {
-      products.forEach(p => {
+    if (uniqueProducts && uniqueProducts.length > 0) {
+      uniqueProducts.forEach(p => {
         if (p.category && !list.some(c => c.name.toLowerCase() === p.category.toLowerCase() || c.slug.toLowerCase() === p.category.toLowerCase().replace(/\s+/g, '-'))) {
           const slug = p.category.toLowerCase().replace(/\s+/g, '-');
           list.push({
@@ -339,104 +400,19 @@ const Home = () => {
     }
 
     return sortCategories(list);
-  }, [categories, products]);
+  }, [categories, uniqueProducts]);
 
-  // Best Selling Products section
-  const bestSellingProducts = React.useMemo(() => {
-    if (!products || products.length === 0) return [];
-    
-    // Check if any products have featured or bestSelling marked explicitly
-    const explicitBestSellers = products.filter(p => p.featured === true || p.bestSelling === true);
-    if (explicitBestSellers.length > 0) {
-      return explicitBestSellers;
-    }
-
-    const isPant = (p: typeof products[0]) => {
-      const cat = (p.category || '').toLowerCase();
-      const name = (p.name || '').toLowerCase();
-      return cat.includes('pant') || cat.includes('trouser') || name.includes('pant') || name.includes('trouser');
-    };
-
-    const isShirt = (p: typeof products[0]) => {
-      const cat = (p.category || '').toLowerCase();
-      const name = (p.name || '').toLowerCase();
-      return cat.includes('shirt') || name.includes('shirt') || cat.includes('polo') || name.includes('polo');
-    };
-
-    const featuredOrTop = products.filter(p => p.featured || p.isTopRated);
-    const pool = featuredOrTop.length >= 4 ? featuredOrTop : products;
-
-    const pantsInPool = pool.filter(p => isPant(p));
-    const shirtsInPool = pool.filter(p => isShirt(p) && !isPant(p));
-
-    const allPants = products.filter(p => isPant(p));
-    const allShirts = products.filter(p => isShirt(p) && !isPant(p));
-
-    const pants = pantsInPool.length > 0 ? pantsInPool : allPants;
-    const shirts = shirtsInPool.length > 0 ? shirtsInPool : allShirts;
-
-    const result: typeof products = [];
-    let pIdx = 0;
-    let sIdx = 0;
-
-    // Alternate picking pants and shirts so both are prominently displayed
-    while (result.length < 8) {
-      let added = false;
-      if (pIdx < pants.length && !result.some(item => item.id === pants[pIdx].id)) {
-        result.push(pants[pIdx]);
-        pIdx++;
-        added = true;
-      }
-      if (result.length < 8 && sIdx < shirts.length && !result.some(item => item.id === shirts[sIdx].id)) {
-        result.push(shirts[sIdx]);
-        sIdx++;
-        added = true;
-      }
-      if (!added) {
-        const unused = products.filter(p => !result.some(item => item.id === p.id));
-        if (unused.length > 0) {
-          result.push(unused[0]);
-        } else {
-          break;
-        }
-      }
-    }
-
-    return result;
-  }, [products]);
-
-  // New Arrival Filtered Products for [ FORMAL PANT ] [ FORMAL SHIRT ] Switcher
+  // New Arrival Products
   const newArrivalProducts = React.useMemo(() => {
-    if (!products || products.length === 0) return [];
-
-    const isPant = (p: typeof products[0]) => {
-      const cat = (p.category || '').toLowerCase();
-      const name = (p.name || '').toLowerCase();
-      return cat.includes('pant') || cat.includes('trouser') || name.includes('pant') || name.includes('trouser');
-    };
-
-    const isShirt = (p: typeof products[0]) => {
-      const cat = (p.category || '').toLowerCase();
-      const name = (p.name || '').toLowerCase();
-      return cat.includes('shirt') || name.includes('shirt') || cat.includes('polo') || name.includes('polo');
-    };
-
-    const filteredPool = newArrivalTab === 'pant' 
-      ? products.filter(isPant) 
-      : products.filter(p => isShirt(p) && !isPant(p));
-
-    // Check if any in filteredPool have newArrival marked explicitly true
-    const explicitNewArrivals = filteredPool.filter(p => p.newArrival === true);
-    if (explicitNewArrivals.length > 0) {
-      return explicitNewArrivals;
-    }
-
-    return [...filteredPool].sort((a, b) => {
+    if (!uniqueProducts || uniqueProducts.length === 0) return [];
+    const explicitNew = uniqueProducts.filter(p => p.newArrival === true);
+    if (explicitNew.length > 0) return explicitNew;
+    return [...uniqueProducts].sort((a, b) => {
       const da = (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0;
       const db = (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0;
       return db - da;
     });
-  }, [products, newArrivalTab]);
+  }, [uniqueProducts]);
 
   // FAQ Items List
   const faqList = [
@@ -661,37 +637,9 @@ const Home = () => {
 
       {/* 2. BEST SELLING SECTION (FORMAL PANT / FORMAL SHIRT Filter) */}
       <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-10 sm:pb-12">
-        <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-gray-900 uppercase tracking-tight text-center">
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-gray-900 uppercase tracking-tight text-center mb-4 sm:mb-6">
           BEST SELLING PRODUCTS
         </h2>
-
-        {/* Best Selling Filter Pills */}
-        <div className="flex justify-center mt-3 sm:mt-4 mb-5 sm:mb-6">
-          <div className="inline-flex p-1 bg-[#F2F3F5] rounded-full gap-1.5 w-full max-w-[340px] sm:max-w-[400px] shadow-2xs">
-            <button
-              onClick={() => setBestSellingTab('pant')}
-              className={cn(
-                "flex-1 py-2 sm:py-2.5 rounded-full font-black text-xs sm:text-sm uppercase tracking-wider transition-all cursor-pointer text-center",
-                bestSellingTab === 'pant'
-                  ? "bg-blue-600 text-white shadow-xs"
-                  : "text-gray-500 hover:text-gray-900"
-              )}
-            >
-              FORMAL PANT
-            </button>
-            <button
-              onClick={() => setBestSellingTab('shirt')}
-              className={cn(
-                "flex-1 py-2 sm:py-2.5 rounded-full font-black text-xs sm:text-sm uppercase tracking-wider transition-all cursor-pointer text-center",
-                bestSellingTab === 'shirt'
-                  ? "bg-blue-600 text-white shadow-xs"
-                  : "text-gray-500 hover:text-gray-900"
-              )}
-            >
-              FORMAL SHIRT
-            </button>
-          </div>
-        </div>
 
         {/* 2-Column Product Grid */}
         {productsLoading ? (
@@ -724,34 +672,6 @@ const Home = () => {
               <span className="hidden sm:inline">See All</span>
               <ArrowRight size={14} />
             </Link>
-          </div>
-
-          {/* New Arrival Filter Pills */}
-          <div className="flex justify-center mt-2 mb-5 sm:mb-6">
-            <div className="inline-flex p-1 bg-[#F2F3F5] rounded-full gap-1.5 w-full max-w-[340px] sm:max-w-[400px] shadow-2xs">
-              <button
-                onClick={() => setNewArrivalTab('pant')}
-                className={cn(
-                  "flex-1 py-2 sm:py-2.5 rounded-full font-black text-xs sm:text-sm uppercase tracking-wider transition-all cursor-pointer text-center",
-                  newArrivalTab === 'pant'
-                    ? "bg-blue-600 text-white shadow-xs"
-                    : "text-gray-500 hover:text-gray-900"
-                )}
-              >
-                FORMAL PANT
-              </button>
-              <button
-                onClick={() => setNewArrivalTab('shirt')}
-                className={cn(
-                  "flex-1 py-2 sm:py-2.5 rounded-full font-black text-xs sm:text-sm uppercase tracking-wider transition-all cursor-pointer text-center",
-                  newArrivalTab === 'shirt'
-                    ? "bg-blue-600 text-white shadow-xs"
-                    : "text-gray-500 hover:text-gray-900"
-                )}
-              >
-                FORMAL SHIRT
-              </button>
-            </div>
           </div>
 
           {productsLoading ? (

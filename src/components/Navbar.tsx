@@ -97,7 +97,7 @@ export default function Navbar() {
                   (e.target as HTMLElement).style.display = 'none';
                 }}
               />
-              <span className="font-black text-lg sm:text-xl uppercase tracking-[0.15em] text-black whitespace-nowrap">
+              <span className="font-black text-lg sm:text-xl uppercase text-black whitespace-nowrap">
                 ELEGAN BD
               </span>
             </Link>

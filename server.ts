@@ -1425,7 +1425,14 @@ async function startServer() {
 
       const statusLower = (status || '').toLowerCase();
       let newOrderStatus: string | null = null;
-      if (statusLower.includes('deliver') || statusLower.includes('success') || statusLower === 'delivery_complete' || statusLower === 'delivered') {
+      if (
+        statusLower.includes('partial') ||
+        statusLower.includes('exchange') ||
+        statusLower.includes('deliver') || 
+        statusLower.includes('success') || 
+        statusLower === 'delivery_complete' || 
+        statusLower === 'delivered'
+      ) {
         newOrderStatus = 'Delivered';
       } else if (statusLower.includes('cancel') || statusLower.includes('return')) {
         newOrderStatus = 'Returned';

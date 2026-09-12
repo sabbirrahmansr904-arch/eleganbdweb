@@ -19,6 +19,10 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
   const discount = product.discount || 0;
   const [imageError, setImageError] = useState(false);
 
+  React.useEffect(() => {
+    setImageError(false);
+  }, [product.id, product.images?.[0], product.image]);
+
   const isPant = Boolean(
     (product.category || '').toLowerCase().includes('pant') ||
     (product.category || '').toLowerCase().includes('trouser') ||

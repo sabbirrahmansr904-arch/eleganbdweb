@@ -21,7 +21,7 @@ export default function Footer() {
               {logoUrl ? (
                 <div className="flex items-center gap-3">
                   <img src={logoUrl} alt="Logo" className="h-10 w-auto object-contain brightness-0 invert" />
-                  <span className="font-black text-lg uppercase tracking-widest text-white serif">
+                  <span className="font-black text-lg uppercase text-white serif">
                     ELEGAN BD
                   </span>
                 </div>
@@ -30,7 +30,7 @@ export default function Footer() {
                   <div className="w-7 h-7 bg-white text-black font-black flex items-center justify-center rounded-sm text-sm">
                     E
                   </div>
-                  <span className="font-black text-xl uppercase tracking-widest text-white serif">
+                  <span className="font-black text-xl uppercase text-white serif">
                     ELEGAN BD
                   </span>
                 </div>

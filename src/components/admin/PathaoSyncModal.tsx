@@ -145,7 +145,12 @@ export const PathaoSyncModal: React.FC<PathaoSyncModalProps> = ({
           let isDelivered = false;
           let isReturned = false;
 
-          const isReturnOrCancel = lower.includes('return') || lower.includes('cancel') || lower === 'partial_delivery_return';
+          // Check if status is Partial Delivery or Exchange -> counts as SUCCESS
+          const isPartialDelivery = lower.includes('partial') || lower === 'partial_delivery' || lower === 'partial_delivered' || lower === 'partial delivery' || lower === 'partial_delivery_return';
+          const isExchange = lower.includes('exchange') || lower === 'exchange' || lower === 'exchange_delivered' || lower === 'exchange_completed' || lower === 'exchange_order';
+          const isPartialOrExchange = isPartialDelivery || isExchange;
+
+          const isReturnOrCancel = !isPartialOrExchange && (lower.includes('return') || lower.includes('cancel'));
 
           const isTransitOrHubOrAssign = 
             lower.includes('hub') ||
@@ -159,8 +164,9 @@ export const PathaoSyncModal: React.FC<PathaoSyncModalProps> = ({
             lower.includes('way');
 
           const isStrictlyDeliveredCourier = 
-            !isTransitOrHubOrAssign && 
-            (lower === 'delivered' || lower === 'success' || lower === 'successful' || lower === 'delivered / success' || lower === 'delivered/success' || lower === 'delivery_complete');
+            isPartialOrExchange || 
+            (!isTransitOrHubOrAssign && 
+            (lower === 'delivered' || lower === 'success' || lower === 'successful' || lower === 'delivered / success' || lower === 'delivered/success' || lower === 'delivery_complete'));
 
           if (isReturnOrCancel) {
             newStatus = 'Returned';

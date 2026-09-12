@@ -1891,7 +1891,7 @@ export default function AdminSettings() {
                           className="h-7 w-auto object-contain" 
                           alt="Dark Navbar Logo"
                         />
-                        <span className="text-white font-serif font-bold text-sm tracking-widest">ELEGAN BD</span>
+                        <span className="text-white font-serif font-bold text-sm">ELEGAN BD</span>
                       </div>
                       <div className="flex items-center gap-3 text-white/70 text-xs">
                         <span>Home</span>
@@ -1910,7 +1910,7 @@ export default function AdminSettings() {
                           className="h-7 w-auto object-contain" 
                           alt="Light Navbar Logo"
                         />
-                        <span className="text-black font-serif font-bold text-sm tracking-widest">ELEGAN BD</span>
+                        <span className="text-black font-serif font-bold text-sm">ELEGAN BD</span>
                       </div>
                       <div className="flex items-center gap-3 text-gray-700 text-xs">
                         <span>Home</span>

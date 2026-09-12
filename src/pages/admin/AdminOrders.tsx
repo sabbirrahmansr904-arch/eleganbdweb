@@ -83,13 +83,21 @@ export const getOrderFreeShippingDetails = (order: Order | null | undefined) => 
     ? order.items.filter(i => isPantProduct(i)).reduce((sum, i) => sum + (i.quantity || 1), 0)
     : 0;
 
-  const isPantPromo = Boolean(
+  // Strict check: Only new customer orders with the explicit 3-pants promo tag or new flag
+  const hasExplicitPantOffer = Boolean(
     order.freeShippingOffer?.includes('প্যান্ট') ||
-    order.freeShippingOffer?.toLowerCase().includes('pant') ||
-    (pantCount >= 3 && (order.deliveryCharge === 0 || order.isFreeShipping))
+    order.freeShippingOffer?.toLowerCase().includes('pant')
   );
 
-  const isAnyFreeShipping = order.deliveryCharge === 0 || order.isFreeShipping === true;
+  const isPantPromo = Boolean(
+    hasExplicitPantOffer ||
+    (order.isFreeShipping === true && pantCount >= 3 && order.deliveryCharge === 0 && Boolean(order.freeShippingOffer))
+  );
+
+  const isAnyFreeShipping = Boolean(
+    order.isFreeShipping === true ||
+    (order.deliveryCharge === 0 && Boolean(order.freeShippingOffer))
+  );
 
   return {
     isFreeShipping: isAnyFreeShipping,
@@ -103,7 +111,7 @@ const normalizeStatus = (status: string): string => {
   const s = (status || '').toUpperCase().trim();
   if (s === 'PENDING') return 'ORDER PLACED';
   if (s === 'PROCESSING') return 'PREPARING';
-  if (s === 'DELIVERED' || s === 'QC') return 'SUCCESS';
+  if (s === 'DELIVERED' || s === 'QC' || s === 'PARTIAL DELIVERY' || s === 'PARTIAL_DELIVERY' || s.includes('PARTIAL') || s === 'EXCHANGE' || s.includes('EXCHANGE')) return 'SUCCESS';
   return s;
 };
 
@@ -4078,20 +4086,33 @@ export default function AdminOrders(): React.JSX.Element {
                         </div>
                         <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
                           <span>Delivery Charge</span>
-                          {getOrderFreeShippingDetails(selectedOrder).isPantPromo || (selectedOrder.deliveryCharge === 0) ? (
-                            <div className="flex items-center gap-1.5 font-mono">
-                              <span className="text-slate-400 line-through text-[11px]">
-                                {formatPrice((selectedOrder as any).originalDeliveryCharge || (selectedOrder.city?.toLowerCase().includes('dhaka') ? 80 : 120), currency, rate)}
+                          {(() => {
+                            const freeInfo = getOrderFreeShippingDetails(selectedOrder);
+                            if (freeInfo.isPantPromo) {
+                              return (
+                                <div className="flex items-center gap-1.5 font-mono">
+                                  <span className="text-slate-400 line-through text-[11px]">
+                                    {formatPrice((selectedOrder as any).originalDeliveryCharge || (selectedOrder.city?.toLowerCase().includes('dhaka') ? 80 : 120), currency, rate)}
+                                  </span>
+                                  <span className="font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full text-[11px] font-sans">
+                                    ৳০ (৩টি প্যান্টে ফ্রি)
+                                  </span>
+                                </div>
+                              );
+                            }
+                            if (selectedOrder.deliveryCharge === 0 || selectedOrder.isFreeShipping) {
+                              return (
+                                <span className="font-bold text-emerald-700 font-mono">
+                                  ৳০ (FREE)
+                                </span>
+                              );
+                            }
+                            return (
+                              <span className="font-bold text-slate-800 font-mono">
+                                {formatPrice(selectedOrder.deliveryCharge || 0, currency, rate)}
                               </span>
-                              <span className="font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full text-[11px] font-sans">
-                                ৳০ (৩টি প্যান্টে ফ্রি)
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="font-bold text-slate-800 font-mono">
-                              {formatPrice(selectedOrder.deliveryCharge || 0, currency, rate)}
-                            </span>
-                          )}
+                            );
+                          })()}
                         </div>
                         <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
                           <span>Discount</span>

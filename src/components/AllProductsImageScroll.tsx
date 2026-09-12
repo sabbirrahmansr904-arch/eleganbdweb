@@ -17,6 +17,10 @@ const ScrollProductCard: React.FC<{ product: Product }> = ({ product }) => {
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
   const [imgError, setImgError] = useState(false);
+
+  React.useEffect(() => {
+    setImgError(false);
+  }, [product.id, product.images?.[0], product.image]);
   
   const isPant = (product.category || '').toLowerCase().includes('pant') || (product.name || '').toLowerCase().includes('pant');
   const fallback = isPant 

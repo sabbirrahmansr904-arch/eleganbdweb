@@ -50,6 +50,26 @@ export const isDeliveredOrSuccess = (status?: string, courierStatus?: string): b
   const s = (status || '').toLowerCase().trim();
   const cs = (courierStatus || '').toLowerCase().trim();
 
+  // Partial Delivery or Exchange from Pathao counts as SUCCESS
+  if (
+    cs.includes('partial') ||
+    cs.includes('exchange') ||
+    cs === 'partial_delivery' ||
+    cs === 'partial_delivered' ||
+    cs === 'partial delivery' ||
+    cs === 'partial_delivery_return' ||
+    cs === 'exchange' ||
+    cs === 'exchange_delivered' ||
+    cs === 'exchange_completed' ||
+    cs === 'exchange_order' ||
+    s.includes('partial') ||
+    s.includes('exchange') ||
+    s === 'partial delivery' ||
+    s === 'exchange'
+  ) {
+    return true;
+  }
+
   // "Jeigulo at to Delivery hub ba assign for delivery emon kisu thakle seta success dhora jabe na..."
   // If courier status explicitly mentions transit, hub, assign, hold, return, cancel, out for delivery, it is NOT delivered!
   if (
@@ -90,9 +110,11 @@ export const isDeliveredOrSuccess = (status?: string, courierStatus?: string): b
     s === 'delivery_complete' ||
     s === 'delivery complete' ||
     s === 'completed' ||
+    s === 'partial delivery' ||
     cs === 'delivered' ||
     cs === 'success' ||
-    cs === 'successful'
+    cs === 'successful' ||
+    cs.includes('partial')
   );
 };
 

@@ -290,14 +290,30 @@ export const isDemoProduct = (p: Product | null | undefined): boolean => {
 };
 
 const deduplicateProducts = (list: Product[]): Product[] => {
-  const seen = new Set<string>();
+  const seenIds = new Set<string>();
+  const seenSkus = new Set<string>();
+  const seenNameColorKeys = new Set<string>();
   const deletedSet = getDeletedIds();
+
   return list.filter(p => {
-    if (!p.id) return false;
-    const strId = String(p.id);
+    if (!p || !p.id) return false;
+    const strId = String(p.id).trim();
     if (deletedSet.has(strId)) return false;
-    if (seen.has(strId)) return false;
-    seen.add(strId);
+
+    const lowerId = strId.toLowerCase();
+    if (seenIds.has(lowerId)) return false;
+
+    const sku = (p.sku || '').trim().toLowerCase();
+    if (sku && seenSkus.has(sku)) return false;
+
+    const nameNorm = (p.name || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    const colorNorm = (p.color || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    const nameColorKey = `${nameNorm}_${colorNorm}`;
+    if (nameNorm && seenNameColorKeys.has(nameColorKey)) return false;
+
+    seenIds.add(lowerId);
+    if (sku) seenSkus.add(sku);
+    if (nameNorm) seenNameColorKeys.add(nameColorKey);
     return true;
   });
 };
@@ -359,11 +375,18 @@ const normalizeProductCategory = (p: Product): Product => {
     calculatedStock = Math.max(0, Number(p.stock) || 0);
   }
 
+  // Ensure images array and main image string are strictly in sync
+  const images = (Array.isArray(p.images) && p.images.length > 0)
+    ? p.images.filter(Boolean)
+    : (p.image ? [p.image] : []);
+  const mainImage = images[0] || p.image || '';
+
   return {
     ...p,
     category,
     stock: calculatedStock,
-    images: p.images || [],
+    images: images,
+    image: mainImage,
     sizes: validSizes,
     sizeStock: cleanedSizeStock
   };
@@ -372,7 +395,7 @@ const normalizeProductCategory = (p: Product): Product => {
 const mergeProductsWithLocalCache = (incoming: Product[], local: Product[]): Product[] => {
   const localMap = new Map<string, Product>();
   local.forEach(p => {
-    if (p.id) localMap.set(p.id, p);
+    if (p && p.id) localMap.set(p.id, p);
   });
 
   const mergedMap = new Map<string, Product>();
@@ -382,13 +405,27 @@ const mergeProductsWithLocalCache = (incoming: Product[], local: Product[]): Pro
     if (!loc) {
       mergedMap.set(inc.id, inc);
     } else {
-      const locUpdatedAt = (loc as any).updatedAt || 0;
-      const incUpdatedAt = (inc as any).updatedAt || 0;
-      if (locUpdatedAt > incUpdatedAt) {
-        mergedMap.set(inc.id, loc);
-      } else {
-        mergedMap.set(inc.id, { ...loc, ...inc });
-      }
+      // Incoming (live DB/server product) takes precedence for image and details
+      const incImages = (Array.isArray(inc.images) && inc.images.length > 0)
+        ? inc.images.filter(Boolean)
+        : (inc.image ? [inc.image] : []);
+
+      const locImages = (Array.isArray(loc.images) && loc.images.length > 0)
+        ? loc.images.filter(Boolean)
+        : (loc.image ? [loc.image] : []);
+
+      // If incoming has images, strictly use incoming images!
+      const finalImages = incImages.length > 0 ? incImages : locImages;
+      const mainImage = finalImages[0] || inc.image || loc.image || '';
+
+      const mergedProduct: Product = {
+        ...loc,
+        ...inc,
+        images: finalImages,
+        image: mainImage,
+        updatedAt: Math.max((inc as any).updatedAt || 0, (loc as any).updatedAt || 0, Date.now())
+      };
+      mergedMap.set(inc.id, mergedProduct);
     }
   });
 
@@ -701,15 +738,23 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       removeDeletedId(updatedProduct.id);
     }
 
+    const updatedImages = (Array.isArray(updatedProduct.images) && updatedProduct.images.length > 0)
+      ? updatedProduct.images.filter(Boolean)
+      : (updatedProduct.image ? [updatedProduct.image] : []);
+    const mainImg = updatedImages[0] || updatedProduct.image || '';
+
     const updatedData = cleanFirestoreData({
       ...updatedProduct,
+      images: updatedImages,
+      image: mainImg,
       updatedAt: Date.now()
     }) as Product;
 
     // 1. Optimistic local state update immediately
     setProducts(prev => {
       const next = prev.map(p => p.id === updatedProduct.id ? { ...p, ...updatedData } : p);
-      const uniqueNext = deduplicateProducts(next);
+      const normalizedNext = next.map(normalizeProductCategory);
+      const uniqueNext = deduplicateProducts(normalizedNext);
       try {
         localStorage.setItem('eleganbd_products', JSON.stringify(uniqueNext));
         window.dispatchEvent(new Event('eleganbd_products_updated'));
