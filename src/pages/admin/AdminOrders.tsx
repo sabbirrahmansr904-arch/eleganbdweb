@@ -1326,15 +1326,6 @@ export default function AdminOrders(): React.JSX.Element {
             <span>EXPORT{selectedOrderIds.length > 0 ? ` (${selectedOrderIds.length})` : ''}</span>
           </button>
 
-          <button 
-            onClick={() => setShowGoogleSheetModal(true)}
-            className="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-2"
-            title="Scan or Import orders directly from Google Sheet / Excel with original dates"
-          >
-            <FileSpreadsheet size={13} className="text-emerald-600 stroke-[2.5]" />
-            <span>Sheet Import</span>
-          </button>
-
           {selectedOrderIds.length > 0 && (
             <>
               <button 
@@ -1377,39 +1368,6 @@ export default function AdminOrders(): React.JSX.Element {
                 <span>DELETE SELECTED ({selectedOrderIds.length})</span>
               </button>
             </>
-          )}
-
-          {orders.length > 0 && (
-            <button 
-              onClick={() => {
-                setDeleteConfirm({
-                  isOpen: true,
-                  title: `Clear & Delete ALL (${orders.length}) Orders?`,
-                  message: `Are you sure you want to PERMANENTLY REMOVE ALL ${orders.length} orders to start completely fresh? All orders will be wiped from both Supabase & Firestore databases.`,
-                  onConfirm: async () => {
-                    try {
-                      setSelectedOrderIds([]);
-                      const promise = deleteAllOrders();
-                      toast.promise(promise, {
-                        loading: 'Clearing all orders...',
-                        success: 'All orders removed successfully. Ready for new orders!',
-                        error: (err) => `Failed: ${err.message || 'Error'}`
-                      });
-                      await promise;
-                    } catch (err: any) {
-                      console.error('[AdminOrders] Delete All Error:', err);
-                    } finally {
-                      setDeleteConfirm(prev => ({ ...prev, isOpen: false }));
-                    }
-                  }
-                });
-              }}
-              className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-1.5"
-              title="Delete all orders to start fresh"
-            >
-              <Trash2 size={13} className="stroke-[2.5] text-rose-600" />
-              <span>CLEAR ALL ORDERS</span>
-            </button>
           )}
 
           <button 
@@ -2430,11 +2388,11 @@ export default function AdminOrders(): React.JSX.Element {
                       </td>
 
                       {/* Actions */}
-                      <td className={cn("py-2.5 px-4 sticky right-0 z-10 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)] transition-colors", stickyActionBg)}>
+                      <td className={cn("py-3 px-4 sticky right-0 z-10 shadow-[-4px_0_4px_-2px_rgba(0,0,0,0.05)] transition-colors", stickyActionBg)}>
                         <div className="flex items-center justify-center">
                           <div className={cn(
-                            "flex items-center gap-0.5 p-0.5 rounded-lg border shadow-sm transition-colors",
-                            isRowSuccess ? "bg-white/95 border-emerald-300/80 shadow-3xs" : "bg-[#F8FAFC] border-[#EDF2F7]"
+                            "flex items-center gap-1 p-1 sm:p-1.5 rounded-xl border shadow-sm transition-colors",
+                            isRowSuccess ? "bg-white/95 border-emerald-300/80 shadow-xs" : "bg-[#F8FAFC] border-[#EDF2F7]"
                           )}>
                             <button 
                               onClick={(e) => {
@@ -2442,12 +2400,12 @@ export default function AdminOrders(): React.JSX.Element {
                                 setSelectedOrder(order);
                               }} 
                               title="View Details"
-                              className="p-1 hover:bg-[#F8F9FD] hover:shadow-sm rounded-md transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
+                              className="p-1.5 sm:p-2 hover:bg-[#F8F9FD] hover:shadow-xs rounded-lg transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
                             >
-                              <Eye size={13} className="stroke-[2.5]" />
+                              <Eye size={17} className="stroke-[2.2]" />
                             </button>
                             
-                            <div className="w-[1px] h-3.5 bg-[#E2E8F0] mx-0.5" />
+                            <div className="w-[1px] h-4 sm:h-5 bg-[#E2E8F0] mx-0.5" />
                             
                             <button 
                               onClick={(e) => {
@@ -2456,19 +2414,19 @@ export default function AdminOrders(): React.JSX.Element {
                               }} 
                               title="Order Issues"
                               className={cn(
-                                "p-1 rounded-md transition-all cursor-pointer relative",
+                                "p-1.5 sm:p-2 rounded-lg transition-all cursor-pointer relative",
                                 order.issueType && order.issueStatus !== 'resolved'
                                   ? "text-rose-600 bg-rose-50 hover:bg-rose-100"
-                                  : "text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8F9FD] hover:shadow-sm"
+                                  : "text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8F9FD] hover:shadow-xs"
                               )}
                             >
-                              <MessageSquare size={13} className={cn("stroke-[2.5]", order.issueType && order.issueStatus !== 'resolved' && "animate-pulse")} />
+                              <MessageSquare size={17} className={cn("stroke-[2.2]", order.issueType && order.issueStatus !== 'resolved' && "animate-pulse")} />
                               {order.issueType && order.issueStatus !== 'resolved' && (
-                                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-rose-600 rounded-full border border-white" />
+                                <span className="absolute 0.5 top-0.5 right-0.5 w-2.5 h-2.5 bg-rose-600 rounded-full border-2 border-white" />
                               )}
                             </button>
                             
-                            <div className="w-[1px] h-3.5 bg-[#E2E8F0] mx-0.5" />
+                            <div className="w-[1px] h-4 sm:h-5 bg-[#E2E8F0] mx-0.5" />
                             
                             <button 
                               onClick={(e) => {
@@ -2480,12 +2438,12 @@ export default function AdminOrders(): React.JSX.Element {
                                 }
                               }} 
                               title="Print Invoice"
-                              className="p-1 hover:bg-[#F8F9FD] hover:shadow-sm rounded-md transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
+                              className="p-1.5 sm:p-2 hover:bg-[#F8F9FD] hover:shadow-xs rounded-lg transition-all text-[#64748B] hover:text-[#0F172A] cursor-pointer"
                             >
-                              <Printer size={13} className="stroke-[2.5]" />
+                              <Printer size={17} className="stroke-[2.2]" />
                             </button>
                             
-                            <div className="w-[1px] h-3.5 bg-[#E2E8F0] mx-0.5" />
+                            <div className="w-[1px] h-4 sm:h-5 bg-[#E2E8F0] mx-0.5" />
                             
                             <button 
                               onClick={(e) => {
@@ -2509,12 +2467,12 @@ export default function AdminOrders(): React.JSX.Element {
                                 setIsEditingDetails(true);
                               }} 
                               title="Edit Order"
-                              className="p-1 rounded-md transition-all text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8F9FD] hover:shadow-sm cursor-pointer"
+                              className="p-1.5 sm:p-2 rounded-lg transition-all text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8F9FD] hover:shadow-xs cursor-pointer"
                             >
-                              <Tag size={13} className="stroke-[2.5]" />
+                              <Tag size={17} className="stroke-[2.2]" />
                             </button>
                             
-                            <div className="w-[1px] h-3.5 bg-[#E2E8F0] mx-0.5" />
+                            <div className="w-[1px] h-4 sm:h-5 bg-[#E2E8F0] mx-0.5" />
                             
                             <button 
                               onClick={(e) => {
@@ -2540,15 +2498,15 @@ export default function AdminOrders(): React.JSX.Element {
                                 setPathaoSuccessResult(null);
                               }} 
                               title="Book via Pathao Courier"
-                              className="px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 text-emerald-700 font-extrabold text-[10px] rounded-md transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                              className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/90 text-emerald-700 font-extrabold text-xs rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
                             >
-                              <Send size={11} className="text-emerald-600 stroke-[2.5]" />
-                              <span>Pathao</span>
+                              <Send size={14} className="text-emerald-600 stroke-[2.5]" />
+                              <span className="font-bold">Pathao</span>
                             </button>
 
                             {(isAdmin || isSuperAdmin || isCEO) && (
                               <>
-                                <div className="w-[1px] h-3.5 bg-[#E2E8F0] mx-0.5" />
+                                <div className="w-[1px] h-4 sm:h-5 bg-[#E2E8F0] mx-0.5" />
                                 
                                 <button 
                                   onClick={(e) => {
@@ -2580,9 +2538,9 @@ export default function AdminOrders(): React.JSX.Element {
                                     });
                                   }} 
                                   title="Delete Order"
-                                  className="p-1 hover:bg-rose-100 rounded-md transition-all text-rose-500 hover:text-rose-700 cursor-pointer flex items-center justify-center relative z-10"
+                                  className="p-1.5 sm:p-2 hover:bg-rose-100 rounded-lg transition-all text-rose-500 hover:text-rose-700 cursor-pointer flex items-center justify-center relative z-10"
                                 >
-                                  <Trash2 size={13} className="stroke-[2.5]" />
+                                  <Trash2 size={17} className="stroke-[2.2]" />
                                 </button>
                               </>
                             )}
