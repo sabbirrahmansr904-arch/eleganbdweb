@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <script>
       (function() {
-        function isQuotaOrFirestoreAssertion(err) {
+        function isQuotaError(err) {
           if (!err) return false;
           var str = '';
           try {
@@ -13,16 +13,9 @@
             else str = JSON.stringify(err) + ' ' + String(err);
           } catch(e) { str = String(err); }
           var lower = str.toLowerCase();
-          return lower.indexOf('quota') !== -1 ||
-                 lower.indexOf('resource_exhausted') !== -1 ||
+          return lower.indexOf('quota limit exceeded') !== -1 ||
                  lower.indexOf('resource-exhausted') !== -1 ||
-                 lower.indexOf('free daily read units') !== -1 ||
-                 lower.indexOf('free tier database') !== -1 ||
-                 lower.indexOf('internal assertion failed') !== -1 ||
-                 lower.indexOf('unexpected state') !== -1 ||
-                 lower.indexOf('ca9') !== -1 ||
-                 lower.indexOf('b815') !== -1 ||
-                 lower.indexOf('firestore') !== -1 && lower.indexOf('assertion') !== -1;
+                 lower.indexOf('resource_exhausted') !== -1;
         }
 
         var origErr = console.error;
@@ -31,27 +24,9 @@
           var joined = args.map(function(a) {
             try { return (a && a.message) ? a.message + ' ' + (a.stack || '') : String(a); } catch(e) { return ''; }
           }).join(' ');
-          if (isQuotaOrFirestoreAssertion(joined)) return;
+          if (isQuotaError(joined)) return;
           origErr.apply(console, args);
         };
-
-        window.addEventListener('error', function(e) {
-          if (isQuotaOrFirestoreAssertion(e.error || e.message)) {
-            e.preventDefault();
-            e.stopImmediatePropagation && e.stopImmediatePropagation();
-            e.stopPropagation && e.stopPropagation();
-            return true;
-          }
-        }, true);
-
-        window.addEventListener('unhandledrejection', function(e) {
-          if (isQuotaOrFirestoreAssertion(e.reason)) {
-            e.preventDefault();
-            e.stopImmediatePropagation && e.stopImmediatePropagation();
-            e.stopPropagation && e.stopPropagation();
-            return true;
-          }
-        }, true);
       })();
     </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
