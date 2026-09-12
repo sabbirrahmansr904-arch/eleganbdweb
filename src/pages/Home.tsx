@@ -7,7 +7,7 @@ import {
   RotateCcw, Banknote
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useProducts } from '../contexts/ProductContext';
+import { useProducts, getCanonicalProductKey } from '../contexts/ProductContext';
 import { useBanners } from '../contexts/BannerContext';
 import { useBranding } from '../contexts/BrandingContext';
 import { useCategories, sortCategories } from '../contexts/CategoryContext';
@@ -175,29 +175,22 @@ const Home = () => {
     }
   }, [activeHeroBanners.length]);
 
-  // Ensure products list is strictly deduplicated by ID, SKU, and normalized name+color
+  // Ensure products list is strictly deduplicated by ID and canonical code/color key
   const uniqueProducts = React.useMemo(() => {
     if (!products || products.length === 0) return [];
     const seenIds = new Set<string>();
-    const seenSkus = new Set<string>();
-    const seenNameColor = new Set<string>();
+    const seenCanonical = new Set<string>();
 
     return products.filter(p => {
       if (!p || !p.id) return false;
       const idStr = String(p.id).trim().toLowerCase();
       if (seenIds.has(idStr)) return false;
 
-      const skuStr = (p.sku || '').trim().toLowerCase();
-      if (skuStr && seenSkus.has(skuStr)) return false;
-
-      const nameNorm = (p.name || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-      const colorNorm = (p.color || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-      const nameColorKey = `${nameNorm}_${colorNorm}`;
-      if (nameNorm && seenNameColor.has(nameColorKey)) return false;
+      const canonicalKey = getCanonicalProductKey(p);
+      if (canonicalKey && seenCanonical.has(canonicalKey)) return false;
 
       seenIds.add(idStr);
-      if (skuStr) seenSkus.add(skuStr);
-      if (nameNorm) seenNameColor.add(nameColorKey);
+      if (canonicalKey) seenCanonical.add(canonicalKey);
       return true;
     });
   }, [products]);

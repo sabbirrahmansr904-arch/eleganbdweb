@@ -178,39 +178,41 @@ function AppRoutes() {
 
 function App() {
   return (
-    <AuthProvider>
-      <FinanceProvider>
-        <ExpenseProvider>
-          <BrandingProvider>
-          <BannerProvider>
-            <CategoryProvider>
-              <ProductProvider>
-                <InventoryProvider>
-                  <OrderProvider>
-                    <CurrencyProvider>
-                      <CartProvider>
-                        <Router>
-                          <ScrollToTop />
-                          <div className="min-h-screen bg-white selection:bg-black/10 selection:text-black">
-                            <Toaster position="top-center" reverseOrder={false} />
-                            <LiveVisitorTracker />
-                            <PixelTracker />
-                            <ErrorBoundary>
-                              <AppRoutes />
-                            </ErrorBoundary>
-                          </div>
-                        </Router>
-                      </CartProvider>
-                    </CurrencyProvider>
-                  </OrderProvider>
-                </InventoryProvider>
-              </ProductProvider>
-            </CategoryProvider>
-          </BannerProvider>
-        </BrandingProvider>
-        </ExpenseProvider>
-      </FinanceProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <FinanceProvider>
+          <ExpenseProvider>
+            <BrandingProvider>
+              <BannerProvider>
+                <CategoryProvider>
+                  <ProductProvider>
+                    <InventoryProvider>
+                      <OrderProvider>
+                        <CurrencyProvider>
+                          <CartProvider>
+                            <Router>
+                              <ScrollToTop />
+                              <div className="min-h-screen bg-white selection:bg-black/10 selection:text-black">
+                                <Toaster position="top-center" reverseOrder={false} />
+                                <LiveVisitorTracker />
+                                <PixelTracker />
+                                <ErrorBoundary>
+                                  <AppRoutes />
+                                </ErrorBoundary>
+                              </div>
+                            </Router>
+                          </CartProvider>
+                        </CurrencyProvider>
+                      </OrderProvider>
+                    </InventoryProvider>
+                  </ProductProvider>
+                </CategoryProvider>
+              </BannerProvider>
+            </BrandingProvider>
+          </ExpenseProvider>
+        </FinanceProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

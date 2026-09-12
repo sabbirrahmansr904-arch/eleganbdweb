@@ -289,10 +289,37 @@ export const isDemoProduct = (p: Product | null | undefined): boolean => {
   return false;
 };
 
+export const getCanonicalProductKey = (p: Product): string => {
+  if (!p) return '';
+  const sku = (p.sku || '').trim().toLowerCase();
+  const name = (p.name || '').trim().toLowerCase();
+  const color = (p.color || '').trim().toLowerCase();
+  const category = (p.category || '').trim().toLowerCase();
+
+  const fullText = `${sku} ${name} ${color} ${category}`;
+
+  let catType = 'other';
+  if (category.includes('pant') || category.includes('trouser') || name.includes('pant') || name.includes('trouser')) {
+    catType = 'pant';
+  } else if (category.includes('shirt') || name.includes('shirt') || category.includes('polo') || name.includes('polo')) {
+    catType = 'shirt';
+  }
+
+  // Match numeric code (e.g. FP-01, FP-1, Code FP 1, Code 1, FS-01, FS-1)
+  const codeMatch = fullText.match(/\b(?:code|fp|fs|pant|shirt|p|item|art)[\s-_#]*0*(\d+)/i) || fullText.match(/0*(\d+)/);
+  if (codeMatch && codeMatch[1]) {
+    const codeNum = parseInt(codeMatch[1], 10);
+    return `${catType}_code_${codeNum}`;
+  }
+
+  const normColor = color.replace(/[^a-z0-9]/g, '');
+  const normName = name.replace(/[^a-z0-9]/g, '');
+  return `${catType}_${normColor || normName}`;
+};
+
 const deduplicateProducts = (list: Product[]): Product[] => {
   const seenIds = new Set<string>();
-  const seenSkus = new Set<string>();
-  const seenNameColorKeys = new Set<string>();
+  const seenCanonical = new Set<string>();
   const deletedSet = getDeletedIds();
 
   return list.filter(p => {
@@ -303,17 +330,11 @@ const deduplicateProducts = (list: Product[]): Product[] => {
     const lowerId = strId.toLowerCase();
     if (seenIds.has(lowerId)) return false;
 
-    const sku = (p.sku || '').trim().toLowerCase();
-    if (sku && seenSkus.has(sku)) return false;
-
-    const nameNorm = (p.name || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-    const colorNorm = (p.color || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-    const nameColorKey = `${nameNorm}_${colorNorm}`;
-    if (nameNorm && seenNameColorKeys.has(nameColorKey)) return false;
+    const canonicalKey = getCanonicalProductKey(p);
+    if (canonicalKey && seenCanonical.has(canonicalKey)) return false;
 
     seenIds.add(lowerId);
-    if (sku) seenSkus.add(sku);
-    if (nameNorm) seenNameColorKeys.add(nameColorKey);
+    if (canonicalKey) seenCanonical.add(canonicalKey);
     return true;
   });
 };
