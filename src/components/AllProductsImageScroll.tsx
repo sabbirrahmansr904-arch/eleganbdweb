@@ -23,9 +23,7 @@ const ScrollProductCard: React.FC<{ product: Product }> = ({ product }) => {
   }, [product.id, product.images?.[0], product.image]);
   
   const isPant = (product.category || '').toLowerCase().includes('pant') || (product.name || '').toLowerCase().includes('pant');
-  const fallback = isPant 
-    ? 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=500&auto=format&fit=crop'
-    : 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=500&auto=format&fit=crop';
+  const fallback = '/logo.png';
 
   const rawMain = product.images?.[0] || product.image || fallback;
   const rawSecondary = product.images?.[1] || rawMain;

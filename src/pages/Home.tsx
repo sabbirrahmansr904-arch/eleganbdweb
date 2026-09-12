@@ -359,16 +359,7 @@ const Home = () => {
       if ((prod as any)?.image) return (prod as any).image;
 
       const lower = catName.toLowerCase();
-      if (lower.includes('pant') || lower.includes('trouser') || lower.includes('chino')) {
-        return 'https://images.unsplash.com/photo-1624371414361-e6e0efc8c030?w=600&q=80';
-      }
-      if (lower.includes('polo') || lower.includes('t-shirt') || lower.includes('tee')) {
-        return 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=600&q=80';
-      }
-      if (lower.includes('premium')) {
-        return 'https://images.unsplash.com/photo-1603252109303-2751441dd157?w=600&q=80';
-      }
-      return 'https://images.unsplash.com/photo-1598033129183-c4f50c7176c8?w=600&q=80';
+      return '/logo.png';
     };
 
     categories.forEach(cat => {
@@ -597,7 +588,7 @@ const Home = () => {
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {displayCategories.map((cat) => {
-                const catImg = cat.image || 'https://images.unsplash.com/photo-1598033129183-c4f50c7176c8?w=600&q=80';
+                const catImg = cat.image || '/logo.png';
                 return (
                   <Link
                     key={cat.id || cat.slug}

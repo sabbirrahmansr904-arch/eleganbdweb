@@ -66,9 +66,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
     ? product.images[0]
     : product.image;
 
-  const fallbackImage = isPant
-    ? 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=600&auto=format&fit=crop&q=80'
-    : 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600&auto=format&fit=crop&q=80';
+  const fallbackImage = '/logo.png';
 
   const secondaryImage = (product.images && product.images.length > 1 && product.images[1])
     ? product.images[1]

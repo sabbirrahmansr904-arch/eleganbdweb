@@ -319,6 +319,16 @@ export const isDemoProduct = (p: Product | null | undefined): boolean => {
   const deletedSet = getDeletedIds();
   if (p.id && deletedSet.has(String(p.id))) return true;
   
+  const pId = String(p.id || '').toLowerCase();
+  if (pId.startsWith('fp-') || pId.startsWith('fs-') || pId.startsWith('demo-')) {
+    return true;
+  }
+
+  const imagesStr = JSON.stringify(p.images || []).toLowerCase() + ' ' + (p.image || '').toLowerCase();
+  if (imagesStr.includes('unsplash.com')) {
+    return true;
+  }
+
   // STRICT RULE: Only products with a valid SKU are allowed
   const sku = (p.sku || '').trim();
   if (!sku) return true;
