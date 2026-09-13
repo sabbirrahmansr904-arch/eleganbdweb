@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext';
 import { useProducts } from './ProductContext';
 import { useInventory } from './InventoryContext';
 import { isDeliveredOrSuccess, compareOrdersByInvoice, canChangeOrderStatus, isCancelledStatus } from '../utils/orderUtils';
+import { safeApiFetch } from '../utils/apiClient';
 
 interface OrderContextType {
   orders: Order[];
@@ -102,7 +103,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length >= 64) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed.filter(o => o && o.id);
         }
       }
@@ -115,7 +116,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length >= 64) return false;
+        if (Array.isArray(parsed) && parsed.length > 0) return false;
       }
     } catch (e) {}
     return true;
@@ -123,6 +124,11 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
   const lastCounterRef = useRef<number>(BASE_ORDER_ID);
   const deletedOrderIdsRef = useRef<Set<string>>(new Set());
+
+  // Real-time synchronization tracking refs
+  const lastKnownCountRef = useRef<number | null>(null);
+  const lastKnownTopIdRef = useRef<string | null>(null);
+  const lastKnownUpdatedAtRef = useRef<string | null>(null);
 
   const { currentUser, isAdmin } = useAuth();
   const { products, updateProduct } = useProducts();
@@ -179,24 +185,46 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     };
 
-    const mergeAndSetOrders = (newIncoming: Order[]) => {
+    const mergeAndSetOrders = (newIncoming: Order[], isAuthoritativeFullList = false) => {
       if (!isMounted || !Array.isArray(newIncoming) || newIncoming.length === 0) return;
       
       setOrders(prev => {
+        const incomingMap = new Map<string, Order>();
+        newIncoming.forEach(o => {
+          if (o && o.id) {
+            incomingMap.set(String(o.id), o);
+          }
+        });
+
         const map = new Map<string, Order>();
-        // Add existing orders first
+        const now = Date.now();
+
+        // 1. Evaluate existing orders in memory/cache
         if (Array.isArray(prev)) {
           prev.forEach(o => {
-            if (o && o.id) {
-              const idStr = String(o.id);
-              const invStr = o.invoiceNo ? String(o.invoiceNo) : '';
-              if (!deletedOrderIdsRef.current.has(idStr) && (!invStr || !deletedOrderIdsRef.current.has(invStr))) {
-                map.set(idStr, o);
-              }
+            if (!o || !o.id) return;
+            const idStr = String(o.id);
+            const invStr = o.invoiceNo ? String(o.invoiceNo) : '';
+            if (deletedOrderIdsRef.current.has(idStr) || (invStr && deletedOrderIdsRef.current.has(invStr))) {
+              return;
+            }
+
+            if (incomingMap.has(idStr)) {
+              // Existing order is in incoming database list - will be merged below
+              map.set(idStr, o);
+            } else {
+              // Order exists on this device but is missing from Supabase (e.g. created during network outage)
+              // NEVER prune or delete! Preserve the order and auto-sync it to Supabase so all devices see it!
+              map.set(idStr, o);
+              try {
+                const sbRow = orderToSupabaseRow(o);
+                supabase.from('orders').upsert(sbRow).catch(() => {});
+              } catch {}
             }
           });
         }
-        // Merge incoming orders (updating or adding)
+
+        // 2. Merge incoming orders (updating existing or adding new)
         newIncoming.forEach(o => {
           if (o && o.id) {
             const idStr = String(o.id);
@@ -204,7 +232,29 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             if (!deletedOrderIdsRef.current.has(idStr) && (!invStr || !deletedOrderIdsRef.current.has(invStr))) {
               const existing = map.get(idStr);
               if (existing) {
-                map.set(idStr, { ...existing, ...o, items: (Array.isArray(o.items) && o.items.length > 0) ? o.items : existing.items });
+                // If existing has richer customer information (e.g. name or phone), retain it
+                const preferCustomerName = (existing.customerName && !existing.customerName.startsWith('Order #'))
+                  ? existing.customerName
+                  : (o.customerName || existing.customerName);
+                const preferPhone = existing.phone || o.phone;
+                const preferAddress = existing.address || o.address;
+
+                map.set(idStr, {
+                  ...existing,
+                  ...o,
+                  customerName: preferCustomerName,
+                  phone: preferPhone,
+                  address: preferAddress,
+                  items: (Array.isArray(o.items) && o.items.length > 0) ? o.items : existing.items
+                });
+
+                // If existing had richer details not yet in Supabase, update Supabase
+                if (existing.customerName && !existing.customerName.startsWith('Order #') && o.customerName?.startsWith('Order #')) {
+                  try {
+                    const enriched = { ...o, customerName: existing.customerName, phone: existing.phone, address: existing.address };
+                    supabase.from('orders').upsert(orderToSupabaseRow(enriched)).catch(() => {});
+                  } catch {}
+                }
               } else {
                 map.set(idStr, o);
               }
@@ -236,7 +286,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     };
 
-    // A. Multi-channel Orders Synchronizer with Local Server API Priority & Supabase Fallback
+    // A. Multi-channel Orders Synchronizer with Direct Supabase Priority & Local Server API Fallback
     const isFetchingRef = { current: false };
 
     const syncOrders = async (isBackground = false) => {
@@ -245,7 +295,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       try {
         let fetchedList: Order[] | null = null;
 
-        // 1. Direct Supabase Query (Ultra-fast, CDN backed, source of truth for all 64+ orders)
+        // 1. Direct Supabase Query (Ultra-fast, CDN backed, source of truth for all orders)
         try {
           const { data, error } = await supabase
             .from('orders')
@@ -263,58 +313,102 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         // 2. Local API endpoint fallback (if Supabase is offline)
         if (!fetchedList || fetchedList.length === 0) {
           try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 2500);
-            const res = await fetch('/api/orders', {
-              signal: controller.signal,
-              headers: { 'Cache-Control': 'no-cache, no-store' }
-            });
-            clearTimeout(timeoutId);
-            const contentType = res.headers.get('content-type') || '';
-            if (res.ok && contentType.includes('application/json')) {
-              const json = await res.json();
-              if (json && json.success && Array.isArray(json.orders) && json.orders.length > 0) {
-                fetchedList = json.orders;
-              }
+            const apiRes = await safeApiFetch('/api/orders');
+            if (apiRes.ok && apiRes.data && apiRes.data.success && Array.isArray(apiRes.data.orders) && apiRes.data.orders.length > 0) {
+              fetchedList = apiRes.data.orders;
             }
           } catch (apiErr) {}
         }
 
         if (fetchedList && Array.isArray(fetchedList) && isMounted) {
+          // Update tracking refs so heartbeat poll won't re-trigger unnecessarily
+          lastKnownCountRef.current = fetchedList.length;
+          if (fetchedList[0]) {
+            lastKnownTopIdRef.current = String(fetchedList[0].id);
+            lastKnownUpdatedAtRef.current = String((fetchedList[0] as any).updatedAt || fetchedList[0].createdAt || '');
+          }
+
           if (isBackground) {
-            mergeAndSetOrders(fetchedList);
+            mergeAndSetOrders(fetchedList, true);
           } else {
             replaceAndSetOrders(fetchedList);
+            setLoading(false);
           }
         }
       } catch (err) {
         console.warn('[OrderContext] Orders load exception:', err);
       } finally {
         isFetchingRef.current = false;
-        if (isMounted) setLoading(false);
+        if (!isBackground && isMounted) setLoading(false);
       }
     };
 
-    // Initial load immediately
-    syncOrders(false);
+    // Initial load with stale-while-revalidate (loads cached orders instantly, then revalidates in background)
+    syncOrders(true);
 
-    // Fast 3-second polling loop so mobile devices see new website/mobile orders immediately
-    const pollInterval = setInterval(() => {
-      if (isMounted) {
-        syncOrders(true);
-      }
-    }, 3000);
-
-    // Instant sync on window focus, mobile screen unlock, or tab switch
+    // Strategic Stale-While-Revalidate event listeners (focus, visibility, online, touch)
     const handleFocus = () => {
-      if (isMounted) syncOrders(false);
+      if (isMounted) syncOrders(true);
     };
     window.addEventListener('focus', handleFocus);
     window.addEventListener('visibilitychange', handleFocus);
     window.addEventListener('online', handleFocus);
     window.addEventListener('touchstart', handleFocus, { passive: true });
 
-    // B. Broadcast Channel Listener (0ms inter-tab sync)
+    // B. Real-time Heartbeat Poll (every 4 seconds, checks count & latest order in <50ms without loading heavy items)
+    const heartbeatInterval = setInterval(async () => {
+      if (!isMounted || isFetchingRef.current || (typeof document !== 'undefined' && document.hidden)) return;
+
+      try {
+        const { data, count, error } = await supabase
+          .from('orders')
+          .select('id, invoice_no, updated_at', { count: 'exact' })
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (!error && typeof count === 'number') {
+          const topOrder = data && data[0];
+          const dbCount = count;
+          const topId = topOrder ? String(topOrder.id) : null;
+          const topUpdatedAt = topOrder ? String(topOrder.updated_at) : null;
+
+          const hasCountDiff = lastKnownCountRef.current !== null && dbCount !== lastKnownCountRef.current;
+          const hasTopDiff = lastKnownTopIdRef.current !== null && topId !== null && topId !== lastKnownTopIdRef.current;
+          const hasUpdateDiff = lastKnownUpdatedAtRef.current !== null && topUpdatedAt !== null && topUpdatedAt !== lastKnownUpdatedAtRef.current;
+
+          if (hasCountDiff || hasTopDiff || hasUpdateDiff) {
+            syncOrders(true);
+          } else {
+            if (lastKnownCountRef.current === null) lastKnownCountRef.current = dbCount;
+            if (lastKnownTopIdRef.current === null && topId) lastKnownTopIdRef.current = topId;
+            if (lastKnownUpdatedAtRef.current === null && topUpdatedAt) lastKnownUpdatedAtRef.current = topUpdatedAt;
+          }
+        }
+
+        // Check & flush pending offline orders queue if any
+        try {
+          const rawPending = localStorage.getItem('eleganbd_pending_sync_orders');
+          if (rawPending) {
+            const pendingOrders: Order[] = JSON.parse(rawPending);
+            if (Array.isArray(pendingOrders) && pendingOrders.length > 0) {
+              const remaining: Order[] = [];
+              for (const po of pendingOrders) {
+                const { error: poErr } = await supabase.from('orders').upsert(orderToSupabaseRow(po));
+                if (poErr) remaining.push(po);
+              }
+              if (remaining.length === 0) {
+                localStorage.removeItem('eleganbd_pending_sync_orders');
+                syncOrders(true);
+              } else {
+                localStorage.setItem('eleganbd_pending_sync_orders', JSON.stringify(remaining));
+              }
+            }
+          }
+        } catch {}
+      } catch (err) {}
+    }, 4000);
+
+    // C. Broadcast Channel Listener (0ms inter-tab sync)
     let bc: BroadcastChannel | null = null;
     try {
       if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
@@ -323,7 +417,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           if (!isMounted || !event.data) return;
           const { type, payload } = event.data;
           if (type === 'ORDER_CREATED' || type === 'ORDER_UPDATED') {
-            if (payload) mergeAndSetOrders([payload]);
+            if (payload) mergeAndSetOrders([payload], false);
           } else if (type === 'ORDER_DELETED' && payload) {
             const delId = String(payload);
             setOrders(prev => prev.filter(o => o.id !== delId && String(o.invoiceNo) !== delId));
@@ -334,7 +428,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (err) {}
 
-    // C. Real-time Supabase Channel Subscription
+    // D. Real-time Supabase Channel Subscription
     let supabaseChannel: any = null;
     try {
       supabaseChannel = supabase
@@ -343,7 +437,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           if (!isMounted) return;
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             const newOrder = supabaseRowToOrder(payload.new as any);
-            mergeAndSetOrders([newOrder]);
+            mergeAndSetOrders([newOrder], false);
           } else if (payload.eventType === 'DELETE' && payload.old && (payload.old as any).id) {
             const deletedId = String((payload.old as any).id);
             setOrders(prev => {
@@ -360,7 +454,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       isMounted = false;
-      clearInterval(pollInterval);
+      clearInterval(heartbeatInterval);
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('visibilitychange', handleFocus);
       window.removeEventListener('online', handleFocus);
@@ -377,7 +471,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const refreshOrders = useCallback(async (): Promise<Order[]> => {
     setLoading(true);
     try {
-      // 1. Direct Supabase Query (Source of truth for all 64+ orders)
+      // 1. Direct Supabase Query (Source of truth for all orders)
       const { data, error } = await supabase
         .from('orders')
         .select('*')
@@ -395,27 +489,33 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         valid.sort((a, b) => compareOrdersByInvoice(a, b, 'desc'));
         setOrders(valid);
         saveOrdersToCache(valid);
+        lastKnownCountRef.current = valid.length;
+        if (valid[0]) {
+          lastKnownTopIdRef.current = String(valid[0].id);
+          lastKnownUpdatedAtRef.current = String((valid[0] as any).updatedAt || valid[0].createdAt || '');
+        }
         return valid;
       }
 
       // 2. Local server API fallback
       try {
-        const res = await fetch('/api/orders', { headers: { 'Cache-Control': 'no-cache, no-store' } });
-        const contentType = res.headers.get('content-type') || '';
-        if (res.ok && contentType.includes('application/json')) {
-          const json = await res.json();
-          if (json && json.success && Array.isArray(json.orders)) {
-            const valid = json.orders.filter((o: any) => {
-              if (!o || !o.id) return false;
-              const idStr = String(o.id);
-              const invStr = o.invoiceNo ? String(o.invoiceNo) : '';
-              return !deletedOrderIdsRef.current.has(idStr) && (!invStr || !deletedOrderIdsRef.current.has(invStr));
-            });
-            valid.sort((a: any, b: any) => compareOrdersByInvoice(a, b, 'desc'));
-            setOrders(valid);
-            saveOrdersToCache(valid);
-            return valid;
+        const apiRes = await safeApiFetch('/api/orders');
+        if (apiRes.ok && apiRes.data && apiRes.data.success && Array.isArray(apiRes.data.orders)) {
+          const valid = apiRes.data.orders.filter((o: any) => {
+            if (!o || !o.id) return false;
+            const idStr = String(o.id);
+            const invStr = o.invoiceNo ? String(o.invoiceNo) : '';
+            return !deletedOrderIdsRef.current.has(idStr) && (!invStr || !deletedOrderIdsRef.current.has(invStr));
+          });
+          valid.sort((a: any, b: any) => compareOrdersByInvoice(a, b, 'desc'));
+          setOrders(valid);
+          saveOrdersToCache(valid);
+          lastKnownCountRef.current = valid.length;
+          if (valid[0]) {
+            lastKnownTopIdRef.current = String(valid[0].id);
+            lastKnownUpdatedAtRef.current = String((valid[0] as any).updatedAt || valid[0].createdAt || '');
           }
+          return valid;
         }
       } catch (err) {}
     } catch (error) {
@@ -834,6 +934,29 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       setLastOrder(newOrder);
       broadcastSync('ORDER_CREATED', newOrder);
 
+      // 2. Immediate Supabase Upsert with Offline Retry Queue
+      const sbRow = orderToSupabaseRow(newOrder);
+      try {
+        const { error: sbError } = await supabase.from('orders').upsert(sbRow);
+        if (sbError) {
+          console.warn('[OrderContext] Supabase order upsert warning, saving to pending queue:', sbError.message);
+          try {
+            const pending = JSON.parse(localStorage.getItem('eleganbd_pending_sync_orders') || '[]');
+            pending.push(newOrder);
+            localStorage.setItem('eleganbd_pending_sync_orders', JSON.stringify(pending));
+          } catch {}
+        } else {
+          console.log(`[OrderContext] Order #${finalOrderId} synced to Supabase successfully!`);
+        }
+      } catch (err) {
+        console.warn('[OrderContext] Supabase sync exception, saving to pending queue:', err);
+        try {
+          const pending = JSON.parse(localStorage.getItem('eleganbd_pending_sync_orders') || '[]');
+          pending.push(newOrder);
+          localStorage.setItem('eleganbd_pending_sync_orders', JSON.stringify(pending));
+        } catch {}
+      }
+
       // Server API instant sync for multi-device & mobile visibility
       try {
         fetch('/api/orders/create', {
@@ -842,18 +965,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           body: JSON.stringify(newOrder),
         }).catch(err => console.warn('[OrderContext] Server order sync notice:', err));
       } catch (err) {}
-
-      // 2. Background Supabase Upsert (Non-blocking)
-      const sbRow = orderToSupabaseRow(newOrder);
-      supabase.from('orders').upsert(sbRow).then(({ error: sbError }) => {
-        if (sbError) {
-          console.warn('[OrderContext] Supabase order background insert notice:', sbError.message);
-        } else {
-          console.log(`[OrderContext] Order #${finalOrderId} synced to Supabase successfully!`);
-        }
-      }).catch(err => {
-        console.warn('[OrderContext] Supabase background sync exception:', err);
-      });
 
       // Also sync customer profile in Supabase customers table in background
       const customerPhone = newOrder.phone;

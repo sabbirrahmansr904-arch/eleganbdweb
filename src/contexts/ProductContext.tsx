@@ -539,10 +539,12 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       let baseList: Product[] = [];
       if (locallySaved !== null) {
         const parsed = JSON.parse(locallySaved);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           baseList = parsed.filter(p => !isDemoProduct(p)).map(normalizeProductCategory);
         }
-      } else {
+      }
+      
+      if (baseList.length === 0) {
         baseList = CANONICAL_DEFAULT_PRODUCTS.filter(p => !isDemoProduct(p)).map(normalizeProductCategory);
       }
 
@@ -553,16 +555,13 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       });
 
+      // Ensure any brand new canonical default products not yet in local storage are included
       CANONICAL_DEFAULT_PRODUCTS.forEach(can => {
-        if (!isDemoProduct(can) && map.has(String(can.id))) {
-          const existing = map.get(String(can.id))!;
-          map.set(String(can.id), {
-            ...existing,
-            images: can.images,
-            image: can.images[0] || existing.image
-          });
+        if (!isDemoProduct(can) && !map.has(String(can.id))) {
+          map.set(String(can.id), normalizeProductCategory(can));
         }
       });
+
       return deduplicateProducts(Array.from(map.values())).filter(p => !isDemoProduct(p));
     } catch (e) {}
     return CANONICAL_DEFAULT_PRODUCTS.filter(p => !isDemoProduct(p));

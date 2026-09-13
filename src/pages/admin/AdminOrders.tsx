@@ -329,6 +329,7 @@ export default function AdminOrders(): React.JSX.Element {
   const [issueMetaUrgency, setIssueMetaUrgency] = useState('Normal');
 
   // Editing and creating orders modal state
+  const [isReloading, setIsReloading] = useState(false);
   const [editingOrderForModal, setEditingOrderForModal] = useState<Order | null>(null);
 
   const openOrderInCreateModal = (order: Order) => {
@@ -1404,18 +1405,21 @@ export default function AdminOrders(): React.JSX.Element {
 
           <button 
             onClick={async () => {
+              setIsReloading(true);
               const toastId = toast.loading('Syncing all orders with database...');
               try {
                 await refreshOrders();
                 toast.success(`Real-time sync complete! All orders loaded.`, { id: toastId });
               } catch (err: any) {
                 toast.error(`Sync failed: ${err?.message || 'Unknown error'}`, { id: toastId });
+              } finally {
+                setIsReloading(false);
               }
             }}
             className="px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-2"
             title="Real-time reload and synchronize all orders directly from database"
           >
-            <RefreshCw size={13} className={`text-indigo-600 stroke-[2.5] ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw size={13} className={`text-indigo-600 stroke-[2.5] ${isReloading ? 'animate-spin' : ''}`} />
             <span>Reload Orders</span>
           </button>
 

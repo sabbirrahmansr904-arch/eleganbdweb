@@ -132,7 +132,17 @@ export function orderToSupabaseRow(order: any): SupabaseOrderRow {
     address: order.address || (order.shippingAddress?.address) || '',
     city: order.city || (order.shippingAddress?.city) || 'Dhaka',
     thana: order.thana || (order.shippingAddress?.thana) || '',
-    items: Array.isArray(order.items) ? order.items : [],
+    items: Array.isArray(order.items) ? order.items.map((it: any) => {
+      if (!it || typeof it !== 'object') return it;
+      const clean = { ...it };
+      if (Array.isArray(clean.images)) {
+        clean.images = clean.images.filter((img: any) => typeof img === 'string' && img.length < 2000);
+      }
+      if (typeof clean.image === 'string' && clean.image.length > 2000) {
+        delete clean.image;
+      }
+      return clean;
+    }) : [],
     discount: typeof order.discount === 'number' ? order.discount : 0,
     total: Number(order.total) || 0,
     status: order.status || 'Pending',

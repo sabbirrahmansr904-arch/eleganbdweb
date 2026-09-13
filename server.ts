@@ -16,6 +16,7 @@ import {
   getDocs, 
   updateDoc 
 } from "./src/lib/firestoreMock";
+import { supabase, orderToSupabaseRow, supabaseRowToOrder } from "./src/lib/supabase";
 import { createRequire } from "module";
 
 
@@ -152,8 +153,24 @@ async function startServer() {
   // Production API endpoint to fetch all orders with guaranteed high-speed reliability
   app.get("/api/orders", async (req, res) => {
     try {
-      const orderSnaps = await getDocs(collection(db, 'orders'));
-      const ordersList = orderSnaps.docs.map(d => ({ id: d.id, ...d.data() }));
+      let ordersList: any[] = [];
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(1000);
+        if (!error && Array.isArray(data) && data.length > 0) {
+          ordersList = data.map(supabaseRowToOrder);
+        }
+      } catch (sbErr) {
+        console.warn("[Server API] Supabase query in /api/orders warning:", sbErr);
+      }
+
+      if (ordersList.length === 0) {
+        const orderSnaps = await getDocs(collection(db, 'orders'));
+        ordersList = orderSnaps.docs.map(d => ({ id: d.id, ...d.data() }));
+      }
 
       ordersList.sort((a: any, b: any) => {
         const invA = Number(a.invoiceNo) || 0;
@@ -183,13 +200,8 @@ async function startServer() {
       await setDoc(doc(db, 'orders', String(orderData.id)), orderData);
 
       try {
-        const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://wnnnjroxyuxsbolbcdil.supabase.co';
-        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_p2B8pChEnm9esPFTCLGYXg_Ype4-7NI';
-        const { createClient } = await import('@supabase/supabase-js');
-        const sb = createClient(supabaseUrl, supabaseKey);
-        const { orderToSupabaseRow } = await import('./src/lib/supabase.js');
         const row = orderToSupabaseRow(orderData);
-        await sb.from('orders').upsert(row, { onConflict: 'id' });
+        await supabase.from('orders').upsert(row, { onConflict: 'id' });
       } catch (sbErr) {
         console.warn("[Server API] Direct Supabase upsert notice:", sbErr);
       }
