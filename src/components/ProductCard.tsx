@@ -20,9 +20,11 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
   const { currency, rate } = useCurrency();
   const discount = product.discount || 0;
   const [imageError, setImageError] = useState(false);
+  const [secondaryError, setSecondaryError] = useState(false);
 
   React.useEffect(() => {
     setImageError(false);
+    setSecondaryError(false);
   }, [product.id, product.images?.[0], product.image]);
 
   const isPant = Boolean(
@@ -72,7 +74,9 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
     ? product.images[1]
     : fallbackImage;
 
-  const displayImage = imageError ? secondaryImage : (rawImage || fallbackImage);
+  const displayImage = !imageError 
+    ? (rawImage || fallbackImage) 
+    : (!secondaryError ? secondaryImage : fallbackImage);
 
   return (
     <div className="group relative bg-white rounded-2xl border border-gray-100/90 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-lg hover:-translate-y-1.5 hover:border-gray-200 transition-all duration-300 ease-out overflow-hidden flex flex-col justify-between h-full will-change-transform">
@@ -88,7 +92,13 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
                 referrerPolicy="no-referrer"
                 loading={loading}
                 decoding="async"
-                onError={() => setImageError(true)}
+                onError={() => {
+                  if (!imageError && secondaryImage && secondaryImage !== fallbackImage) {
+                    setImageError(true);
+                  } else {
+                    setSecondaryError(true);
+                  }
+                }}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">

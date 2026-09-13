@@ -647,8 +647,21 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const nonDeleted = mapped.filter(p => !isDemoProduct(p));
           const normalized = deduplicateProducts(nonDeleted.map(normalizeProductCategory));
           setProducts(prev => {
-            const merged = mergeProductsWithLocalCache(normalized, prev.filter(p => !isDemoProduct(p)));
-            const finalNormalized = deduplicateProducts(merged.map(normalizeProductCategory)).filter(p => !isDemoProduct(p));
+            // Supabase is the live database: incoming Supabase products take 100% precedence for images and details
+            const incomingMap = new Map<string, Product>();
+            normalized.forEach(p => incomingMap.set(String(p.id), p));
+
+            const finalProducts = [...normalized];
+            // Keep local items only if they are not in Supabase yet (optimistic creations)
+            prev.forEach(localItem => {
+              if (localItem && localItem.id && !isDemoProduct(localItem)) {
+                if (!incomingMap.has(String(localItem.id))) {
+                  finalProducts.push(localItem);
+                }
+              }
+            });
+
+            const finalNormalized = deduplicateProducts(finalProducts.map(normalizeProductCategory)).filter(p => !isDemoProduct(p));
             try {
               localStorage.setItem('eleganbd_products', JSON.stringify(finalNormalized));
               localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());

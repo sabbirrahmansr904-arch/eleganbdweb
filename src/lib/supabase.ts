@@ -227,12 +227,16 @@ export interface SupabaseProductRow {
 }
 
 export function productToSupabaseRow(p: any): SupabaseProductRow {
+  const images = Array.isArray(p.images) && p.images.length > 0
+    ? p.images.filter(Boolean)
+    : (p.image ? [p.image] : []);
+
   return {
     id: String(p.id),
     name: p.name || 'Unnamed Product',
     price: Number(p.price) || 0,
     category: p.category || 'General',
-    images: Array.isArray(p.images) ? p.images : [],
+    images: images,
     sizes: Array.isArray(p.sizes) ? p.sizes : [],
     stock: Number(p.stock) || 0,
     size_stock: p.sizeStock && typeof p.sizeStock === 'object' ? p.sizeStock : {},
@@ -253,13 +257,17 @@ export function productToSupabaseRow(p: any): SupabaseProductRow {
 export function supabaseRowToProduct(row: SupabaseProductRow): any {
   const isBest = Boolean(row.featured || (row as any).bestSelling || (row as any).best_selling);
   const isNew = row.new_arrival !== undefined ? Boolean(row.new_arrival) : Boolean((row as any).newArrival ?? true);
+  const rawImages = Array.isArray(row.images) ? row.images.filter(Boolean) : ((row as any).image ? [(row as any).image] : []);
+  const mainImage = rawImages[0] || (row as any).image || '';
+
   return {
     ...row,
     id: row.id,
     name: row.name,
     price: Number(row.price) || 0,
     category: row.category || 'General',
-    images: Array.isArray(row.images) ? row.images : [],
+    images: rawImages,
+    image: mainImage,
     sizes: Array.isArray(row.sizes) ? row.sizes : [],
     stock: Number(row.stock) || 0,
     sizeStock: row.size_stock && typeof row.size_stock === 'object' ? row.size_stock : {},
@@ -273,7 +281,9 @@ export function supabaseRowToProduct(row: SupabaseProductRow): any {
     isTopRated: Boolean(row.is_top_rated),
     newArrival: isNew,
     featured: isBest,
-    bestSelling: isBest
+    bestSelling: isBest,
+    createdAt: row.created_at || (row as any).createdAt || new Date().toISOString(),
+    updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : ((row as any).updatedAt || Date.now())
   };
 }
 

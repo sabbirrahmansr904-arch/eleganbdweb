@@ -176,7 +176,10 @@ export default function AdminAddProduct() {
         setCost(productToEdit.cost !== undefined ? String(productToEdit.cost) : '');
         setRegularPrice(productToEdit.regularPrice !== undefined ? String(productToEdit.regularPrice) : '');
         setDescription(productToEdit.description || '');
-        setUploadedImages(Array.isArray(productToEdit.images) ? productToEdit.images.filter(Boolean) : []);
+        const initialImgs = (Array.isArray(productToEdit.images) && productToEdit.images.length > 0)
+          ? productToEdit.images.filter(Boolean)
+          : (productToEdit.image ? [productToEdit.image] : []);
+        setUploadedImages(initialImgs);
         setCoverImageIndex(0);
         setSelectedSizes(Array.isArray(productToEdit.sizes) ? productToEdit.sizes : []);
         setQuantities(productToEdit.sizeStock || {});
@@ -355,6 +358,8 @@ export default function AdminAddProduct() {
       sizeStock: finalSizeStock,
       description: description || '',
       images: images,
+      image: images[0] || initialData.image || '',
+      updatedAt: Date.now(),
       sizes: finalSizes,
       newArrival: isNewArrival,
       featured: isBestSelling,

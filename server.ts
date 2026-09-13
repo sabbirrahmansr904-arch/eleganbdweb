@@ -245,38 +245,55 @@ async function startServer() {
     }
   });
 
-  // Direct robust Server API to save/update product data
-  app.post("/api/products/save", async (req, res) => {
+  // Direct robust Server API to fetch all active products from Supabase + Firestore
+  app.get("/api/products", async (req, res) => {
     try {
-      const { product } = req.body;
-      if (!product || !product.id) {
-        return res.status(400).json({ error: "Invalid product data: missing product ID" });
+      const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://wnnnjroxyuxsbolbcdil.supabase.co';
+      const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_p2B8pChEnm9esPFTCLGYXg_Ype4-7NI';
+      const { createClient } = await import('@supabase/supabase-js');
+      const sb = createClient(supabaseUrl, supabaseKey);
+
+      const { data, error } = await sb
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
       }
-      const prodRef = doc(db, 'products', String(product.id));
-      await setDoc(prodRef, {
-        ...product,
-        updatedAt: product.updatedAt || Date.now()
-      }, { merge: true });
-      return res.json({ success: true, message: "Product saved successfully" });
+
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      return res.json({ success: true, products: data || [] });
     } catch (e: any) {
-      console.error("API product save error:", e);
-      return res.status(500).json({ error: e.message || "Failed to save product" });
+      console.error("API products fetch error:", e);
+      return res.status(500).json({ success: false, error: e.message || "Failed to fetch products" });
     }
   });
 
-  // Direct robust Server API to delete product data
-  app.post("/api/products/delete", async (req, res) => {
+  // Direct robust Server API to fetch all configurations (banners, branding, etc.)
+  app.get("/api/config/all", async (req, res) => {
     try {
-      const { id } = req.body;
-      if (!id) {
-        return res.status(400).json({ error: "Product ID is required" });
+      const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://wnnnjroxyuxsbolbcdil.supabase.co';
+      const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_p2B8pChEnm9esPFTCLGYXg_Ype4-7NI';
+      const { createClient } = await import('@supabase/supabase-js');
+      const sb = createClient(supabaseUrl, supabaseKey);
+
+      const { data, error } = await sb
+        .from('app_documents')
+        .select('*')
+        .eq('collection_name', 'config');
+
+      const configs: Record<string, any> = {};
+      if (!error && Array.isArray(data)) {
+        data.forEach(item => {
+          configs[item.record_id] = item.data;
+        });
       }
-      const prodRef = doc(db, 'products', String(id));
-      await deleteDoc(prodRef);
-      return res.json({ success: true, message: "Product deleted successfully" });
+
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      return res.json({ success: true, configs });
     } catch (e: any) {
-      console.error("API product delete error:", e);
-      return res.status(500).json({ error: e.message || "Failed to delete product" });
+      return res.status(500).json({ success: false, error: e.message || "Failed to fetch config" });
     }
   });
 
@@ -497,13 +514,20 @@ async function startServer() {
   // API route to Save (Create or Update) Product via Server Firestore and Supabase Admin
   app.post("/api/products/save", async (req, res) => {
     try {
-      const { product } = req.body;
+      const product = req.body?.product || (req.body?.id ? req.body : null);
       if (!product || !product.id || !product.name) {
         return res.status(400).json({ success: false, error: "Product ID and name are required." });
       }
 
+      const imagesArr = (Array.isArray(product.images) && product.images.length > 0)
+        ? product.images.filter(Boolean)
+        : (product.image ? [product.image] : []);
+      const mainImg = imagesArr[0] || product.image || '';
+
       const productData = {
         ...product,
+        images: imagesArr,
+        image: mainImg,
         updatedAt: Date.now(),
         createdAt: product.createdAt || Date.now()
       };

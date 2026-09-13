@@ -635,7 +635,12 @@ const Home = () => {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5 md:gap-4 pt-2">
             {bestSellingFilteredProducts.map((product) => (
-              <ProductCard key={`bestselling-${product.id}`} product={product} badgeText="BEST SELLING" showPantDiscountBadge={false} />
+              <ProductCard 
+                key={`bestselling-${product.id}-${(product as any).updatedAt || ''}-${(product.images?.[0] || product.image || '').slice(-25)}`} 
+                product={product} 
+                badgeText="BEST SELLING" 
+                showPantDiscountBadge={false} 
+              />
             ))}
           </div>
         )}
@@ -692,7 +697,12 @@ const Home = () => {
               >
                 {newArrivalProducts.map((product) => (
                   <div key={`newarrival-${product.id}`} className="w-[calc(50%-4px)] sm:w-[calc(50%-6px)] md:w-[calc(33.333%-8px)] lg:w-[calc(25%-9px)] flex-shrink-0 snap-start">
-                    <ProductCard product={product} badgeText="NEW" showPantDiscountBadge={false} />
+                    <ProductCard 
+                      key={`newarrival-card-${product.id}-${(product as any).updatedAt || ''}-${(product.images?.[0] || product.image || '').slice(-25)}`}
+                      product={product} 
+                      badgeText="NEW" 
+                      showPantDiscountBadge={false} 
+                    />
                   </div>
                 ))}
               </div>
@@ -727,7 +737,10 @@ const Home = () => {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5 md:gap-4 pt-2">
             {sortedProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard 
+                key={`all-${product.id}-${(product as any).updatedAt || ''}-${(product.images?.[0] || product.image || '').slice(-25)}`} 
+                product={product} 
+              />
             ))}
           </div>
         )}
