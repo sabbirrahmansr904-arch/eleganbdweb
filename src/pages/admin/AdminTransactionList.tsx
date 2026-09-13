@@ -148,7 +148,7 @@ export default function AdminTransactionList(): React.JSX.Element {
       totalExpense: Math.round(exp * 100) / 100,
       netAmount: Math.round((inc - exp) * 100) / 100,
       unpaidAmount: Math.round(unp * 100) / 100,
-      unpaidCount
+      unpaidCount: unpCount
     };
   }, [filteredTransactions]);
 
