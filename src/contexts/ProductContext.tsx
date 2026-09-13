@@ -580,6 +580,24 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const refreshProducts = useCallback(async () => {
     setLoading(true);
     try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && data && Array.isArray(data) && data.length > 0) {
+        const mapped: Product[] = data.map(supabaseRowToProduct);
+        const nonDeleted = mapped.filter(p => !isDemoProduct(p));
+        const normalized = deduplicateProducts(nonDeleted.map(normalizeProductCategory));
+        setProducts(normalized);
+        try {
+          localStorage.setItem('eleganbd_products', JSON.stringify(normalized));
+          localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
+        } catch (e) {}
+        setLoading(false);
+        return;
+      }
+
       const cached = localStorage.getItem('eleganbd_products');
       if (cached !== null) {
         const parsed = JSON.parse(cached);
@@ -753,7 +771,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
     });
 
-    // 2. Real-time products listener (Firestore fallback)
+    // 2. Real-time products listener (Firestore fallback - only if Supabase has not already provided products)
     const productsCol = collection(db, 'products');
     const unsubProducts = onSnapshot(productsCol, (snapshot) => {
       const prodData: Product[] = [];
@@ -768,16 +786,43 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       });
 
-      const normalized = deduplicateProducts(prodData.map(normalizeProductCategory));
-      setProducts(prev => {
-        const merged = mergeProductsWithLocalCache(normalized, prev);
-        const finalNormalized = deduplicateProducts(merged.map(normalizeProductCategory));
-        try {
-          localStorage.setItem('eleganbd_products', JSON.stringify(finalNormalized));
-          localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
-        } catch (e) {}
-        return finalNormalized;
-      });
+      if (prodData.length > 0) {
+        const normalized = deduplicateProducts(prodData.map(normalizeProductCategory));
+        setProducts(prev => {
+          // If we already have live Supabase products in state, do not overwrite them with older Firestore data
+          if (prev && prev.length > 0) {
+            const currentMap = new Map<string, Product>();
+            prev.forEach(p => currentMap.set(String(p.id), p));
+
+            const merged = [...prev];
+            normalized.forEach(fsProd => {
+              const existing = currentMap.get(String(fsProd.id));
+              if (!existing) {
+                merged.push(fsProd);
+              } else if ((fsProd.updatedAt || 0) > (existing.updatedAt || 0)) {
+                // Only replace if Firestore is explicitly strictly newer
+                const idx = merged.findIndex(p => String(p.id) === String(fsProd.id));
+                if (idx !== -1) {
+                  merged[idx] = fsProd;
+                }
+              }
+            });
+            const finalNormalized = deduplicateProducts(merged.map(normalizeProductCategory)).filter(p => !isDemoProduct(p));
+            try {
+              localStorage.setItem('eleganbd_products', JSON.stringify(finalNormalized));
+              localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
+            } catch (e) {}
+            return finalNormalized;
+          }
+
+          const finalNormalized = deduplicateProducts(normalized).filter(p => !isDemoProduct(p));
+          try {
+            localStorage.setItem('eleganbd_products', JSON.stringify(finalNormalized));
+            localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
+          } catch (e) {}
+          return finalNormalized;
+        });
+      }
       setLoading(false);
     }, (err) => {
       if (!isQuotaError(err)) {

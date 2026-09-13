@@ -45,7 +45,7 @@ export default function AdminAddProduct() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('edit');
-  const { products, addProduct, updateProduct } = useProducts();
+  const { products, addProduct, updateProduct, refreshProducts } = useProducts();
   const { categories, addCategory, deleteCategory } = useCategories();
 
   // Controlled Form States
@@ -376,10 +376,16 @@ export default function AdminAddProduct() {
 
       if (isEditMode) {
         await updateProduct(productData);
+        try {
+          await refreshProducts();
+        } catch (e) {}
         toast.dismiss(toastId);
         toast.success('Product updated successfully!');
       } else {
         await addProduct(productData);
+        try {
+          await refreshProducts();
+        } catch (e) {}
         toast.dismiss(toastId);
         toast.success('Product created successfully!');
       }

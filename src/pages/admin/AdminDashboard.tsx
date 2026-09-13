@@ -32,9 +32,12 @@ import {
   AlertCircle,
   Bell,
   Users,
-  Calendar
+  Calendar,
+  RotateCcw,
+  PackageX,
+  Undo2
 } from 'lucide-react';
-import { isDeliveredOrSuccess, isOrderDeliveredOrEligible } from '../../utils/orderUtils';
+import { isDeliveredOrSuccess, isOrderDeliveredOrEligible, isOrderReturned } from '../../utils/orderUtils';
 import { PieChart, Pie, Cell, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import toast from 'react-hot-toast';
 import OrderFulfillmentTracker from '../../components/admin/OrderFulfillmentTracker';
@@ -970,6 +973,18 @@ export default function AdminDashboard(): React.JSX.Element {
     return 0;
   }, [orders]);
 
+  const dynamicReturnedOrdersCount = useMemo(() => {
+    if (!orders || orders.length === 0) return 0;
+    return orders.filter(o => isOrderReturned(o)).length;
+  }, [orders]);
+
+  const dynamicReturnedOrdersAmount = useMemo(() => {
+    if (!orders || orders.length === 0) return 0;
+    return orders
+      .filter(o => isOrderReturned(o))
+      .reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+  }, [orders]);
+
   const dynamicDeliveredOrdersCount = useMemo(() => {
     if (!orders || orders.length === 0) return 0;
     return orders.filter(o => isOrderDeliveredOrEligible(o)).length;
@@ -1023,6 +1038,8 @@ export default function AdminDashboard(): React.JSX.Element {
     let lastMonthOrders = 0;
     let thisMonthDelivered = 0;
     let lastMonthDelivered = 0;
+    let thisMonthReturned = 0;
+    let lastMonthReturned = 0;
 
     const thisMonthCusts = new Set<string>();
     const lastMonthCusts = new Set<string>();
@@ -1035,10 +1052,12 @@ export default function AdminDashboard(): React.JSX.Element {
 
       const custKey = o.phone || o.customerId || o.customerEmail || 'unknown';
       const isDelivered = isOrderDeliveredOrEligible(o);
+      const isReturned = isOrderReturned(o);
 
       if (isThisMonth) {
         thisMonthOrders++;
         if (isDelivered) thisMonthDelivered++;
+        if (isReturned) thisMonthReturned++;
         if (custKey !== 'unknown') thisMonthCusts.add(custKey);
         if (o.status !== 'Cancelled' && o.status !== 'PICK UP CANCEL') {
           thisMonthSales += o.total || 0;
@@ -1046,6 +1065,7 @@ export default function AdminDashboard(): React.JSX.Element {
       } else if (isLastMonth) {
         lastMonthOrders++;
         if (isDelivered) lastMonthDelivered++;
+        if (isReturned) lastMonthReturned++;
         if (custKey !== 'unknown') lastMonthCusts.add(custKey);
         if (o.status !== 'Cancelled' && o.status !== 'PICK UP CANCEL') {
           lastMonthSales += o.total || 0;
@@ -1062,6 +1082,7 @@ export default function AdminDashboard(): React.JSX.Element {
       salesGrowth: calcGrowth(thisMonthSales, lastMonthSales),
       ordersGrowth: calcGrowth(thisMonthOrders, lastMonthOrders),
       deliveredGrowth: calcGrowth(thisMonthDelivered, lastMonthDelivered),
+      returnedGrowth: calcGrowth(thisMonthReturned, lastMonthReturned),
       revenueGrowth: calcGrowth(thisMonthSales, lastMonthSales),
       customersGrowth: calcGrowth(thisMonthCusts.size, lastMonthCusts.size)
     };
@@ -1221,53 +1242,62 @@ export default function AdminDashboard(): React.JSX.Element {
       {/* ROW 1: 5-COLUMN METRICS GRID - MATCHING THE PICTURE */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
         
-        {/* CARD 1: Total Sales */}
-        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:-translate-y-1.5 hover:shadow-md hover:border-slate-300/80 transition-all duration-300 ease-out">
+        {/* CARD 1: Returned (রিয়েল-টাইম) */}
+        <div id="card-metric-returned" className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:-translate-y-1.5 hover:shadow-md hover:border-slate-300/80 transition-all duration-300 ease-out">
           <div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#EEF2FF] text-[#6366F1] flex items-center justify-center shadow-2xs">
-                  <ShoppingBag className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-full bg-[#FFF1F2] text-[#F43F5E] flex items-center justify-center shadow-2xs">
+                  <RotateCcw className="w-5 h-5" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-gray-400">Total Sales</span>
+                  <span className="text-xs font-bold text-gray-400">Returned</span>
                 </div>
               </div>
-              <button className="text-gray-400 hover:text-gray-900 p-1 rounded-lg hover:bg-gray-50 transition-colors">
+              <button id="btn-returned-metric-options" className="text-gray-400 hover:text-gray-900 p-1 rounded-lg hover:bg-gray-50 transition-colors" title="Options">
                 <MoreVertical className="w-4 h-4" />
               </button>
             </div>
             
             <div className="mt-4">
-              <h3 className="text-2xl font-black text-gray-900 tracking-tight">
-                {formatPrice(dynamicTotalSalesAmount, currency, rate)}
-              </h3>
+              <div className="flex items-baseline gap-2">
+                <h3 className="text-2xl font-black text-gray-900 tracking-tight">
+                  {formatPrice(dynamicReturnedOrdersAmount, currency, rate)}
+                </h3>
+                <span className="text-xs font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200/50">
+                  {dynamicReturnedOrdersCount} Orders
+                </span>
+              </div>
+              <p className="text-[11px] font-black text-rose-600/90 mt-1 flex items-center gap-1">
+                <span>{dynamicReturnedOrdersCount.toLocaleString()} টি অর্ডার রিটার্ন হয়েছে</span>
+                <span className="text-gray-400 font-bold text-[10px]">(রিয়েল-টাইম)</span>
+              </p>
             </div>
           </div>
 
           {/* Trend & Sparkline */}
           <div className="flex items-end justify-between mt-2 pt-2 border-t border-gray-50/50">
-            <span className={`inline-flex items-center gap-1 text-[11px] font-black ${monthlyStats.salesGrowth >= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'} px-2 py-0.5 rounded-md`}>
-              {monthlyStats.salesGrowth >= 0 ? `↑ ${monthlyStats.salesGrowth}%` : `↓ ${Math.abs(monthlyStats.salesGrowth)}%`} <span className="text-gray-400 font-bold text-[10px]">vs last month</span>
+            <span className={`inline-flex items-center gap-1 text-[11px] font-black ${monthlyStats.returnedGrowth <= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'} px-2 py-0.5 rounded-md`}>
+              {monthlyStats.returnedGrowth >= 0 ? `↑ ${monthlyStats.returnedGrowth}%` : `↓ ${Math.abs(monthlyStats.returnedGrowth)}%`} <span className="text-gray-400 font-bold text-[10px]">vs last month</span>
             </span>
             <div className="w-20 h-8">
-              <svg width="80" height="32" viewBox="0 0 80 32" className="text-[#6366F1]">
+              <svg width="80" height="32" viewBox="0 0 80 32" className="text-[#F43F5E]">
                 <path
-                  d="M0 25 C15 25, 20 5, 35 15 C50 25, 60 2, 80 12"
+                  d="M0 20 C15 20, 25 28, 40 10 C55 2, 65 18, 80 12"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2.5"
                   strokeLinecap="round"
                 />
                 <path
-                  d="M0 25 C15 25, 20 5, 35 15 C50 25, 60 2, 80 12 L80 32 L0 32 Z"
-                  fill="url(#sparkline-indigo)"
+                  d="M0 20 C15 20, 25 28, 40 10 C55 2, 65 18, 80 12 L80 32 L0 32 Z"
+                  fill="url(#sparkline-rose-2)"
                   opacity="0.1"
                 />
                 <defs>
-                  <linearGradient id="sparkline-indigo-2" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#6366F1" />
-                    <stop offset="100%" stopColor="#6366F1" stopOpacity="0" />
+                  <linearGradient id="sparkline-rose-2" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#F43F5E" />
+                    <stop offset="100%" stopColor="#F43F5E" stopOpacity="0" />
                   </linearGradient>
                 </defs>
               </svg>

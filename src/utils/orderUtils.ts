@@ -254,6 +254,40 @@ export const formatOrderDateTime = (dateStr?: any): { date: string; time: string
 };
 
 /**
+ * Checks if order or courier status indicates a return
+ */
+export const isReturnedStatus = (status?: string, courierStatus?: string, pathaoStatus?: string): boolean => {
+  if (!status && !courierStatus && !pathaoStatus) return false;
+  const s = (status || '').toLowerCase().trim();
+  const cs = (courierStatus || '').toLowerCase().trim();
+  const ps = (pathaoStatus || '').toLowerCase().trim();
+
+  // If partial delivery or exchange, not a pure return
+  if (cs.includes('partial') || cs.includes('exchange') || s.includes('exchange')) {
+    return false;
+  }
+
+  return (
+    s === 'returned' ||
+    s === 'return' ||
+    s.includes('return') ||
+    s.includes('রিটার্ন') ||
+    cs === 'returned' ||
+    cs === 'return' ||
+    cs.includes('return') ||
+    cs.includes('returned') ||
+    ps === 'returned' ||
+    ps.includes('return') ||
+    ps.includes('returned')
+  );
+};
+
+export const isOrderReturned = (order?: any): boolean => {
+  if (!order) return false;
+  return isReturnedStatus(order.status, order.courierStatus, order.pathaoStatus);
+};
+
+/**
  * Human readable order date & time string in Dhaka timezone
  */
 export const formatOrderDateTimeStr = (dateStr?: any): string => {
@@ -273,4 +307,6 @@ export const formatOrderDateTimeStr = (dateStr?: any): string => {
     return String(dateStr);
   }
 };
+
+
 
