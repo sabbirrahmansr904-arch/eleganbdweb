@@ -3,7 +3,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { useFinance } from '../../contexts/FinanceContext';
+import { useFinance, formatAccountBalance, isUsdAccount } from '../../contexts/FinanceContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatPrice } from '../../lib/utils';
 import { 
@@ -20,7 +20,13 @@ import {
   Printer, 
   RefreshCw,
   X,
-  Plus
+  Plus,
+  ArrowUpRight,
+  ArrowDownLeft,
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Wallet
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { BankLogoBadge } from '../../utils/bankLogos';
@@ -33,7 +39,8 @@ export default function AdminTransactionList(): React.JSX.Element {
     loading,
     toggleTransactionStatus,
     updateBankTransaction,
-    deleteBankTransaction
+    deleteBankTransaction,
+    recalculateAllBalances
   } = useFinance();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -114,6 +121,36 @@ export default function AdminTransactionList(): React.JSX.Element {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredTransactions.slice(start, start + itemsPerPage);
   }, [filteredTransactions, currentPage, itemsPerPage]);
+
+  // Accurate Summary Metrics Calculation based on filtered ledger
+  const { totalIncome, totalExpense, netAmount, unpaidAmount, unpaidCount } = useMemo(() => {
+    let inc = 0;
+    let exp = 0;
+    let unp = 0;
+    let unpCount = 0;
+
+    filteredTransactions.forEach(tx => {
+      const amt = Number(tx.amount) || 0;
+      if (tx.status === 'unpaid') {
+        unp += amt;
+        unpCount += 1;
+        return;
+      }
+      if (tx.type === 'deposit') {
+        inc += amt;
+      } else if (tx.type === 'withdraw') {
+        exp += amt;
+      }
+    });
+
+    return {
+      totalIncome: Math.round(inc * 100) / 100,
+      totalExpense: Math.round(exp * 100) / 100,
+      netAmount: Math.round((inc - exp) * 100) / 100,
+      unpaidAmount: Math.round(unp * 100) / 100,
+      unpaidCount
+    };
+  }, [filteredTransactions]);
 
   const isAllFilteredSelected = filteredTransactions.length > 0 && filteredTransactions.every(tx => selectedTxIds.includes(tx.id));
   const isSomeFilteredSelected = filteredTransactions.some(tx => selectedTxIds.includes(tx.id)) && !isAllFilteredSelected;
@@ -218,6 +255,97 @@ export default function AdminTransactionList(): React.JSX.Element {
 
   return (
     <div className="space-y-6 pb-16">
+      {/* Top Header with Recalculate & Export Actions */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white border border-gray-100 rounded-[24px] p-5 sm:p-6 shadow-2xs">
+        <div>
+          <div className="flex items-center gap-2.5 mb-1">
+            <span className="w-10 h-10 rounded-2xl bg-[#eff6ff] text-[#2563eb] border border-[#dbeafe] flex items-center justify-center font-black text-lg shrink-0 shadow-2xs">
+              <FileSpreadsheet className="w-5 h-5 text-indigo-600" />
+            </span>
+            <h1 className="text-xl font-black text-gray-900 tracking-tight">লেনদেন খতিয়ান ও হিসাব তালিকা (Transaction Ledger)</h1>
+          </div>
+          <p className="text-xs text-gray-400 font-medium">সমস্ত ইনকাম, খরচ ও ট্রান্সফার রেকর্ড নির্ভুল ব্যালেন্স সমেত তালিকাভুক্ত</p>
+        </div>
+
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            onClick={() => recalculateAllBalances()}
+            className="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-2xs cursor-pointer"
+            title="সবগুলো অ্যাকাউন্টের ব্যালেন্স ও লেনদেন রেকর্ড নতুন করে হিসাব এবং ডাটাবেজে সিঙ্ক করুন"
+          >
+            <RefreshCw className="w-4 h-4 text-amber-700" />
+            <span>হিসাব সিঙ্ক ও রিক্যালকুলেট</span>
+          </button>
+
+          <button
+            onClick={() => handleExportReport('print')}
+            className="px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-2xs cursor-pointer"
+            title="প্রিন্ট ও স্পষ্ট PDF প্রিভিউ"
+          >
+            <Printer className="w-4 h-4 text-indigo-600" />
+            <span>প্রিন্ট ও PDF</span>
+          </button>
+
+          <button 
+            onClick={() => handleExportReport('csv')} 
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-sm cursor-pointer"
+          > 
+            <Download className="w-4 h-4 text-white" /> 
+            <span>Excel / CSV</span> 
+          </button>
+        </div>
+      </div>
+
+      {/* Summary Cards of Filtered Transactions */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white border border-gray-100 rounded-[22px] p-4.5 shadow-2xs flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
+              মোট ইনকাম (Paid)
+            </span>
+            <ArrowUpRight className="w-4 h-4 text-emerald-600" />
+          </div>
+          <span className="text-lg font-black text-emerald-600">{formatPrice(totalIncome)}</span>
+        </div>
+
+        <div className="bg-white border border-gray-100 rounded-[22px] p-4.5 shadow-2xs flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-black uppercase tracking-wider text-rose-800 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-100">
+              মোট খরচ (Paid)
+            </span>
+            <ArrowDownLeft className="w-4 h-4 text-rose-600" />
+          </div>
+          <span className="text-lg font-black text-rose-600">{formatPrice(totalExpense)}</span>
+        </div>
+
+        <div className="bg-white border border-gray-100 rounded-[22px] p-4.5 shadow-2xs flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-black uppercase tracking-wider text-indigo-800 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
+              নিট নগদ প্রবাহ
+            </span>
+            <Wallet className="w-4 h-4 text-indigo-600" />
+          </div>
+          <span className={`text-lg font-black ${netAmount < 0 ? 'text-rose-600' : 'text-indigo-600'}`}>
+            {formatPrice(netAmount)}
+          </span>
+        </div>
+
+        <div className="bg-white border border-gray-100 rounded-[22px] p-4.5 shadow-2xs flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-100">
+              বকেয়া (Unpaid)
+            </span>
+            <Clock className="w-4 h-4 text-amber-600" />
+          </div>
+          <div className="flex items-baseline justify-between">
+            <span className="text-base font-black text-amber-600">{formatPrice(unpaidAmount)}</span>
+            <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+              {unpaidCount} টি
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Filter and Search Bar */}
       <div className="bg-white border border-gray-100 rounded-[24px] p-5 shadow-2xs space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
@@ -425,8 +553,8 @@ export default function AdminTransactionList(): React.JSX.Element {
                   <th className="py-4 px-4">হিসাব</th>
                   <th className="py-4 px-4">ধরন</th>
                   <th className="py-4 px-4">বিবরণ</th>
-                  <th className="py-4 px-4 text-right">পরিমাণ (৳)</th>
-                  <th className="py-4 px-4 text-right">ব্যালেন্স (৳)</th>
+                  <th className="py-4 px-4 text-right">পরিমাণ</th>
+                  <th className="py-4 px-4 text-right">অ্যাকাউন্ট ব্যালেন্স</th>
                   <th className="py-4 px-4 text-center">স্ট্যাটাস</th>
                   <th className="py-4 px-4 text-center">প্রমাণপত্র</th>
                   <th className="py-4 px-4 text-center">অ্যাকশন</th>
@@ -485,10 +613,14 @@ export default function AdminTransactionList(): React.JSX.Element {
                         <span>{tx.notes || '-'}</span>
                       </td>
                       <td className={`py-4 px-4 text-right font-black text-sm whitespace-nowrap ${isDeposit ? 'text-emerald-600' : isTransfer ? 'text-indigo-600' : 'text-rose-600'}`}>
-                        {isDeposit ? '+' : isTransfer ? '' : '-'}{formatPrice(tx.amount)}
+                        {isDeposit ? '+' : isTransfer ? '' : '-'}
+                        {acc && isUsdAccount(acc) 
+                          ? `$${Math.abs(Number(tx.amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+                          : formatPrice(Number(tx.amount) || 0)
+                        }
                       </td>
                       <td className="py-4 px-4 text-right font-black text-gray-950 text-xs whitespace-nowrap">
-                        {formatPrice(acc?.balance || 0)}
+                        {acc ? formatAccountBalance(acc) : formatPrice(0)}
                       </td>
                       
                       <td className="py-4 px-4 text-center whitespace-nowrap">

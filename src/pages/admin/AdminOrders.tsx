@@ -60,14 +60,15 @@ import {
   formatOrderDate,
   formatOrderTime,
   formatOrderDateTime,
-  formatOrderDateTimeStr
+  formatOrderDateTimeStr,
+  isOfficeSaleOrStorePickup
 } from '../../utils/orderUtils';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { useOrders } from '../../contexts/OrderContext';
 import { useProducts } from '../../contexts/ProductContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Order, CartItem } from '../../types';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DISTRICT_THANAS } from '../../data/locations';
 import { parseCustomerAddress } from '../../utils/addressParser';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -137,11 +138,13 @@ export default function AdminOrders(): React.JSX.Element {
     }
   };
 
+  const [searchParams] = useSearchParams();
+
   // Search & Filter State
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('All');
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const [filterStatus, setFilterStatus] = useState(searchParams.get('status') || 'All');
   const [filterIssue, setFilterIssue] = useState('All'); // All | Issues | No Issues
-  const [filterPartner, setFilterPartner] = useState('All'); // All | Online Store | Retail | Al Shahriar Kabir etc
+  const [filterPartner, setFilterPartner] = useState(searchParams.get('partner') || 'All'); // All | Online Store | Retail | Office Sale etc
   const [filterCourier, setFilterCourier] = useState('All');
   const [filterCreator, setFilterCreator] = useState('All');
   const [filterDelivery, setFilterDelivery] = useState('All');
@@ -149,6 +152,15 @@ export default function AdminOrders(): React.JSX.Element {
   const [endDate, setEndDate] = useState('');
   const [sortField, setSortField] = useState<'invoice' | 'date'>('invoice');
   const [sortDirection, setSortDirection] = useState<'desc' | 'asc'>('desc');
+
+  useEffect(() => {
+    const p = searchParams.get('partner');
+    if (p) setFilterPartner(p);
+    const s = searchParams.get('status');
+    if (s) setFilterStatus(s);
+    const q = searchParams.get('q');
+    if (q) setSearchQuery(q);
+  }, [searchParams]);
 
   const resetAllFilters = () => {
     setSearchQuery('');
@@ -475,8 +487,12 @@ export default function AdminOrders(): React.JSX.Element {
 
       // 4. Partner/Invoice By filter
       if (filterPartner !== 'All') {
-        const invoiceBy = getInvoiceBy(order);
-        if (invoiceBy !== filterPartner) return false;
+        if (filterPartner === 'Office Sale' || filterPartner === 'Store Pickup' || filterPartner === 'Office & Store Sale') {
+          if (!isOfficeSaleOrStorePickup(order) && getInvoiceBy(order) !== filterPartner) return false;
+        } else {
+          const invoiceBy = getInvoiceBy(order);
+          if (invoiceBy !== filterPartner) return false;
+        }
       }
 
       // 5. Courier filter
@@ -528,7 +544,7 @@ export default function AdminOrders(): React.JSX.Element {
   }, [orders, sortField, sortDirection, filterStatus, searchQuery, filterIssue, filterPartner, filterCourier, filterCreator, filterDelivery, startDate, endDate, hasActiveIssue, getInvoiceBy]);
 
   const uniquePartners = useMemo(() => {
-    const set = new Set<string>();
+    const set = new Set<string>(['Office Sale', 'Store Pickup']);
     (orders || []).forEach(order => {
       if (!order) return;
       const val = getInvoiceBy(order);

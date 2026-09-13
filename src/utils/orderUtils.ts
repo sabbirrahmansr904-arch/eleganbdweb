@@ -288,6 +288,142 @@ export const isOrderReturned = (order?: any): boolean => {
 };
 
 /**
+ * Calculates the exact advance paid for an order (Store Pickup or Advance Payment)
+ */
+export const getOrderAdvanceAmount = (order?: any): number => {
+  if (!order) return 0;
+  // Exclude cancelled/rejected orders
+  if (order.status === 'Cancelled' || order.status === 'PICK UP CANCEL') return 0;
+
+  const adv = Number(order.advancePayment) || Number(order.paidAmount) || 0;
+  if (adv > 0) return adv;
+
+  // If order is explicitly Store Pickup or Office Pickup and has a total
+  if (isOfficeSaleOrStorePickup(order)) {
+    return Number(order.total) || Number(order.subtotal) || 0;
+  }
+
+  return 0;
+};
+
+/**
+ * Checks if an order is a Store Pickup / Office Sale / Advance Payment order
+ */
+export const isOfficeSaleOrStorePickup = (order?: any): boolean => {
+  if (!order) return false;
+  
+  const city = String(order.city || order.shippingAddress?.city || order.deliveryArea || order.region || order.district || '').toLowerCase().trim();
+  const deliveryMethod = String(order.deliveryMethod || '').toLowerCase().trim();
+  const shippingMethod = String(order.shippingMethod || '').toLowerCase().trim();
+  const courier = String(order.courier || order.partner || order.courierName || '').toLowerCase().trim();
+  const invoiceBy = String(order.invoiceBy || '').toLowerCase().trim();
+  const source = String(order.source || '').toLowerCase().trim();
+  const orderType = String(order.orderType || '').toLowerCase().trim();
+  const channel = String(order.channel || '').toLowerCase().trim();
+  const notes = String(order.notes || order.note || order.internalNote || '').toLowerCase().trim();
+  const address = String(order.address || order.shippingAddress?.address || '').toLowerCase().trim();
+
+  // 1. Explicit Region/City selection of Store Pickup
+  if (
+    city.includes('store pickup') ||
+    city.includes('office pickup') ||
+    city.includes('pickup') ||
+    city === 'store' ||
+    city === 'pickup' ||
+    city.includes('স্টোর পিকআপ') ||
+    city.includes('অফিস পিকআপ') ||
+    city.includes('পিকআপ')
+  ) {
+    return true;
+  }
+
+  // 2. Explicit Delivery or Shipping Method
+  if (
+    deliveryMethod.includes('pickup') ||
+    deliveryMethod.includes('store') ||
+    deliveryMethod.includes('office') ||
+    shippingMethod.includes('pickup') ||
+    shippingMethod.includes('store') ||
+    shippingMethod.includes('office')
+  ) {
+    return true;
+  }
+
+  // 3. Explicit Courier / Partner marked as Store Pickup
+  if (
+    courier.includes('store pickup') ||
+    courier.includes('office pickup') ||
+    courier.includes('pickup') ||
+    courier.includes('store') ||
+    courier.includes('office') ||
+    courier.includes('পিকআপ')
+  ) {
+    return true;
+  }
+
+  // 4. Explicit orderType, source, or channel
+  if (
+    orderType === 'store_pickup' ||
+    orderType === 'pickup' ||
+    orderType === 'office_sale' ||
+    orderType === 'office_pickup' ||
+    source === 'store_pickup' ||
+    source === 'pickup' ||
+    source === 'pos' ||
+    channel === 'store_pickup' ||
+    channel === 'pos' ||
+    channel === 'store' ||
+    channel === 'pickup'
+  ) {
+    return true;
+  }
+
+  // 5. Explicit invoiceBy containing Store Pickup or Office Sale
+  if (
+    invoiceBy.includes('store pickup') ||
+    invoiceBy.includes('office sale') ||
+    invoiceBy.includes('office pickup') ||
+    invoiceBy.includes('স্টোর পিকআপ') ||
+    invoiceBy.includes('অফিস সেল') ||
+    invoiceBy.includes('পিকআপ') ||
+    invoiceBy === 'store' ||
+    invoiceBy === 'office'
+  ) {
+    return true;
+  }
+
+  // 6. Explicit note / address indicator
+  if (
+    notes.includes('store pickup') ||
+    notes.includes('office pickup') ||
+    notes.includes('office sale') ||
+    notes.includes('স্টোর পিকআপ') ||
+    notes.includes('অফিস সেল') ||
+    notes.includes('পিকআপ') ||
+    address.includes('store pickup') ||
+    address.includes('office pickup') ||
+    address.includes('office sale') ||
+    address.includes('স্টোর পিকআপ') ||
+    address.includes('অফিস পিকআপ') ||
+    address.includes('পিকআপ')
+  ) {
+    return true;
+  }
+
+  // 7. Advance payment specified on order (advance payment given beforehand)
+  if (Number(order.advancePayment) > 0 || Number(order.paidAmount) > 0) {
+    return true;
+  }
+
+  // 8. Explicit flag
+  if (order.isStorePickup === true || order.isPickup === true) {
+    return true;
+  }
+
+  return false;
+};
+
+/**
  * Human readable order date & time string in Dhaka timezone
  */
 export const formatOrderDateTimeStr = (dateStr?: any): string => {

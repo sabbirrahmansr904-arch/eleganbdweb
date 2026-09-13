@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { db } from '../lib/firebase';
 import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, orderBy, setDoc } from 'firebase/firestore';
@@ -84,6 +84,7 @@ interface FinanceContextType {
   updateBankTransaction: (id: string, updatedTx: Partial<BankTransaction>) => Promise<void>;
   toggleTransactionStatus: (id: string, currentStatus?: 'unpaid' | 'paid') => Promise<void>;
   deleteBankTransaction: (id: string) => Promise<void>;
+  recalculateAllBalances: () => Promise<void>;
 }
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
@@ -162,6 +163,46 @@ const DEFAULT_STARTER_ACCOUNTS: BankAccount[] = [
   }
 ];
 
+// Helper function to calculate exact balance for all accounts based on initialBalance + paid transactions
+export const computeBalances = (accounts: BankAccount[], transactions: BankTransaction[]): BankAccount[] => {
+  if (!accounts || accounts.length === 0) return [];
+  const validTxs = Array.isArray(transactions) ? transactions : [];
+
+  const updated = accounts.map(acc => {
+    const initialBal = Number(acc.initialBalance) || 0;
+    let currentBalance = initialBal;
+
+    validTxs.forEach(tx => {
+      if (!tx || tx.status === 'unpaid') return;
+      const txAmt = Number(tx.amount) || 0;
+      if (txAmt === 0) return;
+
+      if (tx.accountId === acc.id) {
+        if (tx.type === 'deposit') {
+          currentBalance += txAmt;
+        } else if (tx.type === 'withdraw' || tx.type === 'transfer') {
+          currentBalance -= txAmt;
+        }
+      }
+      if (tx.targetAccountId === acc.id && tx.type === 'transfer') {
+        currentBalance += txAmt;
+      }
+    });
+
+    const isUsd = isUsdAccount(acc);
+    const roundedBalance = isUsd
+      ? Math.round(currentBalance * 100) / 100
+      : Math.round(currentBalance * 100) / 100;
+
+    return { 
+      ...acc, 
+      initialBalance: initialBal,
+      balance: roundedBalance 
+    };
+  });
+  return sortBankAccounts(updated);
+};
+
 export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(() => {
     try {
@@ -188,43 +229,16 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [loading, setLoading] = useState(true);
   const { isAdmin, loading: authLoading } = useAuth();
 
-  // Helper function to calculate exact balance for all accounts based on paid transactions
-  const computeBalances = (accounts: BankAccount[], transactions: BankTransaction[]): BankAccount[] => {
-    const updated = accounts.map(acc => {
-      let currentBalance = acc.initialBalance || 0;
-      transactions.forEach(tx => {
-        if (tx.status === 'unpaid') return;
+  // Persistent reference tracking for real-time snapshot sync
+  const bankAccountsRef = useRef<BankAccount[]>(bankAccounts);
+  useEffect(() => {
+    bankAccountsRef.current = bankAccounts;
+  }, [bankAccounts]);
 
-        if (tx.accountId === acc.id) {
-          if (tx.type === 'deposit') {
-            currentBalance += tx.amount;
-          } else if (tx.type === 'withdraw' || tx.type === 'transfer') {
-            currentBalance -= tx.amount;
-          }
-        }
-        if (tx.targetAccountId === acc.id && tx.type === 'transfer') {
-          currentBalance += tx.amount;
-        }
-      });
-      return { ...acc, balance: currentBalance };
-    });
-    return sortBankAccounts(updated);
-  };
-
-  const recalculateBalances = async (accounts: BankAccount[], transactions: BankTransaction[]) => {
-    const sorted = computeBalances(accounts, transactions);
-    setBankAccounts(sorted);
-    try {
-      localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(sorted));
-    } catch {}
-
-    for (const acc of sorted) {
-      await saveDocumentToSupabase('bank_accounts', acc.id, acc);
-      try {
-        await setDoc(doc(db, 'bank_accounts', acc.id), acc, { merge: true });
-      } catch {}
-    }
-  };
+  const bankTransactionsRef = useRef<BankTransaction[]>(bankTransactions);
+  useEffect(() => {
+    bankTransactionsRef.current = bankTransactions;
+  }, [bankTransactions]);
 
   // Defensive helper to merge accounts without losing existing ones
   const mergeAccounts = (existing: BankAccount[], incoming: BankAccount[]): BankAccount[] => {
@@ -234,7 +248,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     incoming.forEach(a => {
       if (a && a.id) {
         const prev = map.get(a.id);
-        map.set(a.id, { ...prev, ...a });
+        map.set(a.id, { 
+          ...prev, 
+          ...a, 
+          initialBalance: Number(a.initialBalance !== undefined ? a.initialBalance : prev?.initialBalance) || 0 
+        });
       }
     });
     return Array.from(map.values());
@@ -248,7 +266,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     incoming.forEach(t => {
       if (t && t.id) {
         const prev = map.get(t.id);
-        map.set(t.id, { ...prev, ...t });
+        map.set(t.id, { 
+          ...prev, 
+          ...t, 
+          amount: Number(t.amount !== undefined ? t.amount : prev?.amount) || 0 
+        });
       }
     });
     return Array.from(map.values()).sort((a, b) => (b.date || 0) - (a.date || 0));
@@ -294,12 +316,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const incomingAccounts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as BankAccount));
           setBankAccounts(prev => {
             const merged = mergeAccounts(prev, incomingAccounts);
-            setBankTransactions(currentTxs => {
-              const recalculated = computeBalances(merged, currentTxs);
-              try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
-              return currentTxs;
-            });
-            return prev;
+            const recalculated = computeBalances(merged, bankTransactionsRef.current);
+            try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
+            return recalculated;
           });
         }
       }, () => setLoading(false));
@@ -332,13 +351,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const addBankAccount = async (account: Omit<BankAccount, 'id' | 'balance'>) => {
     const id = `acc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const initialBal = account.initialBalance || 0;
+    const initialBal = Number(account.initialBalance) || 0;
     const newAcc: BankAccount = { ...account, id, balance: initialBal, initialBalance: initialBal };
 
     setBankAccounts(prev => {
-      const sorted = sortBankAccounts([newAcc, ...prev]);
-      try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(sorted)); } catch {}
-      return sorted;
+      const merged = [newAcc, ...prev.filter(a => a.id !== id)];
+      const recalculated = computeBalances(merged, bankTransactionsRef.current);
+      try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
+      return recalculated;
     });
 
     await saveDocumentToSupabase('bank_accounts', id, newAcc);
@@ -350,17 +370,24 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const updateBankAccount = async (updatedAcc: BankAccount) => {
+    const initialBal = Number(updatedAcc.initialBalance) || 0;
+    const cleanAcc: BankAccount = { ...updatedAcc, initialBalance: initialBal };
+
+    let computedAcc = cleanAcc;
     setBankAccounts(prev => {
-      const sorted = sortBankAccounts(prev.map(a => a.id === updatedAcc.id ? updatedAcc : a));
-      try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(sorted)); } catch {}
-      return sorted;
+      const merged = prev.map(a => a.id === cleanAcc.id ? cleanAcc : a);
+      const recalculated = computeBalances(merged, bankTransactionsRef.current);
+      const found = recalculated.find(a => a.id === cleanAcc.id);
+      if (found) computedAcc = found;
+      try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
+      return recalculated;
     });
 
-    await saveDocumentToSupabase('bank_accounts', updatedAcc.id, updatedAcc);
+    await saveDocumentToSupabase('bank_accounts', updatedAcc.id, computedAcc);
     toast.success('অ্যাকাউন্ট সফলভাবে আপডেট করা হয়েছে!');
 
     try {
-      await updateDoc(doc(db, 'bank_accounts', updatedAcc.id), { ...updatedAcc });
+      await updateDoc(doc(db, 'bank_accounts', updatedAcc.id), { ...computedAcc });
     } catch (error) {}
   };
 
@@ -381,9 +408,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const addBankTransaction = async (tx: Omit<BankTransaction, 'id'>, targetAccountId?: string) => {
     const id = `tx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const amt = Number(tx.amount) || 0;
     const newTx: BankTransaction = {
       ...tx,
       id,
+      amount: amt,
       status: tx.status || 'paid',
       targetAccountId: targetAccountId || tx.targetAccountId || undefined,
       date: tx.date || Date.now()
@@ -421,9 +450,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const updateBankTransaction = async (id: string, updatedFields: Partial<BankTransaction>) => {
     let targetTx: BankTransaction | undefined;
+    const cleanFields = {
+      ...updatedFields,
+      amount: updatedFields.amount !== undefined ? (Number(updatedFields.amount) || 0) : undefined
+    };
 
     setBankTransactions(prev => {
-      const updatedList = prev.map(tx => tx.id === id ? { ...tx, ...updatedFields } : tx);
+      const updatedList = prev.map(tx => tx.id === id ? { ...tx, ...cleanFields } : tx);
       targetTx = updatedList.find(t => t.id === id);
       try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(updatedList)); } catch {}
 
@@ -453,7 +486,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     toast.success('লেনদেন আপডেট করা হয়েছে!');
 
     try {
-      await updateDoc(doc(db, 'bank_transactions', id), updatedFields);
+      await updateDoc(doc(db, 'bank_transactions', id), cleanFields);
     } catch (error) {}
   };
 
@@ -490,9 +523,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     if (nextStatus === 'paid') {
-      toast.success('লেনদেনটি PAID (পরিশোধিত) করা হয়েছে!');
+      toast.success('লেনদেনটি PAID (পরিশোধিত) করা হয়েছে এবং ব্যালেন্স যোগ হয়েছে!');
     } else {
-      toast.success('লেনদেনটি UNPAID (বকেয়া) করা হয়েছে!');
+      toast.success('লেনদেনটি UNPAID (বকেয়া) করা হয়েছে এবং ব্যালেন্স সমন্বয় করা হয়েছে!');
     }
 
     try {
@@ -525,11 +558,28 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
 
     await deleteDocumentFromSupabase('bank_transactions', id);
-    toast.success('লেনদেন সফলভাবে মুছে ফেলা হয়েছে!');
+    toast.success('লেনদেন সফলভাবে মুছে ফেলা হয়েছে এবং ব্যালেন্স সমন্বয় করা হয়েছে!');
 
     try {
       await deleteDoc(doc(db, 'bank_transactions', id));
     } catch (error) {}
+  };
+
+  const recalculateAllBalances = async () => {
+    const currentAccs = bankAccountsRef.current;
+    const currentTxs = bankTransactionsRef.current;
+    const recalculated = computeBalances(currentAccs, currentTxs);
+    
+    setBankAccounts(recalculated);
+    try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
+
+    for (const acc of recalculated) {
+      await saveDocumentToSupabase('bank_accounts', acc.id, acc);
+      try {
+        await setDoc(doc(db, 'bank_accounts', acc.id), acc, { merge: true });
+      } catch {}
+    }
+    toast.success('সব অ্যাকাউন্টের ব্যালেন্স ও লেনদেন হিসাব সঠিকভাবে সমন্বয় ও সিঙ্ক করা হয়েছে!');
   };
 
   return (
@@ -543,7 +593,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       addBankTransaction,
       updateBankTransaction,
       toggleTransactionStatus,
-      deleteBankTransaction
+      deleteBankTransaction,
+      recalculateAllBalances
     }}>
       {children}
     </FinanceContext.Provider>

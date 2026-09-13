@@ -53,7 +53,8 @@ export default function AdminFinance(): React.JSX.Element {
     addBankTransaction,
     updateBankTransaction,
     toggleTransactionStatus,
-    deleteBankTransaction
+    deleteBankTransaction,
+    recalculateAllBalances
   } = useFinance();
 
   const { orders = [], updateOrder } = useOrders();
@@ -633,6 +634,15 @@ export default function AdminFinance(): React.JSX.Element {
           >
             <PlusCircle className="w-4 h-4" />
             <span>নতুন এন্ট্রি যোগ করুন</span>
+          </button>
+
+          <button
+            onClick={() => recalculateAllBalances()}
+            className="px-3.5 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+            title="সবগুলো অ্যাকাউন্টের ব্যালেন্স ও লেনদেন রেকর্ড নতুন করে হিসাব এবং ডাটাবেজে সিঙ্ক করুন"
+          >
+            <RefreshCw className="w-4 h-4 text-amber-700" />
+            <span>হিসাব সিঙ্ক ও রিক্যালকুলেট</span>
           </button>
 
           <button
