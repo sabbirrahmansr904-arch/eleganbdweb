@@ -13,6 +13,7 @@ import { useBranding } from '../contexts/BrandingContext';
 import { useCategories, sortCategories } from '../contexts/CategoryContext';
 import ProductCard from '../components/ProductCard';
 import { ProductGridSkeleton, ProductScrollSkeleton } from '../components/ProductSkeleton';
+import HomeReviewsRealtime from '../components/HomeReviewsRealtime';
 import { cn } from '../lib/utils';
 
 const Home = () => {
@@ -26,19 +27,7 @@ const Home = () => {
     showHeroBanner,
     shirtBannerUrl,
     pantBannerUrl,
-    subHeroBannerUrl,
-    comboOfferBannerUrl,
-    showCountdownBanner,
-    comboOfferTitle,
-    comboOfferSubTitle,
-    comboOfferDiscount,
-    comboOfferHours,
-    comboOfferMinutes,
-    comboOfferSeconds,
-    whyChooseImg1,
-    whyChooseImg2,
-    whyChooseImg3,
-    whyChooseImg4
+    subHeroBannerUrl
   } = useBranding();
 
   const bestSellingScrollRef = React.useRef<HTMLDivElement>(null);
@@ -50,42 +39,9 @@ const Home = () => {
 
   // FAQ Accordion state
   const [openFaq, setOpenFaq] = React.useState<number | null>(0);
-  const [selectedWhyChooseIndex, setSelectedWhyChooseIndex] = React.useState(0);
-
-  // Flash Sale Countdown Timer state
-  const [timeLeft, setTimeLeft] = React.useState({ 
-    hours: comboOfferHours ?? 14, 
-    minutes: comboOfferMinutes ?? 32, 
-    seconds: comboOfferSeconds ?? 45 
-  });
-
-  React.useEffect(() => {
-    setTimeLeft({
-      hours: comboOfferHours ?? 14,
-      minutes: comboOfferMinutes ?? 32,
-      seconds: comboOfferSeconds ?? 45
-    });
-  }, [comboOfferHours, comboOfferMinutes, comboOfferSeconds]);
 
   // Fabric Showcase tab state
   const [activeFabricTab, setActiveFabricTab] = React.useState<'pants' | 'shirts'>('pants');
-
-  React.useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev.seconds > 0) {
-          return { ...prev, seconds: prev.seconds - 1 };
-        } else if (prev.minutes > 0) {
-          return { ...prev, minutes: 59, seconds: 59 };
-        } else if (prev.hours > 0) {
-          return { hours: prev.hours - 1, minutes: 59, seconds: 59 };
-        } else {
-          return { hours: 23, minutes: 59, seconds: 59 };
-        }
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   const scrollLeft = (ref: React.RefObject<HTMLDivElement | null>) => {
     if (ref.current) {
@@ -746,65 +702,8 @@ const Home = () => {
         )}
       </section>
 
-      {/* FLASH SALE / OFFER BANNER */}
-      {showCountdownBanner && (
-        <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-6">
-          <div className="bg-gradient-to-r from-blue-950 via-indigo-900 to-blue-950 rounded-2xl py-4 sm:py-5 px-5 sm:px-8 text-white shadow-[0_0_30px_rgba(245,158,11,0.5)] relative overflow-hidden border-2 border-amber-400 animate-pulse">
-            {/* Ambient Background Image if uploaded */}
-            {comboOfferBannerUrl && (
-              <div 
-                className="absolute inset-0 bg-cover bg-center opacity-20 pointer-events-none mix-blend-luminosity scale-105"
-                style={{ backgroundImage: `url(${comboOfferBannerUrl})` }}
-              />
-            )}
-
-            {/* Background Glow FX */}
-            <div className="absolute -left-10 -top-10 w-48 h-48 bg-amber-400/25 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-blue-400/25 rounded-full blur-3xl pointer-events-none" />
-
-            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6">
-              <div className="text-center md:text-left flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5">
-                {/* Uploaded Banner Image Display */}
-                {comboOfferBannerUrl && (
-                  <div className="relative group shrink-0 self-center sm:self-auto">
-                    <img 
-                      src={comboOfferBannerUrl} 
-                      alt="Offer Promotion" 
-                      className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-20 object-cover rounded-xl border-2 border-amber-400 shadow-lg ring-2 ring-white/20 transform group-hover:scale-105 transition-transform duration-300"
-                    />
-                    <div className="absolute inset-0 rounded-xl bg-amber-400/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                  </div>
-                )}
-
-                <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-gray-950 font-black text-xs sm:text-sm px-4 py-1.5 rounded-full uppercase tracking-wider shadow-md shrink-0 self-center sm:self-auto ring-2 ring-white/30">
-                  <Sparkles size={14} className="fill-gray-950 animate-spin-slow" />
-                  <span>{comboOfferDiscount || "১০% ছাড়"}</span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-base sm:text-lg md:text-xl font-black tracking-tight text-white leading-snug drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
-                    {comboOfferTitle || "নতুন অফিস উদ্বোধন উপলক্ষে অফিস ভিজিট কেনাকাটায় ১০% ফ্ল্যাট ছাড়!"}
-                  </h3>
-                  {comboOfferSubTitle && (
-                    <p className="text-xs sm:text-sm text-amber-100 font-bold leading-relaxed mt-1 drop-shadow-xs">
-                      {comboOfferSubTitle}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Office Visit Badge (Slim Pill) */}
-              <div className="flex items-center shrink-0">
-                <div className="bg-amber-400/20 backdrop-blur-md border-2 border-amber-400 rounded-xl px-4 py-2 flex items-center gap-2.5 shadow-md hover:bg-amber-400/30 transition-all cursor-pointer transform hover:scale-105 duration-200">
-                  <Building2 size={16} className="text-amber-300 shrink-0 animate-bounce" />
-                  <span className="text-xs sm:text-sm font-black text-amber-300 tracking-wide leading-none whitespace-nowrap">
-                    অফিস আউটলেট কেনাকাটায় ১০% ছাড়
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
+      {/* 5. REAL-TIME CUSTOMER REVIEWS SECTION (Directly Below ALL COLLECTIONS) */}
+      <HomeReviewsRealtime />
 
       {/* SUB-HERO BANNER - BELOW ALL PRODUCTS */}
       {subHeroBannerUrl && (
@@ -822,124 +721,6 @@ const Home = () => {
           </Link>
         </section>
       )}
-
-      {/* WHY CHOOSE ELEGAN BD SECTION */}
-      <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
-        <div className="relative flex flex-col items-center justify-center border-b border-gray-100 pb-6 mb-8 text-center">
-          <h2 className="text-xl md:text-2xl font-black uppercase text-blue-600 tracking-tight text-center">
-            Why Choose Elegan BD
-          </h2>
-          <h3 className="text-base md:text-lg font-bold text-gray-900 mt-2">
-            কেন Elegan BD-র কাপড় সবচেয়ে আলাদা?
-          </h3>
-          <p className="text-xs md:text-sm text-gray-600 font-medium max-w-2xl mt-2.5 leading-relaxed">
-            Elegan BD-তে আমাদের প্যান্টের ফেব্রিক্স <span className="font-bold text-blue-600">Woven Cotton Fabrics</span> এবং শার্টের ফেব্রিক্স <span className="font-bold text-blue-600">Refine Cotton</span>। সেরা কোয়ালিটির সুতা ও উন্নত প্রক্রিয়ায় তৈরি আমাদের প্রতিটি পোশাক অত্যন্ত আরামদায়ক, দীর্ঘস্থায়ী ও প্রিমিয়াম লুক প্রদান করে।
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          {/* Item 1: Fast Delivery */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-5 md:p-6 shadow-xs hover:shadow-md hover:border-blue-500 transition-all text-center flex flex-col items-center justify-center group">
-            <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3 text-2xl shadow-xs group-hover:bg-blue-600 group-hover:text-white transition-all">
-              🚚
-            </div>
-            <h3 className="font-black text-sm md:text-base text-gray-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">
-              Fast Delivery
-            </h3>
-            <p className="text-xs font-semibold text-gray-500 mt-1">
-              দ্রুততম সময়ে ডেলিভারি
-            </p>
-          </div>
-
-          {/* Item 2: Cash On Delivery */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-5 md:p-6 shadow-xs hover:shadow-md hover:border-blue-500 transition-all text-center flex flex-col items-center justify-center group">
-            <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3 text-2xl shadow-xs group-hover:bg-blue-600 group-hover:text-white transition-all">
-              💳
-            </div>
-            <h3 className="font-black text-sm md:text-base text-gray-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">
-              Cash On Delivery
-            </h3>
-            <p className="text-xs font-semibold text-gray-500 mt-1">
-              ক্যাশ অন ডেলিভারি সুবিধা
-            </p>
-          </div>
-
-          {/* Item 3: Easy Return */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-5 md:p-6 shadow-xs hover:shadow-md hover:border-blue-500 transition-all text-center flex flex-col items-center justify-center group">
-            <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3 text-2xl shadow-xs group-hover:bg-blue-600 group-hover:text-white transition-all">
-              🔄
-            </div>
-            <h3 className="font-black text-sm md:text-base text-gray-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">
-              Easy Return
-            </h3>
-            <p className="text-xs font-semibold text-gray-500 mt-1">
-              সহজ রিটার্ন সুবিধা
-            </p>
-          </div>
-
-          {/* Item 4: Premium Quality */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-5 md:p-6 shadow-xs hover:shadow-md hover:border-blue-500 transition-all text-center flex flex-col items-center justify-center group">
-            <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3 text-2xl shadow-xs group-hover:bg-blue-600 group-hover:text-white transition-all">
-              ⭐
-            </div>
-            <h3 className="font-black text-sm md:text-base text-gray-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">
-              Premium Quality
-            </h3>
-            <p className="text-xs font-semibold text-gray-500 mt-1">
-              ১০০% প্রিমিয়াম কোয়ালিটি
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* 3-STEP EASY ORDERING & INSPECTION PROCESS */}
-      <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
-        <div className="bg-blue-50/50 border border-blue-100 rounded-3xl p-6 md:p-10">
-          <div className="text-center max-w-2xl mx-auto mb-8">
-            <span className="text-xs font-black uppercase text-blue-600 tracking-wider">EASY ORDER PROCESS</span>
-            <h2 className="text-xl md:text-2xl font-black uppercase text-gray-900 mt-1">
-              মাত্র ৩ ধাপে নিরাপদ অনলাইন কেনাকাটা
-            </h2>
-            <p className="text-xs md:text-sm text-gray-600 font-medium mt-1">
-              কোনো প্রকার ঝুঁকি বা অগ্রিম পেমেন্ট ছাড়া নিশ্চিন্তে অর্ডার করুন
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
-            <div className="bg-white border border-blue-100/80 rounded-2xl p-6 text-center shadow-xs hover:shadow-md transition-all relative">
-              <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-4 font-black text-lg shadow-md">
-                ১
-              </div>
-              <h3 className="font-black text-base text-gray-900 uppercase">পছন্দের প্রোডাক্ট সিলেক্ট করুন</h3>
-              <p className="text-xs text-gray-600 font-medium mt-2 leading-relaxed">
-                আপনার পছন্দের প্যান্ট বা শার্ট বেছে নিয়ে সঠিক সাইজ ও কালার সিলেক্ট করুন এবং "Buy Now" এ ক্লিক করুন।
-              </p>
-            </div>
-
-            <div className="bg-white border border-blue-100/80 rounded-2xl p-6 text-center shadow-xs hover:shadow-md transition-all relative">
-              <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-4 font-black text-lg shadow-md">
-                ২
-              </div>
-              <h3 className="font-black text-base text-gray-900 uppercase">ক্যাশ অন ডেলিভারিতে কনফার্ম করুন</h3>
-              <p className="text-xs text-gray-600 font-medium mt-2 leading-relaxed">
-                আপনার নাম, মোবাইল নম্বর ও ঠিকানা দিয়ে কোনো অগ্রিম টাকা না দিয়ে অর্ডার সাবমিট করুন।
-              </p>
-            </div>
-
-            <div className="bg-white border border-blue-100/80 rounded-2xl p-6 text-center shadow-xs hover:shadow-md transition-all relative">
-              <div className="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-4 font-black text-lg shadow-md">
-                ৩
-              </div>
-              <h3 className="font-black text-base text-gray-900 uppercase">প্যাকেট খুলে দেখে পেমেন্ট করুন</h3>
-              <p className="text-xs text-gray-600 font-medium mt-2 leading-relaxed">
-                ডেলিভারিম্যান সামনে রেখে কাপড়ের কোয়ালিটি ও ফিটিং চেক করে মন মতো হলে মূল্য পরিশোধ করুন!
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-
 
       {/* FLOATING WHATSAPP WHOLESALE BUTTON */}
       <div className="fixed bottom-6 right-6 z-50 flex items-center">

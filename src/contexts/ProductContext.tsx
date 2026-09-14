@@ -651,26 +651,45 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     let isMounted = true;
 
-    // A. Fetch from Supabase
+    // A. Fetch from Supabase and Server API
     const loadFromSupabase = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .order('created_at', { ascending: false });
+        let loadedProducts: Product[] = [];
 
-        if (!error && data && Array.isArray(data) && data.length > 0 && isMounted) {
-          const mapped: Product[] = data.map(supabaseRowToProduct);
-          const nonDeleted = mapped.filter(p => !isDemoProduct(p));
+        // Try direct backend Server API first (guarantees cross-device availability regardless of client ISP/firewall/CORS)
+        try {
+          const apiRes = await fetch('/api/products', { cache: 'no-store' });
+          if (apiRes.ok) {
+            const json = await apiRes.json();
+            if (json.success && Array.isArray(json.products) && json.products.length > 0) {
+              loadedProducts = json.products.map(supabaseRowToProduct);
+            }
+          }
+        } catch (apiErr) {
+          console.warn('[ProductContext] Server API products fetch notice:', apiErr);
+        }
+
+        // If server API did not return products, try client-side Supabase query
+        if (loadedProducts.length === 0) {
+          const { data, error } = await supabase
+            .from('products')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (!error && data && Array.isArray(data) && data.length > 0) {
+            loadedProducts = data.map(supabaseRowToProduct);
+          }
+        }
+
+        if (loadedProducts.length > 0 && isMounted) {
+          const nonDeleted = loadedProducts.filter(p => !isDemoProduct(p));
           const normalized = deduplicateProducts(nonDeleted.map(normalizeProductCategory));
           setProducts(prev => {
-            // Supabase is the live database: incoming Supabase products take 100% precedence for images and details
             const incomingMap = new Map<string, Product>();
             normalized.forEach(p => incomingMap.set(String(p.id), p));
 
             const finalProducts = [...normalized];
-            // Keep local items only if they are not in Supabase yet (optimistic creations)
             prev.forEach(localItem => {
               if (localItem && localItem.id && !isDemoProduct(localItem)) {
                 if (!incomingMap.has(String(localItem.id))) {

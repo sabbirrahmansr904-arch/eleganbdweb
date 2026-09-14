@@ -29,7 +29,7 @@ import { compressImage, compressBannerImage } from '../../../utils/imageCompress
 import { autoSaveToMediaLibrary } from '../../../utils/mediaLibrary';
 
 export default function BannerSettings() {
-  const [activeTab, setActiveTab] = useState<'design' | 'banners' | 'promo' | 'offer'>('design');
+  const [activeTab, setActiveTab] = useState<'design' | 'banners' | 'promo'>('design');
 
   const { banners, addBanner, updateBanner, deleteBanner } = useBanners();
   const [isAdding, setIsAdding] = useState(false);
@@ -46,13 +46,6 @@ export default function BannerSettings() {
 
   const {
     showAnnouncementBar, announcementMessage, setShowAnnouncementBar, setAnnouncementMessage,
-    showCountdownBanner, setShowCountdownBanner,
-    comboOfferTitle, setComboOfferTitle,
-    comboOfferSubTitle, setComboOfferSubTitle,
-    comboOfferDiscount, setComboOfferDiscount,
-    comboOfferHours, setComboOfferHours,
-    comboOfferMinutes, setComboOfferMinutes,
-    comboOfferSeconds, setComboOfferSeconds,
     showHeroBanner, setShowHeroBanner,
     shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter, primaryDeliveryDistrict, aboutText,
     setShippingInsideDhaka, setShippingOutsideDhaka, setShippingFreeAfter, setPrimaryDeliveryDistrict, setAboutText,
@@ -63,24 +56,11 @@ export default function BannerSettings() {
     collectionsBannerUrl, setCollectionsBannerUrl,
     featureBannerUrl, setFeatureBannerUrl,
     poloBannerUrl, setPoloBannerUrl,
-    comboOfferBannerUrl, setComboOfferBannerUrl,
-    ceoPhotoUrl, setCeoPhotoUrl,
-    whyChooseImg1, whyChooseImg2, whyChooseImg3, whyChooseImg4, whyChooseImg5,
-    whyChooseText1, whyChooseText2, whyChooseText3, whyChooseText4, whyChooseText5,
-    setWhyChooseImg1, setWhyChooseImg2, setWhyChooseImg3, setWhyChooseImg4, setWhyChooseImg5,
-    setWhyChooseText1, setWhyChooseText2, setWhyChooseText3, setWhyChooseText4, setWhyChooseText5
+    ceoPhotoUrl, setCeoPhotoUrl
   } = useBranding();
 
   const [localShowAnnouncement, setLocalShowAnnouncement] = useState(showAnnouncementBar);
   const [localAnnouncementMessage, setLocalAnnouncementMessage] = useState(announcementMessage);
-  const [localShowCountdown, setLocalShowCountdown] = useState(showCountdownBanner);
-  const [localComboOfferTitle, setLocalComboOfferTitle] = useState(comboOfferTitle);
-  const [localComboOfferSubTitle, setLocalComboOfferSubTitle] = useState(comboOfferSubTitle);
-  const [localComboOfferDiscount, setLocalComboOfferDiscount] = useState(comboOfferDiscount);
-  const [localComboOfferBannerUrl, setLocalComboOfferBannerUrl] = useState(comboOfferBannerUrl);
-  const [localComboOfferHours, setLocalComboOfferHours] = useState(comboOfferHours);
-  const [localComboOfferMinutes, setLocalComboOfferMinutes] = useState(comboOfferMinutes);
-  const [localComboOfferSeconds, setLocalComboOfferSeconds] = useState(comboOfferSeconds);
   const [localShowHero, setLocalShowHero] = useState(showHeroBanner);
   const [localPrimaryDeliveryDistrict, setLocalPrimaryDeliveryDistrict] = useState(primaryDeliveryDistrict);
   const [localShippingInside, setLocalShippingInside] = useState(shippingInsideDhaka);
@@ -91,14 +71,6 @@ export default function BannerSettings() {
   useEffect(() => {
     setLocalShowAnnouncement(showAnnouncementBar);
     setLocalAnnouncementMessage(announcementMessage);
-    setLocalShowCountdown(showCountdownBanner);
-    setLocalComboOfferTitle(comboOfferTitle);
-    setLocalComboOfferSubTitle(comboOfferSubTitle);
-    setLocalComboOfferDiscount(comboOfferDiscount);
-    setLocalComboOfferBannerUrl(comboOfferBannerUrl);
-    setLocalComboOfferHours(comboOfferHours);
-    setLocalComboOfferMinutes(comboOfferMinutes);
-    setLocalComboOfferSeconds(comboOfferSeconds);
     setLocalShowHero(showHeroBanner);
     setLocalPrimaryDeliveryDistrict(primaryDeliveryDistrict);
     setLocalShippingInside(shippingInsideDhaka);
@@ -106,8 +78,7 @@ export default function BannerSettings() {
     setLocalShippingFreeAfter(shippingFreeAfter);
     setLocalAboutText(aboutText);
   }, [
-    showAnnouncementBar, announcementMessage, showCountdownBanner, comboOfferTitle, comboOfferSubTitle,
-    comboOfferDiscount, comboOfferBannerUrl, comboOfferHours, comboOfferMinutes, comboOfferSeconds, showHeroBanner, 
+    showAnnouncementBar, announcementMessage, showHeroBanner, 
     primaryDeliveryDistrict, shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter, aboutText
   ]);
 
@@ -200,52 +171,16 @@ export default function BannerSettings() {
     });
   };
 
-  const handleToggleCountdown = (newVal: boolean) => {
-    setLocalShowCountdown(newVal);
-    setShowCountdownBanner(newVal);
-    toast.success(newVal ? 'কম্বো অফার সচল করা হয়েছে! (ওয়েবসাইটে এখন দেখা যাবে)' : 'কম্বো অফার বন্ধ করা হয়েছে! (ওয়েবসাইটে এখন দেখা যাবে না)');
-  };
-
-  const handleOfferBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const loadingToast = toast.loading('ডিভাইস থেকে ছবি আপলোড ও প্রসেস করা হচ্ছে...');
-      try {
-        const result = await compressImage(file, 1200, 675, 0.8);
-        setLocalComboOfferBannerUrl(result);
-        setComboOfferBannerUrl(result);
-        autoSaveToMediaLibrary(result, { name: 'Combo Offer Banner', category: 'Banners & Sliders', source: 'banner' });
-        toast.success('অফিস ভিজিট ব্যানার ছবি সফলভাবে আপডেট ও মিডিয়াতে সেভ হয়েছে!', { id: loadingToast });
-      } catch (err) {
-        toast.error('ছবি আপলোড করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।', { id: loadingToast });
-      }
-    }
-  };
-
-  const handleRemoveOfferBanner = () => {
-    setLocalComboOfferBannerUrl('');
-    setComboOfferBannerUrl('');
-    toast.success('অফিস ভিজিট ব্যানার ছবি মুছে ফেলা হয়েছে।');
-  };
-
   const saveDesignSettings = () => {
     setShowAnnouncementBar(localShowAnnouncement);
     setAnnouncementMessage(localAnnouncementMessage);
-    setShowCountdownBanner(localShowCountdown);
-    setComboOfferTitle(localComboOfferTitle);
-    setComboOfferSubTitle(localComboOfferSubTitle);
-    setComboOfferDiscount(localComboOfferDiscount);
-    setComboOfferBannerUrl(localComboOfferBannerUrl);
-    setComboOfferHours(Number(localComboOfferHours));
-    setComboOfferMinutes(Number(localComboOfferMinutes));
-    setComboOfferSeconds(Number(localComboOfferSeconds));
     setShowHeroBanner(localShowHero);
     setPrimaryDeliveryDistrict(localPrimaryDeliveryDistrict);
     setShippingInsideDhaka(Number(localShippingInside));
     setShippingOutsideDhaka(Number(localShippingOutside));
     setShippingFreeAfter(Number(localShippingFreeAfter));
     setAboutText(localAboutText);
-    toast.success('কম্বো অফার ও ডিজাইনের তথ্য সেভ করা হয়েছে!');
+    toast.success('ডিজাইনের তথ্য সেভ করা হয়েছে!');
   };
 
   return (
@@ -288,16 +223,6 @@ export default function BannerSettings() {
           <ImageIcon size={12} />
           Promo Banners
         </button>
-        <button
-          onClick={() => setActiveTab('offer')}
-          className={cn(
-            "px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2 cursor-pointer",
-            activeTab === 'offer' ? "bg-black text-white shadow-lg" : "text-gray-400 hover:text-black"
-          )}
-        >
-          <Flame size={12} className={activeTab === 'offer' ? "text-amber-400 fill-amber-400" : "text-amber-500"} />
-          Special Offer (কম্বো অফার)
-        </button>
       </div>
 
       {activeTab === 'design' && (
@@ -329,19 +254,6 @@ export default function BannerSettings() {
                     className="w-full bg-white border border-gray-100 rounded-2xl px-6 py-4 outline-none focus:border-black transition-all text-xs font-medium resize-none"
                   />
                 )}
-
-                <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-2xl">
-                  <span className="text-[11px] font-black uppercase text-gray-500 italic">Countdown Banner</span>
-                  <button
-                    onClick={() => setLocalShowCountdown(!localShowCountdown)}
-                    className={cn(
-                      "w-12 h-6 rounded-full transition-all relative flex items-center px-1",
-                      localShowCountdown ? "bg-black" : "bg-gray-300"
-                    )}
-                  >
-                    <div className={cn("w-4 h-4 bg-white rounded-full transition-transform", localShowCountdown ? "translate-x-6" : "translate-x-0")} />
-                  </button>
-                </div>
 
                 <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-2xl">
                   <span className="text-[11px] font-black uppercase text-gray-500 italic">Hero Carousel Slider</span>
@@ -583,331 +495,6 @@ export default function BannerSettings() {
                 </div>
               </div>
             ))}
-          </div>
-
-          {/* WHY CHOOSE ELEGAN BD 4-IMAGE GRID MANAGEMENT */}
-          <div className="bg-white border border-gray-100 p-8 rounded-[32px] shadow-sm space-y-6 mt-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-4">
-              <div>
-                <h4 className="text-base font-black uppercase tracking-tight text-black flex items-center gap-2">
-                  <ImageIcon className="text-blue-600" size={18} />
-                  <span>Why Choose Elegan BD - 4-Image Grid Showcase</span>
-                </h4>
-                <p className="text-xs text-gray-500 font-medium mt-1">
-                  হোমপেজের "Why Choose Elegan BD" সেকশনের নিচে ৪ টি পোর্ট্রেট ছবি আপডেট করুন। এগুলো ফায়ারস্টোরে পারমানেন্টলি সেভ থাকবে।
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[
-                { id: '1', title: 'Picture 1', url: whyChooseImg1, setImg: setWhyChooseImg1, text: whyChooseText1, setText: setWhyChooseText1, defaultText: 'CRAFTED FOR COMFORT. DESIGNED FOR STYLE.' },
-                { id: '2', title: 'Picture 2', url: whyChooseImg2, setImg: setWhyChooseImg2, text: whyChooseText2, setText: setWhyChooseText2, defaultText: 'STAY COOL. STAY STYLISH.' },
-                { id: '3', title: 'Picture 3', url: whyChooseImg3, setImg: setWhyChooseImg3, text: whyChooseText3, setText: setWhyChooseText3, defaultText: 'LIGHTWEIGHT COMFORT FOR EVERY DAY.' },
-                { id: '4', title: 'Picture 4', url: whyChooseImg4, setImg: setWhyChooseImg4, text: whyChooseText4, setText: setWhyChooseText4, defaultText: 'PREMIUM FABRIC. EFFORTLESS STYLE.' },
-              ].map((item) => (
-                <div key={item.id} className="bg-gray-50 border border-gray-200/80 p-5 rounded-2xl flex flex-col justify-between space-y-4">
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 bg-blue-50 px-2.5 py-1 rounded-md inline-block">
-                      {item.title}
-                    </span>
-                  </div>
-
-                  <div className="aspect-[3/4] w-full rounded-xl bg-gray-200 border border-gray-300/60 overflow-hidden relative group/img shadow-2xs">
-                    {item.url ? (
-                      <img 
-                        src={item.url} 
-                        alt={item.title} 
-                        className="w-full h-full object-cover transition-transform group-hover/img:scale-105"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <div className="text-center p-4 h-full flex flex-col items-center justify-center space-y-1 text-gray-400">
-                        <ImageIcon size={28} />
-                        <span className="text-[10px] uppercase font-bold">No Image</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Overlay Text</label>
-                    <input 
-                      type="text"
-                      value={item.text}
-                      onChange={(e) => item.setText(e.target.value)}
-                      placeholder={item.defaultText}
-                      className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-xs font-semibold text-gray-900 focus:outline-none focus:border-blue-600"
-                    />
-                  </div>
-
-                  <div className="flex gap-2">
-                    <label className="flex-1 py-2.5 text-[10px] uppercase tracking-wider font-black bg-black text-white hover:bg-gray-800 transition-all rounded-xl shadow-xs text-center cursor-pointer flex items-center justify-center gap-1.5">
-                      <Upload size={13} />
-                      <span>Upload</span>
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        className="hidden" 
-                        onChange={(e) => handleStaticBannerUpload(e, `Why Choose ${item.title}`, item.setImg, true)} 
-                      />
-                    </label>
-                    {item.url && (
-                      <button 
-                        onClick={() => handleRemoveStaticBanner(`Why Choose ${item.title}`, item.setImg)}
-                        className="px-3 bg-red-50 text-red-500 border border-red-100 hover:bg-red-500 hover:text-white transition-all rounded-xl flex items-center justify-center cursor-pointer"
-                        title="Remove Image"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'offer' && (
-        <div className="space-y-8 animate-in fade-in duration-500">
-          <div className="bg-white border border-gray-100 p-8 rounded-[32px] shadow-sm space-y-8">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-gray-50 pb-6">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Flame className="text-amber-500 fill-amber-500" size={20} />
-                  <h4 className="text-lg font-black uppercase tracking-tight text-black">
-                    অফিস ভিজিট বিশেষ অফার কনফিগারেশন (Office Visit Offer)
-                  </h4>
-                </div>
-                <p className="text-xs text-gray-500 font-medium mt-1">
-                  নতুন অফিস উদ্বোধন উপলক্ষে ব্যানার শিরোনাম, বিবরণ এবং ডিসকাউন্ট ব্যাজ কনফিগার করুন।
-                </p>
-              </div>
-
-              {/* Toggle switch for showing/hiding offer */}
-              <div className="flex items-center gap-3 bg-gray-50 p-2.5 px-4 rounded-2xl border border-gray-100">
-                <span className="text-xs font-bold text-gray-700">
-                  {localShowCountdown ? "স্ট্যাটাস: ওয়েবসাইটে দেখাবে" : "স্ট্যাটাস: ওয়েবসাইটে লুকানো"}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleToggleCountdown(!localShowCountdown)}
-                  className={cn(
-                    "w-12 h-6 rounded-full transition-all relative flex items-center px-1 cursor-pointer",
-                    localShowCountdown ? "bg-black" : "bg-gray-300"
-                  )}
-                >
-                  <div className={cn("w-4 h-4 bg-white rounded-full transition-transform", localShowCountdown ? "translate-x-6" : "translate-x-0")} />
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Left column: Inputs & Image Upload */}
-              <div className="space-y-5">
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
-                    <Tag size={14} className="text-amber-500" /> অফারের শিরোনাম (Heading Text)
-                  </label>
-                  <input
-                    type="text"
-                    value={localComboOfferTitle}
-                    onChange={(e) => setLocalComboOfferTitle(e.target.value)}
-                    placeholder="e.g. নতুন অফিস উদ্বোধন উপলক্ষে অফিস ভিজিট কেনাকাটায় ১০% ফ্ল্যাট ছাড়!"
-                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 outline-none focus:border-black transition-all text-sm font-bold"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-gray-700">
-                    অফারের সাবটাইটেল / বিবরণ (Description)
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={localComboOfferSubTitle}
-                    onChange={(e) => setLocalComboOfferSubTitle(e.target.value)}
-                    placeholder="e.g. আমাদের নতুন অফিসে সরাসরি এসে যেকোনো কেনাকাটা করলেই উপভোগ করুন ১০% বিশেষ ফ্ল্যাট ডিসকাউন্ট।"
-                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 outline-none focus:border-black transition-all text-xs font-medium resize-none"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-gray-700">
-                    ডিসকাউন্ট টেক্সট / শতাংশ (Discount Badge)
-                  </label>
-                  <input
-                    type="text"
-                    value={localComboOfferDiscount}
-                    onChange={(e) => setLocalComboOfferDiscount(e.target.value)}
-                    placeholder="e.g. ১০% ছাড় (অফিস ভিজিট)"
-                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 outline-none focus:border-black transition-all text-xs font-bold text-amber-600"
-                  />
-                </div>
-
-                {/* Picture Upload from Device */}
-                <div className="space-y-2 pt-2 border-t border-gray-100">
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-gray-700 flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <ImageIcon size={14} className="text-amber-500" /> ব্যানার ছবি (Upload Photo from Device)
-                    </span>
-                    <span className="text-[10px] text-gray-400 font-semibold lowercase">
-                      (real-time sync)
-                    </span>
-                  </label>
-
-                  {localComboOfferBannerUrl ? (
-                    <div className="relative group bg-gray-50 rounded-2xl p-3 border border-gray-200 flex items-center gap-4">
-                      <div className="relative w-24 h-16 rounded-xl overflow-hidden bg-black/5 border border-gray-200 shrink-0">
-                        <img
-                          src={localComboOfferBannerUrl}
-                          alt="Offer Banner"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <p className="text-xs font-bold text-gray-800 truncate">
-                          ছবি যুক্ত আছে (Active Image)
-                        </p>
-                        <p className="text-[10px] text-gray-500">
-                          ওয়েবসাইটে এবং লাইভ প্রিভিউতে সাথে সাথে দেখা যাবে।
-                        </p>
-                        <div className="flex items-center gap-2 pt-1">
-                          <label className="cursor-pointer inline-flex items-center gap-1 px-3 py-1 bg-black text-white text-[10px] font-bold rounded-lg hover:bg-gray-800 transition-all">
-                            <Upload size={10} />
-                            <span>ছবি পরিবর্তন করুন</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={handleOfferBannerUpload}
-                              className="hidden"
-                            />
-                          </label>
-                          <button
-                            type="button"
-                            onClick={handleRemoveOfferBanner}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-600 border border-red-100 text-[10px] font-bold rounded-lg hover:bg-red-100 transition-all cursor-pointer"
-                          >
-                            <Trash2 size={10} />
-                            <span>মুছুন</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <label className="border-2 border-dashed border-gray-200 hover:border-amber-500 rounded-2xl p-5 flex flex-col items-center justify-center gap-2 text-center cursor-pointer transition-all bg-gray-50/50 hover:bg-amber-50/30 group">
-                      <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <Upload size={18} />
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-gray-700">
-                          ডিভাইস থেকে ছবি আপলোড করুন
-                        </p>
-                        <p className="text-[10px] text-gray-400 mt-0.5">
-                          ক্লিক করে আপনার ফোন বা কম্পিউটার থেকে ছবি সিলেক্ট করুন (JPG, PNG, WebP)
-                        </p>
-                      </div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleOfferBannerUpload}
-                        className="hidden"
-                      />
-                    </label>
-                  )}
-
-                  {/* Optional Direct URL Input */}
-                  <div className="pt-1">
-                    <input
-                      type="text"
-                      value={localComboOfferBannerUrl}
-                      onChange={(e) => {
-                        setLocalComboOfferBannerUrl(e.target.value);
-                        setComboOfferBannerUrl(e.target.value);
-                      }}
-                      placeholder="বা সরাসরি ছবির লিংক পেস্ট করুন (Image URL)"
-                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 outline-none focus:border-black transition-all text-[11px] text-gray-600"
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-4">
-                  <button
-                    type="button"
-                    onClick={saveDesignSettings}
-                    className="w-full bg-black text-white py-4 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-gray-800 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-                  >
-                    <Save size={16} />
-                    <span>সেভ ও আপডেট করুন</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Right column: Live Preview */}
-              <div className="space-y-3 bg-gray-50 p-6 rounded-3xl border border-gray-100 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">লাইভ ওয়েবসাইট প্রিভিউ (Live Preview)</span>
-                    <span className={cn("text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase", localShowCountdown ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700")}>
-                      {localShowCountdown ? "Visible" : "Hidden"}
-                    </span>
-                  </div>
-
-                  <div className="bg-gradient-to-r from-blue-950 via-indigo-900 to-blue-950 rounded-2xl py-3.5 px-4 text-white shadow-[0_0_20px_rgba(245,158,11,0.45)] relative overflow-hidden border-2 border-amber-400 animate-pulse">
-                    {/* Background ambient image if uploaded */}
-                    {localComboOfferBannerUrl && (
-                      <div 
-                        className="absolute inset-0 bg-cover bg-center opacity-25 pointer-events-none mix-blend-luminosity scale-105"
-                        style={{ backgroundImage: `url(${localComboOfferBannerUrl})` }}
-                      />
-                    )}
-
-                    <div className="absolute -left-8 -top-8 w-32 h-32 bg-amber-400/25 rounded-full blur-3xl pointer-events-none" />
-                    <div className="relative z-10 flex flex-col gap-2.5">
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 min-w-0">
-                        {/* Render uploaded image in live preview */}
-                        {localComboOfferBannerUrl && (
-                          <div className="relative shrink-0 self-center sm:self-auto">
-                            <img
-                              src={localComboOfferBannerUrl}
-                              alt="Offer thumbnail"
-                              className="w-14 h-14 sm:w-16 sm:h-16 object-cover rounded-xl border-2 border-amber-400 shadow-md ring-1 ring-white/30"
-                            />
-                          </div>
-                        )}
-
-                        <div className="min-w-0 flex-1 space-y-1">
-                          <div className="inline-flex items-center gap-1 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-gray-950 font-black text-[9.5px] px-2.5 py-0.5 rounded-full uppercase tracking-wider shrink-0 shadow-sm ring-1 ring-white/20">
-                            <Sparkles size={10} className="fill-gray-950" />
-                            <span>{localComboOfferDiscount || "১০% ছাড়"}</span>
-                          </div>
-                          <h5 className="text-xs font-black tracking-tight text-white leading-snug">
-                            {localComboOfferTitle || "নতুন অফিস উদ্বোধন উপলক্ষে অফিস ভিজিট কেনাকাটায় ১০% ফ্ল্যাট ছাড়!"}
-                          </h5>
-                          {localComboOfferSubTitle && (
-                            <p className="text-[10px] text-amber-100 font-medium line-clamp-2">
-                              {localComboOfferSubTitle}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between border-t border-white/10 pt-2 text-[9.5px]">
-                        <span className="text-amber-300 font-bold flex items-center gap-1">
-                          <Building2 size={12} className="animate-bounce text-amber-300" /> অফিস আউটলেট কেনাকাটায় ১০% ছাড়
-                        </span>
-                        <span className="bg-amber-400/25 text-amber-300 font-black text-[8.5px] px-2 py-0.5 rounded-lg border border-amber-400/40">
-                          ১০% ফ্ল্যাট ছাড়
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <p className="text-[10px] text-gray-400 text-center italic mt-4">
-                  * ডিভাইস থেকে ছবি আপলোড করলে বা "সেভ ও আপডেট করুন" বাটনে ক্লিক করলে তা রিয়েল টাইমে সরাসরি ওয়েবসাইটে দেখা যাবে।
-                </p>
-              </div>
-            </div>
           </div>
         </div>
       )}

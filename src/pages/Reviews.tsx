@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Star, MessageSquare, Plus, Trash2, CheckCircle2, User, Filter, X, ThumbsUp, Sparkles, AlertCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { motion } from 'motion/react';
+import { Star, MessageSquare, Plus, Trash2, CheckCircle2, User, Filter, ThumbsUp, Sparkles, AlertCircle } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { isFirestoreQuotaExceeded, isQuotaError } from '../lib/firestoreUtils';
@@ -92,24 +93,7 @@ export default function Reviews() {
   const { currentUser, customerUser, isAdmin } = useAuth();
   const [firestoreReviews, setFirestoreReviews] = useState<ReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedStarFilter, setSelectedStarFilter] = useState<number | null>(null);
-
-  // Form State
-  const [userName, setUserName] = useState('');
-  const [productName, setProductName] = useState('');
-  const [rating, setRating] = useState(5);
-  const [comment, setComment] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Auto fill user name if logged in
-  useEffect(() => {
-    if (currentUser?.email) {
-      setUserName(currentUser.email.split('@')[0]);
-    } else if (customerUser?.email) {
-      setUserName(customerUser.email.split('@')[0]);
-    }
-  }, [currentUser, customerUser]);
 
   // Real-time Firestore query for reviews
   useEffect(() => {
@@ -176,42 +160,6 @@ export default function Reviews() {
     return { star, count, percentage };
   });
 
-  const handleSubmitReview = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userName.trim()) {
-      toast.error('অনুগ্রহ করে আপনার নাম দিন (Please enter your name)');
-      return;
-    }
-    if (!comment.trim()) {
-      toast.error('অনুগ্রহ করে আপনার মন্তব্য লিখুন (Please write your review comment)');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      await addDoc(collection(db, 'reviews'), {
-        userName: userName.trim(),
-        userEmail: currentUser?.email || customerUser?.email || '',
-        rating: Number(rating),
-        comment: comment.trim(),
-        productName: productName.trim() || 'General Store Review',
-        createdAt: Date.now(),
-        isVerified: true,
-        isAdmin: !!isAdmin
-      });
-
-      toast.success('আপনার রিভিউ সফলভাবে যুক্ত হয়েছে! (Review submitted successfully)');
-      setComment('');
-      setProductName('');
-      setIsModalOpen(false);
-    } catch (err) {
-      console.error('Error adding review:', err);
-      toast.error('রিভিউ জমা দিতে ব্যর্থ হয়েছে (Failed to submit review)');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleDeleteReview = async (reviewId: string) => {
     if (!isAdmin) return;
 
@@ -240,7 +188,7 @@ export default function Reviews() {
             Customer Reviews
           </h1>
           <p className="text-sm sm:text-base text-gray-500 max-w-xl mx-auto mt-2 font-medium">
-            আমাদের সম্মানীয় গ্রাহকদের অভিজ্ঞতা ও প্রতিক্রিয়া। আপনিও আপনার মতামত শেয়ার করুন!
+            Real feedback and genuine experiences from our valued customers. Share yours today!
           </p>
         </div>
 
@@ -262,13 +210,13 @@ export default function Reviews() {
                 Based on {totalReviews} Verified Reviews
               </span>
 
-              <button
-                onClick={() => setIsModalOpen(true)}
+              <Link
+                to="/write-review"
                 className="mt-5 w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-black hover:bg-gray-800 text-white font-extrabold text-xs uppercase tracking-wider rounded-2xl transition-all shadow-md cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
               >
                 <Plus size={16} className="text-amber-400" />
-                Write a Review / রিভিউ দিন
-              </button>
+                Write a Review
+              </Link>
             </div>
 
             {/* Right Rating Breakdown Bars */}
@@ -450,125 +398,6 @@ export default function Reviews() {
             ))}
           </div>
         )}
-
-        {/* Modal for adding a new review */}
-        <AnimatePresence>
-          {isModalOpen && (
-            <>
-              {/* Backdrop */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setIsModalOpen(false)}
-                className="fixed inset-0 bg-black/60 z-[80] backdrop-blur-xs"
-              />
-
-              {/* Modal Box */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[92%] max-w-lg bg-white rounded-3xl p-6 sm:p-8 z-[90] shadow-2xl border border-gray-100"
-              >
-                <div className="flex items-center justify-between pb-4 mb-5 border-b border-gray-100">
-                  <div>
-                    <h3 className="text-xl font-black uppercase tracking-tight text-gray-900">
-                      Write a Review
-                    </h3>
-                    <p className="text-xs text-gray-400 mt-0.5">আপনার সততা ও অভিজ্ঞতা আমাদের জন্য মূল্যবান</p>
-                  </div>
-                  <button
-                    onClick={() => setIsModalOpen(false)}
-                    className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center transition-colors cursor-pointer"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <form onSubmit={handleSubmitReview} className="space-y-4">
-                  
-                  {/* Rating Selector */}
-                  <div>
-                    <label className="text-xs font-extrabold uppercase tracking-wider text-gray-600 block mb-2">
-                      Overall Rating / রেটিং নির্বাচন করুন *
-                    </label>
-                    <div className="flex items-center gap-2 bg-gray-50 p-3 rounded-2xl border border-gray-200 justify-center">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          type="button"
-                          key={star}
-                          onClick={() => setRating(star)}
-                          className="p-1 hover:scale-125 transition-transform cursor-pointer"
-                        >
-                          <Star
-                            size={28}
-                            fill={star <= rating ? '#f59e0b' : 'none'}
-                            className={star <= rating ? 'text-amber-500' : 'text-gray-300'}
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Name Input */}
-                  <div>
-                    <label className="text-xs font-extrabold uppercase tracking-wider text-gray-600 block mb-1">
-                      Your Name / আপনার নাম *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Tanvir Ahmed"
-                      value={userName}
-                      onChange={(e) => setUserName(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-black transition-all"
-                    />
-                  </div>
-
-                  {/* Product Name (Optional) */}
-                  <div>
-                    <label className="text-xs font-extrabold uppercase tracking-wider text-gray-600 block mb-1">
-                      Product Name (Optional) / পণ্যের নাম
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Premium Cotton Shirt"
-                      value={productName}
-                      onChange={(e) => setProductName(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-black transition-all"
-                    />
-                  </div>
-
-                  {/* Review Message Textarea */}
-                  <div>
-                    <label className="text-xs font-extrabold uppercase tracking-wider text-gray-600 block mb-1">
-                      Your Review / বিস্তারিত মতামত *
-                    </label>
-                    <textarea
-                      required
-                      rows={4}
-                      placeholder="পণ্যের কোয়ালিটি, ফেব্রিক ও ডেলিভারি সার্ভিস কেমন লেগেছে বিস্তারিত লিখুন..."
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-black transition-all resize-none"
-                    />
-                  </div>
-
-                  {/* Submit Button */}
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full py-3.5 bg-black hover:bg-gray-800 text-white font-extrabold text-xs uppercase tracking-wider rounded-2xl transition-all shadow-md cursor-pointer disabled:opacity-50 mt-2"
-                  >
-                    {isSubmitting ? 'প্রসেসিং হচ্ছে...' : 'Submit Review / জমা দিন'}
-                  </button>
-
-                </form>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
 
       </div>
     </div>
