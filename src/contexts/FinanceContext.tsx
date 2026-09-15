@@ -251,26 +251,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const mergeAccounts = useCallback((existing: BankAccount[], incoming: BankAccount[]): BankAccount[] => {
     if (!incoming || incoming.length === 0) return existing;
     
-    // Cloud is the single source of truth across devices. We return incoming directly so deletions and updates match everywhere.
-    const incomingMap = new Map<string, BankAccount>();
-    incoming.forEach(a => { if (a && a.id) incomingMap.set(a.id, a); });
-
+    // Cloud is the absolute single source of truth across all devices.
     const result: BankAccount[] = [];
     incoming.forEach(a => {
       if (a && a.id) {
         result.push(a);
-      }
-    });
-
-    // Only keep local un-synced items if they were created very recently (within last 30 seconds)
-    const now = Date.now();
-    existing.forEach(a => {
-      if (a && a.id && !incomingMap.has(a.id)) {
-        // If it's a default starter account or old local item, drop it in favor of cloud auth.
-        // But if it's brand new (<30s), keep it temporarily.
-        if (a.id.startsWith('acc_') && (now - Number(a.id.split('_')[1] || 0) < 30000)) {
-          result.push(a);
-        }
       }
     });
 
