@@ -1151,50 +1151,12 @@ export default function AdminFinance(): React.JSX.Element {
       {/* 1. New Account Modal */}
       {showAddAccountModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-[150] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-gray-50 pb-2">
-              <h3 className="text-base font-black text-gray-900">নতুন অ্যাকাউন্ট / ওয়ালেট যোগ</h3>
-              <button onClick={() => setShowAddAccountModal(false)} className="text-gray-400 hover:text-black transition-colors cursor-pointer">
-                <X className="w-5 h-5" />
+          <div className="bg-white rounded-[28px] max-w-xl w-full border border-gray-100 p-8 space-y-5 shadow-2xl max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="text-lg font-black text-gray-900">নতুন অ্যাকাউন্ট / ওয়ালেট যোগ</h3>
+              <button onClick={() => setShowAddAccountModal(false)} className="text-gray-400 hover:text-black transition-colors cursor-pointer p-1">
+                <X className="w-6 h-6" />
               </button>
-            </div>
-
-            {/* Quick 1-Click Bank & Wallet Presets */}
-            <div className="space-y-1.5 bg-slate-50/80 p-3 rounded-2xl border border-slate-200/70">
-              <label className="text-[10px] font-black uppercase tracking-wider text-gray-600 block">
-                জনপ্রিয় অ্যাকাউন্ট প্রিসেট (১-ক্লিক সিলেকশন)
-              </label>
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
-                {BANK_PRESETS.map((p) => {
-                  const isPresetUsd = p.id === 'redotpay';
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => {
-                        setAccountForm({
-                          ...accountForm,
-                          bankName: p.name.split(' (')[0],
-                          accountName: p.name,
-                          accountType: p.accountType,
-                          currency: isPresetUsd ? 'USD' : 'BDT',
-                          logoUrl: p.logoUrl
-                        });
-                        toast.success(`${p.name} প্রিসেট সিলেক্ট করা হয়েছে`);
-                      }}
-                      className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold whitespace-nowrap flex items-center gap-1.5 transition-all shrink-0 cursor-pointer shadow-2xs ${
-                        isPresetUsd 
-                          ? 'border-red-200 bg-red-50/70 hover:bg-red-100 text-red-800' 
-                          : 'border-gray-200 hover:border-indigo-400 bg-white hover:bg-indigo-50/50 text-gray-700'
-                      }`}
-                    >
-                      <BankLogoBadge bankName={p.name} logoUrl={p.logoUrl} size="xs" />
-                      <span>{p.name.split(' ')[0]}</span>
-                      {isPresetUsd && <span className="text-[9px] px-1 bg-red-600 text-white rounded font-mono font-bold">$</span>}
-                    </button>
-                  );
-                })}
-              </div>
             </div>
 
             <form onSubmit={handleAddAccountSubmit} className="space-y-4">
@@ -1364,11 +1326,11 @@ export default function AdminFinance(): React.JSX.Element {
       {/* 2. Edit Account Modal */}
       {showEditAccountModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-[150] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[24px] max-w-md w-full border border-gray-100 p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-gray-50 pb-2">
-              <h3 className="text-base font-black text-gray-900">অ্যাকাউন্ট সংশোধন</h3>
-              <button onClick={() => setShowEditAccountModal(false)} className="text-gray-400 hover:text-black transition-colors cursor-pointer">
-                <X className="w-5 h-5" />
+          <div className="bg-white rounded-[28px] max-w-xl w-full border border-gray-100 p-8 space-y-5 shadow-2xl max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="text-lg font-black text-gray-900">অ্যাকাউন্ট সংশোধন</h3>
+              <button onClick={() => setShowEditAccountModal(false)} className="text-gray-400 hover:text-black transition-colors cursor-pointer p-1">
+                <X className="w-6 h-6" />
               </button>
             </div>
 

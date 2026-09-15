@@ -18,6 +18,8 @@ import { handleFirestoreError, OperationType, isQuotaError } from '../../lib/fir
 import { formatPrice } from '../../lib/utils';
 import { useFinance, isUsdAccount, formatAccountBalance } from '../../contexts/FinanceContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { sanitizeForFirestore } from '../../lib/sanitize';
+import { saveDocumentToSupabase, deleteDocumentFromSupabase } from '../../lib/supabase';
 import { 
   Plus, 
   Trash2, 
@@ -86,17 +88,27 @@ export default function AdminDollarExpenses(): React.JSX.Element {
     notes: ''
   });
 
-  // Fetch dollar transactions real-time
+  // Fetch dollar transactions real-time with cross-device sync
   useEffect(() => {
-    const q = query(collection(db, 'dollar_transactions'), orderBy('date', 'desc'));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    // Initial local cache retrieval
+    try {
+      const cached = localStorage.getItem('elegan_dollar_transactions');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setTransactions(parsed);
+          setLoading(false);
+        }
+      }
+    } catch (e) {}
+
+    const unsubscribe = onSnapshot(collection(db, 'dollar_transactions'), (snapshot) => {
       const list: DollarTransaction[] = [];
       snapshot.forEach((docSnap) => {
         const data = docSnap.data();
         list.push({
           id: docSnap.id,
-          type: data.type,
+          type: data.type || 'spend',
           amount: Number(data.amount || 0),
           rate: Number(data.rate || 0),
           bdtAmount: Number(data.bdtAmount || 0),
@@ -108,7 +120,31 @@ export default function AdminDollarExpenses(): React.JSX.Element {
           usdAccountId: data.usdAccountId || ''
         });
       });
+
+      // Auto-upload any local items that are missing from cloud
+      try {
+        const cached = localStorage.getItem('elegan_dollar_transactions');
+        if (cached) {
+          const parsed: DollarTransaction[] = JSON.parse(cached);
+          if (Array.isArray(parsed)) {
+            const cloudIds = new Set(list.map(t => t.id));
+            const missingInCloud = parsed.filter(t => t && t.id && !cloudIds.has(t.id));
+            for (const missing of missingInCloud) {
+              const sanitized = sanitizeForFirestore(missing);
+              addDoc(collection(db, 'dollar_transactions'), sanitized).catch(() => {});
+              list.push(missing);
+            }
+          }
+        }
+      } catch (e) {}
+
+      // Authoritative sort by date descending
+      list.sort((a, b) => (Number(b.date) || 0) - (Number(a.date) || 0));
+
       setTransactions(list);
+      try {
+        localStorage.setItem('elegan_dollar_transactions', JSON.stringify(list));
+      } catch (e) {}
       setLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'dollar_transactions');
@@ -367,22 +403,25 @@ export default function AdminDollarExpenses(): React.JSX.Element {
       rate: formType === 'buy' ? rateVal : 0,
       bdtAmount: bdtVal,
       accountId: form.accountId || '',
-      usdAccountId: formType === 'buy' ? form.usdAccountId : '',
+      usdAccountId: formType === 'buy' ? (form.usdAccountId || '') : '',
       account: selectedAccName,
       date: finalDate,
-      purpose: formType === 'spend' ? form.purpose : 'ডলার ক্রয়',
+      purpose: formType === 'spend' ? (form.purpose || 'ফেসবুক অ্যাডস') : 'ডলার ক্রয়',
       notes: form.notes || ''
     };
+
+    const sanitizedPayload = sanitizeForFirestore(payload);
 
     try {
       let targetTxId = editingTransaction?.id;
 
-      if (editingTransaction) {
-        await updateDoc(doc(db, 'dollar_transactions', editingTransaction.id), payload);
+      if (editingTransaction && targetTxId) {
+        await setDoc(doc(db, 'dollar_transactions', targetTxId), sanitizedPayload, { merge: true });
+        saveDocumentToSupabase('dollar_transactions', targetTxId, sanitizedPayload).catch(() => {});
         
         // Remove previous bank transaction logs associated with this dollar transaction to recalculate
         const oldBankTxs = bankTransactions.filter(
-          tx => tx.dollarTxId === editingTransaction.id || (tx.reference && tx.reference.includes(`[DTX_${editingTransaction.id}]`))
+          tx => tx.dollarTxId === targetTxId || (tx.reference && tx.reference.includes(`[DTX_${targetTxId}]`))
         );
         for (const oldTx of oldBankTxs) {
           try {
@@ -392,8 +431,9 @@ export default function AdminDollarExpenses(): React.JSX.Element {
           }
         }
       } else {
-        const docRef = await addDoc(collection(db, 'dollar_transactions'), payload);
+        const docRef = await addDoc(collection(db, 'dollar_transactions'), sanitizedPayload);
         targetTxId = docRef.id;
+        saveDocumentToSupabase('dollar_transactions', targetTxId, sanitizedPayload).catch(() => {});
       }
 
       // Record updated bank transactions in Finance ledger
@@ -455,7 +495,7 @@ export default function AdminDollarExpenses(): React.JSX.Element {
         }
       }
 
-      toast.success(editingTransaction ? 'লেনদেন আপডেট করা হয়েছে এবং ফাইন্যান্স অ্যাকাউন্ট থেকে ব্যালেন্স আপডেট করা হয়েছে!' : 'লেনদেন সফলভাবে ডিলিট ও ফাইন্যান্স অ্যাকাউন্টে সমন্বয় করা হয়েছে!');
+      toast.success(editingTransaction ? 'লেনদেন আপডেট করা হয়েছে এবং ফাইন্যান্স অ্যাকাউন্ট ব্যালেন্স সমন্বয় করা হয়েছে!' : 'নতুন লেনদেন সফলভাবে যোগ হয়েছে এবং ফাইন্যান্স অ্যাকাউন্টে সমন্বয় করা হয়েছে!');
       setShowModal(false);
       setEditingTransaction(null);
     } catch (err) {
@@ -484,6 +524,7 @@ export default function AdminDollarExpenses(): React.JSX.Element {
       }
 
       await deleteDoc(doc(db, 'dollar_transactions', id));
+      deleteDocumentFromSupabase('dollar_transactions', id).catch(() => {});
       toast.success('লেনদেন সফলভাবে ডিলিট হয়েছে এবং ফাইন্যান্স অ্যাকাউন্টের ব্যালেন্স রিস্টোর করা হয়েছে!');
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `dollar_transactions/${id}`);

@@ -1,9 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { db } from '../lib/firebase';
-import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, orderBy, setDoc } from 'firebase/firestore';
-import { handleFirestoreError, OperationType, isFirestoreQuotaExceeded, isQuotaError } from '../lib/firestoreUtils';
+import { collection, onSnapshot, doc, deleteDoc, setDoc, getDocs } from 'firebase/firestore';
+import { handleFirestoreError, OperationType, isFirestoreQuotaExceeded } from '../lib/firestoreUtils';
 import { saveDocumentToSupabase, deleteDocumentFromSupabase, fetchDocumentsFromSupabase } from '../lib/supabase';
+import { sanitizeForFirestore } from '../lib/sanitize';
 import { useAuth } from './AuthContext';
 
 export interface BankAccount {
@@ -77,6 +78,7 @@ interface FinanceContextType {
   bankAccounts: BankAccount[];
   bankTransactions: BankTransaction[];
   loading: boolean;
+  isSyncing: boolean;
   addBankAccount: (account: Omit<BankAccount, 'id' | 'balance'>) => Promise<void>;
   updateBankAccount: (account: BankAccount) => Promise<void>;
   deleteBankAccount: (id: string) => Promise<void>;
@@ -85,6 +87,7 @@ interface FinanceContextType {
   toggleTransactionStatus: (id: string, currentStatus?: 'unpaid' | 'paid') => Promise<void>;
   deleteBankTransaction: (id: string) => Promise<void>;
   recalculateAllBalances: () => Promise<void>;
+  syncWithCloud: () => Promise<void>;
 }
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
@@ -139,7 +142,8 @@ const DEFAULT_STARTER_ACCOUNTS: BankAccount[] = [
     initialBalance: 0,
     balance: 0,
     accountType: 'cash',
-    currency: 'BDT'
+    currency: 'BDT',
+    logoUrl: 'preset:cash'
   },
   {
     id: 'acc_sonali_main',
@@ -149,7 +153,8 @@ const DEFAULT_STARTER_ACCOUNTS: BankAccount[] = [
     initialBalance: 0,
     balance: 0,
     accountType: 'bank',
-    currency: 'BDT'
+    currency: 'BDT',
+    logoUrl: 'preset:sonali'
   },
   {
     id: 'acc_bkash_main',
@@ -159,7 +164,8 @@ const DEFAULT_STARTER_ACCOUNTS: BankAccount[] = [
     initialBalance: 0,
     balance: 0,
     accountType: 'mobile',
-    currency: 'BDT'
+    currency: 'BDT',
+    logoUrl: 'preset:bkash'
   }
 ];
 
@@ -209,7 +215,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const cached = localStorage.getItem('eleganbd_bank_accounts');
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {}
     return DEFAULT_STARTER_ACCOUNTS;
@@ -227,9 +233,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   });
 
   const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const { isAdmin, loading: authLoading } = useAuth();
 
-  // Persistent reference tracking for real-time snapshot sync
+  // Persistent reference tracking
   const bankAccountsRef = useRef<BankAccount[]>(bankAccounts);
   useEffect(() => {
     bankAccountsRef.current = bankAccounts;
@@ -240,26 +247,34 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     bankTransactionsRef.current = bankTransactions;
   }, [bankTransactions]);
 
-  // Defensive helper to merge accounts without losing existing ones
-  const mergeAccounts = (existing: BankAccount[], incoming: BankAccount[]): BankAccount[] => {
-    if (!incoming || incoming.length === 0) return existing;
-    const map = new Map<string, BankAccount>();
-    existing.forEach(a => { if (a && a.id) map.set(a.id, a); });
+  // Defensive helper to sync accounts directly with incoming cloud state while preserving locally created un-synced accounts
+  const mergeAccounts = useCallback((existing: BankAccount[], incoming: BankAccount[]): BankAccount[] => {
+    if (!incoming) return existing;
+    if (incoming.length === 0) return existing; // Keep existing if cloud is empty momentarily
+    
+    const incomingMap = new Map<string, BankAccount>();
+    incoming.forEach(a => { if (a && a.id) incomingMap.set(a.id, a); });
+
+    const result: BankAccount[] = [];
+    // First include all incoming from cloud
     incoming.forEach(a => {
       if (a && a.id) {
-        const prev = map.get(a.id);
-        map.set(a.id, { 
-          ...prev, 
-          ...a, 
-          initialBalance: Number(a.initialBalance !== undefined ? a.initialBalance : prev?.initialBalance) || 0 
-        });
+        result.push(a);
       }
     });
-    return Array.from(map.values());
-  };
+
+    // Also include any existing local accounts that might not have arrived from cloud snapshot yet
+    existing.forEach(a => {
+      if (a && a.id && !incomingMap.has(a.id)) {
+        result.push(a);
+      }
+    });
+
+    return result;
+  }, []);
 
   // Defensive helper to merge transactions
-  const mergeTransactions = (existing: BankTransaction[], incoming: BankTransaction[]): BankTransaction[] => {
+  const mergeTransactions = useCallback((existing: BankTransaction[], incoming: BankTransaction[]): BankTransaction[] => {
     if (!incoming || incoming.length === 0) return existing;
     const map = new Map<string, BankTransaction>();
     existing.forEach(t => { if (t && t.id) map.set(t.id, t); });
@@ -273,9 +288,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         });
       }
     });
-    return Array.from(map.values()).sort((a, b) => (b.date || 0) - (a.date || 0));
-  };
+    return Array.from(map.values()).sort((a, b) => (Number(b.date) || 0) - (Number(a.date) || 0));
+  }, []);
 
+  // Primary Cross-Device Real-time Listener
   useEffect(() => {
     if (authLoading) return;
     if (!isAdmin) {
@@ -283,76 +299,204 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    // Load bank accounts & transactions from Supabase
+    let isSubscribed = true;
+
+    // Supabase secondary cache backup
     Promise.all([
       fetchDocumentsFromSupabase('bank_accounts'),
       fetchDocumentsFromSupabase('bank_transactions')
     ]).then(([accountsData, txData]) => {
-      setBankTransactions(prevTxs => {
-        const mergedTxs = Array.isArray(txData) && txData.length > 0 ? mergeTransactions(prevTxs, txData) : prevTxs;
-        try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(mergedTxs)); } catch {}
-
-        setBankAccounts(prevAccs => {
-          const mergedAccs = Array.isArray(accountsData) && accountsData.length > 0 ? mergeAccounts(prevAccs, accountsData) : prevAccs;
-          const recalculated = computeBalances(mergedAccs, mergedTxs);
-          try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
-          return recalculated;
+      if (!isSubscribed) return;
+      if (Array.isArray(accountsData) && accountsData.length > 0) {
+        setBankAccounts(prev => {
+          const merged = mergeAccounts(prev, accountsData);
+          return computeBalances(merged, bankTransactionsRef.current);
         });
-
-        return mergedTxs;
-      });
-
-      setLoading(false);
-    }).catch(() => setLoading(false));
+      }
+      if (Array.isArray(txData) && txData.length > 0) {
+        setBankTransactions(prev => mergeTransactions(prev, txData));
+      }
+    }).catch(() => {});
 
     if (isFirestoreQuotaExceeded) {
       setLoading(false);
       return;
     }
 
-    try {
-      const unsubAccounts = onSnapshot(collection(db, 'bank_accounts'), (snapshot) => {
-        if (snapshot.docs.length > 0) {
-          const incomingAccounts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as BankAccount));
-          setBankAccounts(prev => {
-            const merged = mergeAccounts(prev, incomingAccounts);
-            const recalculated = computeBalances(merged, bankTransactionsRef.current);
-            try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
-            return recalculated;
-          });
-        }
-      }, () => setLoading(false));
+    // 1. Live Firestore Accounts Listener
+    const unsubAccounts = onSnapshot(collection(db, 'bank_accounts'), async (snapshot) => {
+      if (!isSubscribed) return;
 
-      const unsubTransactions = onSnapshot(collection(db, 'bank_transactions'), (snapshot) => {
-        if (snapshot.docs.length > 0) {
-          const incomingTxs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as BankTransaction));
-          setBankTransactions(prev => {
-            const merged = mergeTransactions(prev, incomingTxs);
-            try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(merged)); } catch {}
-            setBankAccounts(accs => {
-              const recalculated = computeBalances(accs, merged);
-              try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
-              return recalculated;
-            });
-            return merged;
-          });
-        }
-        setLoading(false);
-      }, () => setLoading(false));
+      if (snapshot.empty) {
+        // Do not wipe out local state if snapshot is empty momentarily; keep existing state
+        return;
+      } else {
+        const cloudAccounts: BankAccount[] = snapshot.docs.map(d => {
+          const data = d.data();
+          return {
+            id: d.id,
+            bankName: data.bankName || '',
+            accountName: data.accountName || '',
+            accountNumber: data.accountNumber || '',
+            branch: data.branch || '',
+            initialBalance: Number(data.initialBalance) || 0,
+            balance: Number(data.balance) || 0,
+            accountType: data.accountType || 'bank',
+            currency: data.currency || (isUsdAccount(data) ? 'USD' : 'BDT'),
+            logoUrl: data.logoUrl || ''
+          };
+        });
 
-      return () => {
-        unsubAccounts();
-        unsubTransactions();
-      };
-    } catch {
+        setBankAccounts(prev => {
+          const merged = mergeAccounts(prev, cloudAccounts);
+          const recalculated = computeBalances(merged, bankTransactionsRef.current);
+          try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
+          return recalculated;
+        });
+      }
+    }, () => setLoading(false));
+
+    // 2. Live Firestore Transactions Listener
+    const unsubTransactions = onSnapshot(collection(db, 'bank_transactions'), async (snapshot) => {
+      if (!isSubscribed) return;
+
+      const cloudTxs: BankTransaction[] = snapshot.docs.map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          accountId: data.accountId || '',
+          targetAccountId: data.targetAccountId || undefined,
+          type: data.type || 'deposit',
+          amount: Number(data.amount) || 0,
+          date: Number(data.date) || Date.now(),
+          reference: data.reference || '',
+          notes: data.notes || '',
+          attachment: data.attachment || '',
+          status: data.status || 'paid',
+          dollarTxId: data.dollarTxId || undefined
+        };
+      });
+
+      // Check if local cache has any transactions not yet synced to Firestore (e.g. from previous offline sessions)
+      try {
+        const localCachedStr = localStorage.getItem('eleganbd_bank_transactions');
+        if (localCachedStr) {
+          const localList: BankTransaction[] = JSON.parse(localCachedStr);
+          if (Array.isArray(localList)) {
+            const cloudIdSet = new Set(cloudTxs.map(t => t.id));
+            const missingInCloud = localList.filter(t => t && t.id && !cloudIdSet.has(t.id));
+            if (missingInCloud.length > 0) {
+              for (const missingTx of missingInCloud) {
+                const sanitized = sanitizeForFirestore(missingTx);
+                setDoc(doc(db, 'bank_transactions', missingTx.id), sanitized).catch(() => {});
+                cloudTxs.push(missingTx);
+              }
+            }
+          }
+        }
+      } catch (e) {}
+
+      cloudTxs.sort((a, b) => (Number(b.date) || 0) - (Number(a.date) || 0));
+
+      setBankTransactions(cloudTxs);
+      try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(cloudTxs)); } catch {}
+
+      // Authoritative recalculation of all balances based on live cloud transactions
+      setBankAccounts(prevAccounts => {
+        const recalculated = computeBalances(prevAccounts, cloudTxs);
+        try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
+        return recalculated;
+      });
+
       setLoading(false);
+    }, () => setLoading(false));
+
+    return () => {
+      isSubscribed = false;
+      unsubAccounts();
+      unsubTransactions();
+    };
+  }, [isAdmin, authLoading, mergeAccounts, mergeTransactions]);
+
+  // Sync / Recalculate with Cloud (guarantees 100% device accuracy)
+  const syncWithCloud = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      // 1. Fetch fresh accounts from Firestore
+      const accSnap = await getDocs(collection(db, 'bank_accounts'));
+      const txSnap = await getDocs(collection(db, 'bank_transactions'));
+
+      const accounts: BankAccount[] = accSnap.docs.map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          bankName: data.bankName || '',
+          accountName: data.accountName || '',
+          accountNumber: data.accountNumber || '',
+          branch: data.branch || '',
+          initialBalance: Number(data.initialBalance) || 0,
+          balance: Number(data.balance) || 0,
+          accountType: data.accountType || 'bank',
+          currency: data.currency || (isUsdAccount(data) ? 'USD' : 'BDT'),
+          logoUrl: data.logoUrl || ''
+        };
+      });
+
+      const transactions: BankTransaction[] = txSnap.docs.map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          accountId: data.accountId || '',
+          targetAccountId: data.targetAccountId || undefined,
+          type: data.type || 'deposit',
+          amount: Number(data.amount) || 0,
+          date: Number(data.date) || Date.now(),
+          reference: data.reference || '',
+          notes: data.notes || '',
+          attachment: data.attachment || '',
+          status: data.status || 'paid',
+          dollarTxId: data.dollarTxId || undefined
+        };
+      });
+
+      transactions.sort((a, b) => (Number(b.date) || 0) - (Number(a.date) || 0));
+
+      const mergedAccs = accounts.length > 0 ? accounts : DEFAULT_STARTER_ACCOUNTS;
+      const recalculated = computeBalances(mergedAccs, transactions);
+
+      setBankTransactions(transactions);
+      setBankAccounts(recalculated);
+
+      try {
+        localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(transactions));
+        localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated));
+      } catch {}
+
+      // Update cloud balances
+      for (const acc of recalculated) {
+        await setDoc(doc(db, 'bank_accounts', acc.id), sanitizeForFirestore(acc), { merge: true });
+        saveDocumentToSupabase('bank_accounts', acc.id, acc).catch(() => {});
+      }
+
+      toast.success('ক্লাউড থেকে সব অ্যাকাউন্টের ব্যালেন্স ও লেনদেন সফলভাবে সিঙ্ক ও আপডেট হয়েছে!');
+    } catch (error) {
+      console.error('Error syncing finance with cloud:', error);
+      toast.error('ক্লাউড সিঙ্ক করতে সমস্যা হয়েছে!');
+    } finally {
+      setIsSyncing(false);
     }
-  }, [isAdmin, authLoading]);
+  }, []);
 
   const addBankAccount = async (account: Omit<BankAccount, 'id' | 'balance'>) => {
     const id = `acc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const initialBal = Number(account.initialBalance) || 0;
-    const newAcc: BankAccount = { ...account, id, balance: initialBal, initialBalance: initialBal };
+    const newAcc: BankAccount = { 
+      ...account, 
+      id, 
+      balance: initialBal, 
+      initialBalance: initialBal,
+      currency: account.currency || (isUsdAccount(account) ? 'USD' : 'BDT')
+    };
 
     setBankAccounts(prev => {
       const merged = [newAcc, ...prev.filter(a => a.id !== id)];
@@ -361,17 +505,24 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return recalculated;
     });
 
-    await saveDocumentToSupabase('bank_accounts', id, newAcc);
-    toast.success('নতুন অ্যাকাউন্ট সফলভাবে যোগ করা হয়েছে!');
-
+    const sanitized = sanitizeForFirestore(newAcc);
     try {
-      await setDoc(doc(db, 'bank_accounts', id), newAcc);
-    } catch (error) {}
+      await setDoc(doc(db, 'bank_accounts', id), sanitized);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `bank_accounts/${id}`);
+    }
+
+    saveDocumentToSupabase('bank_accounts', id, sanitized).catch(() => {});
+    toast.success('নতুন অ্যাকাউন্ট সফলভাবে যোগ করা হয়েছে!');
   };
 
   const updateBankAccount = async (updatedAcc: BankAccount) => {
     const initialBal = Number(updatedAcc.initialBalance) || 0;
-    const cleanAcc: BankAccount = { ...updatedAcc, initialBalance: initialBal };
+    const cleanAcc: BankAccount = { 
+      ...updatedAcc, 
+      initialBalance: initialBal,
+      currency: updatedAcc.currency || (isUsdAccount(updatedAcc) ? 'USD' : 'BDT')
+    };
 
     let computedAcc = cleanAcc;
     setBankAccounts(prev => {
@@ -383,12 +534,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return recalculated;
     });
 
-    await saveDocumentToSupabase('bank_accounts', updatedAcc.id, computedAcc);
-    toast.success('অ্যাকাউন্ট সফলভাবে আপডেট করা হয়েছে!');
-
+    const sanitized = sanitizeForFirestore(computedAcc);
     try {
-      await updateDoc(doc(db, 'bank_accounts', updatedAcc.id), { ...computedAcc });
-    } catch (error) {}
+      await setDoc(doc(db, 'bank_accounts', updatedAcc.id), sanitized, { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `bank_accounts/${updatedAcc.id}`);
+    }
+
+    saveDocumentToSupabase('bank_accounts', updatedAcc.id, sanitized).catch(() => {});
+    toast.success('অ্যাকাউন্ট সফলভাবে আপডেট করা হয়েছে!');
   };
 
   const deleteBankAccount = async (id: string) => {
@@ -398,12 +552,21 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return sorted;
     });
 
-    await deleteDocumentFromSupabase('bank_accounts', id);
-    toast.success('অ্যাকাউন্ট সফলভাবে মুছে ফেলা হয়েছে!');
-
     try {
       await deleteDoc(doc(db, 'bank_accounts', id));
-    } catch (error) {}
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `bank_accounts/${id}`);
+    }
+
+    try {
+      const client = getSupabaseClient() || supabase;
+      if (client) {
+        await client.from('app_documents').delete().eq('id', `bank_accounts_${id}`);
+      }
+    } catch (e) {}
+
+    deleteDocumentFromSupabase('bank_accounts', id).catch(() => {});
+    toast.success('অ্যাকাউন্ট সফলভাবে মুছে ফেলা হয়েছে!');
   };
 
   const addBankTransaction = async (tx: Omit<BankTransaction, 'id'>, targetAccountId?: string) => {
@@ -415,9 +578,25 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       amount: amt,
       status: tx.status || 'paid',
       targetAccountId: targetAccountId || tx.targetAccountId || undefined,
-      date: tx.date || Date.now()
+      date: tx.date || Date.now(),
+      reference: tx.reference || '',
+      notes: tx.notes || ''
     };
 
+    const sanitizedTx = sanitizeForFirestore(newTx);
+
+    // Save to Firestore first to guarantee persistence across all devices
+    try {
+      await setDoc(doc(db, 'bank_transactions', id), sanitizedTx);
+    } catch (error) {
+      console.error('Failed to save bank transaction to Firestore:', error);
+      handleFirestoreError(error, OperationType.CREATE, `bank_transactions/${id}`);
+    }
+
+    // Save to Supabase in background
+    saveDocumentToSupabase('bank_transactions', id, sanitizedTx).catch(() => {});
+
+    // Update local state and recalculate balances
     setBankTransactions(prev => {
       const updatedList = mergeTransactions(prev, [newTx]);
       try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(updatedList)); } catch {}
@@ -426,12 +605,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const recalculated = computeBalances(accs, updatedList);
         try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
         
+        // Sync affected accounts to Firestore
         (async () => {
           for (const acc of recalculated) {
-            await saveDocumentToSupabase('bank_accounts', acc.id, acc);
-            try {
-              await setDoc(doc(db, 'bank_accounts', acc.id), acc, { merge: true });
-            } catch {}
+            if (acc.id === newTx.accountId || (newTx.targetAccountId && acc.id === newTx.targetAccountId)) {
+              try {
+                await setDoc(doc(db, 'bank_accounts', acc.id), sanitizeForFirestore(acc), { merge: true });
+                saveDocumentToSupabase('bank_accounts', acc.id, acc).catch(() => {});
+              } catch {}
+            }
           }
         })();
 
@@ -440,21 +622,22 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       return updatedList;
     });
-
-    await saveDocumentToSupabase('bank_transactions', id, newTx);
-
-    try {
-      await setDoc(doc(db, 'bank_transactions', id), newTx);
-    } catch (error) {}
   };
 
   const updateBankTransaction = async (id: string, updatedFields: Partial<BankTransaction>) => {
-    let targetTx: BankTransaction | undefined;
     const cleanFields = {
       ...updatedFields,
       amount: updatedFields.amount !== undefined ? (Number(updatedFields.amount) || 0) : undefined
     };
+    const sanitizedFields = sanitizeForFirestore(cleanFields);
 
+    try {
+      await setDoc(doc(db, 'bank_transactions', id), sanitizedFields, { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `bank_transactions/${id}`);
+    }
+
+    let targetTx: BankTransaction | undefined;
     setBankTransactions(prev => {
       const updatedList = prev.map(tx => tx.id === id ? { ...tx, ...cleanFields } : tx);
       targetTx = updatedList.find(t => t.id === id);
@@ -466,9 +649,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         
         (async () => {
           for (const acc of recalculated) {
-            await saveDocumentToSupabase('bank_accounts', acc.id, acc);
             try {
-              await setDoc(doc(db, 'bank_accounts', acc.id), acc, { merge: true });
+              await setDoc(doc(db, 'bank_accounts', acc.id), sanitizeForFirestore(acc), { merge: true });
             } catch {}
           }
         })();
@@ -480,20 +662,22 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
 
     if (targetTx) {
-      await saveDocumentToSupabase('bank_transactions', id, targetTx);
+      saveDocumentToSupabase('bank_transactions', id, sanitizeForFirestore(targetTx)).catch(() => {});
     }
 
     toast.success('লেনদেন আপডেট করা হয়েছে!');
-
-    try {
-      await updateDoc(doc(db, 'bank_transactions', id), cleanFields);
-    } catch (error) {}
   };
 
   const toggleTransactionStatus = async (id: string, currentStatus?: 'unpaid' | 'paid') => {
     const nextStatus = currentStatus === 'paid' ? 'unpaid' : 'paid';
-    let targetTx: BankTransaction | undefined;
+    
+    try {
+      await setDoc(doc(db, 'bank_transactions', id), { status: nextStatus }, { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `bank_transactions/${id}`);
+    }
 
+    let targetTx: BankTransaction | undefined;
     setBankTransactions(prev => {
       const updatedList = prev.map(tx => tx.id === id ? { ...tx, status: nextStatus as 'unpaid' | 'paid' } : tx);
       targetTx = updatedList.find(t => t.id === id);
@@ -505,9 +689,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         (async () => {
           for (const acc of recalculated) {
-            await saveDocumentToSupabase('bank_accounts', acc.id, acc);
             try {
-              await setDoc(doc(db, 'bank_accounts', acc.id), acc, { merge: true });
+              await setDoc(doc(db, 'bank_accounts', acc.id), sanitizeForFirestore(acc), { merge: true });
             } catch {}
           }
         })();
@@ -519,7 +702,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
 
     if (targetTx) {
-      await saveDocumentToSupabase('bank_transactions', id, targetTx);
+      saveDocumentToSupabase('bank_transactions', id, sanitizeForFirestore(targetTx)).catch(() => {});
     }
 
     if (nextStatus === 'paid') {
@@ -527,13 +710,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } else {
       toast.success('লেনদেনটি UNPAID (বকেয়া) করা হয়েছে এবং ব্যালেন্স সমন্বয় করা হয়েছে!');
     }
-
-    try {
-      await updateDoc(doc(db, 'bank_transactions', id), { status: nextStatus });
-    } catch (error) {}
   };
 
   const deleteBankTransaction = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'bank_transactions', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `bank_transactions/${id}`);
+    }
+
+    deleteDocumentFromSupabase('bank_transactions', id).catch(() => {});
+
     setBankTransactions(prev => {
       const updatedList = prev.filter(tx => tx.id !== id);
       try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(updatedList)); } catch {}
@@ -544,9 +731,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         (async () => {
           for (const acc of recalculated) {
-            await saveDocumentToSupabase('bank_accounts', acc.id, acc);
             try {
-              await setDoc(doc(db, 'bank_accounts', acc.id), acc, { merge: true });
+              await setDoc(doc(db, 'bank_accounts', acc.id), sanitizeForFirestore(acc), { merge: true });
             } catch {}
           }
         })();
@@ -557,29 +743,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return updatedList;
     });
 
-    await deleteDocumentFromSupabase('bank_transactions', id);
     toast.success('লেনদেন সফলভাবে মুছে ফেলা হয়েছে এবং ব্যালেন্স সমন্বয় করা হয়েছে!');
-
-    try {
-      await deleteDoc(doc(db, 'bank_transactions', id));
-    } catch (error) {}
   };
 
   const recalculateAllBalances = async () => {
-    const currentAccs = bankAccountsRef.current;
-    const currentTxs = bankTransactionsRef.current;
-    const recalculated = computeBalances(currentAccs, currentTxs);
-    
-    setBankAccounts(recalculated);
-    try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
-
-    for (const acc of recalculated) {
-      await saveDocumentToSupabase('bank_accounts', acc.id, acc);
-      try {
-        await setDoc(doc(db, 'bank_accounts', acc.id), acc, { merge: true });
-      } catch {}
-    }
-    toast.success('সব অ্যাকাউন্টের ব্যালেন্স ও লেনদেন হিসাব সঠিকভাবে সমন্বয় ও সিঙ্ক করা হয়েছে!');
+    await syncWithCloud();
   };
 
   return (
@@ -587,6 +755,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       bankAccounts,
       bankTransactions,
       loading,
+      isSyncing,
       addBankAccount,
       updateBankAccount,
       deleteBankAccount,
@@ -594,7 +763,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       updateBankTransaction,
       toggleTransactionStatus,
       deleteBankTransaction,
-      recalculateAllBalances
+      recalculateAllBalances,
+      syncWithCloud
     }}>
       {children}
     </FinanceContext.Provider>

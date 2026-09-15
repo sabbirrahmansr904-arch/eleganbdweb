@@ -238,16 +238,18 @@ export function getBankBrandKey(bankName: string, logoUrl?: string): string | nu
     return logoUrl.replace('preset:', '');
   }
   const cleanName = (bankName || '').toLowerCase();
-  if (cleanName.includes('redotpay') || cleanName.includes('redot') || cleanName.includes('রেডটপে') || cleanName.includes('রেডট পে')) return 'redotpay';
-  if (cleanName.includes('bkash') || cleanName.includes('বিকাশ')) return 'bkash';
-  if (cleanName.includes('nagad') || cleanName.includes('নগদ')) return 'nagad';
-  if (cleanName.includes('rocket') || cleanName.includes('রকেট')) return 'rocket';
-  if (cleanName.includes('sonali') || cleanName.includes('সোনালী')) return 'sonali';
-  if (cleanName.includes('dbbl') || cleanName.includes('dutch') || cleanName.includes('ডাচ')) return 'dbbl';
-  if (cleanName.includes('islami') || cleanName.includes('ibbl') || cleanName.includes('ইসলামী')) return 'ibbl';
-  if (cleanName.includes('brac') || cleanName.includes('ব্র্যাক')) return 'brac';
-  if (cleanName.includes('city') || cleanName.includes('সিটি')) return 'city';
-  if (cleanName.includes('cash') || cleanName.includes('ক্যাশ')) return 'cash';
+  const cleanUrl = (logoUrl || '').toLowerCase();
+
+  if (cleanName.includes('redotpay') || cleanName.includes('redot') || cleanName.includes('রেডটপে') || cleanName.includes('রেডট পে') || cleanUrl.includes('redotpay')) return 'redotpay';
+  if (cleanName.includes('bkash') || cleanName.includes('বিকাশ') || cleanUrl.includes('bkash')) return 'bkash';
+  if (cleanName.includes('nagad') || cleanName.includes('নগদ') || cleanUrl.includes('nagad')) return 'nagad';
+  if (cleanName.includes('rocket') || cleanName.includes('রকেট') || cleanUrl.includes('rocket')) return 'rocket';
+  if (cleanName.includes('sonali') || cleanName.includes('সোনালী') || cleanUrl.includes('sonali')) return 'sonali';
+  if (cleanName.includes('dbbl') || cleanName.includes('dutch') || cleanName.includes('ডাচ') || cleanUrl.includes('dbbl')) return 'dbbl';
+  if (cleanName.includes('islami') || cleanName.includes('ibbl') || cleanName.includes('ইসলামী') || cleanUrl.includes('ibbl')) return 'ibbl';
+  if (cleanName.includes('brac') || cleanName.includes('ব্র্যাক') || cleanUrl.includes('brac')) return 'brac';
+  if (cleanName.includes('city') || cleanName.includes('সিটি') || cleanUrl.includes('city')) return 'city';
+  if (cleanName.includes('cash') || cleanName.includes('ক্যাশ') || cleanUrl.includes('cash')) return 'cash';
   return null;
 }
 

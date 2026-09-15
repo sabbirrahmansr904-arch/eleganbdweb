@@ -59,6 +59,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useFinance } from '../../contexts/FinanceContext';
 import { useBranding } from '../../contexts/BrandingContext';
 import { compressAvatar } from '../../utils/imageCompressor';
+import { sanitizeForFirestore } from '../../lib/sanitize';
+import { saveDocumentToSupabase, deleteDocumentFromSupabase } from '../../lib/supabase';
 
 export interface PartnerProfile {
   id: string;
@@ -396,9 +398,8 @@ export default function AdminPartnership() {
       console.warn('Error fetching admin_permissions:', error);
     });
 
-    // 3. Fetch / Sync Partner Transactions in Real-time
-    const q = query(collection(db, 'partner_investments'), orderBy('date', 'desc'));
-    const unsubscribeTransactions = onSnapshot(q, (snapshot) => {
+    // 3. Fetch / Sync Partner Transactions in Real-time across devices
+    const unsubscribeTransactions = onSnapshot(collection(db, 'partner_investments'), (snapshot) => {
       const txList: PartnerTransaction[] = [];
       snapshot.forEach((docSnap) => {
         const data = docSnap.data();
@@ -422,6 +423,26 @@ export default function AdminPartnership() {
           createdAt: Number(data.createdAt) || Date.now()
         });
       });
+
+      // Auto-upload any local items that are missing from cloud
+      try {
+        const localCached = localStorage.getItem('elegan_partner_transactions_v1');
+        if (localCached) {
+          const parsed: PartnerTransaction[] = JSON.parse(localCached);
+          if (Array.isArray(parsed)) {
+            const cloudIds = new Set(txList.map(t => t.id));
+            const missingInCloud = parsed.filter(t => t && t.id && !cloudIds.has(t.id));
+            for (const missing of missingInCloud) {
+              const sanitized = sanitizeForFirestore(missing);
+              setDoc(doc(db, 'partner_investments', missing.id), sanitized).catch(() => {});
+              txList.push(missing);
+            }
+          }
+        }
+      } catch (e) {}
+
+      // Authoritative sort by date descending
+      txList.sort((a, b) => (Number(b.date) || 0) - (Number(a.date) || 0));
 
       setTransactions(txList);
       try {
@@ -718,21 +739,25 @@ export default function AdminPartnership() {
         type: formData.type,
         amount: numAmount,
         date: finalTimestamp,
-        timeString: formData.time,
-        paymentMethod: formData.paymentMethod,
+        timeString: formData.time || '',
+        paymentMethod: formData.paymentMethod || 'Cash',
         accountId: formData.accountId || '',
-        category: formData.category,
-        reference: formData.reference.trim(),
-        notes: formData.notes.trim(),
+        category: formData.category || 'Working Capital',
+        reference: (formData.reference || '').trim(),
+        notes: (formData.notes || '').trim(),
         recordedBy: currentUser?.email || 'Admin',
         createdAt: editingTransaction ? editingTransaction.createdAt : Date.now()
       };
 
-      if (editingTransaction) {
-        await updateDoc(doc(db, 'partner_investments', editingTransaction.id), txPayload);
+      const sanitized = sanitizeForFirestore(txPayload);
+
+      if (editingTransaction && editingTransaction.id) {
+        await setDoc(doc(db, 'partner_investments', editingTransaction.id), sanitized, { merge: true });
+        saveDocumentToSupabase('partner_investments', editingTransaction.id, sanitized).catch(() => {});
         toast.success('বিনিয়োগ রেকর্ড সফলভাবে আপডেট করা হয়েছে!', { id: loadingToast });
       } else {
-        await addDoc(collection(db, 'partner_investments'), txPayload);
+        const docRef = await addDoc(collection(db, 'partner_investments'), sanitized);
+        saveDocumentToSupabase('partner_investments', docRef.id, sanitized).catch(() => {});
         toast.success('নতুন বিনিয়োগ রেকর্ড সফলভাবে যোগ করা হয়েছে!', { id: loadingToast });
       }
 
@@ -752,6 +777,7 @@ export default function AdminPartnership() {
     const loadingToast = toast.loading('রেকর্ড মুছে ফেলা হচ্ছে...');
     try {
       await deleteDoc(doc(db, 'partner_investments', id));
+      deleteDocumentFromSupabase('partner_investments', id).catch(() => {});
       toast.success('বিনিয়োগ রেকর্ড মুছে ফেলা হয়েছে!', { id: loadingToast });
       setDeleteConfirmId(null);
     } catch (error) {
