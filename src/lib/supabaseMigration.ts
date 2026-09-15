@@ -113,10 +113,22 @@ export async function syncOrdersToSupabase(ordersList?: any[]): Promise<{ synced
 
   let orders = ordersList;
   if (!orders || orders.length === 0) {
-    try {
-      const raw = localStorage.getItem('eleganbd_all_orders') || localStorage.getItem('eleganbd_orders');
-      if (raw) orders = JSON.parse(raw);
-    } catch {}
+    const ordersMap = new Map<string, any>();
+    const keys = ['eleganbd_all_orders_v5', 'eleganbd_all_orders', 'eleganbd_orders', 'orders'];
+    for (const key of keys) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((o: any) => {
+              if (o && o.id) ordersMap.set(String(o.id), o);
+            });
+          }
+        }
+      } catch {}
+    }
+    orders = Array.from(ordersMap.values());
   }
 
   if (!orders || !Array.isArray(orders) || orders.length === 0) return { synced: 0 };
@@ -239,24 +251,37 @@ export async function migrateFirestoreToSupabase(
     console.warn('Fast products sync noticed:', e);
   }
 
-  // 3. Fast batch sync orders from local storage
+  // 3. Fast batch sync orders from all local caches
   try {
-    const localOrders = localStorage.getItem('eleganbd_all_orders') || localStorage.getItem('eleganbd_orders');
-    if (localOrders) {
-      const parsed = JSON.parse(localOrders);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        onProgress({
-          step: `Syncing ${parsed.length} orders to Supabase...`,
-          progress: 3,
-          total: 4,
-          success: true
-        });
-        const rows = parsed.map(orderToSupabaseRow);
-        const BATCH = 50;
-        for (let i = 0; i < rows.length; i += BATCH) {
-          const chunk = rows.slice(i, i + BATCH);
-          await withTimeout(client.from('orders').upsert(chunk, { onConflict: 'id' }), 5000);
+    const ordersMap = new Map<string, any>();
+    const keys = ['eleganbd_all_orders_v5', 'eleganbd_all_orders', 'eleganbd_orders', 'orders'];
+    for (const key of keys) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((o: any) => {
+              if (o && o.id) ordersMap.set(String(o.id), o);
+            });
+          }
         }
+      } catch {}
+    }
+
+    const mergedOrders = Array.from(ordersMap.values());
+    if (mergedOrders.length > 0) {
+      onProgress({
+        step: `Syncing ${mergedOrders.length} orders to Supabase...`,
+        progress: 3,
+        total: 4,
+        success: true
+      });
+      const rows = mergedOrders.map(orderToSupabaseRow);
+      const BATCH = 50;
+      for (let i = 0; i < rows.length; i += BATCH) {
+        const chunk = rows.slice(i, i + BATCH);
+        await withTimeout(client.from('orders').upsert(chunk, { onConflict: 'id' }), 5000);
       }
     }
   } catch (e) {

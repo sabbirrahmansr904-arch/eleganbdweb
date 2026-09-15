@@ -149,19 +149,19 @@ function AppRoutes() {
           <Route path="add-product" element={<AdminAddProduct />} />
           <Route path="edit-product/:id" element={<AdminAddProduct />} />
           <Route path="customers" element={<AdminCustomers />} />
-          <Route path="customer-profiler" element={<AdminCustomerProfiler />} />
-          <Route path="stock-check" element={<AdminStockCheck />} />
+          <Route path="customer-profiler" element={<Navigate to="/admin" replace />} />
+          <Route path="stock-check" element={<Navigate to="/admin/products" replace />} />
           <Route path="my-account" element={<AdminMyAccount />} />
           <Route path="account" element={<AdminMyAccount />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="inventory" element={<AdminInventoryOverview />} />
-          <Route path="master-table" element={<AdminMasterTable />} />
-          <Route path="stock-in" element={<AdminStockIn />} />
-          <Route path="stock-out" element={<AdminStockOut />} />
-          <Route path="inventory-log" element={<AdminInventoryLog />} />
+          <Route path="master-table" element={<Navigate to="/admin/products" replace />} />
+          <Route path="stock-in" element={<Navigate to="/admin/products" replace />} />
+          <Route path="stock-out" element={<Navigate to="/admin/products" replace />} />
+          <Route path="inventory-log" element={<Navigate to="/admin/products" replace />} />
           <Route path="exchanges" element={<Navigate to="/admin/orders" replace />} />
-          <Route path="issues" element={<AdminIssues />} />
-          <Route path="media" element={<AdminMedia />} />
+          <Route path="issues" element={<Navigate to="/admin/orders" replace />} />
+          <Route path="media" element={<Navigate to="/admin/settings" replace />} />
           <Route path="fix-sizes" element={<FixSizes />} />
           <Route path="expenses" element={<AdminExpenses />} />
           <Route path="finance" element={<AdminFinance />} />
@@ -169,7 +169,7 @@ function AppRoutes() {
           <Route path="partners" element={<AdminPartnership />} />
           <Route path="transaction-list" element={<AdminTransactionList />} />
           <Route path="dollar-expenses" element={<AdminDollarExpenses />} />
-          <Route path="live-visitors" element={<AdminLiveVisitors />} />
+          <Route path="live-visitors" element={<Navigate to="/admin" replace />} />
         </Route>
 
         {/* Catch-all */}

@@ -153,7 +153,24 @@ async function startServer() {
   // Production API endpoint to fetch all orders with guaranteed high-speed reliability
   app.get("/api/orders", async (req, res) => {
     try {
-      let ordersList: any[] = [];
+      const ordersMap = new Map<string, any>();
+
+      // 1. Fetch from Firestore first
+      try {
+        const orderSnaps = await getDocs(collection(db, 'orders'));
+        if (orderSnaps && !orderSnaps.empty) {
+          orderSnaps.docs.forEach(d => {
+            const ord = { id: d.id, ...d.data() };
+            if (ord && ord.id) {
+              ordersMap.set(String(ord.id), ord);
+            }
+          });
+        }
+      } catch (fsErr) {
+        console.warn("[Server API] Firestore query in /api/orders notice:", fsErr);
+      }
+
+      // 2. Fetch from Supabase and merge
       try {
         const { data, error } = await supabase
           .from('orders')
@@ -161,16 +178,23 @@ async function startServer() {
           .order('created_at', { ascending: false })
           .limit(1000);
         if (!error && Array.isArray(data) && data.length > 0) {
-          ordersList = data.map(supabaseRowToOrder);
+          data.forEach(row => {
+            const ord = supabaseRowToOrder(row);
+            if (ord && ord.id) {
+              const existing = ordersMap.get(String(ord.id));
+              if (existing) {
+                ordersMap.set(String(ord.id), { ...existing, ...ord });
+              } else {
+                ordersMap.set(String(ord.id), ord);
+              }
+            }
+          });
         }
       } catch (sbErr) {
         console.warn("[Server API] Supabase query in /api/orders warning:", sbErr);
       }
 
-      if (ordersList.length === 0) {
-        const orderSnaps = await getDocs(collection(db, 'orders'));
-        ordersList = orderSnaps.docs.map(d => ({ id: d.id, ...d.data() }));
-      }
+      const ordersList = Array.from(ordersMap.values());
 
       ordersList.sort((a: any, b: any) => {
         const invA = Number(a.invoiceNo) || 0;
@@ -248,52 +272,120 @@ async function startServer() {
   // Direct robust Server API to fetch all active products from Supabase + Firestore
   app.get("/api/products", async (req, res) => {
     try {
-      const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://wnnnjroxyuxsbolbcdil.supabase.co';
-      const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_p2B8pChEnm9esPFTCLGYXg_Ype4-7NI';
-      const { createClient } = await import('@supabase/supabase-js');
-      const sb = createClient(supabaseUrl, supabaseKey);
+      let productsList: any[] = [];
+      let fetched = false;
 
-      const { data, error } = await sb
-        .from('products')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // 1. Try Supabase first if available
+      try {
+        const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://wnnnjroxyuxsbolbcdil.supabase.co';
+        const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_p2B8pChEnm9esPFTCLGYXg_Ype4-7NI';
+        const { createClient } = await import('@supabase/supabase-js');
+        const sb = createClient(supabaseUrl, supabaseKey);
 
-      if (error) {
-        throw error;
+        const { data, error } = await sb
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!error && Array.isArray(data)) {
+          productsList = data;
+          fetched = true;
+        }
+      } catch (sbErr: any) {
+        console.warn("[Server API] Supabase products fetch notice (falling back to Firestore):", sbErr?.message || sbErr);
+      }
+
+      // 2. Fallback to Firestore products collection if Supabase fails or is restricted
+      if (!fetched || productsList.length === 0) {
+        try {
+          const snapshot = await getDocs(collection(db, 'products'));
+          if (snapshot && !snapshot.empty) {
+            const fsProducts: any[] = [];
+            snapshot.forEach((docSnap) => {
+              const d = docSnap.data();
+              fsProducts.push({
+                id: docSnap.id,
+                name: d.name || 'Unnamed Product',
+                price: Number(d.price) || 0,
+                category: d.category || 'General',
+                images: Array.isArray(d.images) ? d.images : [],
+                sizes: Array.isArray(d.sizes) ? d.sizes : [],
+                stock: Number(d.stock) || 0,
+                size_stock: d.sizeStock || {},
+                sku: d.sku || null,
+                cost: d.cost || null,
+                regular_price: d.regularPrice || null,
+                fabric: d.fabric || null,
+                fit_type: d.fitType || null,
+                description: d.description || '',
+                rating: d.rating || 0,
+                is_top_rated: d.isTopRated || false,
+                new_arrival: d.newArrival || false,
+                featured: d.featured || false,
+                created_at: d.createdAt ? new Date(d.createdAt).toISOString() : new Date().toISOString()
+              });
+            });
+            if (fsProducts.length > 0) {
+              productsList = fsProducts;
+            }
+          }
+        } catch (fsErr: any) {
+          console.warn("[Server API] Firestore products fallback notice:", fsErr?.message || fsErr);
+        }
       }
 
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      return res.json({ success: true, products: data || [] });
+      return res.json({ success: true, products: productsList });
     } catch (e: any) {
-      console.error("API products fetch error:", e);
-      return res.status(500).json({ success: false, error: e.message || "Failed to fetch products" });
+      console.warn("API products fetch notice:", e?.message || e);
+      return res.json({ success: true, products: [] });
     }
   });
 
   // Direct robust Server API to fetch all configurations (banners, branding, etc.)
   app.get("/api/config/all", async (req, res) => {
     try {
-      const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://wnnnjroxyuxsbolbcdil.supabase.co';
-      const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_p2B8pChEnm9esPFTCLGYXg_Ype4-7NI';
-      const { createClient } = await import('@supabase/supabase-js');
-      const sb = createClient(supabaseUrl, supabaseKey);
-
-      const { data, error } = await sb
-        .from('app_documents')
-        .select('*')
-        .eq('collection_name', 'config');
-
       const configs: Record<string, any> = {};
-      if (!error && Array.isArray(data)) {
-        data.forEach(item => {
-          configs[item.record_id] = item.data;
-        });
+
+      // 1. Try Supabase
+      try {
+        const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://wnnnjroxyuxsbolbcdil.supabase.co';
+        const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_p2B8pChEnm9esPFTCLGYXg_Ype4-7NI';
+        const { createClient } = await import('@supabase/supabase-js');
+        const sb = createClient(supabaseUrl, supabaseKey);
+
+        const { data, error } = await sb
+          .from('app_documents')
+          .select('*')
+          .eq('collection_name', 'config');
+
+        if (!error && Array.isArray(data)) {
+          data.forEach(item => {
+            configs[item.record_id] = item.data;
+          });
+        }
+      } catch (sbErr: any) {
+        console.warn("[Server API] Supabase config fetch notice:", sbErr?.message || sbErr);
+      }
+
+      // 2. Fallback to Firestore config
+      if (Object.keys(configs).length === 0) {
+        try {
+          const snapshot = await getDocs(collection(db, 'config'));
+          if (snapshot && !snapshot.empty) {
+            snapshot.forEach((docSnap) => {
+              configs[docSnap.id] = docSnap.data();
+            });
+          }
+        } catch (fsErr: any) {
+          console.warn("[Server API] Firestore config fallback notice:", fsErr?.message || fsErr);
+        }
       }
 
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       return res.json({ success: true, configs });
     } catch (e: any) {
-      return res.status(500).json({ success: false, error: e.message || "Failed to fetch config" });
+      return res.json({ success: true, configs: {} });
     }
   });
 

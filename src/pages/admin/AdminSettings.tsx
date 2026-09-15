@@ -170,8 +170,10 @@ export default function AdminSettings() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const tab = params.get('tab');
-    if (tab) {
+    if (tab && !['Branding', 'Banners', 'Notifications', 'Categories'].includes(tab)) {
       setActiveTab(tab);
+    } else {
+      setActiveTab('General');
     }
   }, [location]);
 
@@ -210,29 +212,21 @@ export default function AdminSettings() {
 
   const availableModules = [
     { id: 'dashboard', name: 'Dashboard', banglaName: 'ড্যাশবোর্ড', desc: 'ওভারভিউ, চার্ট ও সেলস সামারি' },
-    { id: 'customer-profiler', name: 'Customer Profiler', banglaName: 'কাস্টমার প্রোফাইলার', desc: 'গ্রাহক প্রোফাইল ও বিস্তারিত তথ্য' },
     { id: 'orders', name: 'Orders', banglaName: 'অর্ডারসমূহ', desc: 'অর্ডার লিস্ট, স্ট্যাটাস আপডেট ও কাস্টমার ডিটেইলস' },
-    { id: 'categories', name: 'Categories', banglaName: 'ক্যাটাগরি', desc: 'প্রোডাক্ট ক্যাটাগরি ম্যানেজমেন্ট' },
     { id: 'products', name: 'Products', banglaName: 'প্রোডাক্টস', desc: 'প্রোডাক্ট অ্যাড, এডিট ও ক্যাটালগ' },
-    { id: 'issues', name: 'Issues', banglaName: 'অর্ডার ইস্যু', desc: 'কাস্টমার কমপ্লেন, প্রবলেম রিপোর্ট ও সমাধান' },
-    { id: 'master-table', name: 'Master Table', banglaName: 'মাস্টার টেবিল', desc: 'বাল্ক স্ক্যানিং, লেবেল প্রিন্ট ও দ্রুত প্রসেসিং' },
-    { id: 'inventory-log', name: 'Inventory Log', banglaName: 'ইনভেন্টরি লগ', desc: 'স্টক ইন/আউট ও স্টক হিস্ট্রি' },
     { id: 'finance', name: 'Finance', banglaName: 'ফাইন্যান্স', desc: 'ব্যাংক ট্রানজেকশন, অ্যাকাউন্ট ও হিসাব' },
     { id: 'partnership', name: 'Partnership', banglaName: 'পার্টনারশিপ', desc: 'পার্টনারদের বিনিয়োগ ও হিসাব ট্র্যাকিং' },
     { id: 'dollar-expense', name: 'Dollar Expense', banglaName: 'ডলার এক্সপেন্স', desc: 'ডলার হিসাব ও খরচ ট্র্যাকিং' },
     { id: 'settings', name: 'Settings', banglaName: 'সেটিংস', desc: 'জেনারেল স্টোর সেটিংস' },
-    { id: 'branding', name: 'Branding', banglaName: 'ব্র্যান্ডিং', desc: 'লোগো, নাম ও থিম সেটিংস' },
-    { id: 'banners', name: 'Banners', banglaName: 'ব্যানার্স', desc: 'হিরো ব্যানার ও স্লাইডার ম্যানেজমেন্ট' },
-    { id: 'notifications', name: 'Notifications', banglaName: 'নোটিফিকেশনস', desc: 'এসএমএস ও নোটিফিকেশন সেটিংস' },
     { id: 'pathao', name: 'Pathao Courier', banglaName: 'পাঠাও কুরিয়ার', desc: 'পাঠাও ডেলিভারি ও এপিআই সেটিংস' },
   ];
 
   const departmentsList = [
     { id: 'CEO & Founder', name: 'CEO & Founder', desc: 'ফুল সিস্টেম এক্সেস ও সর্বোচ্চ নিয়ন্ত্রণ', defaultPerms: availableModules.map(m => m.id) },
-    { id: 'Sales Executive Department', name: 'Sales Executive Department', desc: 'অর্ডার নেওয়া, ড্যাশবোর্ড দেখা ও কাস্টমার ম্যানেজমেন্ট', defaultPerms: ['dashboard', 'customer-profiler', 'orders', 'products', 'issues'] },
-    { id: 'Delivery / Logistics Department', name: 'Delivery / Logistics Department', desc: 'অর্ডার প্রসেসিং, লেবেল প্রিন্ট ও পাথাও কুরিয়ার', defaultPerms: ['orders', 'master-table', 'inventory-log', 'pathao'] },
-    { id: 'Management / Admin Department', name: 'Management / Admin Department', desc: 'সম্পূর্ণ স্টোর অপারেশন, প্রোডাক্ট ইনভেন্টরি ও হিসাব-নিকাশ', defaultPerms: ['dashboard', 'customer-profiler', 'orders', 'categories', 'products', 'issues', 'master-table', 'inventory-log', 'finance', 'dollar-expense', 'settings', 'pathao'] },
-    { id: 'Customer Support Department', name: 'Customer Support Department', desc: 'কাস্টমার কমপ্লেন ও অর্ডার ইস্যু সমাধান', defaultPerms: ['dashboard', 'orders', 'issues', 'customer-profiler'] }
+    { id: 'Sales Executive Department', name: 'Sales Executive Department', desc: 'অর্ডার নেওয়া, ড্যাশবোর্ড দেখা ও কাস্টমার ম্যানেজমেন্ট', defaultPerms: ['dashboard', 'orders', 'products'] },
+    { id: 'Delivery / Logistics Department', name: 'Delivery / Logistics Department', desc: 'অর্ডার প্রসেসিং, লেবেল প্রিন্ট ও পাথাও কুরিয়ার', defaultPerms: ['orders', 'pathao'] },
+    { id: 'Management / Admin Department', name: 'Management / Admin Department', desc: 'সম্পূর্ণ স্টোর অপারেশন ও হিসাব-নিকাশ', defaultPerms: ['dashboard', 'orders', 'products', 'finance', 'dollar-expense', 'settings', 'pathao'] },
+    { id: 'Customer Support Department', name: 'Customer Support Department', desc: 'কাস্টমার কমপ্লেন ও অর্ডার সাপোর্ট', defaultPerms: ['dashboard', 'orders'] }
   ];
   const [loadingAdmins, setLoadingAdmins] = useState(false);
   const [isSavingCode, setIsSavingCode] = useState(false);
@@ -1459,12 +1453,8 @@ export default function AdminSettings() {
     const params = new URLSearchParams(location.search);
     const tabParam = params.get('tab');
     
-    if (false) {
-      setActiveTab('General');
-    } else if (tabParam) {
+    if (tabParam && !['Branding', 'Banners', 'Notifications', 'Categories'].includes(tabParam)) {
       setActiveTab(tabParam);
-    } else if (location.pathname.includes('banners')) {
-      setActiveTab('Banners');
     } else {
       setActiveTab('General');
     }

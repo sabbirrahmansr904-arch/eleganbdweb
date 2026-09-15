@@ -672,13 +672,17 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         // If server API did not return products, try client-side Supabase query
         if (loadedProducts.length === 0) {
-          const { data, error } = await supabase
-            .from('products')
-            .select('*')
-            .order('created_at', { ascending: false });
+          try {
+            const { data, error } = await supabase
+              .from('products')
+              .select('*')
+              .order('created_at', { ascending: false });
 
-          if (!error && data && Array.isArray(data) && data.length > 0) {
-            loadedProducts = data.map(supabaseRowToProduct);
+            if (!error && data && Array.isArray(data) && data.length > 0) {
+              loadedProducts = data.map(supabaseRowToProduct);
+            }
+          } catch (clientSbErr) {
+            // Silently handle Supabase offline/quota limits
           }
         }
 
@@ -705,21 +709,6 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
             } catch (e) {}
             return finalNormalized;
           });
-        } else if (!error && data && Array.isArray(data) && data.length === 0) {
-          // Supabase is empty, push local non-deleted products to Supabase
-          try {
-            const locallySaved = localStorage.getItem('eleganbd_products');
-            const parsedLocal = locallySaved ? JSON.parse(locallySaved) : CANONICAL_DEFAULT_PRODUCTS;
-            const toPush = (Array.isArray(parsedLocal) ? parsedLocal : CANONICAL_DEFAULT_PRODUCTS).filter(p => !isDemoProduct(p));
-            if (toPush.length > 0) {
-              const rows = toPush.map(productToSupabaseRow);
-              supabase.from('products').upsert(rows, { onConflict: 'id' }).then(({ error: upsertErr }) => {
-                if (!upsertErr) {
-                  console.log(`[ProductContext] Auto-migrated ${rows.length} products to empty Supabase`);
-                }
-              });
-            }
-          } catch (e) {}
         }
       } catch (err) {
         console.warn('[ProductContext] Supabase load notice:', err);

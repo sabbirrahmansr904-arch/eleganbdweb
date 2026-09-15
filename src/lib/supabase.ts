@@ -9,25 +9,37 @@ export const getSupabaseConfig = () => {
   let url = '';
   let anonKey = '';
 
-  try {
-    if (typeof import.meta !== 'undefined' && import.meta && import.meta.env) {
-      url = import.meta.env.VITE_SUPABASE_URL || '';
-      anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+  // 1. Check custom saved Supabase credentials from Settings (localStorage) first
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const savedUrl = localStorage.getItem('elegan_supabase_url');
+      const savedKey = localStorage.getItem('elegan_supabase_key');
+      if (savedUrl && savedUrl.trim()) url = savedUrl.trim();
+      if (savedKey && savedKey.trim()) anonKey = savedKey.trim();
+    } catch {}
+  }
+
+  // 2. Check environment variables if not configured in localStorage
+  if (!url) {
+    try {
+      if (typeof import.meta !== 'undefined' && import.meta && import.meta.env) {
+        url = import.meta.env.VITE_SUPABASE_URL || '';
+      }
+    } catch {}
+    if (!url && typeof process !== 'undefined' && process.env) {
+      url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
     }
-  } catch {}
-
-  if (!url && typeof process !== 'undefined' && process.env) {
-    url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
-  }
-  if (!anonKey && typeof process !== 'undefined' && process.env) {
-    anonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
   }
 
-  if (!url && typeof localStorage !== 'undefined') {
-    try { url = localStorage.getItem('elegan_supabase_url') || ''; } catch {}
-  }
-  if (!anonKey && typeof localStorage !== 'undefined') {
-    try { anonKey = localStorage.getItem('elegan_supabase_key') || ''; } catch {}
+  if (!anonKey) {
+    try {
+      if (typeof import.meta !== 'undefined' && import.meta && import.meta.env) {
+        anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+      }
+    } catch {}
+    if (!anonKey && typeof process !== 'undefined' && process.env) {
+      anonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
+    }
   }
 
   return {

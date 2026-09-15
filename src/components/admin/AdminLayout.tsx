@@ -59,7 +59,6 @@ import {
   Clock,
   Radio
 } from 'lucide-react';
-import { useLiveVisitors } from '../../hooks/useLiveVisitors';
 import { VerifiedBadge } from './VerifiedBadge';
 import { cn, formatPrice } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -77,7 +76,6 @@ export default function AdminLayout() {
   const { logoUrl } = useBranding();
   const { orders } = useOrders();
   const { products } = useProducts();
-  const { activeCount } = useLiveVisitors();
   const { currentUser, isSuperAdmin, isCEO, isSabbirRahman, department, permissions = [], signOut } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -423,31 +421,23 @@ export default function AdminLayout() {
   const isCurrentRouteAllowed = !currentRequiredPerm || isPermitted(currentRequiredPerm);
 
   const rawMenuGroups = [
-        {
-          title: 'OVERVIEW',
-          items: [
-            { name: 'Dashboard', path: '/admin', icon: Home, perm: 'dashboard' },
-            { name: 'Customer Profiler', path: '/admin/customer-profiler', icon: UserCheck, perm: 'customer-profiler' },
-            { name: 'My Account', path: '/admin/my-account', icon: User, perm: 'my-account' },
-            { name: 'Stock Check', path: '/admin/stock-check', icon: BarChart3, perm: 'products' },
-          ]
-        },
+    {
+      title: 'OVERVIEW',
+      items: [
+        { name: 'Dashboard', path: '/admin', icon: Home, perm: 'dashboard' },
+        { name: 'My Account', path: '/admin/my-account', icon: User, perm: 'my-account' },
+      ]
+    },
     {
       title: 'ORDER MANAGEMENT',
       items: [
         { name: 'Orders', path: '/admin/orders', icon: FileText, perm: 'orders' },
-        { name: 'Issues', path: '/admin/issues', icon: MessageCircle, perm: 'issues' },
       ]
     },
     {
       title: 'INVENTORY',
       items: [
-        { name: 'Categories', path: '/admin/settings?tab=Categories', icon: Folder, perm: 'categories' },
         { name: 'Products', path: '/admin/products', icon: ShoppingBag, perm: 'products' },
-        { name: 'Master Table', path: '/admin/master-table', icon: Table, perm: 'master-table' },
-        { name: 'Stock In', path: '/admin/stock-in', icon: Plus, perm: 'inventory-log' },
-        { name: 'Stock Out', path: '/admin/stock-out', icon: Minus, perm: 'inventory-log' },
-        { name: 'Inventory Log', path: '/admin/inventory-log', icon: History, perm: 'inventory-log' },
       ]
     },
     {
@@ -462,24 +452,8 @@ export default function AdminLayout() {
     {
       title: 'SYSTEM',
       items: [
-        { name: 'Branding', path: '/admin/settings?tab=Branding', icon: Palette, perm: 'branding' },
-        { name: 'Banners', path: '/admin/settings?tab=Banners', icon: Globe, perm: 'banners' },
-        { name: 'Notifications', path: '/admin/settings?tab=Notifications', icon: Bell, perm: 'notifications' },
-        { name: 'Media', path: '/admin/media', icon: Images, perm: 'media' },
+        { name: 'Settings', path: '/admin/settings', icon: Settings, perm: 'settings' },
         { name: 'Supabase DB', path: '/admin/settings?tab=Supabase', icon: Database, perm: 'settings' },
-      ]
-    },
-    {
-      title: 'LIVE TRAFFIC',
-      items: [
-        { 
-          name: 'Live Visitors', 
-          path: '/admin/live-visitors', 
-          icon: Radio, 
-          perm: 'dashboard',
-          badge: activeCount > 0 ? `${activeCount} Live` : undefined,
-          isLive: true
-        }
       ]
     }
   ];

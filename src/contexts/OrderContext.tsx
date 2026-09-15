@@ -24,7 +24,7 @@ interface OrderContextType {
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 const BASE_ORDER_ID = 2670000;
-const CACHE_KEY = 'eleganbd_all_orders_v5';
+const CACHE_KEYS = ['eleganbd_all_orders_v5', 'eleganbd_all_orders', 'eleganbd_orders', 'orders'];
 
 export const extractNumericId = (idStr: string | number | undefined): number | null => {
   if (!idStr) return null;
@@ -36,6 +36,33 @@ export const extractNumericId = (idStr: string | number | undefined): number | n
     return num;
   }
   return null;
+};
+
+export const loadAllStoredOrders = (): Order[] => {
+  const ordersMap = new Map<string, Order>();
+  for (const key of CACHE_KEYS) {
+    try {
+      const cached = localStorage.getItem(key);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((o: any) => {
+            if (o && o.id) {
+              const existing = ordersMap.get(String(o.id));
+              if (existing) {
+                ordersMap.set(String(o.id), { ...existing, ...o });
+              } else {
+                ordersMap.set(String(o.id), o);
+              }
+            }
+          });
+        }
+      }
+    } catch (e) {}
+  }
+  const list = Array.from(ordersMap.values());
+  list.sort((a, b) => compareOrdersByInvoice(a, b, 'desc'));
+  return list;
 };
 
 export const generateNextOrderId = (ordersList: Order[], lastCounterId?: number): string => {
@@ -54,20 +81,13 @@ export const generateNextOrderId = (ordersList: Order[], lastCounterId?: number)
     }
   }
 
-  // Check localStorage cache as secondary guard
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
-      const parsed: Order[] = JSON.parse(cached);
-      if (Array.isArray(parsed)) {
-        for (const o of parsed) {
-          const num = extractNumericId(o?.id);
-          if (num && num > maxId) maxId = num;
-          if (typeof o?.invoiceNo === 'number' && o.invoiceNo > maxId) maxId = o.invoiceNo;
-        }
-      }
-    }
-  } catch {}
+  // Check localStorage caches as secondary guard
+  const stored = loadAllStoredOrders();
+  for (const o of stored) {
+    const num = extractNumericId(o?.id);
+    if (num && num > maxId) maxId = num;
+    if (typeof o?.invoiceNo === 'number' && o.invoiceNo > maxId) maxId = o.invoiceNo;
+  }
 
   return String(maxId + 1);
 };
@@ -91,7 +111,12 @@ export const saveOrdersToCache = (ordersToCache: Order[]) => {
         items: lightItems
       };
     });
-    localStorage.setItem(CACHE_KEY, JSON.stringify(light));
+    const serialized = JSON.stringify(light);
+    for (const key of CACHE_KEYS) {
+      try {
+        localStorage.setItem(key, serialized);
+      } catch {}
+    }
   } catch (e) {
     console.warn('[OrderContext] LocalStorage cache save warning:', e);
   }
@@ -99,27 +124,12 @@ export const saveOrdersToCache = (ordersToCache: Order[]) => {
 
 export function OrderProvider({ children }: { children: React.ReactNode }) {
   const [orders, setOrders] = useState<Order[]>(() => {
-    try {
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.filter(o => o && o.id);
-        }
-      }
-    } catch (e) {}
-    return [];
+    return loadAllStoredOrders();
   });
   
   const [loading, setLoading] = useState(() => {
-    try {
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return false;
-      }
-    } catch (e) {}
-    return true;
+    const stored = loadAllStoredOrders();
+    return stored.length === 0;
   });
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
   const lastCounterRef = useRef<number>(BASE_ORDER_ID);
@@ -293,9 +303,15 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       if (isFetchingRef.current) return;
       isFetchingRef.current = true;
       try {
-        let fetchedList: Order[] | null = null;
+        const ordersMap = new Map<string, Order>();
 
-        // 1. Direct Supabase Query (Ultra-fast, CDN backed, source of truth for all orders)
+        // 1. First add any locally stored orders
+        const localList = loadAllStoredOrders();
+        localList.forEach(o => {
+          if (o && o.id) ordersMap.set(String(o.id), o);
+        });
+
+        // 2. Direct Supabase Query (Ultra-fast, CDN backed, source of truth for all orders)
         try {
           const { data, error } = await supabase
             .from('orders')
@@ -304,23 +320,42 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             .limit(1000);
 
           if (!error && Array.isArray(data) && data.length > 0) {
-            fetchedList = data.map(supabaseRowToOrder);
+            data.forEach(row => {
+              const ord = supabaseRowToOrder(row);
+              if (ord && ord.id) {
+                const existing = ordersMap.get(String(ord.id));
+                if (existing) {
+                  ordersMap.set(String(ord.id), { ...existing, ...ord });
+                } else {
+                  ordersMap.set(String(ord.id), ord);
+                }
+              }
+            });
           }
         } catch (sbErr) {
           console.warn('[OrderContext] Direct Supabase sync notice:', sbErr);
         }
 
-        // 2. Local API endpoint fallback (if Supabase is offline)
-        if (!fetchedList || fetchedList.length === 0) {
-          try {
-            const apiRes = await safeApiFetch('/api/orders');
-            if (apiRes.ok && apiRes.data && apiRes.data.success && Array.isArray(apiRes.data.orders) && apiRes.data.orders.length > 0) {
-              fetchedList = apiRes.data.orders;
-            }
-          } catch (apiErr) {}
-        }
+        // 3. Local API endpoint fallback & merge
+        try {
+          const apiRes = await safeApiFetch('/api/orders');
+          if (apiRes.ok && apiRes.data && apiRes.data.success && Array.isArray(apiRes.data.orders) && apiRes.data.orders.length > 0) {
+            apiRes.data.orders.forEach((ord: any) => {
+              if (ord && ord.id) {
+                const existing = ordersMap.get(String(ord.id));
+                if (existing) {
+                  ordersMap.set(String(ord.id), { ...existing, ...ord });
+                } else {
+                  ordersMap.set(String(ord.id), ord);
+                }
+              }
+            });
+          }
+        } catch (apiErr) {}
 
-        if (fetchedList && Array.isArray(fetchedList) && isMounted) {
+        const fetchedList = Array.from(ordersMap.values());
+
+        if (fetchedList.length > 0 && isMounted) {
           // Update tracking refs so heartbeat poll won't re-trigger unnecessarily
           lastKnownCountRef.current = fetchedList.length;
           if (fetchedList[0]) {
@@ -471,53 +506,77 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const refreshOrders = useCallback(async (): Promise<Order[]> => {
     setLoading(true);
     try {
-      // 1. Direct Supabase Query (Source of truth for all orders)
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1000);
+      const ordersMap = new Map<string, Order>();
 
-      if (!error && Array.isArray(data) && data.length > 0) {
-        const mapped = data.map(supabaseRowToOrder);
-        const valid = mapped.filter(o => {
-          if (!o || !o.id) return false;
-          const idStr = String(o.id);
-          const invStr = o.invoiceNo ? String(o.invoiceNo) : '';
-          return !deletedOrderIdsRef.current.has(idStr) && (!invStr || !deletedOrderIdsRef.current.has(invStr));
-        });
-        valid.sort((a, b) => compareOrdersByInvoice(a, b, 'desc'));
-        setOrders(valid);
-        saveOrdersToCache(valid);
-        lastKnownCountRef.current = valid.length;
-        if (valid[0]) {
-          lastKnownTopIdRef.current = String(valid[0].id);
-          lastKnownUpdatedAtRef.current = String((valid[0] as any).updatedAt || valid[0].createdAt || '');
+      // 1. First add any locally stored orders
+      const localList = loadAllStoredOrders();
+      localList.forEach(o => {
+        if (o && o.id) ordersMap.set(String(o.id), o);
+      });
+
+      // 2. Direct Supabase Query
+      try {
+        const client = getSupabaseClient() || supabase;
+        if (client) {
+          const { data, error } = await client
+            .from('orders')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(1000);
+
+          if (!error && Array.isArray(data) && data.length > 0) {
+            data.forEach(row => {
+              const ord = supabaseRowToOrder(row);
+              if (ord && ord.id) {
+                const existing = ordersMap.get(String(ord.id));
+                if (existing) {
+                  ordersMap.set(String(ord.id), { ...existing, ...ord });
+                } else {
+                  ordersMap.set(String(ord.id), ord);
+                }
+              }
+            });
+          }
         }
-        return valid;
+      } catch (sbErr) {
+        console.warn('[OrderContext] Supabase refresh notice:', sbErr);
       }
 
-      // 2. Local server API fallback
+      // 3. Local server API fallback & merge
       try {
         const apiRes = await safeApiFetch('/api/orders');
         if (apiRes.ok && apiRes.data && apiRes.data.success && Array.isArray(apiRes.data.orders)) {
-          const valid = apiRes.data.orders.filter((o: any) => {
-            if (!o || !o.id) return false;
-            const idStr = String(o.id);
-            const invStr = o.invoiceNo ? String(o.invoiceNo) : '';
-            return !deletedOrderIdsRef.current.has(idStr) && (!invStr || !deletedOrderIdsRef.current.has(invStr));
+          apiRes.data.orders.forEach((ord: any) => {
+            if (ord && ord.id) {
+              const existing = ordersMap.get(String(ord.id));
+              if (existing) {
+                ordersMap.set(String(ord.id), { ...existing, ...ord });
+              } else {
+                ordersMap.set(String(ord.id), ord);
+              }
+            }
           });
-          valid.sort((a: any, b: any) => compareOrdersByInvoice(a, b, 'desc'));
-          setOrders(valid);
-          saveOrdersToCache(valid);
-          lastKnownCountRef.current = valid.length;
-          if (valid[0]) {
-            lastKnownTopIdRef.current = String(valid[0].id);
-            lastKnownUpdatedAtRef.current = String((valid[0] as any).updatedAt || valid[0].createdAt || '');
-          }
-          return valid;
         }
       } catch (err) {}
+
+      const allList = Array.from(ordersMap.values());
+      const valid = allList.filter(o => {
+        if (!o || !o.id) return false;
+        const idStr = String(o.id);
+        const invStr = o.invoiceNo ? String(o.invoiceNo) : '';
+        return !deletedOrderIdsRef.current.has(idStr) && (!invStr || !deletedOrderIdsRef.current.has(invStr));
+      });
+
+      valid.sort((a, b) => compareOrdersByInvoice(a, b, 'desc'));
+      setOrders(valid);
+      saveOrdersToCache(valid);
+
+      lastKnownCountRef.current = valid.length;
+      if (valid[0]) {
+        lastKnownTopIdRef.current = String(valid[0].id);
+        lastKnownUpdatedAtRef.current = String((valid[0] as any).updatedAt || valid[0].createdAt || '');
+      }
+      return valid;
     } catch (error) {
       console.error('[OrderContext] Refresh error:', error);
     } finally {

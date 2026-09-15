@@ -68,20 +68,11 @@ export interface AdminProfile {
 
 const AVAILABLE_MODULES = [
   { id: 'dashboard', name: 'Dashboard', banglaName: 'ড্যাশবোর্ড' },
-  { id: 'customer-profiler', name: 'Customer Profiler', banglaName: 'কাস্টমার প্রোফাইলার' },
   { id: 'orders', name: 'Order Management', banglaName: 'অর্ডার ম্যানেজমেন্ট' },
-  { id: 'issues', name: 'Issue Tracker', banglaName: 'ইস্যু ট্র্যাকার' },
   { id: 'products', name: 'Product Catalog', banglaName: 'প্রোডাক্ট ক্যাটালগ' },
-  { id: 'categories', name: 'Categories', banglaName: 'ক্যাটেগরি' },
-  { id: 'master-table', name: 'Master Table & Inventory', banglaName: 'মাস্টার টেবিল ও স্টক' },
-  { id: 'inventory-log', name: 'Inventory Log', banglaName: 'ইনভেন্টরি লগ' },
   { id: 'finance', name: 'Finance & Accounts', banglaName: 'ফিন্যান্স ও হিসাব' },
   { id: 'partnership', name: 'Partnership & Investments', banglaName: 'পার্টনারশিপ ও ইনভেস্টমেন্ট' },
   { id: 'dollar-expense', name: 'Dollar Expense', banglaName: 'ডলার হিসাব' },
-  { id: 'media', name: 'Media Library', banglaName: 'মিডিয়া গ্যালারি' },
-  { id: 'branding', name: 'Branding Settings', banglaName: 'ব্র্যান্ডিং সেটিংস' },
-  { id: 'banners', name: 'Banners & Sliders', banglaName: 'ব্যানার্স' },
-  { id: 'notifications', name: 'Notifications', banglaName: 'নোটিফিকেশনস' },
   { id: 'pathao', name: 'Pathao Courier', banglaName: 'পাঠাও কুরিয়ার' },
   { id: 'settings', name: 'System Settings', banglaName: 'সিস্টেম সেটিংস' }
 ];

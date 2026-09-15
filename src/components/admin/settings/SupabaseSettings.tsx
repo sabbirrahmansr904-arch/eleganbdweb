@@ -19,24 +19,69 @@ export default function SupabaseSettings() {
   const [localOrdersCount, setLocalOrdersCount] = useState<number>(0);
   const [localProductsCount, setLocalProductsCount] = useState<number>(0);
 
-  useEffect(() => {
-    try {
-      const rawOrders = localStorage.getItem('eleganbd_all_orders') || localStorage.getItem('eleganbd_orders');
-      if (rawOrders) {
-        const parsed = JSON.parse(rawOrders);
-        if (Array.isArray(parsed)) setLocalOrdersCount(parsed.length);
-      }
-    } catch {}
+  // Helper to load and merge all unique orders from all cache keys and API
+  const getAllKnownOrders = async (): Promise<any[]> => {
+    const ordersMap = new Map<string, any>();
 
+    // 1. Check all localStorage cache keys
+    const cacheKeys = ['eleganbd_all_orders_v5', 'eleganbd_all_orders', 'eleganbd_orders', 'orders'];
+    for (const key of cacheKeys) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((o: any) => {
+              if (o && o.id) ordersMap.set(String(o.id), o);
+            });
+          }
+        }
+      } catch {}
+    }
+
+    // 2. Fetch from backend /api/orders (which merges Firestore & Supabase)
     try {
-      const rawProducts = localStorage.getItem('eleganbd_products');
-      if (rawProducts) {
-        const parsed = JSON.parse(rawProducts);
-        if (Array.isArray(parsed)) setLocalProductsCount(parsed.length);
-      } else {
-        setLocalProductsCount(CANONICAL_DEFAULT_PRODUCTS.length);
+      const res = await fetch('/api/orders');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.orders)) {
+          json.orders.forEach((o: any) => {
+            if (o && o.id) {
+              const existing = ordersMap.get(String(o.id));
+              if (existing) {
+                ordersMap.set(String(o.id), { ...existing, ...o });
+              } else {
+                ordersMap.set(String(o.id), o);
+              }
+            }
+          });
+        }
       }
-    } catch {}
+    } catch (apiErr) {
+      console.warn('API orders fetch notice:', apiErr);
+    }
+
+    return Array.from(ordersMap.values());
+  };
+
+  useEffect(() => {
+    // Initial quick read from local storage
+    const loadCounts = async () => {
+      const allOrders = await getAllKnownOrders();
+      setLocalOrdersCount(allOrders.length);
+
+      try {
+        const rawProducts = localStorage.getItem('eleganbd_products');
+        if (rawProducts) {
+          const parsed = JSON.parse(rawProducts);
+          if (Array.isArray(parsed)) setLocalProductsCount(parsed.length);
+        } else {
+          setLocalProductsCount(CANONICAL_DEFAULT_PRODUCTS.length);
+        }
+      } catch {}
+    };
+
+    loadCounts();
   }, []);
 
   const handleCopySql = () => {
@@ -104,12 +149,8 @@ export default function SupabaseSettings() {
         await client.from('products').upsert(prodRows, { onConflict: 'id' });
       }
 
-      // 2. Upload orders
-      let ordersList: any[] = [];
-      try {
-        const rawOrders = localStorage.getItem('eleganbd_all_orders') || localStorage.getItem('eleganbd_orders');
-        if (rawOrders) ordersList = JSON.parse(rawOrders);
-      } catch {}
+      // 2. Upload all orders
+      const ordersList = await getAllKnownOrders();
 
       if (ordersList.length > 0) {
         const orderRows = ordersList.map(orderToSupabaseRow);
