@@ -507,15 +507,15 @@ export default function AdminDashboard(): React.JSX.Element {
   // Metrics mappings
   const metricTotalSales = hasOrders 
     ? salesToday.count.toLocaleString() 
-    : '14';
+    : '0';
 
   const metricVolumeProducts = hasOrders 
     ? volumeSoldToday.toLocaleString() 
-    : '28';
+    : '0';
 
   const metricProductSalesDollar = hasOrders 
     ? formatPrice(salesThisMonth.total, currency, rate) 
-    : formatPrice(500324, currency, rate);
+    : formatPrice(0, currency, rate);
 
   // Statistics Donut Data: extract real category names & calculate total category sales dynamically
   const statPieData = useMemo(() => {
@@ -583,11 +583,11 @@ export default function AdminDashboard(): React.JSX.Element {
   // Donut label variables
   const donutCenterVal = hasOrders 
     ? periodOrders.length.toLocaleString() 
-    : (timeRange === 'Monthly' ? '23,324' : '2,79,888');
+    : '0';
 
   const bottomTotalVal = hasOrders 
     ? formatPrice(salesThisMonth.total, currency, rate) 
-    : formatPrice(3440031, currency, rate);
+    : formatPrice(0, currency, rate);
 
   // Dynamic Double Bar Chart Data based on Monthly vs Yearly selection
   const doubleBarChartData = useMemo(() => {
@@ -830,14 +830,8 @@ export default function AdminDashboard(): React.JSX.Element {
       return calculated.slice(0, 5);
     }
 
-    // Baseline fallback matching requested design
-    return [
-      { id: '1', name: 'Black Pajama', size: '48', sku: 'BLACK P', soldCount: 46 },
-      { id: '2', name: 'BIG SIX Polo T-Shirt', size: '4XL', sku: 'PT 31', soldCount: 40 },
-      { id: '3', name: 'BIG SIX Regular Combo Solid Shirt', size: '4XL', sku: 'BIGSIX 28', soldCount: 39 },
-      { id: '4', name: 'Black Pajama', size: '52', sku: 'BLACK P', soldCount: 34 },
-      { id: '5', name: 'off White Pajama', size: '48', sku: 'OFF WHITE P', soldCount: 33 },
-    ];
+    // Return empty if no sales yet
+    return [];
   }, [orders, products]);
 
   // Weekly Levels Data Chart based on Monthly vs Yearly selection
@@ -1896,24 +1890,30 @@ export default function AdminDashboard(): React.JSX.Element {
           </div>
 
           <div className="bg-[#E2E8F2] border border-white/90 rounded-2xl p-4 sm:p-5 shadow-[inset_2px_2px_5px_rgba(160,175,200,0.25),inset_-2px_-2px_5px_rgba(255,255,255,0.9)] divide-y divide-white/60">
-            {bestSellersList.map((item, idx) => (
-              <div key={item.id || idx} className="flex items-center justify-between py-3.5 first:pt-1 last:pb-1">
-                <div>
-                  <h4 className="text-sm sm:text-base font-black text-slate-900">{item.name}</h4>
-                  <p className="text-xs font-bold text-slate-400 mt-0.5">
-                    {item.size ? `${item.size} • ` : ''}SKU: {item.sku}
-                  </p>
-                </div>
-                <div className="text-right shrink-0 pl-4">
-                  <span className="text-lg sm:text-xl font-black text-[#F43F5E] leading-none block">
-                    {item.soldCount}
-                  </span>
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mt-0.5">
-                    SOLD
-                  </span>
-                </div>
+            {bestSellersList.length === 0 ? (
+              <div className="py-8 text-center text-xs font-bold text-slate-400">
+                No orders recorded yet. Top performing products will appear here.
               </div>
-            ))}
+            ) : (
+              bestSellersList.map((item, idx) => (
+                <div key={item.id || idx} className="flex items-center justify-between py-3.5 first:pt-1 last:pb-1">
+                  <div>
+                    <h4 className="text-sm sm:text-base font-black text-slate-900">{item.name}</h4>
+                    <p className="text-xs font-bold text-slate-400 mt-0.5">
+                      {item.size ? `${item.size} • ` : ''}SKU: {item.sku}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0 pl-4">
+                    <span className="text-lg sm:text-xl font-black text-[#F43F5E] leading-none block">
+                      {item.soldCount}
+                    </span>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mt-0.5">
+                      SOLD
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

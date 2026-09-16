@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Default Supabase project credentials provided by user
-const DEFAULT_SUPABASE_URL = 'https://wnnnjroxyuxsbolbcdil.supabase.co';
-const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_p2B8pChEnm9esPFTCLGYXg_Ype4-7NI';
+const DEFAULT_SUPABASE_URL = 'https://eeifewkhrtveenyrrirj.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_XD9wPgNEzlHdAaJ2RN_BFw_izYEgB2p';
 
 // Safe helper to read env vars in both Vite browser and Node.js
 export const getSupabaseConfig = () => {

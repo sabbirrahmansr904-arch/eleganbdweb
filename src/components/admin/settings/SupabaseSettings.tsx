@@ -1,88 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Database, CheckCircle, AlertTriangle, RefreshCw, Server, ArrowRight, ShieldCheck, Save, Check, Copy, Code, UploadCloud, FileText, ShoppingBag } from 'lucide-react';
-import { migrateFirestoreToSupabase, getDatabaseMode, setDatabaseMode, MigrationProgress, SUPABASE_SCHEMA_SQL, syncOrdersToSupabase, syncProductsToSupabase } from '../../../lib/supabaseMigration';
-import { checkSupabaseDataStatus, getSupabaseClient, supabase, orderToSupabaseRow, productToSupabaseRow } from '../../../lib/supabase';
-import { CANONICAL_DEFAULT_PRODUCTS } from '../../../contexts/ProductContext';
+import React, { useState } from 'react';
+import { Database, CheckCircle, RefreshCw, Save, Check, Copy, Code, ShieldCheck } from 'lucide-react';
+import { migrateFirestoreToSupabase, MigrationProgress, SUPABASE_SCHEMA_SQL } from '../../../lib/supabaseMigration';
+import { checkSupabaseDataStatus } from '../../../lib/supabase';
 import toast from 'react-hot-toast';
 
 export default function SupabaseSettings() {
-  const [supabaseUrl, setSupabaseUrl] = useState(localStorage.getItem('elegan_supabase_url') || 'https://wnnnjroxyuxsbolbcdil.supabase.co');
-  const [supabaseKey, setSupabaseKey] = useState(localStorage.getItem('elegan_supabase_key') || 'sb_publishable_p2B8pChEnm9esPFTCLGYXg_Ype4-7NI');
+  const [supabaseUrl, setSupabaseUrl] = useState(localStorage.getItem('elegan_supabase_url') || 'https://eeifewkhrtveenyrrirj.supabase.co');
+  const [supabaseKey, setSupabaseKey] = useState(localStorage.getItem('elegan_supabase_key') || 'sb_publishable_XD9wPgNEzlHdAaJ2RN_BFw_izYEgB2p');
   const [migrating, setMigrating] = useState(false);
-  const [pushingData, setPushingData] = useState(false);
   const [progressInfo, setProgressInfo] = useState<MigrationProgress | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [statusResult, setStatusResult] = useState<{ connected: boolean; productsCount: number; ordersCount: number; customersCount: number; error: string | null } | null>(null);
   const [copiedSql, setCopiedSql] = useState(false);
-
-  // Local storage counts
-  const [localOrdersCount, setLocalOrdersCount] = useState<number>(0);
-  const [localProductsCount, setLocalProductsCount] = useState<number>(0);
-
-  // Helper to load and merge all unique orders from all cache keys and API
-  const getAllKnownOrders = async (): Promise<any[]> => {
-    const ordersMap = new Map<string, any>();
-
-    // 1. Check all localStorage cache keys
-    const cacheKeys = ['eleganbd_all_orders_v5', 'eleganbd_all_orders', 'eleganbd_orders', 'orders'];
-    for (const key of cacheKeys) {
-      try {
-        const raw = localStorage.getItem(key);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed)) {
-            parsed.forEach((o: any) => {
-              if (o && o.id) ordersMap.set(String(o.id), o);
-            });
-          }
-        }
-      } catch {}
-    }
-
-    // 2. Fetch from backend /api/orders (which merges Firestore & Supabase)
-    try {
-      const res = await fetch('/api/orders');
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && Array.isArray(json.orders)) {
-          json.orders.forEach((o: any) => {
-            if (o && o.id) {
-              const existing = ordersMap.get(String(o.id));
-              if (existing) {
-                ordersMap.set(String(o.id), { ...existing, ...o });
-              } else {
-                ordersMap.set(String(o.id), o);
-              }
-            }
-          });
-        }
-      }
-    } catch (apiErr) {
-      console.warn('API orders fetch notice:', apiErr);
-    }
-
-    return Array.from(ordersMap.values());
-  };
-
-  useEffect(() => {
-    // Initial quick read from local storage
-    const loadCounts = async () => {
-      const allOrders = await getAllKnownOrders();
-      setLocalOrdersCount(allOrders.length);
-
-      try {
-        const rawProducts = localStorage.getItem('eleganbd_products');
-        if (rawProducts) {
-          const parsed = JSON.parse(rawProducts);
-          if (Array.isArray(parsed)) setLocalProductsCount(parsed.length);
-        } else {
-          setLocalProductsCount(CANONICAL_DEFAULT_PRODUCTS.length);
-        }
-      } catch {}
-    };
-
-    loadCounts();
-  }, []);
 
   const handleCopySql = () => {
     navigator.clipboard.writeText(SUPABASE_SCHEMA_SQL);
@@ -121,57 +50,6 @@ export default function SupabaseSettings() {
     setTimeout(() => {
       window.location.reload();
     }, 1000);
-  };
-
-  // Direct push all local orders and products into Supabase immediately
-  const handlePushLocalDataToSupabase = async () => {
-    setPushingData(true);
-    toast.loading('Uploading all local orders and products to Supabase...', { id: 'push_toast' });
-    try {
-      const client = getSupabaseClient() || supabase;
-      if (!client) {
-        toast.error('Supabase client not connected', { id: 'push_toast' });
-        return;
-      }
-
-      // 1. Upload products
-      let productsList: any[] = [];
-      try {
-        const raw = localStorage.getItem('eleganbd_products');
-        if (raw) productsList = JSON.parse(raw);
-        if (!productsList || productsList.length === 0) productsList = CANONICAL_DEFAULT_PRODUCTS;
-      } catch {
-        productsList = CANONICAL_DEFAULT_PRODUCTS;
-      }
-
-      if (productsList.length > 0) {
-        const prodRows = productsList.map(productToSupabaseRow);
-        await client.from('products').upsert(prodRows, { onConflict: 'id' });
-      }
-
-      // 2. Upload all orders
-      const ordersList = await getAllKnownOrders();
-
-      if (ordersList.length > 0) {
-        const orderRows = ordersList.map(orderToSupabaseRow);
-        const BATCH = 50;
-        for (let i = 0; i < orderRows.length; i += BATCH) {
-          const chunk = orderRows.slice(i, i + BATCH);
-          await client.from('orders').upsert(chunk, { onConflict: 'id' });
-        }
-      }
-
-      // 3. Re-verify instantly
-      const checkRes = await checkSupabaseDataStatus();
-      setStatusResult(checkRes);
-
-      toast.success(`সফলভাবে আপলোড হয়েছে! Orders: ${checkRes.ordersCount}, Products: ${checkRes.productsCount}`, { id: 'push_toast', duration: 5000 });
-    } catch (err: any) {
-      console.error('Error pushing data:', err);
-      toast.error(`আপলোড ত্রুটি: ${err?.message || 'Failed to upload'}`, { id: 'push_toast' });
-    } finally {
-      setPushingData(false);
-    }
   };
 
   const handleStartMigration = async () => {
@@ -318,39 +196,6 @@ export default function SupabaseSettings() {
               <>
                 <Database className="w-4 h-4" />
                 Sync & Test Connection
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* LOCAL DATA SYNC BANNER */}
-      <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <UploadCloud className="w-5 h-5 text-emerald-700" />
-              <h3 className="font-bold text-emerald-950 text-base">ওয়েবসাইটের ডাটা Supabase-এ আপলোড করুন</h3>
-            </div>
-            <p className="text-xs text-emerald-800 mt-1">
-              আপনার ওয়েবসাইটে বর্তমানে <span className="font-bold text-emerald-900 bg-emerald-100/80 px-1.5 py-0.5 rounded">{localOrdersCount} টি অর্ডার</span> এবং <span className="font-bold text-emerald-900 bg-emerald-100/80 px-1.5 py-0.5 rounded">{localProductsCount} টি প্রোডাক্ট</span> সেভ করা আছে। এগুলো এখনই Supabase ডাটাবেজে আপলোড করতে নিচের বাটনে চাপ দিন।
-            </p>
-          </div>
-          <button
-            onClick={handlePushLocalDataToSupabase}
-            disabled={pushingData}
-            type="button"
-            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl shadow-sm transition flex items-center justify-center gap-2 flex-shrink-0 disabled:opacity-50"
-          >
-            {pushingData ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                আপলোড হচ্ছে...
-              </>
-            ) : (
-              <>
-                <UploadCloud className="w-4 h-4" />
-                Upload Data Now ({localOrdersCount} Orders)
               </>
             )}
           </button>
