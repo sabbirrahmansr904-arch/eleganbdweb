@@ -170,7 +170,7 @@ export default function AdminSettings() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const tab = params.get('tab');
-    if (tab && !['Branding', 'Banners', 'Notifications', 'Categories'].includes(tab)) {
+    if (tab) {
       setActiveTab(tab);
     } else {
       setActiveTab('General');
@@ -1453,7 +1453,7 @@ export default function AdminSettings() {
     const params = new URLSearchParams(location.search);
     const tabParam = params.get('tab');
     
-    if (tabParam && !['Branding', 'Banners', 'Notifications', 'Categories'].includes(tabParam)) {
+    if (tabParam) {
       setActiveTab(tabParam);
     } else {
       setActiveTab('General');

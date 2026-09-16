@@ -16,9 +16,13 @@ interface BrandingContextType {
   ceoPhotoUrl: string;
   collectionsBannerUrl: string;
   heroBannerUrl: string;
+  heroBannerMobileUrl: string;
   heroBanner2Url: string;
+  heroBanner2MobileUrl: string;
   heroBanner3Url: string;
+  heroBanner3MobileUrl: string;
   subHeroBannerUrl: string;
+  subHeroBannerMobileUrl: string;
   featureBannerUrl: string;
   poloBannerUrl: string;
   shirtBannerUrl: string;
@@ -65,9 +69,13 @@ interface BrandingContextType {
   setCeoPhotoUrl: (url: string) => void;
   setCollectionsBannerUrl: (url: string) => void;
   setHeroBannerUrl: (url: string) => void;
+  setHeroBannerMobileUrl: (url: string) => void;
   setHeroBanner2Url: (url: string) => void;
+  setHeroBanner2MobileUrl: (url: string) => void;
   setHeroBanner3Url: (url: string) => void;
+  setHeroBanner3MobileUrl: (url: string) => void;
   setSubHeroBannerUrl: (url: string) => void;
+  setSubHeroBannerMobileUrl: (url: string) => void;
   setFeatureBannerUrl: (url: string) => void;
   setPoloBannerUrl: (url: string) => void;
   setShirtBannerUrl: (url: string) => void;
@@ -201,11 +209,31 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return "";
   });
 
+  const [heroBannerMobileUrl, setHeroBannerMobileUrlState] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_banners_large');
+    if (cached) {
+      try {
+        return cleanBannerUrl(JSON.parse(cached).heroBannerMobileUrl);
+      } catch (e) { return ""; }
+    }
+    return "";
+  });
+
   const [heroBanner2Url, setHeroBanner2UrlState] = useState<string>(() => {
     const cached = localStorage.getItem('eleganbd_banners_large');
     if (cached) {
       try {
         return cleanBannerUrl(JSON.parse(cached).heroBanner2Url);
+      } catch (e) { return ""; }
+    }
+    return "";
+  });
+
+  const [heroBanner2MobileUrl, setHeroBanner2MobileUrlState] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_banners_large');
+    if (cached) {
+      try {
+        return cleanBannerUrl(JSON.parse(cached).heroBanner2MobileUrl);
       } catch (e) { return ""; }
     }
     return "";
@@ -221,11 +249,31 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return "";
   });
 
+  const [heroBanner3MobileUrl, setHeroBanner3MobileUrlState] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_banners_large');
+    if (cached) {
+      try {
+        return cleanBannerUrl(JSON.parse(cached).heroBanner3MobileUrl);
+      } catch (e) { return ""; }
+    }
+    return "";
+  });
+
   const [subHeroBannerUrl, setSubHeroBannerUrlState] = useState<string>(() => {
     const cached = localStorage.getItem('eleganbd_banners_large');
     if (cached) {
       try {
         return cleanBannerUrl(JSON.parse(cached).subHeroBannerUrl);
+      } catch (e) { return ""; }
+    }
+    return "";
+  });
+
+  const [subHeroBannerMobileUrl, setSubHeroBannerMobileUrlState] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_banners_large');
+    if (cached) {
+      try {
+        return cleanBannerUrl(JSON.parse(cached).subHeroBannerMobileUrl);
       } catch (e) { return ""; }
     }
     return "";
@@ -601,12 +649,12 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       } else if (recordId.startsWith('banner_')) {
         const key = recordId.replace('banner_', '');
         const url = cleanBannerUrl(data.url);
+        const mobileUrl = cleanBannerUrl(data.mobileUrl);
+        const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
+        const cacheUpdates: any = {};
         if (url) {
-          const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
           const cacheKey = key === 'sub_hero' ? 'subHeroBannerUrl' : key === 'hero_2' ? 'heroBanner2Url' : key === 'hero_3' ? 'heroBanner3Url' : `${key}BannerUrl`;
-          try {
-            localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, [cacheKey]: url }));
-          } catch {}
+          cacheUpdates[cacheKey] = url;
           if (key === 'hero') setHeroBannerUrlState(url);
           if (key === 'hero_2') setHeroBanner2UrlState(url);
           if (key === 'hero_3') setHeroBanner3UrlState(url);
@@ -615,6 +663,19 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           if (key === 'feature') setFeatureBannerUrlState(url);
           if (key === 'polo') setPoloBannerUrlState(url);
           if (key === 'combo_offer') setComboOfferBannerUrlState(url);
+        }
+        if (mobileUrl || data.mobileUrl !== undefined) {
+          const mobileCacheKey = key === 'sub_hero' ? 'subHeroBannerMobileUrl' : key === 'hero_2' ? 'heroBanner2MobileUrl' : key === 'hero_3' ? 'heroBanner3MobileUrl' : key === 'hero' ? 'heroBannerMobileUrl' : `${key}BannerMobileUrl`;
+          cacheUpdates[mobileCacheKey] = mobileUrl;
+          if (key === 'hero') setHeroBannerMobileUrlState(mobileUrl);
+          if (key === 'hero_2') setHeroBanner2MobileUrlState(mobileUrl);
+          if (key === 'hero_3') setHeroBanner3MobileUrlState(mobileUrl);
+          if (key === 'sub_hero') setSubHeroBannerMobileUrlState(mobileUrl);
+        }
+        if (Object.keys(cacheUpdates).length > 0) {
+          try {
+            localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, ...cacheUpdates }));
+          } catch {}
         }
       } else if (recordId.startsWith('why_choose_')) {
         const i = parseInt(recordId.replace('why_choose_', ''), 10);
@@ -777,11 +838,25 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     updateFirestore('banner_hero', { url });
   };
 
+  const setHeroBannerMobileUrl = (url: string) => {
+    setHeroBannerMobileUrlState(url);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
+    localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, heroBannerMobileUrl: url }));
+    updateFirestore('banner_hero', { mobileUrl: url });
+  };
+
   const setHeroBanner2Url = (url: string) => {
     setHeroBanner2UrlState(url);
     const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
     localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, heroBanner2Url: url }));
     updateFirestore('banner_hero_2', { url });
+  };
+
+  const setHeroBanner2MobileUrl = (url: string) => {
+    setHeroBanner2MobileUrlState(url);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
+    localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, heroBanner2MobileUrl: url }));
+    updateFirestore('banner_hero_2', { mobileUrl: url });
   };
 
   const setHeroBanner3Url = (url: string) => {
@@ -791,11 +866,25 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     updateFirestore('banner_hero_3', { url });
   };
 
+  const setHeroBanner3MobileUrl = (url: string) => {
+    setHeroBanner3MobileUrlState(url);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
+    localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, heroBanner3MobileUrl: url }));
+    updateFirestore('banner_hero_3', { mobileUrl: url });
+  };
+
   const setSubHeroBannerUrl = (url: string) => {
     setSubHeroBannerUrlState(url);
     const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
     localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, subHeroBannerUrl: url }));
     updateFirestore('banner_sub_hero', { url });
+  };
+
+  const setSubHeroBannerMobileUrl = (url: string) => {
+    setSubHeroBannerMobileUrlState(url);
+    const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
+    localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, subHeroBannerMobileUrl: url }));
+    updateFirestore('banner_sub_hero', { mobileUrl: url });
   };
 
   const setFeatureBannerUrl = (url: string) => {
@@ -1108,11 +1197,21 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   return (
     <BrandingContext.Provider value={{ 
-      logoUrl, sizeChartUrl, ceoPhotoUrl, collectionsBannerUrl, heroBannerUrl, heroBanner2Url, heroBanner3Url, subHeroBannerUrl, featureBannerUrl, poloBannerUrl,
+      logoUrl, sizeChartUrl, ceoPhotoUrl, collectionsBannerUrl, 
+      heroBannerUrl, heroBannerMobileUrl, 
+      heroBanner2Url, heroBanner2MobileUrl, 
+      heroBanner3Url, heroBanner3MobileUrl, 
+      subHeroBannerUrl, subHeroBannerMobileUrl, 
+      featureBannerUrl, poloBannerUrl,
       shirtBannerUrl: featureBannerUrl, pantBannerUrl: poloBannerUrl, comboOfferBannerUrl, showShowcase, categoryImages, 
       showAnnouncementBar, announcementMessage, showCountdownBanner, comboOfferTitle, comboOfferSubTitle, comboOfferDiscount, comboOfferHours, comboOfferMinutes, comboOfferSeconds, showHeroBanner, facebookUrl, instagramUrl, youtubeUrl, tiktokUrl, shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter, primaryDeliveryDistrict, aboutText,
       whyChooseImg1, whyChooseImg2, whyChooseImg3, whyChooseImg4, whyChooseImg5, whyChooseText1, whyChooseText2, whyChooseText3, whyChooseText4, whyChooseText5,
-      setLogoUrl, setSizeChartUrl, setCeoPhotoUrl, setCollectionsBannerUrl, setHeroBannerUrl, setHeroBanner2Url, setHeroBanner3Url, setSubHeroBannerUrl, setFeatureBannerUrl, setPoloBannerUrl,
+      setLogoUrl, setSizeChartUrl, setCeoPhotoUrl, setCollectionsBannerUrl, 
+      setHeroBannerUrl, setHeroBannerMobileUrl, 
+      setHeroBanner2Url, setHeroBanner2MobileUrl, 
+      setHeroBanner3Url, setHeroBanner3MobileUrl, 
+      setSubHeroBannerUrl, setSubHeroBannerMobileUrl, 
+      setFeatureBannerUrl, setPoloBannerUrl,
       setShirtBannerUrl: setFeatureBannerUrl, setPantBannerUrl: setPoloBannerUrl, setComboOfferBannerUrl, setShowShowcase, setCategoryImageUrl,
       setShowAnnouncementBar, setAnnouncementMessage, setShowCountdownBanner, setComboOfferTitle, setComboOfferSubTitle, setComboOfferDiscount, setComboOfferHours, setComboOfferMinutes, setComboOfferSeconds, setShowHeroBanner, setFacebookUrl, setInstagramUrl, setYoutubeUrl, setTiktokUrl, setShippingInsideDhaka, setShippingOutsideDhaka, setShippingFreeAfter, setPrimaryDeliveryDistrict, setAboutText,
       setWhyChooseImg1, setWhyChooseImg2, setWhyChooseImg3, setWhyChooseImg4, setWhyChooseImg5, setWhyChooseText1, setWhyChooseText2, setWhyChooseText3, setWhyChooseText4, setWhyChooseText5

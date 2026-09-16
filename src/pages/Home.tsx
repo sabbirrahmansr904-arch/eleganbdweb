@@ -21,13 +21,17 @@ const Home = () => {
   const { categories } = useCategories();
   const { banners } = useBanners();
   const { 
-    heroBannerUrl, 
+    heroBannerUrl,
+    heroBannerMobileUrl, 
     heroBanner2Url,
+    heroBanner2MobileUrl,
     heroBanner3Url,
+    heroBanner3MobileUrl,
     showHeroBanner,
     shirtBannerUrl,
     pantBannerUrl,
-    subHeroBannerUrl
+    subHeroBannerUrl,
+    subHeroBannerMobileUrl
   } = useBranding();
 
   const bestSellingScrollRef = React.useRef<HTMLDivElement>(null);
@@ -98,19 +102,28 @@ const Home = () => {
         active: true,
         type: 'hero' as const,
         image: b.image,
+        mobileImage: b.mobileImage || '',
         title: b.title || '',
         link: b.link || ''
       }));
 
     // 2. From Branding Settings (heroBannerUrl, heroBanner2Url, heroBanner3Url)
+    const brandingList = [
+      { desktop: heroBannerUrl, mobile: heroBannerMobileUrl, id: 'branding-hero-0' },
+      { desktop: heroBanner2Url, mobile: heroBanner2MobileUrl, id: 'branding-hero-1' },
+      { desktop: heroBanner3Url, mobile: heroBanner3MobileUrl, id: 'branding-hero-2' },
+    ];
+
     const fromBranding: typeof fromDb = [];
-    [heroBannerUrl, heroBanner2Url, heroBanner3Url].forEach((url, idx) => {
-      if (url && !url.includes('unsplash.com') && !fromDb.some(b => b.image === url)) {
+    brandingList.forEach((item) => {
+      const url = item.desktop || item.mobile;
+      if (url && !url.includes('unsplash.com') && !fromDb.some(b => b.image === item.desktop)) {
         fromBranding.push({
-          id: `branding-hero-${idx}`,
+          id: item.id,
           active: true,
           type: 'hero' as const,
-          image: url,
+          image: item.desktop || item.mobile,
+          mobileImage: item.mobile || '',
           title: '',
           link: ''
         });
@@ -118,7 +131,7 @@ const Home = () => {
     });
 
     return [...fromDb, ...fromBranding];
-  }, [banners, heroBannerUrl, heroBanner2Url, heroBanner3Url]);
+  }, [banners, heroBannerUrl, heroBannerMobileUrl, heroBanner2Url, heroBanner2MobileUrl, heroBanner3Url, heroBanner3MobileUrl]);
 
   const [currentBanner, setCurrentBanner] = React.useState(0);
 
@@ -384,7 +397,7 @@ const Home = () => {
       {/* TOP SECTION: HERO BANNER (SLIDER SUPPORT FOR 2 OR MORE BANNERS) */}
       {activeHeroBanners.length > 0 && showHeroBanner && (
         <section className="w-full m-0 p-0 pb-2 sm:pb-4">
-          <div className="relative w-full overflow-hidden bg-white flex items-center justify-center m-0 p-0 group">
+          <div className="relative w-full overflow-hidden bg-slate-900 flex items-center justify-center m-0 p-0 group aspect-[1080/650] sm:aspect-[16/9] md:aspect-[1920/900]">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentBanner}
@@ -392,25 +405,35 @@ const Home = () => {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.5 }}
-                className="w-full relative flex items-center justify-center overflow-hidden bg-white"
+                className="w-full h-full relative flex items-center justify-center overflow-hidden bg-slate-900"
               >
-                {/* Main Hero Banner Image - Responsive aspect ratio for beautiful display on all devices */}
+                {/* Main Hero Banner Image - Responsive picture element for Mobile (1080x650 / 5:3) vs Desktop (1920x900 / ~2.13:1) */}
                 {activeHeroBanners[currentBanner].link ? (
-                  <Link to={activeHeroBanners[currentBanner].link} className="relative z-10 block w-full">
+                  <Link to={activeHeroBanners[currentBanner].link} className="relative z-10 block w-full h-full">
+                    <picture className="w-full h-full block">
+                      {activeHeroBanners[currentBanner].mobileImage && (
+                        <source media="(max-width: 767px)" srcSet={activeHeroBanners[currentBanner].mobileImage} />
+                      )}
+                      <img 
+                        src={activeHeroBanners[currentBanner].image} 
+                        alt={`Hero Banner ${currentBanner + 1}`} 
+                        className="w-full h-full object-cover block mx-auto"
+                        referrerPolicy="no-referrer"
+                      />
+                    </picture>
+                  </Link>
+                ) : (
+                  <picture className="relative z-10 w-full h-full block">
+                    {activeHeroBanners[currentBanner].mobileImage && (
+                      <source media="(max-width: 767px)" srcSet={activeHeroBanners[currentBanner].mobileImage} />
+                    )}
                     <img 
                       src={activeHeroBanners[currentBanner].image} 
                       alt={`Hero Banner ${currentBanner + 1}`} 
-                      className="w-full h-auto object-contain block mx-auto"
+                      className="w-full h-full object-cover block mx-auto"
                       referrerPolicy="no-referrer"
                     />
-                  </Link>
-                ) : (
-                  <img 
-                    src={activeHeroBanners[currentBanner].image} 
-                    alt={`Hero Banner ${currentBanner + 1}`} 
-                    className="relative z-10 w-full h-auto object-contain block mx-auto"
-                    referrerPolicy="no-referrer"
-                  />
+                  </picture>
                 )}
               </motion.div>
             </AnimatePresence>
@@ -454,7 +477,7 @@ const Home = () => {
         </section>
       )}
 
-      {/* 4-COLUMN HIGHLIGHT BAR (EXACT AS IMAGE) */}
+      {/* 4-COLUMN HIGHLIGHT BAR */}
       <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 py-3 sm:py-5">
         <div className="bg-[#F8FAFC] border border-blue-100/60 rounded-2xl sm:rounded-3xl p-4 sm:p-5 lg:px-8 lg:py-6 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 items-center">
@@ -465,8 +488,8 @@ const Home = () => {
                 <Truck className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="text-[13px] sm:text-[15px] font-bold text-gray-900 leading-tight">সারাদেশে ক্যাশ অন ডেলিভারি</span>
-                <span className="text-[11px] sm:text-xs text-gray-500 leading-snug mt-0.5">প্যাকেট খুলে দেখে পেমেন্ট করুন</span>
+                <span className="text-[13px] sm:text-[15px] font-bold text-gray-900 leading-tight">Cash On Delivery</span>
+                <span className="text-[11px] sm:text-xs text-gray-500 leading-snug mt-0.5">Check before you pay</span>
               </div>
             </div>
 
@@ -476,8 +499,8 @@ const Home = () => {
                 <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="text-[13px] sm:text-[15px] font-bold text-gray-900 leading-tight">১০০% প্রিমিয়াম ফেব্রিক</span>
-                <span className="text-[11px] sm:text-xs text-gray-500 leading-snug mt-0.5">কোয়ালিটি গ্যারান্টিড</span>
+                <span className="text-[13px] sm:text-[15px] font-bold text-gray-900 leading-tight">100% Premium Fabric</span>
+                <span className="text-[11px] sm:text-xs text-gray-500 leading-snug mt-0.5">Quality Guaranteed</span>
               </div>
             </div>
 
@@ -487,8 +510,8 @@ const Home = () => {
                 <ArrowLeftRight className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="text-[13px] sm:text-[15px] font-bold text-gray-900 leading-tight">সহজ এক্সচেঞ্জ সুবিধা</span>
-                <span className="text-[11px] sm:text-xs text-gray-500 leading-snug mt-0.5">৭ দিনের মধ্যে ফ্রি সাইজ পরিবর্তন</span>
+                <span className="text-[13px] sm:text-[15px] font-bold text-gray-900 leading-tight">Easy Exchange</span>
+                <span className="text-[11px] sm:text-xs text-gray-500 leading-snug mt-0.5">Free size change in 7 days</span>
               </div>
             </div>
 
@@ -498,8 +521,8 @@ const Home = () => {
                 <Headphones className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="text-[13px] sm:text-[15px] font-bold text-gray-900 leading-tight">২৪/৭ কাস্টমার সাপোর্ট</span>
-                <span className="text-[11px] sm:text-xs text-gray-500 leading-snug mt-0.5">কল বা মেসেজে সার্বক্ষণিক সহায়তা</span>
+                <span className="text-[13px] sm:text-[15px] font-bold text-gray-900 leading-tight">24/7 Support</span>
+                <span className="text-[11px] sm:text-xs text-gray-500 leading-snug mt-0.5">Instant help via call or message</span>
               </div>
             </div>
 

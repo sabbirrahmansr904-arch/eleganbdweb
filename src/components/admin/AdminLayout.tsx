@@ -57,7 +57,8 @@ import {
   Plus,
   Minus,
   Clock,
-  Radio
+  Radio,
+  Image as ImageIcon
 } from 'lucide-react';
 import { VerifiedBadge } from './VerifiedBadge';
 import { cn, formatPrice } from '../../lib/utils';
@@ -362,8 +363,8 @@ export default function AdminLayout() {
     if (key === 'dashboard' && permissions.includes('dashboard')) return true;
     if (key === 'customer-profiler' && (permissions.includes('customers') || permissions.includes('customer-profiler'))) return true;
     if (key === 'customers' && (permissions.includes('customers') || permissions.includes('customer-profiler'))) return true;
-    if (key === 'master-table' && (permissions.includes('masterTable') || permissions.includes('master-table'))) return true;
-    if (key === 'masterTable' && (permissions.includes('masterTable') || permissions.includes('master-table'))) return true;
+    if (key === 'master-table' && (permissions.includes('masterTable') || permissions.includes('master-table') || permissions.includes('products'))) return true;
+    if (key === 'masterTable' && (permissions.includes('masterTable') || permissions.includes('master-table') || permissions.includes('products'))) return true;
     if (key === 'inventory-log' && (permissions.includes('inventory-log') || permissions.includes('masterTable') || permissions.includes('master-table'))) return true;
     if (key === 'media' && (permissions.includes('media') || permissions.includes('products') || permissions.includes('settings'))) return true;
     if (['categories', 'branding', 'banners', 'notifications', 'media', 'pathao'].includes(key) && permissions.includes('settings')) return true;
@@ -438,6 +439,8 @@ export default function AdminLayout() {
       title: 'INVENTORY',
       items: [
         { name: 'Products', path: '/admin/products', icon: ShoppingBag, perm: 'products' },
+        { name: 'Master Table', path: '/admin/master-table', icon: Table, perm: 'master-table' },
+        { name: 'Inventory Log', path: '/admin/inventory-log', icon: History, perm: 'inventory-log' },
       ]
     },
     {
@@ -453,6 +456,7 @@ export default function AdminLayout() {
       title: 'SYSTEM',
       items: [
         { name: 'Settings', path: '/admin/settings', icon: Settings, perm: 'settings' },
+        { name: 'Promo Banners', path: '/admin/settings?tab=Banners', icon: ImageIcon, perm: 'settings' },
         { name: 'Supabase DB', path: '/admin/settings?tab=Supabase', icon: Database, perm: 'settings' },
       ]
     }

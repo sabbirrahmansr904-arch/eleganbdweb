@@ -237,6 +237,49 @@ async function startServer() {
     }
   });
 
+  app.post("/api/orders/delete", async (req, res) => {
+    try {
+      const { id } = req.body;
+      if (!id) {
+        return res.status(400).json({ error: "Missing order ID" });
+      }
+      const cleanId = String(id);
+      const cleanIdNum = parseInt(cleanId.replace(/[^0-9]/g, ''), 10);
+
+      // 1. Delete from Firestore
+      try {
+        await deleteDoc(doc(db, 'orders', cleanId));
+        if (!isNaN(cleanIdNum)) {
+          await deleteDoc(doc(db, 'orders', String(cleanIdNum)));
+        }
+      } catch (fsErr) {
+        console.warn("[Server API] Firestore order delete notice:", fsErr);
+      }
+
+      // 2. Delete from Supabase
+      try {
+        if (!isNaN(cleanIdNum)) {
+          await supabase
+            .from('orders')
+            .delete()
+            .or(`id.eq.${cleanId},invoice_no.eq.${cleanIdNum}`);
+        } else {
+          await supabase
+            .from('orders')
+            .delete()
+            .eq('id', cleanId);
+        }
+      } catch (sbErr) {
+        console.warn("[Server API] Supabase order delete notice:", sbErr);
+      }
+
+      return res.json({ success: true, id: cleanId });
+    } catch (e: any) {
+      console.error("[Server API] /api/orders/delete error:", e);
+      return res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/debug-banners", async (req, res) => {
     try {
       const bannerSnaps = await getDocs(collection(db, 'banners'));

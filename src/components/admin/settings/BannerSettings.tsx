@@ -17,7 +17,9 @@ import {
   Tag,
   Building2,
   MapPin,
-  Sparkles
+  Sparkles,
+  Laptop,
+  Smartphone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useBanners } from '../../../contexts/BannerContext';
@@ -50,9 +52,13 @@ export default function BannerSettings() {
     shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter, primaryDeliveryDistrict, aboutText,
     setShippingInsideDhaka, setShippingOutsideDhaka, setShippingFreeAfter, setPrimaryDeliveryDistrict, setAboutText,
     heroBannerUrl, setHeroBannerUrl,
+    heroBannerMobileUrl, setHeroBannerMobileUrl,
     heroBanner2Url, setHeroBanner2Url,
+    heroBanner2MobileUrl, setHeroBanner2MobileUrl,
     heroBanner3Url, setHeroBanner3Url,
+    heroBanner3MobileUrl, setHeroBanner3MobileUrl,
     subHeroBannerUrl, setSubHeroBannerUrl,
+    subHeroBannerMobileUrl, setSubHeroBannerMobileUrl,
     collectionsBannerUrl, setCollectionsBannerUrl,
     featureBannerUrl, setFeatureBannerUrl,
     poloBannerUrl, setPoloBannerUrl,
@@ -391,108 +397,134 @@ export default function BannerSettings() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {[
               {
-                id: 'heroBannerUrl',
+                id: 'heroBanner1',
                 title: 'Hero Banner 1 (স্লাইড ১ - মূল ব্যানার)',
-                description: 'হোম পেজের হিরো স্লাইডারের ১ম ব্যানার ইমেজ। (Recommended: 1920x600px)',
-                url: heroBannerUrl,
-                setter: setHeroBannerUrl,
-                badge: 'Slide 1',
+                description: 'হোম পেজের হিরো স্লাইডারের ১ম ব্যানার। আলাদা ডেস্কটপ এবং মোবাইল ইমেজ সেট করুন যাতে সব ডিভাইসে পারফেক্ট দেখায়।',
+                desktopUrl: heroBannerUrl,
+                desktopSetter: setHeroBannerUrl,
+                mobileUrl: heroBannerMobileUrl,
+                mobileSetter: setHeroBannerMobileUrl,
+                badge: 'Slide 1 (Desktop & Mobile)',
               },
               {
-                id: 'heroBanner2Url',
+                id: 'heroBanner2',
                 title: 'Hero Banner 2 (স্লাইড ২ - দ্বিতীয় ব্যানার)',
-                description: 'হোম পেজের হিরো স্লাইডারের ২য় ব্যানার ইমেজ। (Recommended: 1920x600px)',
-                url: heroBanner2Url,
-                setter: setHeroBanner2Url,
-                badge: 'Slide 2',
+                description: 'হোম পেজের হিরো স্লাইডারের ২য় ব্যানার। আলাদা ডেস্কটপ এবং মোবাইল ইমেজ সেট করুন।',
+                desktopUrl: heroBanner2Url,
+                desktopSetter: setHeroBanner2Url,
+                mobileUrl: heroBanner2MobileUrl,
+                mobileSetter: setHeroBanner2MobileUrl,
+                badge: 'Slide 2 (Desktop & Mobile)',
               },
               {
-                id: 'heroBanner3Url',
+                id: 'heroBanner3',
                 title: 'Hero Banner 3 (স্লাইড ৩ - অতিরিক্ত ব্যানার)',
-                description: 'হোম পেজের হিরো স্লাইডারের ৩য় ব্যানার ইমেজ (অপশনাল)।',
-                url: heroBanner3Url,
-                setter: setHeroBanner3Url,
+                description: 'হোম পেজের হিরো স্লাইডারের ৩য় ব্যানার (অপশনাল)।',
+                desktopUrl: heroBanner3Url,
+                desktopSetter: setHeroBanner3Url,
+                mobileUrl: heroBanner3MobileUrl,
+                mobileSetter: setHeroBanner3MobileUrl,
                 badge: 'Optional Slide 3',
               },
               {
-                id: 'subHeroBannerUrl',
+                id: 'subHeroBanner',
                 title: 'Sub-Hero Banner (প্রমোশনাল ব্যানার)',
                 description: 'হোম পেজের প্রোডাক্ট সেকশনের নিচে প্রদর্শিত বড় প্রোমো ব্যানার।',
-                url: subHeroBannerUrl,
-                setter: setSubHeroBannerUrl,
+                desktopUrl: subHeroBannerUrl,
+                desktopSetter: setSubHeroBannerUrl,
+                mobileUrl: subHeroBannerMobileUrl,
+                mobileSetter: setSubHeroBannerMobileUrl,
                 badge: 'Promo Banner',
               },
               {
                 id: 'collectionsBannerUrl',
                 title: 'Collections Section Banner',
                 description: 'Promotional graphic featured in the collections layout.',
-                url: collectionsBannerUrl,
-                setter: setCollectionsBannerUrl,
+                desktopUrl: collectionsBannerUrl,
+                desktopSetter: setCollectionsBannerUrl,
+                mobileUrl: '',
+                mobileSetter: () => {},
                 badge: 'Collections',
               },
             ].map((pBanner) => (
-              <div key={pBanner.id} className="bg-white border border-gray-100 p-6 sm:p-8 rounded-[32px] shadow-sm flex flex-col justify-between space-y-5 group hover:border-black/30 transition-all">
+              <div key={pBanner.id} className="bg-white border border-gray-100 p-6 sm:p-8 rounded-[32px] shadow-sm flex flex-col justify-between space-y-6 group hover:border-black/30 transition-all">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-black uppercase tracking-wider text-black">{pBanner.title}</h4>
                     {pBanner.badge && (
-                      <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 border border-gray-200">
+                      <span className="text-[9px] font-black uppercase px-2.5 py-1 rounded-md bg-black text-white">
                         {pBanner.badge}
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-gray-400 font-medium leading-relaxed">{pBanner.description}</p>
                 </div>
-                
-                <div className={cn(pBanner.isPortrait ? "aspect-[3/4] max-w-[220px] mx-auto" : "aspect-[21/9]", "w-full rounded-2xl bg-gray-50 border border-gray-100 overflow-hidden relative flex items-center justify-center group/img shadow-2xs")}>
-                  {pBanner.url ? (
-                    <img 
-                      src={pBanner.url} 
-                      alt={pBanner.title} 
-                      className="w-full h-full object-cover transition-transform group-hover/img:scale-105"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <div className="text-center p-6 space-y-2">
-                      <ImageIcon className="mx-auto text-gray-300" size={32} />
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-300">কোন ব্যানার সেট করা নেই</p>
-                    </div>
-                  )}
-                </div>
 
-                <div className="space-y-3">
+                {/* Desktop Banner Section */}
+                <div className="space-y-3 p-4 bg-gray-50/70 rounded-2xl border border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-900 flex items-center gap-1.5">
+                      <Laptop size={13} /> Desktop Responsive (1920 × 900 px)
+                    </span>
+                  </div>
+                  <div className="aspect-[21/9] w-full rounded-xl bg-white border border-gray-200 overflow-hidden relative flex items-center justify-center shadow-3xs">
+                    {pBanner.desktopUrl ? (
+                      <img src={pBanner.desktopUrl} alt="Desktop Banner" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className="text-center p-4">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-gray-300">ডেস্কটপ ইমেজ সেট করা নেই</p>
+                      </div>
+                    )}
+                  </div>
                   <div className="flex gap-2">
                     <input 
                       type="url"
-                      placeholder="বা সরাসরি ইমেজ লিংক পেস্ট করুন..."
-                      value={pBanner.url || ''}
-                      onChange={(e) => pBanner.setter(e.target.value)}
-                      className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs text-gray-800 outline-none focus:border-black font-medium"
+                      placeholder="ডেস্কটপ ইমেজ লিংক..."
+                      value={pBanner.desktopUrl || ''}
+                      onChange={(e) => pBanner.desktopSetter(e.target.value)}
+                      className="flex-1 bg-white border border-gray-200 rounded-xl px-3.5 py-2 text-xs text-gray-800 outline-none focus:border-black font-medium shadow-3xs"
                     />
-                  </div>
-
-                  <div className="flex gap-3">
-                    <label className="flex-1 py-3 text-[10px] uppercase tracking-wider font-black bg-black text-white hover:bg-gray-800 transition-all rounded-xl shadow-sm text-center cursor-pointer flex items-center justify-center gap-2">
-                      <Upload size={14} />
-                      <span>Upload {pBanner.isPortrait ? 'Photo' : 'Banner'}</span>
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        className="hidden" 
-                        onChange={(e) => handleStaticBannerUpload(e, pBanner.title, pBanner.setter, pBanner.isPortrait)} 
-                      />
+                    <label className="px-4 py-2 text-[10px] uppercase tracking-wider font-black bg-black text-white hover:bg-gray-800 transition-all rounded-xl shadow-sm text-center cursor-pointer flex items-center gap-1.5">
+                      <Upload size={12} />
+                      <span>Upload</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleStaticBannerUpload(e, `${pBanner.title} (Desktop)`, pBanner.desktopSetter, false)} />
                     </label>
-                    {pBanner.url && (
-                      <button 
-                        onClick={() => handleRemoveStaticBanner(pBanner.title, pBanner.setter)}
-                        className="px-4 bg-red-50 text-red-500 border border-red-100 hover:bg-red-500 hover:text-white transition-all rounded-xl flex items-center justify-center cursor-pointer shadow-3xs"
-                        title="Remove/Hide Banner"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
                   </div>
                 </div>
+
+                {/* Mobile Banner Section */}
+                {pBanner.mobileSetter !== undefined && pBanner.mobileSetter.toString() !== '() => {}' && (
+                  <div className="space-y-3 p-4 bg-gray-50/70 rounded-2xl border border-gray-100">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-emerald-950 flex items-center gap-1.5">
+                        <Smartphone size={13} /> Mobile Responsive (1080 × 650 px / 5:3)
+                      </span>
+                    </div>
+                    <div className="aspect-[5/3] w-full max-w-[280px] mx-auto rounded-xl bg-white border border-gray-200 overflow-hidden relative flex items-center justify-center shadow-3xs">
+                      {pBanner.mobileUrl ? (
+                        <img src={pBanner.mobileUrl} alt="Mobile Banner" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        <div className="text-center p-4">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-gray-300">মোবাইল ইমেজ সেট করা নেই (অপশনাল)</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <input 
+                        type="url"
+                        placeholder="মোবাইল ইমেজ লিংক..."
+                        value={pBanner.mobileUrl || ''}
+                        onChange={(e) => pBanner.mobileSetter(e.target.value)}
+                        className="flex-1 bg-white border border-gray-200 rounded-xl px-3.5 py-2 text-xs text-gray-800 outline-none focus:border-black font-medium shadow-3xs"
+                      />
+                      <label className="px-4 py-2 text-[10px] uppercase tracking-wider font-black bg-emerald-600 text-white hover:bg-emerald-700 transition-all rounded-xl shadow-sm text-center cursor-pointer flex items-center gap-1.5">
+                        <Upload size={12} />
+                        <span>Upload</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleStaticBannerUpload(e, `${pBanner.title} (Mobile)`, pBanner.mobileSetter, false)} />
+                      </label>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>

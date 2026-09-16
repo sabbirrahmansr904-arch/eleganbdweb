@@ -789,11 +789,9 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       if (order) {
         const isAlreadyRestored = isCancelledStatus(order.status);
         if (!isAlreadyRestored) {
-          try {
-            await restoreOrderStock(order);
-          } catch (stockErr) {
+          restoreOrderStock(order).catch(stockErr => {
             console.warn('[OrderContext] Non-fatal error restoring stock during deletion:', stockErr);
-          }
+          });
         }
       }
 
@@ -811,34 +809,33 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       });
       broadcastSync('ORDER_DELETED', cleanId);
 
-      // 2. Server API direct deletion
-      try {
-        await fetch('/api/orders/delete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: cleanId })
-        });
-      } catch (apiErr) {
-        console.warn('[OrderContext] Server delete order notice:', apiErr);
-      }
+      // 2. Parallel deletion from Server API and Supabase (Fastest response)
+      const cleanIdNum = parseInt(cleanId.replace(/[^0-9]/g, ''), 10);
+      const serverDeletePromise = fetch('/api/orders/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: cleanId })
+      }).catch(apiErr => console.warn('[OrderContext] Server delete order notice:', apiErr));
 
-      // 3. Client-side Supabase delete
-      try {
-        const cleanIdNum = parseInt(cleanId.replace(/[^0-9]/g, ''), 10);
-        if (cleanIdNum) {
-          await supabase
-            .from('orders')
-            .delete()
-            .or(`id.eq.${cleanId},invoice_no.eq.${cleanIdNum}`);
-        } else {
-          await supabase
-            .from('orders')
-            .delete()
-            .eq('id', cleanId);
+      const clientSupabaseDeletePromise = (async () => {
+        try {
+          if (!isNaN(cleanIdNum) && cleanIdNum > 0) {
+            await supabase
+              .from('orders')
+              .delete()
+              .or(`id.eq.${cleanId},invoice_no.eq.${cleanIdNum}`);
+          } else {
+            await supabase
+              .from('orders')
+              .delete()
+              .eq('id', cleanId);
+          }
+        } catch (sbErr) {
+          console.warn('[OrderContext] Client Supabase delete order notice:', sbErr);
         }
-      } catch (sbErr) {
-        console.warn('[OrderContext] Client Supabase delete order notice:', sbErr);
-      }
+      })();
+
+      await Promise.all([serverDeletePromise, clientSupabaseDeletePromise]);
     } catch (error) {
       console.error(`[OrderContext] ERROR: Deleting order ${cleanId}:`, error);
       throw error;

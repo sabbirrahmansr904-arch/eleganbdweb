@@ -779,7 +779,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
     });
 
-    // 2. Real-time products listener (Firestore fallback - only if Supabase has not already provided products)
+    // 2. Real-time products listener (Firestore primary real-time stream)
     const productsCol = collection(db, 'products');
     const unsubProducts = onSnapshot(productsCol, (snapshot) => {
       const prodData: Product[] = [];
@@ -797,33 +797,21 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (prodData.length > 0) {
         const normalized = deduplicateProducts(prodData.map(normalizeProductCategory));
         setProducts(prev => {
-          // If we already have live Supabase products in state, do not overwrite them with older Firestore data
-          if (prev && prev.length > 0) {
-            const currentMap = new Map<string, Product>();
-            prev.forEach(p => currentMap.set(String(p.id), p));
+          // Cloud Firestore has live updates from all devices
+          const cloudMap = new Map<string, Product>();
+          normalized.forEach(p => cloudMap.set(String(p.id), p));
 
-            const merged = [...prev];
-            normalized.forEach(fsProd => {
-              const existing = currentMap.get(String(fsProd.id));
-              if (!existing) {
-                merged.push(fsProd);
-              } else if ((fsProd.updatedAt || 0) > (existing.updatedAt || 0)) {
-                // Only replace if Firestore is explicitly strictly newer
-                const idx = merged.findIndex(p => String(p.id) === String(fsProd.id));
-                if (idx !== -1) {
-                  merged[idx] = fsProd;
-                }
+          // Retain local items only if not yet in cloud
+          const merged: Product[] = [...normalized];
+          if (prev && prev.length > 0) {
+            prev.forEach(item => {
+              if (item && item.id && !cloudMap.has(String(item.id)) && !isDemoProduct(item)) {
+                merged.push(item);
               }
             });
-            const finalNormalized = deduplicateProducts(merged.map(normalizeProductCategory)).filter(p => !isDemoProduct(p));
-            try {
-              localStorage.setItem('eleganbd_products', JSON.stringify(finalNormalized));
-              localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
-            } catch (e) {}
-            return finalNormalized;
           }
 
-          const finalNormalized = deduplicateProducts(normalized).filter(p => !isDemoProduct(p));
+          const finalNormalized = deduplicateProducts(merged.map(normalizeProductCategory)).filter(p => !isDemoProduct(p));
           try {
             localStorage.setItem('eleganbd_products', JSON.stringify(finalNormalized));
             localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());

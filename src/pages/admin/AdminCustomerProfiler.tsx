@@ -104,7 +104,7 @@ export default function AdminCustomerProfiler() {
   const [customerDocData, setCustomerDocData] = useState<Record<string, any>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'vip' | 'regular' | 'new' | 'risk'>('all');
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerProfile | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [noteInput, setNoteInput] = useState('');
   const [savingNote, setSavingNote] = useState(false);
 
@@ -364,18 +364,14 @@ export default function AdminCustomerProfiler() {
     });
   }, [profiles, searchTerm, selectedFilter]);
 
-  // Keep selectedCustomer in sync with real-time updates
-  useEffect(() => {
-    if (selectedCustomer) {
-      const updated = profiles.find(p => p.id === selectedCustomer.id);
-      if (updated) {
-        setSelectedCustomer(updated);
-      }
-    }
-  }, [profiles]);
+  // Derive the active selectedCustomer on the fly without setting state inside useEffect
+  const selectedCustomer = useMemo(() => {
+    if (!selectedCustomerId) return null;
+    return profiles.find(p => p.id === selectedCustomerId) || null;
+  }, [profiles, selectedCustomerId]);
 
   const handleOpenCustomerModal = (customer: CustomerProfile) => {
-    setSelectedCustomer(customer);
+    setSelectedCustomerId(customer.id);
     setNoteInput(customer.notes || '');
   };
 
@@ -412,7 +408,13 @@ export default function AdminCustomerProfiler() {
       }, { merge: true });
 
       toast.success('Customer notes saved successfully');
-      setSelectedCustomer(prev => prev ? { ...prev, notes: noteInput } : null);
+      setCustomerDocData(prev => ({
+        ...prev,
+        [key]: {
+          ...(prev[key] || {}),
+          notes: noteInput
+        }
+      }));
     } catch (err) {
       console.error('Error saving customer note:', err);
       toast.error('Failed to save note');
@@ -814,7 +816,7 @@ export default function AdminCustomerProfiler() {
               </div>
 
               <button 
-                onClick={() => setSelectedCustomer(null)}
+                onClick={() => setSelectedCustomerId(null)}
                 className="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-colors"
               >
                 ✕
@@ -974,7 +976,7 @@ export default function AdminCustomerProfiler() {
                 Customer ID: <span className="font-mono font-bold text-slate-700">{selectedCustomer.id}</span>
               </span>
               <button 
-                onClick={() => setSelectedCustomer(null)}
+                onClick={() => setSelectedCustomerId(null)}
                 className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all"
               >
                 Close Profile

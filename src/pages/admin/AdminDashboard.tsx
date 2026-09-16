@@ -1275,8 +1275,8 @@ export default function AdminDashboard(): React.JSX.Element {
         </div>
       </div>
 
-      {/* ROW 1: 6-COLUMN METRICS GRID - WITH OFFICE SALE & STORE PICKUP */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 xl:gap-5">
+      {/* ROW 1: 5-COLUMN METRICS GRID */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 xl:gap-5">
         
         {/* CARD 1: Returned (রিয়েল-টাইম) */}
         <div id="card-metric-returned" className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:-translate-y-1.5 hover:shadow-md hover:border-slate-300/80 transition-all duration-300 ease-out">
@@ -1461,75 +1461,7 @@ export default function AdminDashboard(): React.JSX.Element {
           </div>
         </div>
 
-        {/* CARD 4: Store Pickup (রিয়েল-টাইম) */}
-        <div 
-          id="card-metric-store-pickup" 
-          onClick={() => navigate('/admin/orders?partner=Store+Pickup')}
-          className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:-translate-y-1.5 hover:shadow-md hover:border-blue-300/80 transition-all duration-300 ease-out cursor-pointer"
-        >
-          <div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#EFF6FF] text-[#2563EB] flex items-center justify-center shadow-2xs">
-                  <Store className="w-5 h-5" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-gray-400">Store Pickup</span>
-                </div>
-              </div>
-              <button 
-                onClick={(e) => { e.stopPropagation(); navigate('/admin/orders?partner=Store+Pickup'); }} 
-                className="text-gray-400 hover:text-gray-900 p-1 rounded-lg hover:bg-gray-50 transition-colors" 
-                title="View Store Pickup Orders"
-              >
-                <MoreVertical className="w-4 h-4" />
-              </button>
-            </div>
-            
-            <div className="mt-4">
-              <div className="flex items-baseline gap-2">
-                <h3 className="text-2xl font-black text-gray-900 tracking-tight">
-                  {formatPrice(dynamicOfficeSalesAmount, currency, rate)}
-                </h3>
-                <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200/50">
-                  {dynamicOfficeSalesCount} Orders
-                </span>
-              </div>
-              <p className="text-[11px] font-black text-blue-600/90 mt-1 flex items-center gap-1">
-                <span>{dynamicOfficeSalesToday.count} টি আজ (আজকের পিকআপ: {formatPrice(dynamicOfficeSalesToday.total, currency, rate)})</span>
-              </p>
-            </div>
-          </div>
 
-          {/* Trend & Sparkline */}
-          <div className="flex items-end justify-between mt-2 pt-2 border-t border-gray-50/50">
-            <span className={`inline-flex items-center gap-1 text-[11px] font-black ${monthlyStats.officeGrowth >= 0 ? 'text-blue-700 bg-blue-50' : 'text-slate-600 bg-slate-100'} px-2 py-0.5 rounded-md`}>
-              {monthlyStats.officeGrowth >= 0 ? `↑ ${monthlyStats.officeGrowth}%` : `↓ ${Math.abs(monthlyStats.officeGrowth)}%`} <span className="text-gray-400 font-bold text-[10px]">vs last month</span>
-            </span>
-            <div className="w-20 h-8">
-              <svg width="80" height="32" viewBox="0 0 80 32" className="text-[#2563EB]">
-                <path
-                  d="M0 22 C15 22, 25 12, 40 18 C55 24, 65 6, 80 10"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                />
-                <path
-                  d="M0 22 C15 22, 25 12, 40 18 C55 24, 65 6, 80 10 L80 32 L0 32 Z"
-                  fill="url(#sparkline-blue)"
-                  opacity="0.1"
-                />
-                <defs>
-                  <linearGradient id="sparkline-blue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#2563EB" />
-                    <stop offset="100%" stopColor="#2563EB" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-              </svg>
-            </div>
-          </div>
-        </div>
 
         {/* CARD 5: Today Sales */}
         <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-5 shadow-2xs flex flex-col justify-between min-h-[160px] relative overflow-hidden group hover:-translate-y-1.5 hover:shadow-md hover:border-slate-300/80 transition-all duration-300 ease-out">

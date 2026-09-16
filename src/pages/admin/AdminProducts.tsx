@@ -20,7 +20,8 @@ import {
   Star,
   Flame,
   CheckCircle2,
-  Sparkles
+  Sparkles,
+  Table
 } from 'lucide-react';
 import { useProducts } from '../../contexts/ProductContext';
 import { useCategories } from '../../contexts/CategoryContext';
@@ -214,7 +215,16 @@ export default function AdminProducts(): React.JSX.Element {
           </button>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button 
+            onClick={() => navigate('/admin/master-table')}
+            className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-semibold text-xs md:text-sm px-3.5 py-2.5 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer"
+            title="Open Master Inventory Matrix Table"
+          >
+            <Table size={16} className="text-indigo-600" />
+            <span>Master Table</span>
+          </button>
+
           <button 
             onClick={() => setIsFeaturedModalOpen(true)}
             className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs md:text-sm px-3.5 py-2.5 rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer"

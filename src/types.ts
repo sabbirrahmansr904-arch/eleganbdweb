@@ -110,6 +110,7 @@ export interface Customer {
 export interface Banner {
   id: string;
   image: string;
+  mobileImage?: string;
   title: string;
   link: string;
   active: boolean;

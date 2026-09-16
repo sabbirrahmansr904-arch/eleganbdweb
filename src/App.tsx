@@ -155,10 +155,10 @@ function AppRoutes() {
           <Route path="account" element={<AdminMyAccount />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="inventory" element={<AdminInventoryOverview />} />
-          <Route path="master-table" element={<Navigate to="/admin/products" replace />} />
+          <Route path="master-table" element={<AdminMasterTable />} />
           <Route path="stock-in" element={<Navigate to="/admin/products" replace />} />
           <Route path="stock-out" element={<Navigate to="/admin/products" replace />} />
-          <Route path="inventory-log" element={<Navigate to="/admin/products" replace />} />
+          <Route path="inventory-log" element={<AdminInventoryLog />} />
           <Route path="exchanges" element={<Navigate to="/admin/orders" replace />} />
           <Route path="issues" element={<Navigate to="/admin/orders" replace />} />
           <Route path="media" element={<Navigate to="/admin/settings" replace />} />
