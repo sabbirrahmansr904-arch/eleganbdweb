@@ -107,13 +107,6 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
             )}
           </Link>
 
-          {/* 25% OFF Red Box for Pants in ALL COLLECTIONS */}
-          {showPantDiscountBadge && isPant && (
-            <div className="absolute top-2.5 left-2.5 bg-red-600 text-white px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider shadow-sm z-10">
-              25% OFF
-            </div>
-          )}
-
           {/* Badge */}
           {badgeText && (
             <div className="absolute top-2.5 right-2.5 bg-black text-white px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider shadow-xs">
