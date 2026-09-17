@@ -10,7 +10,7 @@ import { Link } from 'react-router-dom';
 import { useProducts, getCanonicalProductKey } from '../contexts/ProductContext';
 import { useBanners } from '../contexts/BannerContext';
 import { useBranding } from '../contexts/BrandingContext';
-import { useCategories, sortCategories } from '../contexts/CategoryContext';
+import { useCategories, sortCategories, getDefaultCategoryImage } from '../contexts/CategoryContext';
 import ProductCard from '../components/ProductCard';
 import { ProductGridSkeleton, ProductScrollSkeleton } from '../components/ProductSkeleton';
 import HomeReviewsRealtime from '../components/HomeReviewsRealtime';
@@ -320,15 +320,26 @@ const Home = () => {
     const list: typeof categories = [];
 
     const getCatImage = (catName: string, existingImg?: string) => {
-      if (existingImg && !existingImg.includes('photo-1602810318383-e386cc2a3ccf')) {
+      // 1. If explicit valid image is provided and not a placeholder
+      if (existingImg && existingImg !== '/logo.png' && !existingImg.includes('logo.png') && existingImg.trim().length > 5) {
         return existingImg;
       }
-      const prod = uniqueProducts.find(p => p.category?.toLowerCase().trim() === catName.toLowerCase().trim());
-      if (prod?.images?.[0]) return prod.images[0];
-      if ((prod as any)?.image) return (prod as any).image;
+      
+      // 2. Look for product matching this category exactly or partially
+      const lower = catName.toLowerCase().trim();
+      const prod = uniqueProducts.find(p => {
+        const pCat = (p.category || '').toLowerCase().trim();
+        const pName = (p.name || '').toLowerCase().trim();
+        return pCat === lower || (lower.length > 3 && pCat.includes(lower)) || (lower.length > 3 && pName.includes(lower));
+      });
 
-      const lower = catName.toLowerCase();
-      return '/logo.png';
+      const prodImg = prod?.images?.[0] || (prod as any)?.image;
+      if (prodImg && prodImg.trim().length > 5 && !prodImg.includes('logo.png')) {
+        return prodImg;
+      }
+
+      // 3. High quality curated category photography fallback
+      return getDefaultCategoryImage(catName);
     };
 
     categories.forEach(cat => {
@@ -397,7 +408,7 @@ const Home = () => {
       {/* TOP SECTION: HERO BANNER (SLIDER SUPPORT FOR 2 OR MORE BANNERS) */}
       {activeHeroBanners.length > 0 && showHeroBanner && (
         <section className="w-full m-0 p-0 pb-2 sm:pb-4">
-          <div className="relative w-full overflow-hidden bg-slate-900 flex items-center justify-center m-0 p-0 group aspect-[1080/650] sm:aspect-[16/9] md:aspect-[1920/900]">
+          <div className="relative w-full overflow-hidden bg-white flex items-center justify-center m-0 p-0 group">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentBanner}
@@ -405,32 +416,32 @@ const Home = () => {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.5 }}
-                className="w-full h-full relative flex items-center justify-center overflow-hidden bg-slate-900"
+                className="w-full relative flex items-center justify-center overflow-hidden bg-white"
               >
-                {/* Main Hero Banner Image - Responsive picture element for Mobile (1080x650 / 5:3) vs Desktop (1920x900 / ~2.13:1) */}
+                {/* Main Hero Banner Image - Responsive picture element for Mobile vs Desktop */}
                 {activeHeroBanners[currentBanner].link ? (
-                  <Link to={activeHeroBanners[currentBanner].link} className="relative z-10 block w-full h-full">
-                    <picture className="w-full h-full block">
+                  <Link to={activeHeroBanners[currentBanner].link} className="relative z-10 block w-full">
+                    <picture className="w-full block">
                       {activeHeroBanners[currentBanner].mobileImage && (
                         <source media="(max-width: 767px)" srcSet={activeHeroBanners[currentBanner].mobileImage} />
                       )}
                       <img 
                         src={activeHeroBanners[currentBanner].image} 
                         alt={`Hero Banner ${currentBanner + 1}`} 
-                        className="w-full h-full object-contain bg-white block mx-auto"
+                        className="w-full h-auto max-h-[70vh] object-cover block mx-auto"
                         referrerPolicy="no-referrer"
                       />
                     </picture>
                   </Link>
                 ) : (
-                  <picture className="relative z-10 w-full h-full block">
+                  <picture className="relative z-10 w-full block">
                     {activeHeroBanners[currentBanner].mobileImage && (
                       <source media="(max-width: 767px)" srcSet={activeHeroBanners[currentBanner].mobileImage} />
                     )}
                     <img 
                       src={activeHeroBanners[currentBanner].image} 
                       alt={`Hero Banner ${currentBanner + 1}`} 
-                      className="w-full h-full object-contain bg-white block mx-auto"
+                      className="w-full h-auto max-h-[70vh] object-cover block mx-auto"
                       referrerPolicy="no-referrer"
                     />
                   </picture>
@@ -567,22 +578,30 @@ const Home = () => {
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {displayCategories.map((cat) => {
-                const catImg = cat.image || '/logo.png';
+                const fallbackImg = getDefaultCategoryImage(cat.name);
+                const catImg = (cat.image && cat.image !== '/logo.png' && !cat.image.includes('logo.png')) ? cat.image : fallbackImg;
                 return (
                   <Link
                     key={cat.id || cat.slug}
                     to={`/category/${cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-')}`}
-                    className="shrink-0 w-[170px] sm:w-[220px] md:w-[260px] lg:w-[280px] group/card relative rounded-2xl overflow-hidden aspect-3/4 bg-gray-900 border border-gray-200/80 shadow-xs hover:shadow-xl hover:border-blue-500 transition-all duration-300 block snap-start"
+                    className="shrink-0 w-[170px] sm:w-[220px] md:w-[260px] lg:w-[280px] group/card relative rounded-2xl overflow-hidden aspect-3/4 bg-slate-900 border border-gray-200/80 shadow-xs hover:shadow-xl hover:border-blue-500 transition-all duration-300 block snap-start"
                   >
                     <img 
                       src={catImg} 
                       alt={cat.name} 
-                      className="w-full h-full object-cover object-center group-hover/card:scale-108 transition-transform duration-700" 
+                      className="w-full h-full object-cover object-center group-hover/card:scale-108 transition-transform duration-700 bg-slate-800" 
                       referrerPolicy="no-referrer"
+                      loading="lazy"
+                      onError={(e) => {
+                        const target = e.currentTarget as HTMLImageElement;
+                        if (target.src !== fallbackImg) {
+                          target.src = fallbackImg;
+                        }
+                      }}
                     />
                     
                     {/* Dark gradient overlay at bottom */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4 text-white">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent flex flex-col justify-end p-4 text-white">
                       <h3 className="font-black text-xs sm:text-sm uppercase tracking-wider group-hover/card:text-blue-400 transition-colors line-clamp-1">
                         {cat.name}
                       </h3>

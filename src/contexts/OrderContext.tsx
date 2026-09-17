@@ -130,7 +130,102 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
   const lastCounterRef = useRef<number>(BASE_ORDER_ID);
-  const deletedOrderIdsRef = useRef<Set<string>>(new Set());
+  const deletedOrderIdsRef = useRef<Set<string>>((() => {
+    try {
+      const raw = localStorage.getItem('eleganbd_deleted_order_ids');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return new Set(parsed.map(String));
+      }
+    } catch {}
+    return new Set<string>();
+  })());
+
+  const recordDeletedIds = (ids: (string | number | undefined)[]) => {
+    ids.forEach(id => {
+      if (id !== undefined && id !== null && String(id).trim()) {
+        deletedOrderIdsRef.current.add(String(id).trim());
+      }
+    });
+    try {
+      localStorage.setItem('eleganbd_deleted_order_ids', JSON.stringify(Array.from(deletedOrderIdsRef.current)));
+    } catch {}
+  };
+
+  // Explicitly purges deleted orders from React state, offline queues, and local caches to force an instant UI refresh
+  const clearDeletedOrdersFromCache = (idsToDelete: (string | number | undefined)[]) => {
+    if (!idsToDelete || idsToDelete.length === 0) return;
+    const targetSet = new Set(
+      idsToDelete
+        .filter(id => id !== undefined && id !== null && String(id).trim().length > 0)
+        .map(id => String(id).trim())
+    );
+    if (targetSet.size === 0) return;
+
+    // 1. Record in persistent deleted IDs set
+    recordDeletedIds(Array.from(targetSet));
+
+    // 2. Remove matching records from offline pending sync queue
+    try {
+      const rawPending = localStorage.getItem('eleganbd_pending_sync_orders');
+      if (rawPending) {
+        const pending = JSON.parse(rawPending);
+        if (Array.isArray(pending)) {
+          const remaining = pending.filter((po: any) => 
+            po && 
+            !targetSet.has(String(po.id).trim()) && 
+            (!po.invoiceNo || !targetSet.has(String(po.invoiceNo).trim()))
+          );
+          if (remaining.length === 0) {
+            localStorage.removeItem('eleganbd_pending_sync_orders');
+          } else {
+            localStorage.setItem('eleganbd_pending_sync_orders', JSON.stringify(remaining));
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[OrderContext] Error pruning pending queue during cache clear:', err);
+    }
+
+    // 3. Immediately purge from local state & all storage cache keys
+    setOrders(prev => {
+      const next = prev.filter(o => 
+        o && 
+        !targetSet.has(String(o.id).trim()) && 
+        (!o.invoiceNo || !targetSet.has(String(o.invoiceNo).trim())) &&
+        !deletedOrderIdsRef.current.has(String(o.id).trim())
+      );
+
+      if (next.length === 0) {
+        for (const k of CACHE_KEYS) {
+          try { localStorage.removeItem(k); } catch {}
+        }
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith('eleganbd_orders') || k === 'orders')) {
+            try { localStorage.removeItem(k); } catch {}
+          }
+        }
+      } else {
+        saveOrdersToCache(next);
+      }
+      return next;
+    });
+
+    // 4. Broadcast instant inter-tab deletion
+    Array.from(targetSet).forEach(id => {
+      broadcastSync('ORDER_DELETED', id);
+    });
+
+    // 5. Fire window custom event for decoupled UI listeners
+    if (typeof window !== 'undefined') {
+      try {
+        window.dispatchEvent(new CustomEvent('eleganbd_orders_cache_cleared', { 
+          detail: { deletedIds: Array.from(targetSet) } 
+        }));
+      } catch {}
+    }
+  };
 
   // Real-time synchronization tracking refs
   const lastKnownCountRef = useRef<number | null>(null);
@@ -193,7 +288,13 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     };
 
     const mergeAndSetOrders = (newIncoming: Order[], isAuthoritativeFullList = false) => {
-      if (!isMounted || !Array.isArray(newIncoming) || newIncoming.length === 0) return;
+      if (!isMounted || !Array.isArray(newIncoming)) return;
+      if (newIncoming.length === 0 && isAuthoritativeFullList) {
+        setOrders([]);
+        saveOrdersToCache([]);
+        return;
+      }
+      if (newIncoming.length === 0) return;
       
       setOrders(prev => {
         const incomingMap = new Map<string, Order>();
@@ -220,8 +321,13 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
               // Existing order is in incoming database list - will be merged below
               map.set(idStr, o);
             } else {
-              // Order exists on this device but is missing from Supabase (e.g. created during network outage)
-              // NEVER prune or delete! Preserve the order and auto-sync it to Supabase so all devices see it!
+              // If this is an authoritative full list from Supabase and the order is missing,
+              // it means it was deleted on another device. Do not keep or resurrect it!
+              if (isAuthoritativeFullList) {
+                // Skip (prune) deleted order
+                return;
+              }
+              // Otherwise preserve local-only offline orders
               map.set(idStr, o);
               try {
                 const sbRow = orderToSupabaseRow(o);
@@ -480,8 +586,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           if (type === 'ORDER_CREATED' || type === 'ORDER_UPDATED') {
             if (payload) mergeAndSetOrders([payload], false);
           } else if (type === 'ORDER_DELETED' && payload) {
-            const delId = String(payload);
-            setOrders(prev => prev.filter(o => o.id !== delId && String(o.invoiceNo) !== delId));
+            clearDeletedOrdersFromCache([payload]);
           } else if (type === 'ORDERS_REFRESH') {
             syncOrders(false);
           }
@@ -489,28 +594,49 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (err) {}
 
-    // D. Real-time Supabase Channel Subscription
+    // D. Real-time Supabase Channel Subscription (Unique Channel Topic per Instance to prevent cross-device stale state)
     let supabaseChannel: any = null;
     try {
+      const uniqueSubId = typeof crypto !== 'undefined' && crypto.randomUUID 
+        ? crypto.randomUUID() 
+        : `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      const uniqueChannelTopic = `realtime_orders_${uniqueSubId}`;
+
       supabaseChannel = supabase
-        .channel('realtime_orders_changes')
+        .channel(uniqueChannelTopic)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
           if (!isMounted) return;
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             const newOrder = supabaseRowToOrder(payload.new as any);
-            mergeAndSetOrders([newOrder], false);
-          } else if (payload.eventType === 'DELETE' && payload.old && (payload.old as any).id) {
-            const deletedId = String((payload.old as any).id);
-            setOrders(prev => {
-              const next = prev.filter(o => o.id !== deletedId);
-              saveOrdersToCache(next);
-              return next;
-            });
+            if (newOrder && newOrder.id) {
+              const idStr = String(newOrder.id).trim();
+              const invStr = newOrder.invoiceNo ? String(newOrder.invoiceNo).trim() : '';
+              if (deletedOrderIdsRef.current.has(idStr) || (invStr && deletedOrderIdsRef.current.has(invStr))) {
+                return;
+              }
+              mergeAndSetOrders([newOrder], false);
+            }
+          } else if (payload.eventType === 'DELETE') {
+            const oldRecord = payload.old as any;
+            const deletedId = oldRecord?.id ? String(oldRecord.id) : '';
+            const deletedInvoice = oldRecord?.invoice_no ? String(oldRecord.invoice_no) : '';
+            const idsToPurge = [deletedId, deletedInvoice].filter(Boolean);
+            if (idsToPurge.length > 0) {
+              clearDeletedOrdersFromCache(idsToPurge);
+            } else {
+              // Full table delete or missing old record in REPLICA IDENTITY
+              syncOrders(true);
+            }
           }
         })
-        .subscribe();
+        .subscribe((status: string) => {
+          if (status === 'SUBSCRIBED') {
+            // Instant catch-up synchronization upon connection establishment
+            syncOrders(false);
+          }
+        });
     } catch (e) {
-      console.warn('[OrderContext] Supabase channel error:', e);
+      console.warn('[OrderContext] Supabase channel subscription error:', e);
     }
 
     return () => {
@@ -834,14 +960,12 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
   const deleteOrder = async (id: string) => {
     if (!id) return;
-    const cleanId = String(id);
+    const cleanId = String(id).trim();
     try {
       const order = orders.find(o => o.id === cleanId || String(o.invoiceNo) === cleanId);
       
-      // Register in deleted ids set so no polling/realtime re-injects it
-      deletedOrderIdsRef.current.add(cleanId);
-      if (order?.id) deletedOrderIdsRef.current.add(String(order.id));
-      if (order?.invoiceNo) deletedOrderIdsRef.current.add(String(order.invoiceNo));
+      // 1. Immediately purge from local caches & state to force instant UI update
+      clearDeletedOrdersFromCache([cleanId, order?.id, order?.invoiceNo]);
 
       if (order) {
         const isAlreadyRestored = isCancelledStatus(order.status);
@@ -852,26 +976,12 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // 1. Immediately update local state & cache so UI reflects instant removal
-      setOrders(prev => {
-        const next = prev.filter(o => 
-          o && 
-          o.id !== cleanId && 
-          String(o.id) !== cleanId &&
-          (!o.invoiceNo || String(o.invoiceNo) !== cleanId) &&
-          !deletedOrderIdsRef.current.has(String(o.id))
-        );
-        saveOrdersToCache(next);
-        return next;
-      });
-      broadcastSync('ORDER_DELETED', cleanId);
-
       // 2. Parallel deletion from Server API and Supabase (Fastest response)
       const cleanIdNum = parseInt(cleanId.replace(/[^0-9]/g, ''), 10);
       const serverDeletePromise = fetch('/api/orders/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: cleanId })
+        body: JSON.stringify({ id: cleanId, ids: [cleanId] })
       }).catch(apiErr => console.warn('[OrderContext] Server delete order notice:', apiErr));
 
       const clientSupabaseDeletePromise = (async () => {
@@ -901,16 +1011,16 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
   const deleteMultipleOrders = async (ids: string[]) => {
     if (!Array.isArray(ids) || ids.length === 0) return;
-    const targetSet = new Set(ids.map(String));
+    const targetIds = ids.map(id => String(id).trim()).filter(Boolean);
 
     try {
-      for (const id of ids) {
-        const cleanId = String(id);
-        deletedOrderIdsRef.current.add(cleanId);
+      const allIdsToRecord: string[] = [];
+      for (const cleanId of targetIds) {
+        allIdsToRecord.push(cleanId);
         const order = orders.find(o => o.id === cleanId || String(o.invoiceNo) === cleanId);
         if (order) {
-          if (order.id) deletedOrderIdsRef.current.add(String(order.id));
-          if (order.invoiceNo) deletedOrderIdsRef.current.add(String(order.invoiceNo));
+          if (order.id) allIdsToRecord.push(String(order.id));
+          if (order.invoiceNo) allIdsToRecord.push(String(order.invoiceNo));
           const isAlreadyRestored = isCancelledStatus(order.status);
           if (!isAlreadyRestored) {
             try {
@@ -920,24 +1030,15 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // 1. Update local state & cache
-      setOrders(prev => {
-        const next = prev.filter(o => 
-          o && 
-          !targetSet.has(String(o.id)) && 
-          (!o.invoiceNo || !targetSet.has(String(o.invoiceNo))) &&
-          !deletedOrderIdsRef.current.has(String(o.id))
-        );
-        saveOrdersToCache(next);
-        return next;
-      });
+      // 1. Immediately purge from local caches & state to force instant UI update
+      clearDeletedOrdersFromCache(allIdsToRecord);
 
       // 2. Server API bulk delete
       try {
         await fetch('/api/orders/delete', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ids: Array.from(targetSet) })
+          body: JSON.stringify({ ids: targetIds })
         });
       } catch (apiErr) {
         console.warn('[OrderContext] Server bulk delete notice:', apiErr);
@@ -945,12 +1046,14 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
       // 3. Client Supabase delete
       try {
-        await supabase.from('orders').delete().in('id', Array.from(targetSet));
-        const numIds = Array.from(targetSet).map(i => parseInt(i.replace(/[^0-9]/g, ''), 10)).filter(Boolean);
+        await supabase.from('orders').delete().in('id', targetIds);
+        const numIds = targetIds.map(i => parseInt(i.replace(/[^0-9]/g, ''), 10)).filter(n => !isNaN(n) && n > 0);
         if (numIds.length > 0) {
           await supabase.from('orders').delete().in('invoice_no', numIds);
         }
-      } catch {}
+      } catch (sbErr) {
+        console.warn('[OrderContext] Supabase bulk delete notice:', sbErr);
+      }
     } catch (error) {
       console.error('[OrderContext] Bulk delete error:', error);
       throw error;
@@ -959,12 +1062,14 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
   const deleteAllOrders = async () => {
     try {
+      const allIdsToRecord: string[] = [];
       orders.forEach(o => {
-        if (o.id) deletedOrderIdsRef.current.add(String(o.id));
-        if (o.invoiceNo) deletedOrderIdsRef.current.add(String(o.invoiceNo));
+        if (o.id) allIdsToRecord.push(String(o.id));
+        if (o.invoiceNo) allIdsToRecord.push(String(o.invoiceNo));
       });
 
       // 1. Local state & storage clear
+      clearDeletedOrdersFromCache(allIdsToRecord);
       setOrders([]);
       try {
         for (const k of CACHE_KEYS) {

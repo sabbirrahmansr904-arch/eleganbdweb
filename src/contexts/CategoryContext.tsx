@@ -15,11 +15,60 @@ interface CategoryContextType {
 
 const CategoryContext = createContext<CategoryContextType | undefined>(undefined);
 
+export const getDefaultCategoryImage = (categoryName?: string): string => {
+  if (!categoryName) return 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=800&q=80';
+  const lower = categoryName.toLowerCase().trim();
+
+  if (lower.includes('pant') || lower.includes('trouser') || lower.includes('jeans')) {
+    return 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=800&q=80';
+  }
+  if (lower.includes('polo') || lower.includes('t-shirt') || lower.includes('tshirt') || lower.includes('tee')) {
+    return 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?auto=format&fit=crop&w=800&q=80';
+  }
+  if (lower.includes('shirt')) {
+    return 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=800&q=80';
+  }
+  if (lower.includes('panjabi') || lower.includes('kurta') || lower.includes('traditional')) {
+    return 'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?auto=format&fit=crop&w=800&q=80';
+  }
+  if (lower.includes('combo') || lower.includes('offer') || lower.includes('bundle')) {
+    return 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80';
+  }
+  if (lower.includes('winter') || lower.includes('jacket') || lower.includes('hoodie') || lower.includes('blazer')) {
+    return 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=800&q=80';
+  }
+  return 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=800&q=80';
+};
+
 const DEFAULT_CATEGORIES: Category[] = [
-  { id: '1', name: 'Formal Shirt', slug: 'formal-shirt', description: 'Premium formal shirts for professionals' },
-  { id: '2', name: 'Polo T-shirt', slug: 'polo-t-shirt', description: 'Comfortable and stylish polo t-shirts' },
-  { id: '3', name: 'Formal Pant', slug: 'formal-pant', description: 'Tailored formal pants' },
-  { id: '5', name: 'Premium Shirt', slug: 'premium-shirt', description: 'Luxury collection shirts' }
+  { 
+    id: '1', 
+    name: 'Formal Shirt', 
+    slug: 'formal-shirt', 
+    description: 'Premium formal shirts for professionals',
+    image: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=800&q=80'
+  },
+  { 
+    id: '2', 
+    name: 'Polo T-shirt', 
+    slug: 'polo-t-shirt', 
+    description: 'Comfortable and stylish polo t-shirts',
+    image: 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?auto=format&fit=crop&w=800&q=80'
+  },
+  { 
+    id: '3', 
+    name: 'Formal Pant', 
+    slug: 'formal-pant', 
+    description: 'Tailored formal pants',
+    image: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=800&q=80'
+  },
+  { 
+    id: '5', 
+    name: 'Premium Shirt', 
+    slug: 'premium-shirt', 
+    description: 'Luxury collection shirts',
+    image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80'
+  }
 ];
 
 export const sortCategories = (list: Category[]): Category[] => {

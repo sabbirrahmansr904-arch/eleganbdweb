@@ -176,8 +176,8 @@ async function startServer() {
         console.warn("[Server API] Supabase query in /api/orders warning:", sbErr);
       }
 
-      // 2. Fetch from Firestore as fallback or merge if Supabase failed
-      if (!supabaseFetched || ordersMap.size === 0) {
+      // 2. Fetch from Firestore only if Supabase failed to connect
+      if (!supabaseFetched) {
         try {
           const orderSnaps = await getDocs(collection(db, 'orders'));
           if (orderSnaps && !orderSnaps.empty) {
@@ -236,45 +236,78 @@ async function startServer() {
     }
   });
 
+  // Production API endpoint to permanently delete orders across devices
   app.post("/api/orders/delete", async (req, res) => {
     try {
-      const { id } = req.body;
-      if (!id) {
-        return res.status(400).json({ error: "Missing order ID" });
+      const { id, ids } = req.body;
+      const targetIds: string[] = [];
+      if (id) targetIds.push(String(id).trim());
+      if (Array.isArray(ids)) {
+        ids.forEach(i => {
+          if (i !== undefined && i !== null && String(i).trim()) {
+            targetIds.push(String(i).trim());
+          }
+        });
       }
-      const cleanId = String(id);
-      const cleanIdNum = parseInt(cleanId.replace(/[^0-9]/g, ''), 10);
+
+      if (targetIds.length === 0) {
+        return res.status(400).json({ error: "Missing order ID(s)" });
+      }
 
       // 1. Delete from Firestore
-      try {
-        await deleteDoc(doc(db, 'orders', cleanId));
-        if (!isNaN(cleanIdNum)) {
-          await deleteDoc(doc(db, 'orders', String(cleanIdNum)));
+      for (const targetId of targetIds) {
+        try {
+          await deleteDoc(doc(db, 'orders', targetId));
+          const num = parseInt(targetId.replace(/[^0-9]/g, ''), 10);
+          if (!isNaN(num) && num > 0) {
+            await deleteDoc(doc(db, 'orders', String(num)));
+          }
+        } catch (fsErr) {
+          console.warn("[Server API] Firestore order delete notice:", fsErr);
         }
-      } catch (fsErr) {
-        console.warn("[Server API] Firestore order delete notice:", fsErr);
       }
 
       // 2. Delete from Supabase
       try {
-        if (!isNaN(cleanIdNum)) {
-          await supabase
-            .from('orders')
-            .delete()
-            .or(`id.eq.${cleanId},invoice_no.eq.${cleanIdNum}`);
-        } else {
-          await supabase
-            .from('orders')
-            .delete()
-            .eq('id', cleanId);
+        await supabase.from('orders').delete().in('id', targetIds);
+        const numIds = targetIds.map(i => parseInt(i.replace(/[^0-9]/g, ''), 10)).filter(n => !isNaN(n) && n > 0);
+        if (numIds.length > 0) {
+          await supabase.from('orders').delete().in('invoice_no', numIds);
         }
       } catch (sbErr) {
         console.warn("[Server API] Supabase order delete notice:", sbErr);
       }
 
-      return res.json({ success: true, id: cleanId });
+      return res.json({ success: true, deleted: targetIds });
     } catch (e: any) {
       console.error("[Server API] /api/orders/delete error:", e);
+      return res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Production API endpoint to wipe all orders across devices
+  app.post("/api/orders/delete-all", async (req, res) => {
+    try {
+      // 1. Firestore wipe
+      try {
+        const orderSnaps = await getDocs(collection(db, 'orders'));
+        for (const docSnap of orderSnaps.docs) {
+          await deleteDoc(docSnap.ref);
+        }
+      } catch (fsErr) {
+        console.warn("[Server API] Firestore delete all notice:", fsErr);
+      }
+
+      // 2. Supabase wipe
+      try {
+        await supabase.from('orders').delete().neq('id', '___NON_EXISTENT___');
+      } catch (sbErr) {
+        console.warn("[Server API] Supabase delete all notice:", sbErr);
+      }
+
+      return res.json({ success: true, message: "All orders wiped" });
+    } catch (e: any) {
+      console.error("[Server API] /api/orders/delete-all error:", e);
       return res.status(500).json({ error: e.message });
     }
   });
