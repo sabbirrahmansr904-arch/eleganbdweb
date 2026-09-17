@@ -417,7 +417,7 @@ const Home = () => {
                       <img 
                         src={activeHeroBanners[currentBanner].image} 
                         alt={`Hero Banner ${currentBanner + 1}`} 
-                        className="w-full h-full object-cover block mx-auto"
+                        className="w-full h-full object-contain bg-white block mx-auto"
                         referrerPolicy="no-referrer"
                       />
                     </picture>
@@ -430,7 +430,7 @@ const Home = () => {
                     <img 
                       src={activeHeroBanners[currentBanner].image} 
                       alt={`Hero Banner ${currentBanner + 1}`} 
-                      className="w-full h-full object-cover block mx-auto"
+                      className="w-full h-full object-contain bg-white block mx-auto"
                       referrerPolicy="no-referrer"
                     />
                   </picture>
