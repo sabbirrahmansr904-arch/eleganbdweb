@@ -725,15 +725,16 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     loadAllConfigs();
 
-    // Setup Supabase Realtime subscription for config changes
+    // Setup Supabase Realtime subscription for config changes in app_documents
     let supabaseChannel: any = null;
     try {
       supabaseChannel = supabase
         .channel('realtime_config_changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'config' }, (payload) => {
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'app_documents', filter: 'collection_name=eq.config' }, (payload) => {
           if (!isMountedRef.current) return;
-          if (payload.new && (payload.new as any).id) {
-            applyConfigDoc(String((payload.new as any).id), payload.new);
+          const newItem = payload.new as any;
+          if (newItem && newItem.data && newItem.record_id) {
+            applyConfigDoc(String(newItem.record_id), newItem.data);
           }
         })
         .subscribe();
