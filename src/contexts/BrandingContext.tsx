@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { isFirestoreQuotaExceeded, isQuotaError } from '../lib/firestoreUtils';
@@ -159,6 +159,7 @@ const DEFAULT_COMBO_DISCOUNT = "১০% ছাড় (অফিস ভিজিট)
 const BrandingContext = createContext<BrandingContextType | undefined>(undefined);
 
 export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const isMountedRef = useRef(true);
   const [logoUrl, setLogoUrlState] = useState<string>(() => {
     const cached = localStorage.getItem('eleganbd_branding');
     if (cached) {
@@ -724,6 +725,27 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     loadAllConfigs();
 
+    // Setup Supabase Realtime subscription for config changes
+    let supabaseChannel: any = null;
+    try {
+      supabaseChannel = supabase
+        .channel('realtime_config_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'config' }, (payload) => {
+          if (!isMountedRef.current) return;
+          if (payload.new && (payload.new as any).id) {
+            applyConfigDoc(String((payload.new as any).id), payload.new);
+          }
+        })
+        .subscribe();
+    } catch (e) {}
+
+    // Polling interval every 4 seconds for instant cross-device sync
+    const pollInterval = setInterval(() => {
+      if (isMountedRef.current) {
+        loadAllConfigs();
+      }
+    }, 4000);
+
     // 2. Fetch Branding Config from Firestore (supplemental)
     async function fetchBranding() {
         try {
@@ -785,6 +807,14 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
     
     fetchOtherConfigs();
+
+    return () => {
+      isMountedRef.current = false;
+      clearInterval(pollInterval);
+      if (supabaseChannel) {
+        try { supabase.removeChannel(supabaseChannel); } catch {}
+      }
+    };
   }, []);
 
   const updateFirestore = async (path: string, data: any) => {

@@ -155,43 +155,42 @@ async function startServer() {
     try {
       const ordersMap = new Map<string, any>();
 
-      // 1. Fetch from Firestore first
-      try {
-        const orderSnaps = await getDocs(collection(db, 'orders'));
-        if (orderSnaps && !orderSnaps.empty) {
-          orderSnaps.docs.forEach(d => {
-            const ord = { id: d.id, ...d.data() };
-            if (ord && ord.id) {
-              ordersMap.set(String(ord.id), ord);
-            }
-          });
-        }
-      } catch (fsErr) {
-        console.warn("[Server API] Firestore query in /api/orders notice:", fsErr);
-      }
-
-      // 2. Fetch from Supabase and merge
+      let supabaseFetched = false;
+      // 1. Fetch from Supabase FIRST (Primary Source of Truth)
       try {
         const { data, error } = await supabase
           .from('orders')
           .select('*')
           .order('created_at', { ascending: false })
           .limit(1000);
-        if (!error && Array.isArray(data) && data.length > 0) {
+        if (!error && Array.isArray(data)) {
+          supabaseFetched = true;
           data.forEach(row => {
             const ord = supabaseRowToOrder(row);
             if (ord && ord.id) {
-              const existing = ordersMap.get(String(ord.id));
-              if (existing) {
-                ordersMap.set(String(ord.id), { ...existing, ...ord });
-              } else {
-                ordersMap.set(String(ord.id), ord);
-              }
+              ordersMap.set(String(ord.id), ord);
             }
           });
         }
       } catch (sbErr) {
         console.warn("[Server API] Supabase query in /api/orders warning:", sbErr);
+      }
+
+      // 2. Fetch from Firestore as fallback or merge if Supabase failed
+      if (!supabaseFetched || ordersMap.size === 0) {
+        try {
+          const orderSnaps = await getDocs(collection(db, 'orders'));
+          if (orderSnaps && !orderSnaps.empty) {
+            orderSnaps.docs.forEach(d => {
+              const ord = { id: d.id, ...d.data() };
+              if (ord && ord.id && !ordersMap.has(String(ord.id))) {
+                ordersMap.set(String(ord.id), ord);
+              }
+            });
+          }
+        } catch (fsErr) {
+          console.warn("[Server API] Firestore query in /api/orders notice:", fsErr);
+        }
       }
 
       const ordersList = Array.from(ordersMap.values());

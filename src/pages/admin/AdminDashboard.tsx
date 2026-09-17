@@ -1923,8 +1923,8 @@ export default function AdminDashboard(): React.JSX.Element {
         <OrderFulfillmentTracker orders={orders} />
       </div>
 
-      {/* ADDITIONAL ROW: REAL-TIME STOCK ALERT & ONLINE ACTIVE ADMINS */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+      {/* ADDITIONAL ROW: REAL-TIME STOCK ALERT */}
+      <div className="pt-2">
         
         {/* STOCK ALERT CARD */}
         <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between hover:-translate-y-1 hover:shadow-md hover:border-slate-300/80 transition-all duration-300 ease-out">
@@ -1975,76 +1975,6 @@ export default function AdminDashboard(): React.JSX.Element {
                           <div className="text-[10px] font-black text-gray-900 mt-1">{p.formattedPrice}</div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* ACTIVE ADMINS CARD */}
-        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between hover:-translate-y-1 hover:shadow-md hover:border-slate-300/80 transition-all duration-300 ease-out">
-          <div>
-            <div className="flex items-center justify-between pb-5 border-b border-gray-50">
-              <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-[#6366F1]" />
-                <h3 className="text-base font-black text-gray-900 tracking-tight">Active Admins</h3>
-              </div>
-              <span className="inline-flex items-center gap-1 text-[9px] font-black bg-emerald-50 text-emerald-600 border border-emerald-100 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Real-Time Status</span>
-              </span>
-            </div>
-
-            <div className="divide-y divide-gray-100 mt-3">
-              {activeAdmins.length === 0 ? (
-                <div className="py-8 text-center text-xs text-gray-400 font-medium">
-                  No active admins tracked.
-                </div>
-              ) : (
-                activeAdmins.map((admin) => {
-                  const now = Date.now();
-                  const isOnline = admin.isOnline && admin.lastActive && (now - admin.lastActive < 90000);
-                  const isCeo = admin.email.toLowerCase().includes('eleganbd.ltd') || admin.role === 'CEO';
-
-                  let statusText = 'OFFLINE';
-                  if (isOnline) {
-                    statusText = 'ONLINE';
-                  } else if (admin.lastActive && admin.lastActive > 0) {
-                    const diffMs = now - admin.lastActive;
-                    const diffMins = Math.floor(diffMs / 60000);
-                    const diffHours = Math.floor(diffMins / 60);
-                    const diffDays = Math.floor(diffHours / 24);
-                    if (diffMins < 1) statusText = 'JUST NOW';
-                    else if (diffMins < 60) statusText = `${diffMins}M AGO`;
-                    else if (diffHours < 24) statusText = `${diffHours}H AGO`;
-                    else statusText = `${diffDays}D AGO`;
-                  }
-
-                  return (
-                    <div key={admin.id || admin.email} className="flex items-center justify-between py-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-black text-gray-900">{admin.username}</span>
-                          {isCeo && (
-                            <span className="text-[8px] font-black bg-amber-50 text-amber-600 border border-amber-200 px-1.5 py-0.5 rounded uppercase">CEO</span>
-                          )}
-                        </div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">{admin.department}</p>
-                      </div>
-
-                      {isOnline ? (
-                        <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-emerald-600 bg-emerald-50/80 px-2.5 py-1 rounded-full uppercase tracking-wider border border-emerald-100">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          <span>ONLINE</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-gray-400 bg-gray-50 px-2.5 py-1 rounded-full uppercase tracking-wider border border-gray-100">
-                          <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-                          <span>{statusText}</span>
-                        </span>
-                      )}
                     </div>
                   );
                 })
