@@ -232,6 +232,27 @@ export const BANK_PRESETS: BankPreset[] = [
   }
 ];
 
+// Helper to get brand color for any bank name or preset
+export function getBankColor(bankName: string, logoUrl?: string): string {
+  const brandKey = getBankBrandKey(bankName, logoUrl);
+  if (brandKey) {
+    const found = BANK_PRESETS.find(p => p.id === brandKey);
+    if (found) return found.brandColor;
+  }
+  const clean = (bankName || '').toLowerCase();
+  if (clean.includes('bkash') || clean.includes('বিকাশ')) return '#E2136E';
+  if (clean.includes('nagad') || clean.includes('নগদ')) return '#F7941D';
+  if (clean.includes('rocket') || clean.includes('রকেট')) return '#8C3494';
+  if (clean.includes('sonali') || clean.includes('সোনালী')) return '#00873D';
+  if (clean.includes('dbbl') || clean.includes('dutch') || clean.includes('ডাচ')) return '#006A4E';
+  if (clean.includes('islami') || clean.includes('ibbl') || clean.includes('ইসলামী')) return '#008037';
+  if (clean.includes('brac') || clean.includes('ব্র্যাক')) return '#004B87';
+  if (clean.includes('city') || clean.includes('সিটি')) return '#ED1C24';
+  if (clean.includes('cash') || clean.includes('ক্যাশ')) return '#10B981';
+  if (clean.includes('redotpay') || clean.includes('usd') || clean.includes('ডলার')) return '#E60028';
+  return '#6366f1';
+}
+
 // Helper to determine preset key or custom image
 export function getBankBrandKey(bankName: string, logoUrl?: string): string | null {
   if (logoUrl?.startsWith('preset:')) {

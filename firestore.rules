@@ -156,6 +156,11 @@ service cloud.firestore {
       allow create, update, delete: if isValidId(txId);
     }
 
+    match /finance_meta/{docId} {
+      allow read, list: if true;
+      allow create, update, delete: if isValidId(docId);
+    }
+
     match /pathao_payouts/{payoutId} {
       allow read, list: if true;
       allow create, update, delete: if isValidId(payoutId);

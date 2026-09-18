@@ -93,6 +93,42 @@ interface FinanceContextType {
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
+export const DEFAULT_ACCOUNTS: BankAccount[] = [
+  {
+    id: 'acc_cash_main',
+    bankName: 'Cash',
+    accountName: 'ক্যাশ ড্রয়ার (প্রধান)',
+    accountNumber: 'CASH-01',
+    branch: 'Main Office',
+    initialBalance: 0,
+    balance: 0,
+    accountType: 'নগদ ক্যাশ',
+    currency: 'BDT'
+  },
+  {
+    id: 'acc_bkash_merchant',
+    bankName: 'bKash',
+    accountName: 'বিকাশ মার্চেন্ট',
+    accountNumber: '01700000000',
+    branch: 'Online',
+    initialBalance: 0,
+    balance: 0,
+    accountType: 'মোবাইল ব্যাংকিং',
+    currency: 'BDT'
+  },
+  {
+    id: 'acc_sonali_bank',
+    bankName: 'Sonali Bank',
+    accountName: 'সোনালী ব্যাংক পিএলসি',
+    accountNumber: '1234567890',
+    branch: 'Principal Branch',
+    initialBalance: 0,
+    balance: 0,
+    accountType: 'ব্যাংক অ্যাকাউন্ট',
+    currency: 'BDT'
+  }
+];
+
 export const sortBankAccounts = (accounts: BankAccount[]): BankAccount[] => {
   const getRank = (acc: BankAccount): number => {
     const name = (acc.bankName || '').toLowerCase();
@@ -134,81 +170,16 @@ export const sortBankAccounts = (accounts: BankAccount[]): BankAccount[] => {
   });
 };
 
-// Helper to get deleted account IDs
-const getDeletedAccountIds = (): Set<string> => {
-  try {
-    const raw = localStorage.getItem('eleganbd_deleted_account_ids');
-    if (raw) {
-      const arr = JSON.parse(raw);
-      if (Array.isArray(arr)) return new Set(arr.map(String));
-    }
-  } catch {}
-  return new Set();
-};
-
-const markAccountIdAsDeleted = (id: string | string[]) => {
-  try {
-    const set = getDeletedAccountIds();
-    if (Array.isArray(id)) {
-      id.forEach(i => set.add(String(i)));
-    } else {
-      set.add(String(id));
-    }
-    localStorage.setItem('eleganbd_deleted_account_ids', JSON.stringify(Array.from(set)));
-  } catch {}
-};
-
-const unmarkAccountIdAsDeleted = (id: string) => {
-  try {
-    const set = getDeletedAccountIds();
-    set.delete(String(id));
-    localStorage.setItem('eleganbd_deleted_account_ids', JSON.stringify(Array.from(set)));
-  } catch {}
-};
-
-// Helper to get deleted transaction IDs (Tombstone Tracking)
-const getDeletedTransactionIds = (): Set<string> => {
-  try {
-    const raw = localStorage.getItem('eleganbd_deleted_tx_ids');
-    if (raw) {
-      const arr = JSON.parse(raw);
-      if (Array.isArray(arr)) return new Set(arr.map(String));
-    }
-  } catch {}
-  return new Set();
-};
-
-const markTransactionIdAsDeleted = (id: string | string[]) => {
-  try {
-    const set = getDeletedTransactionIds();
-    if (Array.isArray(id)) {
-      id.forEach(i => set.add(String(i)));
-    } else {
-      set.add(String(id));
-    }
-    localStorage.setItem('eleganbd_deleted_tx_ids', JSON.stringify(Array.from(set)));
-  } catch {}
-};
-
-const unmarkTransactionIdAsDeleted = (id: string) => {
-  try {
-    const set = getDeletedTransactionIds();
-    set.delete(String(id));
-    localStorage.setItem('eleganbd_deleted_tx_ids', JSON.stringify(Array.from(set)));
-  } catch {}
-};
-
 // Helper function to calculate exact balance for all accounts based on initialBalance + paid transactions
 export const computeBalances = (accounts: BankAccount[], transactions: BankTransaction[]): BankAccount[] => {
   if (!accounts || accounts.length === 0) return [];
-  const deletedTxSet = getDeletedTransactionIds();
-  const validTxs = (Array.isArray(transactions) ? transactions : []).filter(tx => tx && tx.id && !deletedTxSet.has(String(tx.id)));
-  const deletedSet = getDeletedAccountIds();
+  const validTxs = Array.isArray(transactions) ? transactions : [];
 
   const updated = accounts
-    .filter(acc => acc && acc.id && !deletedSet.has(String(acc.id)))
+    .filter(acc => acc && acc.id)
     .map(acc => {
-      const initialBal = Number(acc.initialBalance) || 0;
+      const explicitInitial = Number(acc.initialBalance);
+      const initialBal = !isNaN(explicitInitial) ? explicitInitial : 0;
       let currentBalance = initialBal;
 
       validTxs.forEach(tx => {
@@ -244,27 +215,25 @@ export const computeBalances = (accounts: BankAccount[], transactions: BankTrans
 export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(() => {
     try {
-      const deletedSet = getDeletedAccountIds();
       const cached = localStorage.getItem('eleganbd_bank_accounts');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const filtered = parsed.filter(a => a && a.id && !deletedSet.has(String(a.id)));
+          const filtered = parsed.filter(a => a && a.id);
           return sortBankAccounts(filtered);
         }
       }
     } catch {}
-    return [];
+    return DEFAULT_ACCOUNTS;
   });
 
   const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>(() => {
     try {
-      const deletedTxSet = getDeletedTransactionIds();
       const cached = localStorage.getItem('eleganbd_bank_transactions');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed)) {
-          return parsed.filter(t => t && t.id && !deletedTxSet.has(String(t.id)));
+          return parsed.filter(t => t && t.id);
         }
       }
     } catch {}
@@ -273,6 +242,28 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+
+  // Tracking deleted transaction IDs in memory and localStorage so they are never restored via live listeners
+  const deletedTxIdsRef = useRef<Set<string>>(new Set<string>());
+
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem('eleganbd_deleted_tx_ids');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          deletedTxIdsRef.current = new Set(parsed);
+        }
+      }
+    } catch {}
+  }, []);
+
+  const markTransactionIdAsDeleted = useCallback((id: string) => {
+    deletedTxIdsRef.current.add(id);
+    try {
+      localStorage.setItem('eleganbd_deleted_tx_ids', JSON.stringify(Array.from(deletedTxIdsRef.current)));
+    } catch {}
+  }, []);
 
   // Persistent reference tracking
   const bankAccountsRef = useRef<BankAccount[]>(bankAccounts);
@@ -285,26 +276,31 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     bankTransactionsRef.current = bankTransactions;
   }, [bankTransactions]);
 
-  // Defensive helper to merge accounts preserving all user accounts while respecting deletions
+  // Defensive helper to merge accounts preserving all user accounts and initial balances
   const mergeAccounts = useCallback((existing: BankAccount[], incoming: BankAccount[]): BankAccount[] => {
-    const deletedSet = getDeletedAccountIds();
     const map = new Map<string, BankAccount>();
 
-    // 1. Existing accounts
     (existing || []).forEach(a => {
-      if (a && a.id && !deletedSet.has(String(a.id))) {
+      if (a && a.id) {
         map.set(String(a.id), { ...a });
       }
     });
 
-    // 2. Incoming cloud accounts (authoritative)
     (incoming || []).forEach(a => {
-      if (a && a.id && !deletedSet.has(String(a.id))) {
+      if (a && a.id) {
         const cleanId = String(a.id);
+        const prev = map.get(cleanId);
+        
+        const aInit = Number(a.initialBalance);
+        const prevInit = prev ? Number(prev.initialBalance) : NaN;
+        const resolvedInitial = !isNaN(aInit) ? aInit : (!isNaN(prevInit) ? prevInit : 0);
+
         map.set(cleanId, {
-          ...map.get(cleanId),
+          ...prev,
           ...a,
-          currency: a.currency || (isUsdAccount(a) ? 'USD' : 'BDT')
+          initialBalance: resolvedInitial,
+          balance: Number(a.balance) || 0,
+          currency: a.currency || prev?.currency || (isUsdAccount(a) ? 'USD' : 'BDT')
         });
       }
     });
@@ -314,15 +310,16 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Defensive helper to merge transactions
   const mergeTransactions = useCallback((existing: BankTransaction[], incoming: BankTransaction[]): BankTransaction[] => {
-    const deletedTxSet = getDeletedTransactionIds();
     const map = new Map<string, BankTransaction>();
+    const deletedIds = deletedTxIdsRef.current;
+
     (existing || []).forEach(t => { 
-      if (t && t.id && !deletedTxSet.has(String(t.id))) {
+      if (t && t.id && !deletedIds.has(t.id)) {
         map.set(t.id, t); 
       }
     });
     (incoming || []).forEach(t => {
-      if (t && t.id && !deletedTxSet.has(String(t.id))) {
+      if (t && t.id && !deletedIds.has(t.id)) {
         const prev = map.get(t.id);
         map.set(t.id, { 
           ...prev, 
@@ -342,15 +339,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (res.ok) {
         const data = await res.json();
         if (data && data.success) {
-          const deletedTxSet = getDeletedTransactionIds();
           const cleanTxs = Array.isArray(data.transactions) 
-            ? data.transactions.filter((t: any) => t && t.id && !deletedTxSet.has(String(t.id)))
+            ? data.transactions.filter((t: any) => t && t.id)
             : [];
 
           if (Array.isArray(data.accounts) && data.accounts.length > 0) {
             setBankAccounts(prev => {
-              const merged = mergeAccounts(prev, data.accounts);
-              const recalculated = computeBalances(merged, cleanTxs.length > 0 ? cleanTxs : bankTransactionsRef.current);
+              const sorted = sortBankAccounts(data.accounts);
+              const recalculated = computeBalances(sorted, cleanTxs.length > 0 ? cleanTxs : bankTransactionsRef.current);
               try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
               return recalculated;
             });
@@ -364,43 +360,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } catch (err) {
       console.warn('[FinanceContext] Server API fetch warning:', err);
     }
-  }, [mergeAccounts]);
+  }, []);
 
   // Primary Universal Cross-Device Real-time Listeners & Sync
   useEffect(() => {
     let isSubscribed = true;
-
-    // 0. Live Listeners for Deleted Metadata (Tombstones across devices)
-    const unsubDelTxs = onSnapshot(doc(db, 'finance_meta', 'deleted_transactions'), (snap) => {
-      if (!isSubscribed || !snap.exists()) return;
-      const ids = snap.data()?.ids || [];
-      if (Array.isArray(ids) && ids.length > 0) {
-        markTransactionIdAsDeleted(ids);
-        setBankTransactions(prev => {
-          const filtered = prev.filter(t => t && t.id && !ids.includes(t.id));
-          try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(filtered)); } catch {}
-          return filtered;
-        });
-        setBankAccounts(prevAccs => {
-          const recalculated = computeBalances(prevAccs, bankTransactionsRef.current.filter(t => !ids.includes(t.id)));
-          try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
-          return recalculated;
-        });
-      }
-    }, () => {});
-
-    const unsubDelAccs = onSnapshot(doc(db, 'finance_meta', 'deleted_accounts'), (snap) => {
-      if (!isSubscribed || !snap.exists()) return;
-      const ids = snap.data()?.ids || [];
-      if (Array.isArray(ids) && ids.length > 0) {
-        markAccountIdAsDeleted(ids);
-        setBankAccounts(prev => {
-          const filtered = prev.filter(a => a && a.id && !ids.includes(a.id));
-          try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(filtered)); } catch {}
-          return filtered;
-        });
-      }
-    }, () => {});
 
     // 1. Initial boot fetch from Server API once on load (fallback)
     fetchFromServerApi().finally(() => {
@@ -414,27 +378,20 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       (snapshot) => {
         if (!isSubscribed) return;
 
-        if (snapshot.docChanges && typeof snapshot.docChanges === 'function') {
-          snapshot.docChanges().forEach((change: any) => {
-            if (change.type === 'removed' && change.doc?.id) {
-              markAccountIdAsDeleted(change.doc.id);
-            }
-          });
-        }
-
-        const deletedSet = getDeletedAccountIds();
         const cloudAccounts: BankAccount[] = snapshot.docs
-          .filter(d => !deletedSet.has(String(d.id)))
           .map(d => {
             const data = d.data();
+            const initBal = Number(data.initialBalance);
+            const bal = Number(data.balance);
+            const resolvedInitial = !isNaN(initBal) ? initBal : 0;
             return {
               id: d.id,
               bankName: data.bankName || '',
               accountName: data.accountName || '',
               accountNumber: data.accountNumber || '',
               branch: data.branch || '',
-              initialBalance: Number(data.initialBalance) || 0,
-              balance: Number(data.balance) || 0,
+              initialBalance: resolvedInitial,
+              balance: !isNaN(bal) ? bal : resolvedInitial,
               accountType: data.accountType || 'bank',
               currency: data.currency || (isUsdAccount(data) ? 'USD' : 'BDT'),
               logoUrl: data.logoUrl || ''
@@ -442,15 +399,19 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           });
 
         if (cloudAccounts.length > 0) {
-          setBankAccounts(prev => {
-            const merged = mergeAccounts(prev, cloudAccounts);
-            const recalculated = computeBalances(merged, bankTransactionsRef.current);
-            try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
-            return recalculated;
+          const merged = mergeAccounts(bankAccountsRef.current, cloudAccounts);
+          const recalculated = computeBalances(merged, bankTransactionsRef.current);
+          setBankAccounts(recalculated);
+          try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
+        } else if (snapshot.empty && bankAccountsRef.current.length === 0) {
+          const existing = DEFAULT_ACCOUNTS;
+          const sorted = sortBankAccounts(existing);
+          const recalculated = computeBalances(sorted, bankTransactionsRef.current);
+          setBankAccounts(recalculated);
+          try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
+          sorted.forEach(acc => {
+            setDoc(doc(db, 'bank_accounts', acc.id), sanitizeForFirestore(acc), { merge: true }).catch(() => {});
           });
-        } else if (snapshot.empty) {
-          setBankAccounts([]);
-          try { localStorage.removeItem('eleganbd_bank_accounts'); } catch {}
         }
         setLoading(false);
       },
@@ -464,17 +425,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       (snapshot) => {
         if (!isSubscribed) return;
 
-        if (snapshot.docChanges && typeof snapshot.docChanges === 'function') {
-          snapshot.docChanges().forEach((change: any) => {
-            if (change.type === 'removed' && change.doc?.id) {
-              markTransactionIdAsDeleted(change.doc.id);
-            }
-          });
-        }
-
-        const deletedTxSet = getDeletedTransactionIds();
         const cloudTxs: BankTransaction[] = snapshot.docs
-          .filter(d => !deletedTxSet.has(String(d.id)))
           .map(d => {
             const data = d.data();
             return {
@@ -494,14 +445,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         cloudTxs.sort((a, b) => (Number(b.date) || 0) - (Number(a.date) || 0));
 
-        setBankTransactions(cloudTxs);
-        try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(cloudTxs)); } catch {}
+        setBankTransactions(prevLocal => {
+          const merged = mergeTransactions(prevLocal, cloudTxs);
+          try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(merged)); } catch {}
+          
+          setBankAccounts(prevAccounts => {
+            const recalculated = computeBalances(prevAccounts, merged);
+            try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
+            return recalculated;
+          });
 
-        // Authoritative recalculation of all balances based on live cloud transactions
-        setBankAccounts(prevAccounts => {
-          const recalculated = computeBalances(prevAccounts, cloudTxs);
-          try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
-          return recalculated;
+          return merged;
         });
 
         setLoading(false);
@@ -529,13 +483,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     return () => {
       isSubscribed = false;
-      unsubDelTxs();
-      unsubDelAccs();
       unsubAccounts();
       unsubTransactions();
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [fetchFromServerApi, mergeAccounts]);
+  }, [fetchFromServerApi]);
 
   // Sync / Recalculate with Cloud (guarantees 100% device accuracy)
   const syncWithCloud = useCallback(async () => {
@@ -580,7 +532,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       transactions.sort((a, b) => (Number(b.date) || 0) - (Number(a.date) || 0));
 
-      const mergedAccs = accounts.filter(a => a && a.id && !getDeletedAccountIds().has(String(a.id)));
+      const mergedAccs = accounts.filter(a => a && a.id);
+      mergedAccs.forEach(a => unmarkAccountIdAsDeleted(a.id));
+      transactions.forEach(t => unmarkTransactionIdAsDeleted(t.id));
       const recalculated = computeBalances(mergedAccs, transactions);
 
       setBankTransactions(transactions);
@@ -608,7 +562,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const addBankAccount = async (account: Omit<BankAccount, 'id' | 'balance'>) => {
     const id = `acc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    unmarkAccountIdAsDeleted(id);
     const initialBal = Number(account.initialBalance) || 0;
     const newAcc: BankAccount = { 
       ...account, 
@@ -646,7 +599,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const updateBankAccount = async (updatedAcc: BankAccount) => {
-    unmarkAccountIdAsDeleted(updatedAcc.id);
     const initialBal = Number(updatedAcc.initialBalance) || 0;
     const cleanAcc: BankAccount = { 
       ...updatedAcc, 
@@ -685,8 +637,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const deleteBankAccount = async (id: string) => {
-    markAccountIdAsDeleted(id);
-
     setBankAccounts(prev => {
       const sorted = sortBankAccounts(prev.filter(a => a.id !== id));
       try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(sorted)); } catch {}
@@ -885,26 +835,16 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const deleteBankTransaction = async (id: string) => {
-    // 1. Mark in tombstone tracking immediately
     markTransactionIdAsDeleted(id);
 
-    // 2. Persist tombstone to Firestore finance_meta/deleted_transactions
-    try {
-      const set = getDeletedTransactionIds();
-      await setDoc(doc(db, 'finance_meta', 'deleted_transactions'), {
-        ids: Array.from(set),
-        updatedAt: Date.now()
-      }, { merge: true });
-    } catch {}
-
-    // 3. Delete from Firestore bank_transactions collection
+    // 1. Delete from Firestore bank_transactions collection
     try {
       await deleteDoc(doc(db, 'bank_transactions', id));
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `bank_transactions/${id}`);
     }
 
-    // 4. Delete from Supabase & Server API
+    // 2. Delete from Supabase & Server API
     deleteDocumentFromSupabase('bank_transactions', id).catch(() => {});
     fetch('/api/finance/transaction/delete', {
       method: 'POST',
@@ -912,7 +852,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       body: JSON.stringify({ id })
     }).catch(() => {});
 
-    // 5. Update local state and recalculate balances
+    // 3. Update local state and recalculate balances
     setBankTransactions(prev => {
       const updatedList = prev.filter(tx => tx && tx.id !== id);
       try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(updatedList)); } catch {}
@@ -941,21 +881,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const deleteMultipleBankTransactions = async (ids: string[]) => {
     if (!ids || ids.length === 0) return;
+    ids.forEach(id => markTransactionIdAsDeleted(id));
     const idSet = new Set(ids.map(String));
 
-    // 1. Mark in tombstone tracking immediately
-    markTransactionIdAsDeleted(ids);
-
-    // 2. Persist tombstone to Firestore finance_meta/deleted_transactions
-    try {
-      const set = getDeletedTransactionIds();
-      await setDoc(doc(db, 'finance_meta', 'deleted_transactions'), {
-        ids: Array.from(set),
-        updatedAt: Date.now()
-      }, { merge: true });
-    } catch {}
-
-    // 3. Delete each from Firestore
+    // 1. Delete each from Firestore
     for (const id of ids) {
       try {
         await deleteDoc(doc(db, 'bank_transactions', id));
@@ -963,7 +892,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       deleteDocumentFromSupabase('bank_transactions', id).catch(() => {});
     }
 
-    // 4. Server API bulk delete
+    // 2. Server API bulk delete
     fetch('/api/finance/transaction/delete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

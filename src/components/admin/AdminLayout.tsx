@@ -448,7 +448,6 @@ export default function AdminLayout() {
       items: [
         { name: 'Finance', path: '/admin/finance', icon: DollarSign, perm: 'finance' },
         { name: 'Partnership', path: '/admin/partnership', icon: Handshake, perm: 'partnership' },
-        { name: 'Transaction List', path: '/admin/transaction-list', icon: FileSpreadsheet, perm: 'transaction-list' },
         { name: 'Dollar Expense', path: '/admin/dollar-expenses', icon: Coins, perm: 'dollar-expense' },
       ]
     },

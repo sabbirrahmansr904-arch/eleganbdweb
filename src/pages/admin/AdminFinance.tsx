@@ -39,7 +39,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { BankLogoBadge, getAutoBankLogo, BANK_PRESETS } from '../../utils/bankLogos';
+import { BankLogoBadge, getAutoBankLogo, BANK_PRESETS, getBankColor } from '../../utils/bankLogos';
 
 export default function AdminFinance(): React.JSX.Element {
   const { isSabbirRahman } = useAuth();
@@ -73,7 +73,7 @@ export default function AdminFinance(): React.JSX.Element {
   const [accountFilter, setAccountFilter] = useState('ALL');
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'paid' | 'unpaid'>('ALL');
-  const [timeframeFilter, setTimeframeFilter] = useState('this_month');
+  const [timeframeFilter, setTimeframeFilter] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -236,12 +236,22 @@ export default function AdminFinance(): React.JSX.Element {
   const handleEditTxSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    let txTime = Date.now();
+    if (editTxForm.date) {
+      const parts = editTxForm.date.split('-');
+      if (parts.length === 3) {
+        txTime = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0).getTime();
+      } else {
+        txTime = new Date(editTxForm.date).getTime() || Date.now();
+      }
+    }
+
     await updateBankTransaction(editTxForm.id, {
       accountId: editTxForm.accountId,
       type: editTxForm.type,
       targetAccountId: editTxForm.targetAccountId,
       amount: parseFloat(editTxForm.amount) || 0,
-      date: new Date(editTxForm.date).getTime(),
+      date: txTime,
       reference: editTxForm.reference,
       notes: editTxForm.notes,
       status: editTxForm.status
@@ -261,11 +271,22 @@ export default function AdminFinance(): React.JSX.Element {
     setIsSubmittingTx(true);
     try {
       const amt = parseFloat(txForm.amount);
+      // Parse ISO date string reliably (YYYY-MM-DD) avoiding UTC midnight timezone shift
+      let txTime = Date.now();
+      if (txForm.date) {
+        const parts = txForm.date.split('-');
+        if (parts.length === 3) {
+          txTime = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0).getTime();
+        } else {
+          txTime = new Date(txForm.date).getTime() || Date.now();
+        }
+      }
+
       await addBankTransaction({
         accountId: txForm.accountId,
         type: txForm.type,
         amount: amt,
-        date: new Date(txForm.date).getTime(),
+        date: txTime,
         reference: txForm.reference || (txForm.type === 'deposit' ? 'Income / Deposit' : txForm.type === 'withdraw' ? 'Expense / Withdraw' : 'Account Transfer'),
         notes: txForm.notes,
         attachment: txForm.attachment,
@@ -283,7 +304,21 @@ export default function AdminFinance(): React.JSX.Element {
         attachment: '',
         status: 'paid'
       });
+
+      // Clear any table filters & reset pagination so the new transaction is instantly visible
+      setSearchQuery('');
+      setAccountFilter('ALL');
+      setTypeFilter('ALL');
+      setStatusFilter('ALL');
+      setTimeframeFilter('all');
+      setCurrentPage(1);
+
       toast.success(txForm.status === 'unpaid' ? 'নতুন লেনদেন (UNPAID অবস্থায়) সংরক্ষণ করা হয়েছে!' : 'নতুন লেনদেন সফলভাবে যোগ করা হয়েছে এবং ব্যালেন্স আপডেট হয়েছে!');
+
+      // Smooth scroll down to Transaction History table
+      setTimeout(() => {
+        document.getElementById('transactions-ledger')?.scrollIntoView({ behavior: 'smooth' });
+      }, 300);
     } catch (err) {
       console.error(err);
       toast.error('লেনদেন সংরক্ষণ করতে সমস্যা হয়েছে।');
@@ -412,12 +447,11 @@ export default function AdminFinance(): React.JSX.Element {
   // Account distribution for Pie chart
   const pieData = useMemo(() => {
     const totalAllBalances = bankAccounts.reduce((sum, a) => sum + Math.max(0, a.balance || 0), 0) || 1;
-    const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#8b5cf6', '#dc2626'];
-    return bankAccounts.map((acc, index) => ({
+    return bankAccounts.map((acc) => ({
       name: acc.bankName,
       value: Math.max(0, acc.balance || 0),
       percent: Math.round((Math.max(0, acc.balance || 0) / totalAllBalances) * 100),
-      color: isUsdAccount(acc) ? '#E60028' : colors[index % colors.length],
+      color: getBankColor(acc.bankName, acc.logoUrl),
       isUsd: isUsdAccount(acc),
       acc
     }));
@@ -660,9 +694,24 @@ export default function AdminFinance(): React.JSX.Element {
       </div>
 
       {/* All Accounts Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5 mb-6">
-          {bankAccounts.length === 0 ? (
-            <div className="col-span-full bg-white p-8 text-center rounded-[24px] border border-gray-100 text-xs text-gray-400">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-5 mb-6">
+          {financeLoading ? (
+            [...Array(4)].map((_, i) => (
+              <div key={i} className="bg-white border border-gray-100 rounded-[26px] p-6 h-[265px] flex flex-col justify-between animate-pulse">
+                <div className="flex justify-between items-center">
+                  <div className="h-5 bg-gray-100 rounded-full w-24" />
+                  <div className="h-6 bg-gray-100 rounded-lg w-12" />
+                </div>
+                <div className="flex flex-col items-center space-y-2">
+                  <div className="w-14 h-14 bg-gray-100 rounded-2xl" />
+                  <div className="h-4 bg-gray-100 rounded w-28" />
+                  <div className="h-3 bg-gray-100 rounded w-20" />
+                </div>
+                <div className="h-6 bg-gray-100 rounded w-32" />
+              </div>
+            ))
+          ) : bankAccounts.length === 0 ? (
+            <div className="col-span-full bg-white p-8 text-center rounded-[24px] border border-gray-100 text-xs text-gray-400 font-medium">
               কোনো ব্যাংক অ্যাকাউন্ট বা ওয়ালেট পাওয়া যায়নি। উপরে "+ নতুন অ্যাকাউন্ট" বাটনে ক্লিক করে অ্যাকাউন্ট যোগ করুন।
             </div>
           ) : (
@@ -703,13 +752,13 @@ export default function AdminFinance(): React.JSX.Element {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleEditAccountClick(acc);
                         }}
-                        className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 bg-gray-50 rounded-lg transition-colors cursor-pointer"
+                        className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 bg-gray-50 rounded-lg transition-colors cursor-pointer min-h-[30px] min-w-[30px] flex items-center justify-center"
                         title="এডিট অ্যাকাউন্ট"
                       >
                         <Pencil className="w-3.5 h-3.5" />
@@ -717,10 +766,9 @@ export default function AdminFinance(): React.JSX.Element {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          
                           deleteBankAccount(acc.id);
                         }}
-                        className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 bg-gray-50 rounded-lg transition-colors cursor-pointer"
+                        className="p-1.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 bg-gray-50 rounded-lg transition-colors cursor-pointer min-h-[30px] min-w-[30px] flex items-center justify-center"
                         title="মুছে ফেলুন"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -742,11 +790,11 @@ export default function AdminFinance(): React.JSX.Element {
                     <h3 className="text-base sm:text-lg font-black text-gray-900 tracking-tight text-center leading-tight">
                       {acc.bankName}
                     </h3>
-                    <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-1 text-center">
+                    <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-1 text-center truncate max-w-full">
                       {acc.accountNumber}
                     </p>
                     {acc.branch && (
-                      <span className="text-[10px] text-indigo-600 font-bold mt-0.5">
+                      <span className="text-[10px] text-indigo-600 font-bold mt-0.5 truncate max-w-full block">
                         {acc.branch}
                       </span>
                     )}
@@ -1133,10 +1181,12 @@ export default function AdminFinance(): React.JSX.Element {
             </div>
 
             <button 
-              onClick={() => toast.success('সব কার্যক্রম লোড করা হয়েছে!')}
-              className="w-full py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-600 font-black text-[10px] uppercase tracking-wider rounded-xl transition-all border border-gray-150 cursor-pointer"
+              onClick={() => {
+                document.getElementById('transactions-ledger')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="w-full py-2.5 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600 text-gray-600 font-black text-[10px] uppercase tracking-wider rounded-xl transition-all border border-gray-150 cursor-pointer"
             >
-              সব কার্যক্রম দেখুন
+              সব কার্যক্রম দেখুন ↓
             </button>
           </div>
 
@@ -1144,7 +1194,368 @@ export default function AdminFinance(): React.JSX.Element {
 
       </div>
 
+      {/* Transaction History & Ledger Table Section */}
+      <div id="transactions-ledger" className="bg-white border border-gray-100 rounded-[24px] p-6 space-y-5 shadow-2xs scroll-mt-6">
+        
+        {/* Table Title & Summary Info */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-50 pb-4 gap-3">
+          <div>
+            <h3 className="text-base font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
+              <Receipt className="w-4 h-4 text-[#4f46e5]" />
+              লেনদেন বিবরণী ও ইতিহাস (Transaction History)
+            </h3>
+            <p className="text-xs text-gray-400 mt-0.5 font-medium">
+              সব আয়, ব্যয় এবং ট্রান্সফারের বিবরণী, সার্চ ও ফিল্টারিং
+            </p>
+          </div>
 
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-bold text-gray-500 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-150">
+              মোট রেকর্ড: <strong className="text-gray-900">{filteredTransactions.length}</strong> টি
+            </span>
+
+            {selectedTxIds.length > 0 && (
+              <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-200">
+                সিলেক্টেড: <strong>{selectedTxIds.length}</strong> টি
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Filters and Search Control Bar */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-12 gap-3 bg-[#F8F9FD] p-3.5 rounded-2xl border border-gray-150">
+          
+          {/* Search Input */}
+          <div className="lg:col-span-4 relative">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="রেফারেন্স, নোট বা ব্যাংকের নামে খুঁজুন..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white border border-gray-200 rounded-xl pl-9 pr-8 py-2 text-xs font-bold text-gray-800 placeholder-gray-400 focus:border-indigo-400 focus:outline-none"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-bold"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Timeframe Filter */}
+          <div className="lg:col-span-2">
+            <select
+              value={timeframeFilter}
+              onChange={(e) => setTimeframeFilter(e.target.value)}
+              className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-indigo-400 focus:outline-none cursor-pointer"
+            >
+              <option value="all">📅 সব সময় (All Time)</option>
+              <option value="today">আজ (Today)</option>
+              <option value="7days">গত ৭ দিন (7 Days)</option>
+              <option value="this_month">এই মাস (This Month)</option>
+            </select>
+          </div>
+
+          {/* Account Filter */}
+          <div className="lg:col-span-2">
+            <select
+              value={accountFilter}
+              onChange={(e) => setAccountFilter(e.target.value)}
+              className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-indigo-400 focus:outline-none cursor-pointer"
+            >
+              <option value="ALL">সব ব্যাংক / ওয়ালেট</option>
+              {bankAccounts.map(acc => (
+                <option key={acc.id} value={acc.id}>{acc.bankName} ({acc.accountName})</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Type Filter */}
+          <div className="lg:col-span-2">
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-indigo-400 focus:outline-none cursor-pointer"
+            >
+              <option value="ALL">সব ধরনের লেনদেন</option>
+              <option value="income">ইনকাম / ডিপোজিট</option>
+              <option value="expense">খরচ / উত্তোলন</option>
+              <option value="transfer">ট্রান্সফার</option>
+            </select>
+          </div>
+
+          {/* Status Filter */}
+          <div className="lg:col-span-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:border-indigo-400 focus:outline-none cursor-pointer"
+            >
+              <option value="ALL">সব স্ট্যাটাস (Paid/Unpaid)</option>
+              <option value="paid">✓ Paid (পরিশোধিত)</option>
+              <option value="unpaid">⏳ Unpaid (বকেয়া)</option>
+            </select>
+          </div>
+
+          {/* Reset Filters */}
+          <div className="lg:col-span-1">
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setAccountFilter('ALL');
+                setTypeFilter('ALL');
+                setStatusFilter('ALL');
+                setTimeframeFilter('all');
+              }}
+              className="w-full h-full min-h-[34px] bg-white hover:bg-gray-100 text-gray-600 border border-gray-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center cursor-pointer"
+              title="ফিল্টার রিসেট করুন"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+        </div>
+
+        {/* Bulk Action Bar if items selected */}
+        {selectedTxIds.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between bg-indigo-50/80 border border-indigo-200 p-3 rounded-2xl gap-3 animate-in fade-in duration-200">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-indigo-600" />
+              <span className="text-xs font-black text-indigo-900">
+                {selectedTxIds.length} টি লেনদেন সিলেক্ট করা হয়েছে
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => handleBulkStatusChange('paid')}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-2xs"
+              >
+                ✓ Paid চিহ্নিত করুন
+              </button>
+              <button
+                onClick={() => handleBulkStatusChange('unpaid')}
+                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-2xs"
+              >
+                ⏳ Unpaid চিহ্নিত করুন
+              </button>
+              <button
+                onClick={() => handleExportReport('print', true)}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-2xs flex items-center gap-1"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>PDF রিপোর্ট</span>
+              </button>
+              <button
+                onClick={handleClearSelection}
+                className="px-2.5 py-1.5 bg-white text-gray-600 hover:text-rose-600 border border-gray-200 rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                সিলেকশন মুছুন
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Main Transactions Table */}
+        <div className="overflow-x-auto border border-gray-150 rounded-2xl">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-[#F8F9FD] border-b border-gray-150 text-[10.5px] font-black uppercase tracking-wider text-gray-500">
+                <th className="py-3.5 px-3 text-center w-10">
+                  <input
+                    type="checkbox"
+                    checked={isAllFilteredSelected}
+                    onChange={handleSelectAllFiltered}
+                    className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4"
+                  />
+                </th>
+                <th className="py-3.5 px-3">তারিখ</th>
+                <th className="py-3.5 px-3">হিসাব / ব্যাংক</th>
+                <th className="py-3.5 px-3">ধরন</th>
+                <th className="py-3.5 px-3 text-right">পরিমাণ</th>
+                <th className="py-3.5 px-3">রেফারেন্স</th>
+                <th className="py-3.5 px-3">বিবরণ / নোট</th>
+                <th className="py-3.5 px-3 text-center">স্ট্যাটাস</th>
+                <th className="py-3.5 px-3 text-center">অ্যাকশন</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 text-xs font-medium text-gray-700 bg-white">
+              {financeLoading ? (
+                <tr>
+                  <td colSpan={9} className="py-12 text-center text-gray-400">
+                    <div className="flex items-center justify-center gap-2">
+                      <RefreshCw className="w-5 h-5 animate-spin text-indigo-600" />
+                      <span className="font-bold">লেনদেন ডেটা লোড হচ্ছে...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredTransactions.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="py-12 text-center text-gray-400">
+                    <div className="max-w-sm mx-auto space-y-2">
+                      <Receipt className="w-10 h-10 text-gray-300 mx-auto" />
+                      <p className="font-black text-gray-700 text-sm">কোনো লেনদেন পাওয়া যায়নি</p>
+                      <p className="text-xs text-gray-400">
+                        উপরে "নতুন এন্ট্রি যোগ করুন" ফর্ম ব্যবহার করে প্রথম লেনদেন এন্ট্রি করুন অথবা ফিল্টার পরিবর্তন করুন।
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                paginatedTransactions.map((tx) => {
+                  const acc = bankAccounts.find(a => a.id === tx.accountId);
+                  const isIncome = tx.type === 'deposit';
+                  const isTransfer = tx.type === 'transfer';
+                  const isUsd = isUsdAccount(acc);
+                  const isSelected = selectedTxIds.includes(tx.id);
+
+                  return (
+                    <tr 
+                      key={tx.id} 
+                      className={`hover:bg-indigo-50/30 transition-colors ${isSelected ? 'bg-indigo-50/50' : ''}`}
+                    >
+                      <td className="py-3 px-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {
+                            setSelectedTxIds(prev =>
+                              isSelected ? prev.filter(id => id !== tx.id) : [...prev, tx.id]
+                            );
+                          }}
+                          className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4"
+                        />
+                      </td>
+
+                      <td className="py-3 px-3 whitespace-nowrap font-bold text-gray-800">
+                        {new Date(tx.date).toLocaleDateString('en-GB')}
+                      </td>
+
+                      <td className="py-3 px-3">
+                        <div className="flex items-center gap-2">
+                          <BankLogoBadge bankName={acc?.bankName || ''} logoUrl={acc?.logoUrl} size="xs" />
+                          <div>
+                            <p className="font-black text-gray-900 leading-tight">{acc?.bankName || 'অজানা অ্যাকাউন্ট'}</p>
+                            <span className="text-[10px] text-gray-400 font-bold block">{acc?.accountName}</span>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="py-3 px-3">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${
+                          isIncome ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                          isTransfer ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
+                          'bg-rose-50 text-rose-700 border border-rose-200'
+                        }`}>
+                          {isIncome ? <ArrowDownLeft className="w-3 h-3 text-emerald-600" /> : isTransfer ? <ArrowUpRight className="w-3 h-3 text-indigo-600" /> : <ArrowUpRight className="w-3 h-3 text-rose-600" />}
+                          <span>{isIncome ? 'ইনকাম' : isTransfer ? 'ট্রান্সফার' : 'খরচ'}</span>
+                        </span>
+                      </td>
+
+                      <td className={`py-3 px-3 text-right font-black text-xs ${
+                        isIncome ? 'text-emerald-600' : isTransfer ? 'text-indigo-600' : 'text-rose-600'
+                      }`}>
+                        {isIncome ? '+' : isTransfer ? '' : '-'}{isUsd ? `$${tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : formatPrice(tx.amount)}
+                      </td>
+
+                      <td className="py-3 px-3 font-mono text-[11px] text-gray-600 max-w-[140px] truncate">
+                        {tx.reference || '-'}
+                      </td>
+
+                      <td className="py-3 px-3 text-gray-600 max-w-[180px] truncate">
+                        {tx.notes || '-'}
+                      </td>
+
+                      <td className="py-3 px-3 text-center">
+                        <button
+                          onClick={() => toggleTransactionStatus(tx.id, tx.status)}
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase transition-all cursor-pointer ${
+                            tx.status === 'unpaid'
+                              ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300'
+                              : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border border-emerald-300'
+                          }`}
+                          title="স্ট্যাটাস ক্লিক করে পাল্টান"
+                        >
+                          {tx.status === 'unpaid' ? '⏳ Unpaid' : '✓ Paid'}
+                        </button>
+                      </td>
+
+                      <td className="py-3 px-3 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => {
+                              setSelectedTx(tx);
+                              setShowViewTxModal(true);
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                            title="বিস্তারিত দেখুন"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            onClick={() => handleEditTxClick(tx)}
+                            className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                            title="সম্পাদনা করুন"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setTxToDelete(tx);
+                              setShowDeleteConfirmModal(true);
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            title="মুছে ফেলুন"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination Footer Controls */}
+        {totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-gray-100">
+            <div className="text-xs text-gray-500 font-bold">
+              দেখাচ্ছে <span className="text-gray-900">{((currentPage - 1) * itemsPerPage) + 1}</span> - <span className="text-gray-900">{Math.min(currentPage * itemsPerPage, filteredTransactions.length)}</span> (মোট <span className="text-gray-900">{filteredTransactions.length}</span> টি)
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white cursor-pointer transition-all"
+              >
+                পূর্ববর্তী
+              </button>
+
+              <span className="text-xs font-black text-gray-700 px-2">
+                পৃষ্ঠা {currentPage} / {totalPages}
+              </span>
+
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white cursor-pointer transition-all"
+              >
+                পরবর্তী
+              </button>
+            </div>
+          </div>
+        )}
+
+      </div>
 
       {/* --- MODALS --- */}
 

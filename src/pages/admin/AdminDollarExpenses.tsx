@@ -54,50 +54,17 @@ interface DollarTransaction {
   usdAccountId?: string;
 }
 
-// Tombstone tracking for deleted dollar transactions (prevents stale data resurrection across devices)
-const getDeletedDollarTransactionIds = (): Set<string> => {
-  try {
-    const raw = localStorage.getItem('eleganbd_deleted_dollar_tx_ids');
-    if (raw) {
-      const arr = JSON.parse(raw);
-      if (Array.isArray(arr)) return new Set(arr.map(String));
-    }
-  } catch {}
-  return new Set();
-};
-
-const markDollarTransactionIdAsDeleted = (id: string | string[]) => {
-  try {
-    const set = getDeletedDollarTransactionIds();
-    if (Array.isArray(id)) {
-      id.forEach(i => set.add(String(i)));
-    } else {
-      set.add(String(id));
-    }
-    localStorage.setItem('eleganbd_deleted_dollar_tx_ids', JSON.stringify(Array.from(set)));
-  } catch {}
-};
-
-const unmarkDollarTransactionIdAsDeleted = (id: string) => {
-  try {
-    const set = getDeletedDollarTransactionIds();
-    set.delete(String(id));
-    localStorage.setItem('eleganbd_deleted_dollar_tx_ids', JSON.stringify(Array.from(set)));
-  } catch {}
-};
-
 export default function AdminDollarExpenses(): React.JSX.Element {
   const { bankAccounts, bankTransactions, addBankTransaction, deleteBankTransaction } = useFinance();
   const { isSabbirRahman } = useAuth();
   
   const [transactions, setTransactions] = useState<DollarTransaction[]>(() => {
     try {
-      const deletedSet = getDeletedDollarTransactionIds();
       const cached = localStorage.getItem('elegan_dollar_transactions');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed)) {
-          return parsed.filter(t => t && t.id && !deletedSet.has(String(t.id)));
+          return parsed.filter(t => t && t.id);
         }
       }
     } catch {}
@@ -146,39 +113,14 @@ export default function AdminDollarExpenses(): React.JSX.Element {
   useEffect(() => {
     let isSubscribed = true;
 
-    // 1. Live Listener for Deleted Tombstones
-    const unsubDelTxs = onSnapshot(doc(db, 'finance_meta', 'deleted_dollar_transactions'), (snap) => {
-      if (!isSubscribed || !snap.exists()) return;
-      const ids = snap.data()?.ids || [];
-      if (Array.isArray(ids) && ids.length > 0) {
-        markDollarTransactionIdAsDeleted(ids);
-        setTransactions(prev => {
-          const filtered = prev.filter(t => t && t.id && !ids.includes(t.id));
-          try { localStorage.setItem('elegan_dollar_transactions', JSON.stringify(filtered)); } catch {}
-          return filtered;
-        });
-      }
-    }, () => {});
-
-    // 2. Live Firestore Dollar Transactions Collection Listener
+    // Live Firestore Dollar Transactions Collection Listener
     const unsubTransactions = onSnapshot(
       collection(db, 'dollar_transactions'),
       { includeMetadataChanges: true },
       (snapshot) => {
         if (!isSubscribed) return;
 
-        // Catch removed docs in real-time
-        if (snapshot.docChanges && typeof snapshot.docChanges === 'function') {
-          snapshot.docChanges().forEach((change: any) => {
-            if (change.type === 'removed' && change.doc?.id) {
-              markDollarTransactionIdAsDeleted(change.doc.id);
-            }
-          });
-        }
-
-        const deletedSet = getDeletedDollarTransactionIds();
         const list: DollarTransaction[] = snapshot.docs
-          .filter(docSnap => !deletedSet.has(String(docSnap.id)))
           .map((docSnap) => {
             const data = docSnap.data();
             return {
@@ -211,14 +153,13 @@ export default function AdminDollarExpenses(): React.JSX.Element {
       }
     );
 
-    // 3. Cross-Tab Storage Event Sync
+    // Cross-Tab Storage Event Sync
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'elegan_dollar_transactions' && e.newValue) {
         try {
           const parsed = JSON.parse(e.newValue);
-          const deletedSet = getDeletedDollarTransactionIds();
           if (Array.isArray(parsed)) {
-            setTransactions(parsed.filter(t => t && t.id && !deletedSet.has(String(t.id))));
+            setTransactions(parsed.filter(t => t && t.id));
           }
         } catch {}
       }
@@ -228,7 +169,6 @@ export default function AdminDollarExpenses(): React.JSX.Element {
 
     return () => {
       isSubscribed = false;
-      unsubDelTxs();
       unsubTransactions();
       window.removeEventListener('storage', handleStorageChange);
     };
@@ -590,19 +530,15 @@ export default function AdminDollarExpenses(): React.JSX.Element {
     }
   };
 
-  // Delete Single Transaction Handler with cross-device tombstone sync
+  // Delete Single Transaction Handler
   const handleDeleteTransaction = async (id: string) => {
     try {
-      // 1. Mark as deleted locally & in cloud tombstone immediately
-      markDollarTransactionIdAsDeleted(id);
+      // 1. Optimistic update
       setTransactions(prev => {
         const next = prev.filter(t => t.id !== id);
         try { localStorage.setItem('elegan_dollar_transactions', JSON.stringify(next)); } catch {}
         return next;
       });
-
-      const currentDeleted = Array.from(getDeletedDollarTransactionIds());
-      setDoc(doc(db, 'finance_meta', 'deleted_dollar_transactions'), { ids: currentDeleted, updatedAt: Date.now() }, { merge: true }).catch(() => {});
 
       // 2. Revert associated bank transactions from Finance ledger
       const relatedBankTxs = bankTransactions.filter(
@@ -637,16 +573,12 @@ export default function AdminDollarExpenses(): React.JSX.Element {
     const toastId = toast.loading(`${idsToDelete.length}টি ডলার লেনদেন ডিলিট করা হচ্ছে...`);
 
     try {
-      // 1. Mark as deleted locally & in cloud tombstones
-      markDollarTransactionIdAsDeleted(idsToDelete);
+      // 1. Optimistic update
       setTransactions(prev => {
         const next = prev.filter(t => !idsToDelete.includes(t.id));
         try { localStorage.setItem('elegan_dollar_transactions', JSON.stringify(next)); } catch {}
         return next;
       });
-
-      const currentDeleted = Array.from(getDeletedDollarTransactionIds());
-      setDoc(doc(db, 'finance_meta', 'deleted_dollar_transactions'), { ids: currentDeleted, updatedAt: Date.now() }, { merge: true }).catch(() => {});
 
       // 2. Revert associated bank transactions
       for (const id of idsToDelete) {
@@ -1050,8 +982,8 @@ export default function AdminDollarExpenses(): React.JSX.Element {
 
         </div>
 
-        {/* Ledger Table */}
-        <div className="overflow-x-auto border border-gray-100 rounded-2xl">
+        {/* Ledger View (Desktop Table & Mobile Card View) */}
+        <div className="border border-gray-100 rounded-2xl overflow-hidden">
           <div className="bg-gray-50 px-4 py-2.5 text-xs font-bold text-gray-500 flex items-center justify-between border-b border-gray-100 flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <span>মোট লেনদেন: {filteredTransactions.length} টি</span>
@@ -1091,58 +1023,178 @@ export default function AdminDollarExpenses(): React.JSX.Element {
               </div>
             )}
           </div>
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-[#F8F9FD] border-b border-gray-100 text-[10px] text-[#5E6A83] font-black uppercase tracking-widest">
-                <th className="py-3 px-3 w-10 text-center">
-                  <input 
-                    type="checkbox"
-                    checked={isAllSelected}
-                    onChange={toggleSelectAll}
-                    className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
-                    title="সব সিলেক্ট করুন"
-                  />
-                </th>
-                <th className="py-3 px-4">তারিখ (Date)</th>
-                <th className="py-3 px-4">লেনদেনের ধরন</th>
-                <th className="py-3 px-4">পেমেন্ট অ্যাকাউন্ট</th>
-                <th className="py-3 px-4 text-right">ডলার (USD)</th>
-                <th className="py-3 px-4 text-right">হিসাব ও টাকা (BDT)</th>
-                <th className="py-3 px-4">উদ্দেশ্য / নোট</th>
-                <th className="py-3 px-4 text-center w-24">অ্যাকশন</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50 text-xs">
-              {filteredTransactions.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-gray-400 font-bold italic">
-                    কোনো ডলার লেনদেনের রেকর্ড পাওয়া যায়নি।
-                  </td>
-                </tr>
-              ) : (
-                filteredTransactions.map(t => {
-                  const dateObj = new Date(t.date);
-                  const formattedDate = dateObj.toLocaleDateString('bn-BD', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric'
-                  });
-                  const isBuy = t.type === 'buy';
-                  const isSelected = selectedIds.includes(t.id);
 
-                  return (
-                    <tr key={t.id} className={`hover:bg-gray-50/40 transition-colors ${isSelected ? 'bg-indigo-50/30' : ''}`}>
-                      <td className="py-3 px-3 text-center">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#F8F9FD] border-b border-gray-100 text-[10px] text-[#5E6A83] font-black uppercase tracking-widest">
+                  <th className="py-3 px-3 w-10 text-center">
+                    <input 
+                      type="checkbox"
+                      checked={isAllSelected}
+                      onChange={toggleSelectAll}
+                      className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                      title="সব সিলেক্ট করুন"
+                    />
+                  </th>
+                  <th className="py-3 px-4">তারিখ (Date)</th>
+                  <th className="py-3 px-4">লেনদেনের ধরন</th>
+                  <th className="py-3 px-4">পেমেন্ট অ্যাকাউন্ট</th>
+                  <th className="py-3 px-4 text-right">ডলার (USD)</th>
+                  <th className="py-3 px-4 text-right">হিসাব ও টাকা (BDT)</th>
+                  <th className="py-3 px-4">উদ্দেশ্য / নোট</th>
+                  <th className="py-3 px-4 text-center w-24">অ্যাকশন</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50 text-xs">
+                {loading ? (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center text-gray-400 font-bold">
+                      <div className="flex items-center justify-center gap-2">
+                        <RefreshCw className="w-4 h-4 animate-spin text-indigo-600" />
+                        <span>ডলার লেনদেন লোড হচ্ছে...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : filteredTransactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center text-gray-400 font-bold italic">
+                      কোনো ডলার লেনদেনের রেকর্ড পাওয়া যায়নি।
+                    </td>
+                  </tr>
+                ) : (
+                  filteredTransactions.map(t => {
+                    const dateObj = new Date(t.date);
+                    const formattedDate = dateObj.toLocaleDateString('bn-BD', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric'
+                    });
+                    const isBuy = t.type === 'buy';
+                    const isSelected = selectedIds.includes(t.id);
+
+                    return (
+                      <tr key={t.id} className={`hover:bg-gray-50/40 transition-colors ${isSelected ? 'bg-indigo-50/30' : ''}`}>
+                        <td className="py-3 px-3 text-center">
+                          <input 
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectOne(t.id)}
+                            className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                          />
+                        </td>
+                        <td className="py-3 px-4 font-bold text-gray-700">{formattedDate}</td>
+                        <td className="py-3 px-4">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                            isBuy 
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
+                              : 'bg-rose-50 text-rose-700 border border-rose-100'
+                          }`}>
+                            {isBuy ? <ArrowDownLeft className="w-3 h-3" /> : <ArrowUpRight className="w-3 h-3" />}
+                            {isBuy ? 'ডলার ক্রয়' : 'ডলার খরচ'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex flex-col gap-1 items-start">
+                            <span className="inline-flex items-center px-2.5 py-1 bg-slate-100 text-slate-800 rounded-lg text-[11px] font-bold">
+                              {t.account || 'bKash'} {isBuy ? '(থেকে)' : ''}
+                            </span>
+                            {isBuy && t.usdAccountId && (
+                              <span className="inline-flex items-center px-2.5 py-1 bg-red-50 text-red-800 rounded-lg text-[10px] font-bold border border-red-100">
+                                <DollarSign className="w-2.5 h-2.5 mr-0.5" />
+                                {bankAccounts.find(a => a.id === t.usdAccountId)?.bankName || 'USD Account'} (জমা)
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className={`py-3 px-4 font-black text-right ${isBuy ? 'text-emerald-600' : 'text-slate-900'}`}>
+                          {isBuy ? '+' : '-'}${t.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="font-black text-gray-900">
+                            ৳{t.bdtAmount ? t.bdtAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (t.amount * (t.rate || 117.5)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
+                          {isBuy && t.rate ? (
+                            <div className="text-[10px] text-gray-400 font-bold">
+                              Rate: ৳{t.rate}
+                            </div>
+                          ) : null}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-gray-800">
+                            {isBuy ? 'ডলার ক্রয়' : (t.purpose || 'ডলার খরচ')}
+                          </div>
+                          {t.notes && (
+                            <div className="text-[11px] text-gray-400 font-medium max-w-[180px] truncate" title={t.notes}>
+                              {t.notes}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => {
+                                setEditingTransaction(t);
+                                setShowModal(true);
+                              }}
+                              className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all cursor-pointer"
+                              title="সম্পাদনা করুন"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setDeletingId(t.id)}
+                              className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
+                              title="মুছে ফেলুন"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="block md:hidden divide-y divide-gray-100">
+            {loading ? (
+              <div className="p-8 text-center text-gray-400 font-bold">
+                <div className="flex items-center justify-center gap-2">
+                  <RefreshCw className="w-4 h-4 animate-spin text-indigo-600" />
+                  <span>ডলার লেনদেন লোড হচ্ছে...</span>
+                </div>
+              </div>
+            ) : filteredTransactions.length === 0 ? (
+              <div className="p-8 text-center text-gray-400 font-bold italic">
+                কোনো ডলার লেনদেনের রেকর্ড পাওয়া যায়নি।
+              </div>
+            ) : (
+              filteredTransactions.map(t => {
+                const dateObj = new Date(t.date);
+                const formattedDate = dateObj.toLocaleDateString('bn-BD', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric'
+                });
+                const isBuy = t.type === 'buy';
+                const isSelected = selectedIds.includes(t.id);
+
+                return (
+                  <div key={t.id} className={`p-4 space-y-3 ${isSelected ? 'bg-indigo-50/30' : 'bg-white'}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
                         <input 
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleSelectOne(t.id)}
                           className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
                         />
-                      </td>
-                      <td className="py-3 px-4 font-bold text-gray-700">{formattedDate}</td>
-                      <td className="py-3 px-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
                           isBuy 
                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
                             : 'bg-rose-50 text-rose-700 border border-rose-100'
@@ -1150,70 +1202,75 @@ export default function AdminDollarExpenses(): React.JSX.Element {
                           {isBuy ? <ArrowDownLeft className="w-3 h-3" /> : <ArrowUpRight className="w-3 h-3" />}
                           {isBuy ? 'ডলার ক্রয়' : 'ডলার খরচ'}
                         </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex flex-col gap-1 items-start">
-                          <span className="inline-flex items-center px-2.5 py-1 bg-slate-100 text-slate-800 rounded-lg text-[11px] font-bold">
-                            {t.account || 'bKash'} {isBuy ? '(থেকে)' : ''}
+                      </div>
+                      <span className="text-[11px] text-gray-500 font-bold">{formattedDate}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase">ডলার পরিমাণ</span>
+                        <p className={`text-lg font-black ${isBuy ? 'text-emerald-600' : 'text-slate-900'}`}>
+                          {isBuy ? '+' : '-'}${t.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase">টাকার হিসাব (BDT)</span>
+                        <p className="text-base font-black text-gray-900">
+                          ৳{t.bdtAmount ? t.bdtAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (t.amount * (t.rate || 117.5)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                        {isBuy && t.rate ? (
+                          <span className="text-[10px] text-gray-400 font-bold block">
+                            Rate: ৳{t.rate}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-100 flex-wrap gap-2">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-800 rounded-md text-[10px] font-bold">
+                            {t.account || 'bKash'}
                           </span>
                           {isBuy && t.usdAccountId && (
-                            <span className="inline-flex items-center px-2.5 py-1 bg-red-50 text-red-800 rounded-lg text-[10px] font-bold border border-red-100">
-                              <DollarSign className="w-2.5 h-2.5 mr-0.5" />
-                              {bankAccounts.find(a => a.id === t.usdAccountId)?.bankName || 'USD Account'} (জমা)
+                            <span className="px-2 py-0.5 bg-red-50 text-red-800 rounded-md text-[10px] font-bold border border-red-100">
+                              {bankAccounts.find(a => a.id === t.usdAccountId)?.bankName || 'USD Account'}
                             </span>
                           )}
                         </div>
-                      </td>
-                      <td className={`py-3 px-4 font-black text-right ${isBuy ? 'text-emerald-600' : 'text-slate-900'}`}>
-                        {isBuy ? '+' : '-'}${t.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="font-black text-gray-900">
-                          ৳{t.bdtAmount ? t.bdtAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (t.amount * (t.rate || 117.5)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </div>
-                        {isBuy && t.rate ? (
-                          <div className="text-[10px] text-gray-400 font-bold">
-                            Rate: ৳{t.rate}
-                          </div>
-                        ) : null}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="font-bold text-gray-800">
-                          {isBuy ? 'ডলার ক্রয়' : (t.purpose || 'ডলার খরচ')}
-                        </div>
-                        {t.notes && (
-                          <div className="text-[11px] text-gray-400 font-medium max-w-[180px] truncate" title={t.notes}>
-                            {t.notes}
-                          </div>
+                        {(t.purpose || t.notes) && (
+                          <p className="text-[11px] text-gray-600 font-medium">
+                            {t.purpose || t.notes}
+                          </p>
                         )}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => {
-                              setEditingTransaction(t);
-                              setShowModal(true);
-                            }}
-                            className="p-1 text-indigo-600 hover:bg-indigo-50 rounded transition-all cursor-pointer"
-                            title="সম্পাদনা করুন"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setDeletingId(t.id)}
-                            className="p-1 text-rose-600 hover:bg-rose-50 rounded transition-all cursor-pointer"
-                            title="মুছে ফেলুন"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0 ml-auto">
+                        <button
+                          onClick={() => {
+                            setEditingTransaction(t);
+                            setShowModal(true);
+                          }}
+                          className="p-1.5 text-indigo-600 hover:bg-indigo-50 bg-gray-50 rounded-lg transition-all cursor-pointer"
+                          title="সম্পাদনা করুন"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setDeletingId(t.id)}
+                          className="p-1.5 text-rose-600 hover:bg-rose-50 bg-gray-50 rounded-lg transition-all cursor-pointer"
+                          title="মুছে ফেলুন"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
         </div>
 
       </div>

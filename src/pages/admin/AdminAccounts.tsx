@@ -527,6 +527,7 @@ export default function AdminAccounts() {
     }
 
     setIsSaving(true);
+    deletedEmailsRef.current.delete(cleanEmail);
     const emailKey = cleanEmail.replace(/[^a-zA-Z0-9]/g, '_');
     const docId = emailKey; // Always use sanitized email key for reliable Firestore path
 

@@ -467,15 +467,14 @@ async function startServer() {
   // ==========================================
   // UNIVERSAL FINANCE & TRANSACTIONS API ROUTES
   // ==========================================
-  const deletedAccountIdsSet = new Set<string>();
-  const deletedTransactionIdsSet = new Set<string>();
-
   app.get("/api/finance/data", async (req, res) => {
     try {
       const accountsMap = new Map<string, any>();
       const transactionsMap = new Map<string, any>();
+      const reqDeletedAccountIds = new Set<string>();
+      const reqDeletedTxIds = new Set<string>();
 
-      // 0. Load deleted accounts & transactions list
+      // 0. Load explicitly deleted tombstones from metadata
       try {
         const [delAccDoc, delTxDoc] = await Promise.all([
           getDoc(doc(db, 'finance_meta', 'deleted_accounts')).catch(() => null),
@@ -485,13 +484,13 @@ async function startServer() {
         if (delAccDoc && delAccDoc.exists()) {
           const list = delAccDoc.data()?.ids || [];
           if (Array.isArray(list)) {
-            list.forEach(id => deletedAccountIdsSet.add(String(id)));
+            list.forEach(id => reqDeletedAccountIds.add(String(id)));
           }
         }
         if (delTxDoc && delTxDoc.exists()) {
           const list = delTxDoc.data()?.ids || [];
           if (Array.isArray(list)) {
-            list.forEach(id => deletedTransactionIdsSet.add(String(id)));
+            list.forEach(id => reqDeletedTxIds.add(String(id)));
           }
         }
       } catch (err) {}
@@ -511,9 +510,7 @@ async function startServer() {
           accDocs.forEach(d => {
             const data = d.data();
             const accId = String(d.id);
-            if (!deletedAccountIdsSet.has(accId)) {
-              accountsMap.set(accId, { ...data, id: accId });
-            }
+            accountsMap.set(accId, { ...data, id: accId });
           });
         }
 
@@ -522,9 +519,7 @@ async function startServer() {
           txDocs.forEach(d => {
             const data = d.data();
             const txId = String(d.id);
-            if (!deletedTransactionIdsSet.has(txId)) {
-              transactionsMap.set(txId, { ...data, id: txId });
-            }
+            transactionsMap.set(txId, { ...data, id: txId });
           });
         }
       } catch (fsErr) {
@@ -539,32 +534,16 @@ async function startServer() {
           const { createClient } = await import('@supabase/supabase-js');
           const sb = createClient(supabaseUrl, supabaseKey);
 
-          const [accRes, txRes, delAccRes, delTxRes] = await Promise.all([
+          const [accRes, txRes] = await Promise.all([
             !fsAccountsLoaded ? sb.from('app_documents').select('*').eq('collection_name', 'bank_accounts') : Promise.resolve({ data: [] }),
-            !fsTransactionsLoaded ? sb.from('app_documents').select('*').eq('collection_name', 'bank_transactions') : Promise.resolve({ data: [] }),
-            sb.from('app_documents').select('*').eq('collection_name', 'finance_deleted_accounts'),
-            sb.from('app_documents').select('*').eq('collection_name', 'finance_deleted_transactions')
+            !fsTransactionsLoaded ? sb.from('app_documents').select('*').eq('collection_name', 'bank_transactions') : Promise.resolve({ data: [] })
           ]);
-
-          if (delAccRes && !delAccRes.error && Array.isArray(delAccRes.data) && delAccRes.data.length > 0) {
-            const firstDoc = delAccRes.data[0];
-            if (firstDoc && firstDoc.data && Array.isArray(firstDoc.data.ids)) {
-              firstDoc.data.ids.forEach((id: string) => deletedAccountIdsSet.add(String(id)));
-            }
-          }
-
-          if (delTxRes && !delTxRes.error && Array.isArray(delTxRes.data) && delTxRes.data.length > 0) {
-            const firstDoc = delTxRes.data[0];
-            if (firstDoc && firstDoc.data && Array.isArray(firstDoc.data.ids)) {
-              firstDoc.data.ids.forEach((id: string) => deletedTransactionIdsSet.add(String(id)));
-            }
-          }
 
           if (!fsAccountsLoaded && accRes && !accRes.error && Array.isArray(accRes.data)) {
             accRes.data.forEach((item: any) => {
               if (item && item.data) {
                 const accId = String(item.record_id || item.data.id);
-                if (!deletedAccountIdsSet.has(accId)) {
+                if (!reqDeletedAccountIds.has(accId)) {
                   accountsMap.set(accId, { ...item.data, id: accId });
                 }
               }
@@ -575,7 +554,7 @@ async function startServer() {
             txRes.data.forEach((item: any) => {
               if (item && item.data) {
                 const txId = String(item.record_id || item.data.id);
-                if (!deletedTransactionIdsSet.has(txId)) {
+                if (!reqDeletedTxIds.has(txId)) {
                   transactionsMap.set(txId, { ...item.data, id: txId });
                 }
               }
@@ -585,10 +564,6 @@ async function startServer() {
           console.warn("[Server API] Supabase finance fetch warning:", sbErr);
         }
       }
-
-      // Purge any deleted items
-      deletedAccountIdsSet.forEach(delId => accountsMap.delete(delId));
-      deletedTransactionIdsSet.forEach(delId => transactionsMap.delete(delId));
 
       const rawAccounts = Array.from(accountsMap.values());
       const rawTransactions = Array.from(transactionsMap.values());
@@ -649,11 +624,10 @@ async function startServer() {
       }
 
       const accId = String(accountData.id);
-      deletedAccountIdsSet.delete(accId);
 
       await setDoc(doc(db, 'bank_accounts', accId), accountData, { merge: true });
 
-      // Update deleted doc if it contained this ID
+      // Clean up deleted doc if it contained this ID
       try {
         const delDoc = await getDoc(doc(db, 'finance_meta', 'deleted_accounts')).catch(() => null);
         if (delDoc && delDoc.exists()) {
@@ -691,14 +665,17 @@ async function startServer() {
       if (!id) return res.status(400).json({ error: "Missing id" });
 
       const strId = String(id);
-      deletedAccountIdsSet.add(strId);
 
       await deleteDoc(doc(db, 'bank_accounts', strId)).catch(() => {});
 
       // Persist to deleted accounts tracker
+      let updatedDelList: string[] = [strId];
       try {
-        const list = Array.from(deletedAccountIdsSet);
-        await setDoc(doc(db, 'finance_meta', 'deleted_accounts'), { ids: list }, { merge: true });
+        const delDoc = await getDoc(doc(db, 'finance_meta', 'deleted_accounts')).catch(() => null);
+        const existingList: string[] = (delDoc && delDoc.exists()) ? (delDoc.data()?.ids || []) : [];
+        const set = new Set([...existingList, strId]);
+        updatedDelList = Array.from(set);
+        await setDoc(doc(db, 'finance_meta', 'deleted_accounts'), { ids: updatedDelList }, { merge: true });
       } catch (err) {}
 
       try {
@@ -711,7 +688,7 @@ async function startServer() {
           id: 'finance_deleted_accounts',
           collection_name: 'finance_deleted_accounts',
           record_id: 'deleted_accounts',
-          data: { ids: Array.from(deletedAccountIdsSet) },
+          data: { ids: updatedDelList },
           updated_at: new Date().toISOString()
         }, { onConflict: 'id' });
       } catch (sbErr) {
@@ -732,7 +709,6 @@ async function startServer() {
       }
 
       const txId = String(txData.id);
-      deletedTransactionIdsSet.delete(txId);
 
       await setDoc(doc(db, 'bank_transactions', txId), txData, { merge: true });
 
@@ -781,14 +757,17 @@ async function startServer() {
       if (targetIds.length === 0) return res.status(400).json({ error: "Missing id or ids" });
 
       for (const tId of targetIds) {
-        deletedTransactionIdsSet.add(tId);
         await deleteDoc(doc(db, 'bank_transactions', tId)).catch(() => {});
       }
 
       // Persist to deleted transactions tracker in Firestore
+      let updatedDelList: string[] = targetIds;
       try {
-        const list = Array.from(deletedTransactionIdsSet);
-        await setDoc(doc(db, 'finance_meta', 'deleted_transactions'), { ids: list }, { merge: true });
+        const delDoc = await getDoc(doc(db, 'finance_meta', 'deleted_transactions')).catch(() => null);
+        const existingList: string[] = (delDoc && delDoc.exists()) ? (delDoc.data()?.ids || []) : [];
+        const set = new Set([...existingList, ...targetIds]);
+        updatedDelList = Array.from(set);
+        await setDoc(doc(db, 'finance_meta', 'deleted_transactions'), { ids: updatedDelList }, { merge: true });
       } catch (err) {}
 
       // Delete from Supabase
@@ -805,7 +784,7 @@ async function startServer() {
           id: 'finance_deleted_transactions',
           collection_name: 'finance_deleted_transactions',
           record_id: 'deleted_transactions',
-          data: { ids: Array.from(deletedTransactionIdsSet) },
+          data: { ids: updatedDelList },
           updated_at: new Date().toISOString()
         }, { onConflict: 'id' });
       } catch (sbErr) {

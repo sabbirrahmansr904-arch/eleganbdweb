@@ -546,183 +546,365 @@ export default function AdminTransactionList(): React.JSX.Element {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          {filteredTransactions.length === 0 ? (
-            <div className="p-16 text-center text-xs text-gray-400 font-bold">কোনো লেনদেন রেকর্ড পাওয়া যায়নি।</div>
-          ) : (
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="bg-gray-50/70 text-gray-400 border-b border-gray-100 uppercase tracking-widest font-black text-[9px]">
-                  <th className="py-4 px-3 text-center w-12">
-                    <input
-                      type="checkbox"
-                      checked={isAllFilteredSelected}
-                      ref={el => {
-                        if (el) el.indeterminate = isSomeFilteredSelected;
-                      }}
-                      onChange={handleSelectAllFiltered}
-                      className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                    />
-                  </th>
-                  <th className="py-4 px-4">তারিখ</th>
-                  <th className="py-4 px-4">হিসাব</th>
-                  <th className="py-4 px-4">ধরন</th>
-                  <th className="py-4 px-4">বিবরণ</th>
-                  <th className="py-4 px-4 text-right">পরিমাণ</th>
-                  <th className="py-4 px-4 text-right">অ্যাকাউন্ট ব্যালেন্স</th>
-                  <th className="py-4 px-4 text-center">স্ট্যাটাস</th>
-                  <th className="py-4 px-4 text-center">প্রমাণপত্র</th>
-                  <th className="py-4 px-4 text-center">অ্যাকশন</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50 font-bold text-gray-700">
-                {paginatedTransactions.map(tx => {
-                  const acc = bankAccounts.find(a => a.id === tx.accountId);
-                  const isDeposit = tx.type === 'deposit';
-                  const isTransfer = tx.type === 'transfer';
-                  const isUnpaid = tx.status === 'unpaid';
-                  const isOldUnpaid = isUnpaid && (Date.now() - tx.date) > 7 * 24 * 60 * 60 * 1000;
-                  const isSelected = selectedTxIds.includes(tx.id);
+        {/* Loading State Skeleton */}
+        {loading ? (
+          <div className="space-y-4 p-4">
+            <div className="animate-pulse space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-16 bg-gray-100 rounded-2xl w-full" />
+              ))}
+            </div>
+          </div>
+        ) : filteredTransactions.length === 0 ? (
+          <div className="py-16 px-4 text-center space-y-3">
+            <div className="w-14 h-14 bg-indigo-50 text-indigo-500 rounded-2xl flex items-center justify-center mx-auto shadow-2xs">
+              <FileSpreadsheet className="w-7 h-7" />
+            </div>
+            <h4 className="text-sm font-black text-gray-800">কোনো লেনদেন রেকর্ড পাওয়া যায়নি</h4>
+            <p className="text-xs text-gray-400 max-w-sm mx-auto font-medium">
+              আপনার ফিল্টার বা সার্চ অনুযায়ী কোনো ফলাফল পাওয়া যায়নি। অনুগ্রহ করে সার্চ পরিবর্তন করুন অথবা ফিল্টার রিসেট করুন।
+            </p>
+            {(searchQuery || accountFilter !== 'ALL' || typeFilter !== 'ALL' || statusFilter !== 'ALL' || timeframeFilter !== 'all') && (
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setAccountFilter('ALL');
+                  setTypeFilter('ALL');
+                  setStatusFilter('ALL');
+                  setTimeframeFilter('all');
+                  setStartDate('');
+                  setEndDate('');
+                }}
+                className="mt-2 px-4 py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>ফিল্টার রিসেট করুন</span>
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Desktop / Laptop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-gray-50/70 text-gray-400 border-b border-gray-100 uppercase tracking-widest font-black text-[9px]">
+                    <th className="py-4 px-3 text-center w-12">
+                      <input
+                        type="checkbox"
+                        checked={isAllFilteredSelected}
+                        ref={el => {
+                          if (el) el.indeterminate = isSomeFilteredSelected;
+                        }}
+                        onChange={handleSelectAllFiltered}
+                        className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      />
+                    </th>
+                    <th className="py-4 px-4">তারিখ</th>
+                    <th className="py-4 px-4">হিসাব</th>
+                    <th className="py-4 px-4">ধরন</th>
+                    <th className="py-4 px-4">বিবরণ</th>
+                    <th className="py-4 px-4 text-right">পরিমাণ</th>
+                    <th className="py-4 px-4 text-right">অ্যাকাউন্ট ব্যালেন্স</th>
+                    <th className="py-4 px-4 text-center">স্ট্যাটাস</th>
+                    <th className="py-4 px-4 text-center">প্রমাণপত্র</th>
+                    <th className="py-4 px-4 text-center">অ্যাকশন</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 font-bold text-gray-700">
+                  {paginatedTransactions.map(tx => {
+                    const acc = bankAccounts.find(a => a.id === tx.accountId);
+                    const isDeposit = tx.type === 'deposit';
+                    const isTransfer = tx.type === 'transfer';
+                    const isUnpaid = tx.status === 'unpaid';
+                    const isSelected = selectedTxIds.includes(tx.id);
 
-                  return (
-                    <tr 
-                      key={tx.id} 
-                      className={`transition-colors ${
-                        isSelected 
-                          ? 'bg-indigo-50/60 border-l-4 border-l-indigo-600' 
-                          : isUnpaid 
-                            ? 'bg-amber-50/20 hover:bg-amber-50/40' 
-                            : 'hover:bg-gray-50/50'
-                      }`}
-                    >
-                      <td className="py-4 px-3 text-center">
+                    return (
+                      <tr 
+                        key={tx.id} 
+                        className={`transition-colors ${
+                          isSelected 
+                            ? 'bg-indigo-50/60 border-l-4 border-l-indigo-600' 
+                            : isUnpaid 
+                              ? 'bg-amber-50/20 hover:bg-amber-50/40' 
+                              : 'hover:bg-gray-50/50'
+                        }`}
+                      >
+                        <td className="py-4 px-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleSelect(tx.id)}
+                            className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                          />
+                        </td>
+
+                        <td className="py-4 px-4 text-gray-400 text-[11px] font-mono whitespace-nowrap">
+                          {new Date(tx.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex items-center gap-2.5">
+                            <BankLogoBadge bankName={acc?.bankName || 'Unknown'} logoUrl={acc?.logoUrl} size="sm" />
+                            <div>
+                              <span className="text-gray-950 font-black block leading-tight">{acc?.bankName || 'Unknown'}</span>
+                              <span className="text-[10px] text-gray-400 font-bold uppercase mt-0.5 block">{acc?.accountName}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase inline-flex items-center gap-1 ${
+                            isDeposit ? 'bg-emerald-50 text-emerald-600 border border-emerald-100/60' : isTransfer ? 'bg-indigo-50 text-indigo-600 border border-indigo-100/60' : 'bg-rose-50 text-rose-600 border border-rose-100/60'
+                          }`}>
+                            {isDeposit ? '↑ ইনকাম' : isTransfer ? '⇄ ট্রান্সফার' : '↓ খরচ'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 text-gray-600 max-w-xs truncate">
+                          {tx.reference && <span className="font-mono text-[10px] bg-gray-150 border border-gray-200 px-1.5 py-0.5 rounded-md mr-1.5 text-gray-700">{tx.reference}</span>}
+                          <span>{tx.notes || '-'}</span>
+                        </td>
+                        <td className={`py-4 px-4 text-right font-black text-sm whitespace-nowrap ${isDeposit ? 'text-emerald-600' : isTransfer ? 'text-indigo-600' : 'text-rose-600'}`}>
+                          {isDeposit ? '+' : isTransfer ? '' : '-'}
+                          {acc && isUsdAccount(acc) 
+                            ? `$${Math.abs(Number(tx.amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+                            : formatPrice(Number(tx.amount) || 0)
+                          }
+                        </td>
+                        <td className="py-4 px-4 text-right font-black text-gray-950 text-xs whitespace-nowrap">
+                          {acc ? formatAccountBalance(acc) : formatPrice(0)}
+                        </td>
+                        
+                        <td className="py-4 px-4 text-center whitespace-nowrap">
+                          {isUnpaid ? (
+                            <div className="inline-flex items-center gap-1.5">
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200">
+                                <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+                                <span>Unpaid</span>
+                              </span>
+                              <button
+                                onClick={async () => {
+                                  await toggleTransactionStatus(tx.id, tx.status);
+                                  toast.success('লেনদেন Paid হিসেবে আপডেট করা হয়েছে!');
+                                }}
+                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-[10px] font-black transition-all shadow-2xs cursor-pointer inline-flex items-center gap-1"
+                              >
+                                <Check className="w-3 h-3 stroke-[3]" />
+                                <span>Paid করুন</span>
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center gap-1.5">
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <Check className="w-3 h-3 stroke-[3] text-emerald-600 shrink-0" />
+                                <span>Paid</span>
+                              </span>
+                              <button
+                                onClick={async () => {
+                                  await toggleTransactionStatus(tx.id, tx.status);
+                                  toast('লেনদেন Unpaid এ পরিবর্তন করা হয়েছে', { icon: '⏳' });
+                                }}
+                                className="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
+                                title="Unpaid এ পরিবর্তন করুন"
+                              >
+                                <RefreshCw className="w-3 h-3" />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+
+                        <td className="py-4 px-4 text-center">
+                          <button 
+                            onClick={() => toast('সংযুক্ত রশিদ ও প্রমাণপত্র চেক করা হচ্ছে...', { icon: 'ℹ️' })}
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gray-100 text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 transition-colors cursor-pointer"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </button>
+                        </td>
+
+                        <td className="py-4 px-4 text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => {
+                                setSelectedTx(tx);
+                                setShowViewTxModal(true);
+                              }}
+                              className="p-1.5 text-gray-400 hover:text-indigo-600 bg-gray-50 hover:bg-white border border-transparent hover:border-gray-150 rounded-lg transition-colors cursor-pointer"
+                              title="বিস্তারিত"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleEditTxClick(tx)}
+                              className="p-1.5 text-gray-400 hover:text-indigo-600 bg-gray-50 hover:bg-white border border-transparent hover:border-gray-150 rounded-lg transition-colors cursor-pointer"
+                              title="এডিট"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setTxToDelete(tx);
+                                setShowDeleteConfirmModal(true);
+                              }}
+                              className="p-1.5 text-gray-400 hover:text-rose-600 bg-gray-50 hover:bg-red-50 border border-transparent hover:border-red-100 rounded-lg transition-colors cursor-pointer"
+                              title="মুছে ফেলুন"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile & Tablet Card Layout (Optimized for Touch & Responsive Screen) */}
+            <div className="block md:hidden space-y-3.5">
+              {paginatedTransactions.map(tx => {
+                const acc = bankAccounts.find(a => a.id === tx.accountId);
+                const isDeposit = tx.type === 'deposit';
+                const isTransfer = tx.type === 'transfer';
+                const isUnpaid = tx.status === 'unpaid';
+                const isSelected = selectedTxIds.includes(tx.id);
+
+                return (
+                  <div
+                    key={tx.id}
+                    className={`p-4 rounded-2xl border transition-all ${
+                      isSelected 
+                        ? 'bg-indigo-50/50 border-indigo-500 shadow-xs' 
+                        : isUnpaid
+                          ? 'bg-amber-50/30 border-amber-200'
+                          : 'bg-white border-gray-150 hover:border-gray-250 shadow-2xs'
+                    }`}
+                  >
+                    {/* Card Top: Checkbox, Bank Info & Date */}
+                    <div className="flex items-start justify-between gap-2.5 pb-2.5 border-b border-gray-100">
+                      <div className="flex items-center gap-2.5 min-w-0">
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => handleToggleSelect(tx.id)}
-                          className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                          className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer shrink-0"
                         />
-                      </td>
-
-                      <td className="py-4 px-4 text-gray-400 text-[11px] font-mono whitespace-nowrap">
-                        {new Date(tx.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-2.5">
-                          <BankLogoBadge bankName={acc?.bankName || 'Unknown'} logoUrl={acc?.logoUrl} size="sm" />
-                          <div>
-                            <span className="text-gray-950 font-black block leading-tight">{acc?.bankName || 'Unknown'}</span>
-                            <span className="text-[10px] text-gray-400 font-bold uppercase mt-0.5 block">{acc?.accountName}</span>
-                          </div>
+                        <BankLogoBadge bankName={acc?.bankName || 'Unknown'} logoUrl={acc?.logoUrl} size="sm" />
+                        <div className="min-w-0">
+                          <span className="text-xs font-black text-gray-900 block truncate">{acc?.bankName || 'অ্যাকাউন্ট'}</span>
+                          <span className="text-[10px] text-gray-400 font-bold uppercase truncate block">{acc?.accountName}</span>
                         </div>
-                      </td>
-                      <td className="py-4 px-4 whitespace-nowrap">
-                        <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase inline-flex items-center gap-1 ${
-                          isDeposit ? 'bg-emerald-50 text-emerald-600 border border-emerald-100/60' : isTransfer ? 'bg-indigo-50 text-indigo-600 border border-indigo-100/60' : 'bg-rose-50 text-rose-600 border border-rose-100/60'
-                        }`}>
-                          {isDeposit ? '↑ ইনকাম' : isTransfer ? '⇄ ট্রান্সফার' : '↓ খরচ'}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-gray-600 max-w-xs truncate">
-                        {tx.reference && <span className="font-mono text-[10px] bg-gray-150 border border-gray-200 px-1.5 py-0.5 rounded-md mr-1.5 text-gray-700">{tx.reference}</span>}
-                        <span>{tx.notes || '-'}</span>
-                      </td>
-                      <td className={`py-4 px-4 text-right font-black text-sm whitespace-nowrap ${isDeposit ? 'text-emerald-600' : isTransfer ? 'text-indigo-600' : 'text-rose-600'}`}>
-                        {isDeposit ? '+' : isTransfer ? '' : '-'}
-                        {acc && isUsdAccount(acc) 
-                          ? `$${Math.abs(Number(tx.amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
-                          : formatPrice(Number(tx.amount) || 0)
-                        }
-                      </td>
-                      <td className="py-4 px-4 text-right font-black text-gray-950 text-xs whitespace-nowrap">
-                        {acc ? formatAccountBalance(acc) : formatPrice(0)}
-                      </td>
-                      
-                      <td className="py-4 px-4 text-center whitespace-nowrap">
-                        {isUnpaid ? (
-                          <div className="inline-flex items-center gap-1.5">
-                            <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200">
-                              <Clock className="w-3 h-3 text-amber-600 shrink-0" />
-                              <span>Unpaid</span>
+                      </div>
+
+                      <span className="text-[10px] font-mono text-gray-400 shrink-0 bg-gray-50 px-2 py-0.5 rounded-md border border-gray-150">
+                        {new Date(tx.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      </span>
+                    </div>
+
+                    {/* Card Middle: Type, Amount & Details */}
+                    <div className="py-3 flex items-center justify-between gap-3">
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase inline-flex items-center gap-0.5 ${
+                            isDeposit ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : isTransfer ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
+                          }`}>
+                            {isDeposit ? '↑ ইনকাম' : isTransfer ? '⇄ ট্রান্সফার' : '↓ খরচ'}
+                          </span>
+                          {tx.reference && (
+                            <span className="font-mono text-[9.5px] bg-gray-100 border border-gray-200 text-gray-700 px-1.5 py-0.5 rounded">
+                              {tx.reference}
                             </span>
-            <button
-                              onClick={async () => {
-                                await toggleTransactionStatus(tx.id, tx.status);
-                                toast.success('লেনদেন Paid হিসেবে আপডেট করা হয়েছে!');
-                              }}
-                              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-[10px] font-black transition-all shadow-2xs cursor-pointer inline-flex items-center gap-1"
-                            >
-                              <Check className="w-3 h-3 stroke-[3]" />
-                              <span>Paid করুন</span>
-                            </button>
-                          </div>
+                          )}
+                        </div>
+                        {tx.notes && (
+                          <p className="text-[11px] font-medium text-gray-600 line-clamp-2 break-words mt-0.5">
+                            {tx.notes}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <span className={`text-base font-black tracking-tight block ${isDeposit ? 'text-emerald-600' : isTransfer ? 'text-indigo-600' : 'text-rose-600'}`}>
+                          {isDeposit ? '+' : isTransfer ? '' : '-'}
+                          {acc && isUsdAccount(acc) 
+                            ? `$${Math.abs(Number(tx.amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+                            : formatPrice(Number(tx.amount) || 0)
+                          }
+                        </span>
+                        <span className="text-[9.5px] text-gray-400 font-bold block mt-0.5">
+                          ব্যালেন্স: {acc ? formatAccountBalance(acc) : formatPrice(0)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Card Footer: Status & Action Buttons */}
+                    <div className="pt-2.5 border-t border-gray-100 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        {isUnpaid ? (
+                          <button
+                            onClick={async () => {
+                              await toggleTransactionStatus(tx.id, tx.status);
+                              toast.success('লেনদেন Paid হিসেবে আপডেট করা হয়েছে!');
+                            }}
+                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black transition-all shadow-2xs cursor-pointer inline-flex items-center gap-1 min-h-[32px]"
+                          >
+                            <Check className="w-3 h-3 stroke-[3]" />
+                            <span>Paid করুন</span>
+                          </button>
                         ) : (
-                          <div className="inline-flex items-center gap-1.5">
-                            <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <div className="inline-flex items-center gap-1">
+                            <span className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200">
                               <Check className="w-3 h-3 stroke-[3] text-emerald-600 shrink-0" />
                               <span>Paid</span>
                             </span>
-            <button
+                            <button
                               onClick={async () => {
                                 await toggleTransactionStatus(tx.id, tx.status);
                                 toast('লেনদেন Unpaid এ পরিবর্তন করা হয়েছে', { icon: '⏳' });
                               }}
-                              className="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
+                              className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer min-h-[32px] min-w-[32px] flex items-center justify-center"
                               title="Unpaid এ পরিবর্তন করুন"
                             >
-                              <RefreshCw className="w-3 h-3" />
+                              <RefreshCw className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         )}
-                      </td>
+                      </div>
 
-                      <td className="py-4 px-4 text-center">
-            <button 
-                          onClick={() => toast('সংযুক্ত রশিদ ও প্রমাণপত্র চেক করা হচ্ছে...', { icon: 'ℹ️' })}
-                          className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gray-100 text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 transition-colors cursor-pointer"
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => {
+                            setSelectedTx(tx);
+                            setShowViewTxModal(true);
+                          }}
+                          className="p-1.5 text-gray-500 hover:text-indigo-600 bg-gray-50 hover:bg-gray-100 border border-gray-150 rounded-lg transition-colors cursor-pointer min-h-[32px] min-w-[32px] flex items-center justify-center"
+                          title="বিস্তারিত"
                         >
-                          <FileText className="w-4 h-4" />
+                          <Eye className="w-4 h-4" />
                         </button>
-                      </td>
-
-                      <td className="py-4 px-4 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1.5">
-            <button
-                            onClick={() => {
-                              setSelectedTx(tx);
-                              setShowViewTxModal(true);
-                            }}
-                            className="p-1.5 text-gray-400 hover:text-indigo-600 bg-gray-50 hover:bg-white border border-transparent hover:border-gray-150 rounded-lg transition-colors cursor-pointer"
-                            title="বিস্তারিত"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                                onClick={() => handleEditTxClick(tx)}
-                                className="p-1.5 text-gray-400 hover:text-indigo-600 bg-gray-50 hover:bg-white border border-transparent hover:border-gray-150 rounded-lg transition-colors cursor-pointer"
-                                title="এডিট"
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </button>
-            <button
-                                onClick={() => {
-                                  setTxToDelete(tx);
-                                  setShowDeleteConfirmModal(true);
-                                }}
-                                className="p-1.5 text-gray-400 hover:text-rose-600 bg-gray-50 hover:bg-red-50 border border-transparent hover:border-red-100 rounded-lg transition-colors cursor-pointer"
-                                title="মুছে ফেলুন"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
+                        <button
+                          onClick={() => handleEditTxClick(tx)}
+                          className="p-1.5 text-gray-500 hover:text-indigo-600 bg-gray-50 hover:bg-gray-100 border border-gray-150 rounded-lg transition-colors cursor-pointer min-h-[32px] min-w-[32px] flex items-center justify-center"
+                          title="এডিট"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setTxToDelete(tx);
+                            setShowDeleteConfirmModal(true);
+                          }}
+                          className="p-1.5 text-gray-500 hover:text-rose-600 bg-gray-50 hover:bg-red-50 border border-gray-150 rounded-lg transition-colors cursor-pointer min-h-[32px] min-w-[32px] flex items-center justify-center"
+                          title="মুছে ফেলুন"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
 
         {/* Pagination Footer */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-50 pt-4 text-xs font-bold text-gray-500">
