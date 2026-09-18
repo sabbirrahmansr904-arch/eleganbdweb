@@ -412,37 +412,54 @@ export default function AdminFinance(): React.JSX.Element {
 
   // Use timeframeFilteredTransactions for Summary calculations instead of bankTransactions
 
+  // Account and Type filtered transactions for summary when an account or type is selected
+  const accountAndTypeFilteredTransactions = useMemo(() => {
+    return timeframeFilteredTransactions.filter(tx => {
+      if (accountFilter !== 'ALL' && tx.accountId !== accountFilter && tx.targetAccountId !== accountFilter) return false;
+      if (typeFilter !== 'ALL') {
+        if (typeFilter === 'income' && tx.type !== 'deposit') return false;
+        if (typeFilter === 'expense' && tx.type !== 'withdraw') return false;
+        if (typeFilter === 'transfer' && tx.type !== 'transfer') return false;
+      }
+      return true;
+    });
+  }, [timeframeFilteredTransactions, accountFilter, typeFilter]);
+
   // Summary calculations
   const totalIncome = useMemo(() => {
-    return timeframeFilteredTransactions
+    return accountAndTypeFilteredTransactions
       .filter(tx => tx.type === 'deposit' && tx.status !== 'unpaid')
       .reduce((sum, tx) => sum + tx.amount, 0);
-  }, [timeframeFilteredTransactions]);
+  }, [accountAndTypeFilteredTransactions]);
 
   const totalExpense = useMemo(() => {
-    return timeframeFilteredTransactions
+    return accountAndTypeFilteredTransactions
       .filter(tx => tx.type === 'withdraw' && tx.status !== 'unpaid')
       .reduce((sum, tx) => sum + tx.amount, 0);
-  }, [timeframeFilteredTransactions]);
+  }, [accountAndTypeFilteredTransactions]);
 
   const unpaidCount = useMemo(() => {
-    return timeframeFilteredTransactions.filter(tx => tx.status === 'unpaid').length;
-  }, [timeframeFilteredTransactions]);
+    return accountAndTypeFilteredTransactions.filter(tx => tx.status === 'unpaid').length;
+  }, [accountAndTypeFilteredTransactions]);
 
   const unpaidTotalAmount = useMemo(() => {
-    return timeframeFilteredTransactions
+    return accountAndTypeFilteredTransactions
       .filter(tx => tx.status === 'unpaid')
       .reduce((sum, tx) => sum + tx.amount, 0);
-  }, [timeframeFilteredTransactions]);
+  }, [accountAndTypeFilteredTransactions]);
 
   const netBalance = totalIncome - totalExpense;
 
-  // USD Balance Summary across all Dollar Wallets (e.g. Redotpay)
+  // USD Balance Summary across all Dollar Wallets or selected account
   const totalUsdBalance = useMemo(() => {
+    if (accountFilter !== 'ALL') {
+      const selectedAcc = bankAccounts.find(a => a.id === accountFilter);
+      return selectedAcc && isUsdAccount(selectedAcc) ? (selectedAcc.balance || 0) : 0;
+    }
     return bankAccounts
       .filter(a => isUsdAccount(a))
       .reduce((sum, a) => sum + (a.balance || 0), 0);
-  }, [bankAccounts]);
+  }, [bankAccounts, accountFilter]);
 
   // Account distribution for Pie chart
   const pieData = useMemo(() => {
@@ -737,28 +754,23 @@ export default function AdminFinance(): React.JSX.Element {
                     isUsd ? 'hover:border-red-300' : isBkash ? 'hover:border-pink-300' : isNagad ? 'hover:border-orange-300' : isRocket ? 'hover:border-purple-300' : 'hover:border-emerald-300'
                   }`}
                 >
-                  {/* Top Bar: Account Type Badge & Edit/Delete Action Icons */}
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${
-                        isUsd ? 'bg-red-50 border-red-200 text-red-700' : 'bg-gray-50 border-gray-150 text-gray-600'
-                      }`}>
-                        {acc.accountType || (isUsd ? 'ডলার অ্যাকাউন্ট (USD)' : 'ব্যক্তিগত')}
-                      </span>
+                  {/* Top Bar: Always Visible Action Icons */}
+                  <div className="flex items-center justify-between w-full min-h-[28px]">
+                    <div>
                       {isUsd && (
-                        <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-600 flex items-center gap-0.5 shadow-2xs">
-                          <DollarSign className="w-2.5 h-2.5" /> USD
+                        <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-red-50 border border-red-200 text-red-600 flex items-center gap-1 shadow-2xs">
+                          <DollarSign className="w-3 h-3" /> USD অ্যাকাউন্ট
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1.5">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleEditAccountClick(acc);
                         }}
-                        className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 bg-gray-50 rounded-lg transition-colors cursor-pointer min-h-[30px] min-w-[30px] flex items-center justify-center"
+                        className="p-1.5 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 bg-gray-100/80 hover:border-indigo-200 border border-transparent rounded-lg transition-all cursor-pointer min-h-[32px] min-w-[32px] flex items-center justify-center shadow-2xs"
                         title="এডিট অ্যাকাউন্ট"
                       >
                         <Pencil className="w-3.5 h-3.5" />
@@ -768,7 +780,7 @@ export default function AdminFinance(): React.JSX.Element {
                           e.stopPropagation();
                           deleteBankAccount(acc.id);
                         }}
-                        className="p-1.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 bg-gray-50 rounded-lg transition-colors cursor-pointer min-h-[30px] min-w-[30px] flex items-center justify-center"
+                        className="p-1.5 text-gray-600 hover:text-rose-600 hover:bg-rose-50 bg-gray-100/80 hover:border-rose-200 border border-transparent rounded-lg transition-all cursor-pointer min-h-[32px] min-w-[32px] flex items-center justify-center shadow-2xs"
                         title="মুছে ফেলুন"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -1256,6 +1268,7 @@ export default function AdminFinance(): React.JSX.Element {
               <option value="today">আজ (Today)</option>
               <option value="7days">গত ৭ দিন (7 Days)</option>
               <option value="this_month">এই মাস (This Month)</option>
+              <option value="custom">📆 কাস্টম তারিখ (Custom Range)</option>
             </select>
           </div>
 

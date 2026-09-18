@@ -181,6 +181,7 @@ export const computeBalances = (accounts: BankAccount[], transactions: BankTrans
       const explicitInitial = Number(acc.initialBalance);
       const initialBal = !isNaN(explicitInitial) ? explicitInitial : 0;
       let currentBalance = initialBal;
+      let hasTxForThisAcc = false;
 
       validTxs.forEach(tx => {
         if (!tx || tx.status === 'unpaid') return;
@@ -188,6 +189,7 @@ export const computeBalances = (accounts: BankAccount[], transactions: BankTrans
         if (txAmt === 0) return;
 
         if (tx.accountId === acc.id) {
+          hasTxForThisAcc = true;
           if (tx.type === 'deposit') {
             currentBalance += txAmt;
           } else if (tx.type === 'withdraw' || tx.type === 'transfer') {
@@ -195,9 +197,15 @@ export const computeBalances = (accounts: BankAccount[], transactions: BankTrans
           }
         }
         if (tx.targetAccountId === acc.id && tx.type === 'transfer') {
+          hasTxForThisAcc = true;
           currentBalance += txAmt;
         }
       });
+
+      // If no transactions calculated and currentBalance is 0, fall back to existing acc.balance if valid
+      if (!hasTxForThisAcc && currentBalance === 0 && acc.balance !== undefined && !isNaN(Number(acc.balance)) && Number(acc.balance) !== 0) {
+        currentBalance = Number(acc.balance);
+      }
 
       const isUsd = isUsdAccount(acc);
       const roundedBalance = Math.round(currentBalance * 100) / 100;
@@ -260,6 +268,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const markTransactionIdAsDeleted = useCallback((id: string) => {
     deletedTxIdsRef.current.add(id);
+    try {
+      localStorage.setItem('eleganbd_deleted_tx_ids', JSON.stringify(Array.from(deletedTxIdsRef.current)));
+    } catch {}
+  }, []);
+
+  const unmarkTransactionIdAsDeleted = useCallback((id: string) => {
+    deletedTxIdsRef.current.delete(id);
     try {
       localStorage.setItem('eleganbd_deleted_tx_ids', JSON.stringify(Array.from(deletedTxIdsRef.current)));
     } catch {}
@@ -339,8 +354,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (res.ok) {
         const data = await res.json();
         if (data && data.success) {
+          const deletedIds = deletedTxIdsRef.current;
           const cleanTxs = Array.isArray(data.transactions) 
-            ? data.transactions.filter((t: any) => t && t.id)
+            ? data.transactions.filter((t: any) => t && t.id && !deletedIds.has(t.id))
             : [];
 
           if (Array.isArray(data.accounts) && data.accounts.length > 0) {
@@ -399,8 +415,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           });
 
         if (cloudAccounts.length > 0) {
-          const merged = mergeAccounts(bankAccountsRef.current, cloudAccounts);
-          const recalculated = computeBalances(merged, bankTransactionsRef.current);
+          const txsToUse = bankTransactionsRef.current;
+          const recalculated = computeBalances(cloudAccounts, txsToUse);
           setBankAccounts(recalculated);
           try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
         } else if (snapshot.empty && bankAccountsRef.current.length === 0) {
@@ -445,17 +461,21 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         cloudTxs.sort((a, b) => (Number(b.date) || 0) - (Number(a.date) || 0));
 
-        setBankTransactions(prevLocal => {
-          const merged = mergeTransactions(prevLocal, cloudTxs);
-          try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(merged)); } catch {}
+        setBankTransactions(() => {
+          const deletedIds = deletedTxIdsRef.current;
+          
+          // Pure cloud snapshot as authoritative state, filtered by deletedIds
+          const cleanCloudTxs = cloudTxs.filter(t => t && t.id && !deletedIds.has(t.id));
+          
+          try { localStorage.setItem('eleganbd_bank_transactions', JSON.stringify(cleanCloudTxs)); } catch {}
           
           setBankAccounts(prevAccounts => {
-            const recalculated = computeBalances(prevAccounts, merged);
+            const recalculated = computeBalances(prevAccounts, cleanCloudTxs);
             try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
             return recalculated;
           });
 
-          return merged;
+          return cleanCloudTxs;
         });
 
         setLoading(false);
@@ -671,6 +691,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const addBankTransaction = async (tx: Omit<BankTransaction, 'id'>, targetAccountId?: string) => {
     const id = `tx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    unmarkTransactionIdAsDeleted(id);
     const amt = Number(tx.amount) || 0;
     const newTx: BankTransaction = {
       ...tx,
