@@ -464,6 +464,360 @@ async function startServer() {
     }
   });
 
+  // ==========================================
+  // UNIVERSAL FINANCE & TRANSACTIONS API ROUTES
+  // ==========================================
+  const deletedAccountIdsSet = new Set<string>();
+  const deletedTransactionIdsSet = new Set<string>();
+
+  app.get("/api/finance/data", async (req, res) => {
+    try {
+      const accountsMap = new Map<string, any>();
+      const transactionsMap = new Map<string, any>();
+
+      // 0. Load deleted accounts & transactions list
+      try {
+        const [delAccDoc, delTxDoc] = await Promise.all([
+          getDoc(doc(db, 'finance_meta', 'deleted_accounts')).catch(() => null),
+          getDoc(doc(db, 'finance_meta', 'deleted_transactions')).catch(() => null)
+        ]);
+
+        if (delAccDoc && delAccDoc.exists()) {
+          const list = delAccDoc.data()?.ids || [];
+          if (Array.isArray(list)) {
+            list.forEach(id => deletedAccountIdsSet.add(String(id)));
+          }
+        }
+        if (delTxDoc && delTxDoc.exists()) {
+          const list = delTxDoc.data()?.ids || [];
+          if (Array.isArray(list)) {
+            list.forEach(id => deletedTransactionIdsSet.add(String(id)));
+          }
+        }
+      } catch (err) {}
+
+      // 1. Fetch from Firestore (Authoritative Primary Source)
+      let fsAccountsLoaded = false;
+      let fsTransactionsLoaded = false;
+
+      try {
+        const [accDocs, txDocs] = await Promise.all([
+          getDocs(collection(db, 'bank_accounts')).catch(() => null),
+          getDocs(collection(db, 'bank_transactions')).catch(() => null)
+        ]);
+
+        if (accDocs && !accDocs.empty) {
+          fsAccountsLoaded = true;
+          accDocs.forEach(d => {
+            const data = d.data();
+            const accId = String(d.id);
+            if (!deletedAccountIdsSet.has(accId)) {
+              accountsMap.set(accId, { ...data, id: accId });
+            }
+          });
+        }
+
+        if (txDocs && !txDocs.empty) {
+          fsTransactionsLoaded = true;
+          txDocs.forEach(d => {
+            const data = d.data();
+            const txId = String(d.id);
+            if (!deletedTransactionIdsSet.has(txId)) {
+              transactionsMap.set(txId, { ...data, id: txId });
+            }
+          });
+        }
+      } catch (fsErr) {
+        console.warn("[Server API] Firestore finance fetch notice:", fsErr);
+      }
+
+      // 2. Fetch from Supabase ONLY if Firestore had no records (Fallback)
+      if (!fsAccountsLoaded || !fsTransactionsLoaded) {
+        try {
+          const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://eeifewkhrtveenyrrirj.supabase.co';
+          const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_XD9wPgNEzlHdAaJ2RN_BFw_izYEgB2p';
+          const { createClient } = await import('@supabase/supabase-js');
+          const sb = createClient(supabaseUrl, supabaseKey);
+
+          const [accRes, txRes, delAccRes, delTxRes] = await Promise.all([
+            !fsAccountsLoaded ? sb.from('app_documents').select('*').eq('collection_name', 'bank_accounts') : Promise.resolve({ data: [] }),
+            !fsTransactionsLoaded ? sb.from('app_documents').select('*').eq('collection_name', 'bank_transactions') : Promise.resolve({ data: [] }),
+            sb.from('app_documents').select('*').eq('collection_name', 'finance_deleted_accounts'),
+            sb.from('app_documents').select('*').eq('collection_name', 'finance_deleted_transactions')
+          ]);
+
+          if (delAccRes && !delAccRes.error && Array.isArray(delAccRes.data) && delAccRes.data.length > 0) {
+            const firstDoc = delAccRes.data[0];
+            if (firstDoc && firstDoc.data && Array.isArray(firstDoc.data.ids)) {
+              firstDoc.data.ids.forEach((id: string) => deletedAccountIdsSet.add(String(id)));
+            }
+          }
+
+          if (delTxRes && !delTxRes.error && Array.isArray(delTxRes.data) && delTxRes.data.length > 0) {
+            const firstDoc = delTxRes.data[0];
+            if (firstDoc && firstDoc.data && Array.isArray(firstDoc.data.ids)) {
+              firstDoc.data.ids.forEach((id: string) => deletedTransactionIdsSet.add(String(id)));
+            }
+          }
+
+          if (!fsAccountsLoaded && accRes && !accRes.error && Array.isArray(accRes.data)) {
+            accRes.data.forEach((item: any) => {
+              if (item && item.data) {
+                const accId = String(item.record_id || item.data.id);
+                if (!deletedAccountIdsSet.has(accId)) {
+                  accountsMap.set(accId, { ...item.data, id: accId });
+                }
+              }
+            });
+          }
+
+          if (!fsTransactionsLoaded && txRes && !txRes.error && Array.isArray(txRes.data)) {
+            txRes.data.forEach((item: any) => {
+              if (item && item.data) {
+                const txId = String(item.record_id || item.data.id);
+                if (!deletedTransactionIdsSet.has(txId)) {
+                  transactionsMap.set(txId, { ...item.data, id: txId });
+                }
+              }
+            });
+          }
+        } catch (sbErr) {
+          console.warn("[Server API] Supabase finance fetch warning:", sbErr);
+        }
+      }
+
+      // Purge any deleted items
+      deletedAccountIdsSet.forEach(delId => accountsMap.delete(delId));
+      deletedTransactionIdsSet.forEach(delId => transactionsMap.delete(delId));
+
+      const rawAccounts = Array.from(accountsMap.values());
+      const rawTransactions = Array.from(transactionsMap.values());
+
+      // Sort transactions by date descending
+      rawTransactions.sort((a, b) => (Number(b.date) || 0) - (Number(a.date) || 0));
+
+      // Compute exact balances
+      const calculatedAccounts = rawAccounts.map(acc => {
+        const initialBal = Number(acc.initialBalance) || 0;
+        let currentBalance = initialBal;
+
+        rawTransactions.forEach(tx => {
+          if (!tx || tx.status === 'unpaid') return;
+          const txAmt = Number(tx.amount) || 0;
+          if (txAmt === 0) return;
+
+          if (tx.accountId === acc.id) {
+            if (tx.type === 'deposit') {
+              currentBalance += txAmt;
+            } else if (tx.type === 'withdraw' || tx.type === 'transfer') {
+              currentBalance -= txAmt;
+            }
+          }
+          if (tx.targetAccountId === acc.id && tx.type === 'transfer') {
+            currentBalance += txAmt;
+          }
+        });
+
+        const isUsd = (acc.currency === 'USD') || String(acc.bankName || '').toLowerCase().includes('redotpay') || String(acc.accountType || '').toLowerCase().includes('dollar') || String(acc.accountType || '').toLowerCase().includes('usd');
+        const roundedBalance = Math.round(currentBalance * 100) / 100;
+
+        return {
+          ...acc,
+          initialBalance: initialBal,
+          balance: roundedBalance,
+          currency: isUsd ? 'USD' : (acc.currency || 'BDT')
+        };
+      });
+
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      return res.json({
+        success: true,
+        accounts: calculatedAccounts,
+        transactions: rawTransactions
+      });
+    } catch (e: any) {
+      console.error("[Server API] /api/finance/data error:", e);
+      return res.status(500).json({ success: false, error: e.message, accounts: [], transactions: [] });
+    }
+  });
+
+  app.post("/api/finance/account", async (req, res) => {
+    try {
+      const accountData = req.body;
+      if (!accountData || !accountData.id) {
+        return res.status(400).json({ error: "Missing account data or ID" });
+      }
+
+      const accId = String(accountData.id);
+      deletedAccountIdsSet.delete(accId);
+
+      await setDoc(doc(db, 'bank_accounts', accId), accountData, { merge: true });
+
+      // Update deleted doc if it contained this ID
+      try {
+        const delDoc = await getDoc(doc(db, 'finance_meta', 'deleted_accounts')).catch(() => null);
+        if (delDoc && delDoc.exists()) {
+          const list = (delDoc.data()?.ids || []).filter((id: string) => id !== accId);
+          await setDoc(doc(db, 'finance_meta', 'deleted_accounts'), { ids: list }, { merge: true });
+        }
+      } catch (err) {}
+
+      try {
+        const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://eeifewkhrtveenyrrirj.supabase.co';
+        const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_XD9wPgNEzlHdAaJ2RN_BFw_izYEgB2p';
+        const { createClient } = await import('@supabase/supabase-js');
+        const sb = createClient(supabaseUrl, supabaseKey);
+        await sb.from('app_documents').upsert({
+          id: `bank_accounts_${accId}`,
+          collection_name: 'bank_accounts',
+          record_id: accId,
+          data: accountData,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'id' });
+      } catch (sbErr) {
+        console.warn("[Server API] Supabase save account notice:", sbErr);
+      }
+
+      return res.json({ success: true, id: accId });
+    } catch (e: any) {
+      console.error("[Server API] /api/finance/account error:", e);
+      return res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/finance/account/delete", async (req, res) => {
+    try {
+      const { id } = req.body;
+      if (!id) return res.status(400).json({ error: "Missing id" });
+
+      const strId = String(id);
+      deletedAccountIdsSet.add(strId);
+
+      await deleteDoc(doc(db, 'bank_accounts', strId)).catch(() => {});
+
+      // Persist to deleted accounts tracker
+      try {
+        const list = Array.from(deletedAccountIdsSet);
+        await setDoc(doc(db, 'finance_meta', 'deleted_accounts'), { ids: list }, { merge: true });
+      } catch (err) {}
+
+      try {
+        const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://eeifewkhrtveenyrrirj.supabase.co';
+        const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_XD9wPgNEzlHdAaJ2RN_BFw_izYEgB2p';
+        const { createClient } = await import('@supabase/supabase-js');
+        const sb = createClient(supabaseUrl, supabaseKey);
+        await sb.from('app_documents').delete().eq('id', `bank_accounts_${strId}`);
+        await sb.from('app_documents').upsert({
+          id: 'finance_deleted_accounts',
+          collection_name: 'finance_deleted_accounts',
+          record_id: 'deleted_accounts',
+          data: { ids: Array.from(deletedAccountIdsSet) },
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'id' });
+      } catch (sbErr) {
+        console.warn("[Server API] Supabase delete account notice:", sbErr);
+      }
+
+      return res.json({ success: true });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/finance/transaction", async (req, res) => {
+    try {
+      const txData = req.body;
+      if (!txData || !txData.id) {
+        return res.status(400).json({ error: "Missing transaction data or ID" });
+      }
+
+      const txId = String(txData.id);
+      deletedTransactionIdsSet.delete(txId);
+
+      await setDoc(doc(db, 'bank_transactions', txId), txData, { merge: true });
+
+      // Update deleted doc if it contained this ID
+      try {
+        const delDoc = await getDoc(doc(db, 'finance_meta', 'deleted_transactions')).catch(() => null);
+        if (delDoc && delDoc.exists()) {
+          const list = (delDoc.data()?.ids || []).filter((id: string) => id !== txId);
+          await setDoc(doc(db, 'finance_meta', 'deleted_transactions'), { ids: list }, { merge: true });
+        }
+      } catch (err) {}
+
+      try {
+        const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://eeifewkhrtveenyrrirj.supabase.co';
+        const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_XD9wPgNEzlHdAaJ2RN_BFw_izYEgB2p';
+        const { createClient } = await import('@supabase/supabase-js');
+        const sb = createClient(supabaseUrl, supabaseKey);
+        await sb.from('app_documents').upsert({
+          id: `bank_transactions_${txId}`,
+          collection_name: 'bank_transactions',
+          record_id: txId,
+          data: txData,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'id' });
+      } catch (sbErr) {
+        console.warn("[Server API] Supabase save transaction notice:", sbErr);
+      }
+
+      return res.json({ success: true, id: txId });
+    } catch (e: any) {
+      console.error("[Server API] /api/finance/transaction error:", e);
+      return res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/finance/transaction/delete", async (req, res) => {
+    try {
+      const { id, ids } = req.body;
+      const targetIds: string[] = [];
+      if (Array.isArray(ids)) {
+        ids.forEach(i => { if (i) targetIds.push(String(i)); });
+      } else if (id) {
+        targetIds.push(String(id));
+      }
+
+      if (targetIds.length === 0) return res.status(400).json({ error: "Missing id or ids" });
+
+      for (const tId of targetIds) {
+        deletedTransactionIdsSet.add(tId);
+        await deleteDoc(doc(db, 'bank_transactions', tId)).catch(() => {});
+      }
+
+      // Persist to deleted transactions tracker in Firestore
+      try {
+        const list = Array.from(deletedTransactionIdsSet);
+        await setDoc(doc(db, 'finance_meta', 'deleted_transactions'), { ids: list }, { merge: true });
+      } catch (err) {}
+
+      // Delete from Supabase
+      try {
+        const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://eeifewkhrtveenyrrirj.supabase.co';
+        const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_XD9wPgNEzlHdAaJ2RN_BFw_izYEgB2p';
+        const { createClient } = await import('@supabase/supabase-js');
+        const sb = createClient(supabaseUrl, supabaseKey);
+        
+        for (const tId of targetIds) {
+          await sb.from('app_documents').delete().eq('id', `bank_transactions_${tId}`);
+        }
+        await sb.from('app_documents').upsert({
+          id: 'finance_deleted_transactions',
+          collection_name: 'finance_deleted_transactions',
+          record_id: 'deleted_transactions',
+          data: { ids: Array.from(deletedTransactionIdsSet) },
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'id' });
+      } catch (sbErr) {
+        console.warn("[Server API] Supabase delete transaction notice:", sbErr);
+      }
+
+      return res.json({ success: true, count: targetIds.length });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message });
+    }
+  });
+
   // In-memory cache for Firestore config documents to avoid quota limits & redundant reads
   const memoryConfigCache: Record<string, { data: any; timestamp: number }> = {};
   const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes cache

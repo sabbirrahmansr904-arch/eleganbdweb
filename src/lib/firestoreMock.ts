@@ -279,17 +279,57 @@ export async function getDoc(docRef: MockRef) {
   };
 }
 
-function createMockQuerySnapshot(docs: any[]) {
+function createMockQuerySnapshot(docs: any[], prevDocsMap?: Map<string, any>, options?: { includeMetadataChanges?: boolean }) {
+  const currentMap = new Map<string, any>();
+  docs.forEach(d => {
+    if (d && d.id) currentMap.set(String(d.id), d);
+  });
+
+  const changes: Array<{ type: 'added' | 'modified' | 'removed'; doc: any }> = [];
+
+  if (prevDocsMap && prevDocsMap.size > 0) {
+    // Detect removed docs
+    prevDocsMap.forEach((prevDoc, id) => {
+      if (!currentMap.has(id)) {
+        changes.push({ type: 'removed', doc: prevDoc });
+      }
+    });
+
+    // Detect added or modified docs
+    docs.forEach(currentDoc => {
+      const prevDoc = prevDocsMap.get(String(currentDoc.id));
+      if (!prevDoc) {
+        changes.push({ type: 'added', doc: currentDoc });
+      } else {
+        const currDataStr = JSON.stringify(typeof currentDoc.data === 'function' ? currentDoc.data() : currentDoc.data);
+        const prevDataStr = JSON.stringify(typeof prevDoc.data === 'function' ? prevDoc.data() : prevDoc.data);
+        if (currDataStr !== prevDataStr) {
+          changes.push({ type: 'modified', doc: currentDoc });
+        }
+      }
+    });
+  } else {
+    // Initial snapshot: all docs are 'added'
+    docs.forEach(docItem => {
+      changes.push({ type: 'added', doc: docItem });
+    });
+  }
+
   return {
     empty: docs.length === 0,
     size: docs.length,
     docs,
+    metadata: {
+      hasPendingWrites: false,
+      fromCache: false,
+      includeMetadataChanges: Boolean(options?.includeMetadataChanges)
+    },
     forEach: function(callback: (doc: any, index: number) => void) {
       docs.forEach((docItem, index) => {
         callback(docItem, index);
       });
     },
-    docChanges: () => docs.map(doc => ({ type: 'added', doc }))
+    docChanges: () => changes
   };
 }
 
@@ -327,8 +367,27 @@ export async function getDocs(queryOrCol: MockRef) {
   return createMockQuerySnapshot(docs);
 }
 
-export function onSnapshot(target: MockRef, onNext: Function, onError?: Function) {
+export function onSnapshot(
+  target: MockRef,
+  optionsOrOnNext: any,
+  onNextOrOnError?: any,
+  maybeOnError?: any
+) {
+  let options = { includeMetadataChanges: false };
+  let onNext: Function;
+  let onError: Function | undefined;
+
+  if (typeof optionsOrOnNext === 'function') {
+    onNext = optionsOrOnNext;
+    onError = onNextOrOnError;
+  } else {
+    options = optionsOrOnNext || options;
+    onNext = onNextOrOnError;
+    onError = maybeOnError;
+  }
+
   let isMounted = true;
+  let prevDocsMap = new Map<string, any>();
 
   const fetchAndNotify = () => {
     if (!isMounted) return;
@@ -341,18 +400,68 @@ export function onSnapshot(target: MockRef, onNext: Function, onError?: Function
         if (isMounted && typeof onError === 'function') onError(err);
       });
     } else {
-      getDocs(target).then(snapshot => {
-        if (isMounted && typeof onNext === 'function') {
-          onNext(snapshot);
-        }
-      }).catch(err => {
-        if (isMounted && typeof onError === 'function') onError(err);
-      });
+      const collectionName = target.collectionName;
+      if (collectionName === 'orders') {
+        supabase.from('orders').select('*').order('created_at', { ascending: false }).then(({ data, error }) => {
+          if (!isMounted) return;
+          if (error) {
+            if (typeof onError === 'function') onError(error);
+            return;
+          }
+          const orders = (data || []).map(row => supabaseRowToOrder(row));
+          const docs = orders.map(o => ({
+            id: o.id,
+            data: () => o,
+            exists: () => true
+          }));
+          const snap = createMockQuerySnapshot(docs, prevDocsMap, options);
+          prevDocsMap = new Map();
+          docs.forEach(d => prevDocsMap.set(String(d.id), d));
+          if (typeof onNext === 'function') onNext(snap);
+        }).catch(err => {
+          if (isMounted && typeof onError === 'function') onError(err);
+        });
+      } else if (collectionName === 'products') {
+        supabase.from('products').select('*').order('created_at', { ascending: false }).then(({ data, error }) => {
+          if (!isMounted) return;
+          if (error) {
+            if (typeof onError === 'function') onError(error);
+            return;
+          }
+          const products = (data || []).map(row => supabaseRowToProduct(row));
+          const docs = products.map(p => ({
+            id: p.id,
+            data: () => p,
+            exists: () => true
+          }));
+          const snap = createMockQuerySnapshot(docs, prevDocsMap, options);
+          prevDocsMap = new Map();
+          docs.forEach(d => prevDocsMap.set(String(d.id), d));
+          if (typeof onNext === 'function') onNext(snap);
+        }).catch(err => {
+          if (isMounted && typeof onError === 'function') onError(err);
+        });
+      } else {
+        fetchDocumentsFromSupabase(collectionName).then(docsData => {
+          if (!isMounted) return;
+          const docs = docsData.map(item => ({
+            id: item.id,
+            data: () => item,
+            exists: () => true
+          }));
+          const snap = createMockQuerySnapshot(docs, prevDocsMap, options);
+          prevDocsMap = new Map();
+          docs.forEach(d => prevDocsMap.set(String(d.id), d));
+          if (typeof onNext === 'function') onNext(snap);
+        }).catch(err => {
+          if (isMounted && typeof onError === 'function') onError(err);
+        });
+      }
     }
   };
 
   fetchAndNotify();
-  const interval = setInterval(fetchAndNotify, 4000);
+  const interval = setInterval(fetchAndNotify, 3500);
 
   return () => {
     isMounted = false;

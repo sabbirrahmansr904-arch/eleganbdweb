@@ -390,7 +390,10 @@ export async function deleteDocumentFromSupabase(collectionName: string, recordI
     const client = getSupabaseClient() || supabase;
     if (!client) return false;
     const docId = `${collectionName}_${recordId}`;
-    await client.from('app_documents').delete().eq('id', docId);
+    await Promise.all([
+      client.from('app_documents').delete().eq('id', docId),
+      client.from('app_documents').delete().eq('collection_name', collectionName).eq('record_id', String(recordId))
+    ]);
     return true;
   } catch (err) {
     return false;

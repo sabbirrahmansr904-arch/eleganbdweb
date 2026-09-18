@@ -7,7 +7,7 @@ import {
   RotateCcw, Banknote
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useProducts, getCanonicalProductKey } from '../contexts/ProductContext';
+import { useProducts, getCanonicalProductKey, deduplicateProducts } from '../contexts/ProductContext';
 import { useBanners } from '../contexts/BannerContext';
 import { useBranding } from '../contexts/BrandingContext';
 import { useCategories, sortCategories, getDefaultCategoryImage } from '../contexts/CategoryContext';
@@ -147,21 +147,7 @@ const Home = () => {
   // Ensure products list is strictly deduplicated by ID and canonical code/color key
   const uniqueProducts = React.useMemo(() => {
     if (!products || products.length === 0) return [];
-    const seenIds = new Set<string>();
-    const seenCanonical = new Set<string>();
-
-    return products.filter(p => {
-      if (!p || !p.id) return false;
-      const idStr = String(p.id).trim().toLowerCase();
-      if (seenIds.has(idStr)) return false;
-
-      const canonicalKey = getCanonicalProductKey(p);
-      if (canonicalKey && seenCanonical.has(canonicalKey)) return false;
-
-      seenIds.add(idStr);
-      if (canonicalKey) seenCanonical.add(canonicalKey);
-      return true;
-    });
+    return deduplicateProducts(products);
   }, [products]);
 
   // Sort products: Formal Pants FIRST (Ordered serially by code/SKU), then Formal Shirts SECOND, then others

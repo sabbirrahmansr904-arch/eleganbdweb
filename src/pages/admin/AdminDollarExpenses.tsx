@@ -2,13 +2,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { db } from '../../lib/firebase';
 import { 
   collection, 
   onSnapshot, 
   addDoc, 
-  updateDoc, 
+  setDoc,
   deleteDoc, 
   doc, 
   query, 
@@ -34,7 +34,8 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   Filter,
-  Check
+  Check,
+  RefreshCw
 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import toast from 'react-hot-toast';
@@ -53,10 +54,56 @@ interface DollarTransaction {
   usdAccountId?: string;
 }
 
+// Tombstone tracking for deleted dollar transactions (prevents stale data resurrection across devices)
+const getDeletedDollarTransactionIds = (): Set<string> => {
+  try {
+    const raw = localStorage.getItem('eleganbd_deleted_dollar_tx_ids');
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) return new Set(arr.map(String));
+    }
+  } catch {}
+  return new Set();
+};
+
+const markDollarTransactionIdAsDeleted = (id: string | string[]) => {
+  try {
+    const set = getDeletedDollarTransactionIds();
+    if (Array.isArray(id)) {
+      id.forEach(i => set.add(String(i)));
+    } else {
+      set.add(String(id));
+    }
+    localStorage.setItem('eleganbd_deleted_dollar_tx_ids', JSON.stringify(Array.from(set)));
+  } catch {}
+};
+
+const unmarkDollarTransactionIdAsDeleted = (id: string) => {
+  try {
+    const set = getDeletedDollarTransactionIds();
+    set.delete(String(id));
+    localStorage.setItem('eleganbd_deleted_dollar_tx_ids', JSON.stringify(Array.from(set)));
+  } catch {}
+};
+
 export default function AdminDollarExpenses(): React.JSX.Element {
   const { bankAccounts, bankTransactions, addBankTransaction, deleteBankTransaction } = useFinance();
   const { isSabbirRahman } = useAuth();
-  const [transactions, setTransactions] = useState<DollarTransaction[]>([]);
+  
+  const [transactions, setTransactions] = useState<DollarTransaction[]>(() => {
+    try {
+      const deletedSet = getDeletedDollarTransactionIds();
+      const cached = localStorage.getItem('elegan_dollar_transactions');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(t => t && t.id && !deletedSet.has(String(t.id)));
+        }
+      }
+    } catch {}
+    return [];
+  });
+  
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'all' | 'buy' | 'spend'>('all');
   
@@ -66,8 +113,10 @@ export default function AdminDollarExpenses(): React.JSX.Element {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  // Selection for PDF download
+  // Selection for PDF download and bulk delete
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
   // Add / Edit Modal State
   const [showModal, setShowModal] = useState(false);
@@ -88,70 +137,101 @@ export default function AdminDollarExpenses(): React.JSX.Element {
     notes: ''
   });
 
-  // Fetch dollar transactions real-time with cross-device sync
+  const transactionsRef = useRef<DollarTransaction[]>(transactions);
   useEffect(() => {
-    // Initial local cache retrieval
-    try {
-      const cached = localStorage.getItem('elegan_dollar_transactions');
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setTransactions(parsed);
-          setLoading(false);
-        }
-      }
-    } catch (e) {}
+    transactionsRef.current = transactions;
+  }, [transactions]);
 
-    const unsubscribe = onSnapshot(collection(db, 'dollar_transactions'), (snapshot) => {
-      const list: DollarTransaction[] = [];
-      snapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        list.push({
-          id: docSnap.id,
-          type: data.type || 'spend',
-          amount: Number(data.amount || 0),
-          rate: Number(data.rate || 0),
-          bdtAmount: Number(data.bdtAmount || 0),
-          date: Number(data.date || Date.now()),
-          purpose: data.purpose || '',
-          notes: data.notes || '',
-          account: data.account || 'bKash',
-          accountId: data.accountId || '',
-          usdAccountId: data.usdAccountId || ''
+  // Primary Cross-Device Real-time Listeners
+  useEffect(() => {
+    let isSubscribed = true;
+
+    // 1. Live Listener for Deleted Tombstones
+    const unsubDelTxs = onSnapshot(doc(db, 'finance_meta', 'deleted_dollar_transactions'), (snap) => {
+      if (!isSubscribed || !snap.exists()) return;
+      const ids = snap.data()?.ids || [];
+      if (Array.isArray(ids) && ids.length > 0) {
+        markDollarTransactionIdAsDeleted(ids);
+        setTransactions(prev => {
+          const filtered = prev.filter(t => t && t.id && !ids.includes(t.id));
+          try { localStorage.setItem('elegan_dollar_transactions', JSON.stringify(filtered)); } catch {}
+          return filtered;
         });
-      });
+      }
+    }, () => {});
 
-      // Auto-upload any local items that are missing from cloud
-      try {
-        const cached = localStorage.getItem('elegan_dollar_transactions');
-        if (cached) {
-          const parsed: DollarTransaction[] = JSON.parse(cached);
-          if (Array.isArray(parsed)) {
-            const cloudIds = new Set(list.map(t => t.id));
-            const missingInCloud = parsed.filter(t => t && t.id && !cloudIds.has(t.id));
-            for (const missing of missingInCloud) {
-              const sanitized = sanitizeForFirestore(missing);
-              addDoc(collection(db, 'dollar_transactions'), sanitized).catch(() => {});
-              list.push(missing);
+    // 2. Live Firestore Dollar Transactions Collection Listener
+    const unsubTransactions = onSnapshot(
+      collection(db, 'dollar_transactions'),
+      { includeMetadataChanges: true },
+      (snapshot) => {
+        if (!isSubscribed) return;
+
+        // Catch removed docs in real-time
+        if (snapshot.docChanges && typeof snapshot.docChanges === 'function') {
+          snapshot.docChanges().forEach((change: any) => {
+            if (change.type === 'removed' && change.doc?.id) {
+              markDollarTransactionIdAsDeleted(change.doc.id);
             }
-          }
+          });
         }
-      } catch (e) {}
 
-      // Authoritative sort by date descending
-      list.sort((a, b) => (Number(b.date) || 0) - (Number(a.date) || 0));
+        const deletedSet = getDeletedDollarTransactionIds();
+        const list: DollarTransaction[] = snapshot.docs
+          .filter(docSnap => !deletedSet.has(String(docSnap.id)))
+          .map((docSnap) => {
+            const data = docSnap.data();
+            return {
+              id: docSnap.id,
+              type: data.type || 'spend',
+              amount: Number(data.amount || 0),
+              rate: Number(data.rate || 0),
+              bdtAmount: Number(data.bdtAmount || 0),
+              date: Number(data.date || Date.now()),
+              purpose: data.purpose || '',
+              notes: data.notes || '',
+              account: data.account || 'bKash',
+              accountId: data.accountId || '',
+              usdAccountId: data.usdAccountId || ''
+            };
+          });
 
-      setTransactions(list);
-      try {
-        localStorage.setItem('elegan_dollar_transactions', JSON.stringify(list));
-      } catch (e) {}
-      setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'dollar_transactions');
-      setLoading(false);
-    });
+        // Authoritative sort by date descending
+        list.sort((a, b) => (Number(b.date) || 0) - (Number(a.date) || 0));
 
-    return () => unsubscribe();
+        setTransactions(list);
+        try {
+          localStorage.setItem('elegan_dollar_transactions', JSON.stringify(list));
+        } catch (e) {}
+        setLoading(false);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'dollar_transactions');
+        setLoading(false);
+      }
+    );
+
+    // 3. Cross-Tab Storage Event Sync
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'elegan_dollar_transactions' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          const deletedSet = getDeletedDollarTransactionIds();
+          if (Array.isArray(parsed)) {
+            setTransactions(parsed.filter(t => t && t.id && !deletedSet.has(String(t.id))));
+          }
+        } catch {}
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      isSubscribed = false;
+      unsubDelTxs();
+      unsubTransactions();
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   // Pre-fill fields for editing or fresh entry when modal opens
@@ -416,6 +496,7 @@ export default function AdminDollarExpenses(): React.JSX.Element {
       let targetTxId = editingTransaction?.id;
 
       if (editingTransaction && targetTxId) {
+        unmarkDollarTransactionIdAsDeleted(targetTxId);
         await setDoc(doc(db, 'dollar_transactions', targetTxId), sanitizedPayload, { merge: true });
         saveDocumentToSupabase('dollar_transactions', targetTxId, sanitizedPayload).catch(() => {});
         
@@ -433,6 +514,7 @@ export default function AdminDollarExpenses(): React.JSX.Element {
       } else {
         const docRef = await addDoc(collection(db, 'dollar_transactions'), sanitizedPayload);
         targetTxId = docRef.id;
+        unmarkDollarTransactionIdAsDeleted(targetTxId);
         saveDocumentToSupabase('dollar_transactions', targetTxId, sanitizedPayload).catch(() => {});
       }
 
@@ -508,10 +590,21 @@ export default function AdminDollarExpenses(): React.JSX.Element {
     }
   };
 
-  // Delete Transaction Handler
+  // Delete Single Transaction Handler with cross-device tombstone sync
   const handleDeleteTransaction = async (id: string) => {
     try {
-      // Revert associated bank transactions from Finance ledger first
+      // 1. Mark as deleted locally & in cloud tombstone immediately
+      markDollarTransactionIdAsDeleted(id);
+      setTransactions(prev => {
+        const next = prev.filter(t => t.id !== id);
+        try { localStorage.setItem('elegan_dollar_transactions', JSON.stringify(next)); } catch {}
+        return next;
+      });
+
+      const currentDeleted = Array.from(getDeletedDollarTransactionIds());
+      setDoc(doc(db, 'finance_meta', 'deleted_dollar_transactions'), { ids: currentDeleted, updatedAt: Date.now() }, { merge: true }).catch(() => {});
+
+      // 2. Revert associated bank transactions from Finance ledger
       const relatedBankTxs = bankTransactions.filter(
         tx => tx.dollarTxId === id || (tx.reference && tx.reference.includes(`[DTX_${id}]`))
       );
@@ -523,6 +616,7 @@ export default function AdminDollarExpenses(): React.JSX.Element {
         }
       }
 
+      // 3. Delete from Firestore and Supabase
       await deleteDoc(doc(db, 'dollar_transactions', id));
       deleteDocumentFromSupabase('dollar_transactions', id).catch(() => {});
       toast.success('লেনদেন সফলভাবে ডিলিট হয়েছে এবং ফাইন্যান্স অ্যাকাউন্টের ব্যালেন্স রিস্টোর করা হয়েছে!');
@@ -533,6 +627,57 @@ export default function AdminDollarExpenses(): React.JSX.Element {
       } else {
         toast.error('ডিলিট করতে সমস্যা হয়েছে!');
       }
+    }
+  };
+
+  // Bulk Delete Multiple Selected Transactions
+  const handleDeleteMultipleTransactions = async (idsToDelete: string[]) => {
+    if (!idsToDelete || idsToDelete.length === 0) return;
+    setIsBulkDeleting(true);
+    const toastId = toast.loading(`${idsToDelete.length}টি ডলার লেনদেন ডিলিট করা হচ্ছে...`);
+
+    try {
+      // 1. Mark as deleted locally & in cloud tombstones
+      markDollarTransactionIdAsDeleted(idsToDelete);
+      setTransactions(prev => {
+        const next = prev.filter(t => !idsToDelete.includes(t.id));
+        try { localStorage.setItem('elegan_dollar_transactions', JSON.stringify(next)); } catch {}
+        return next;
+      });
+
+      const currentDeleted = Array.from(getDeletedDollarTransactionIds());
+      setDoc(doc(db, 'finance_meta', 'deleted_dollar_transactions'), { ids: currentDeleted, updatedAt: Date.now() }, { merge: true }).catch(() => {});
+
+      // 2. Revert associated bank transactions
+      for (const id of idsToDelete) {
+        const relatedBankTxs = bankTransactions.filter(
+          tx => tx.dollarTxId === id || (tx.reference && tx.reference.includes(`[DTX_${id}]`))
+        );
+        for (const btx of relatedBankTxs) {
+          try {
+            await deleteBankTransaction(btx.id);
+          } catch (e) {}
+        }
+      }
+
+      // 3. Delete from Firestore & Supabase
+      await Promise.all(
+        idsToDelete.map(id => 
+          Promise.all([
+            deleteDoc(doc(db, 'dollar_transactions', id)).catch(() => {}),
+            deleteDocumentFromSupabase('dollar_transactions', id).catch(() => {})
+          ])
+        )
+      );
+
+      setSelectedIds([]);
+      toast.dismiss(toastId);
+      toast.success(`${idsToDelete.length}টি লেনদেন সফলভাবে মুছে ফেলা হয়েছে!`);
+    } catch (err) {
+      toast.dismiss(toastId);
+      toast.error('মুছে ফেলতে সমস্যা হয়েছে!');
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
 
@@ -907,15 +1052,43 @@ export default function AdminDollarExpenses(): React.JSX.Element {
 
         {/* Ledger Table */}
         <div className="overflow-x-auto border border-gray-100 rounded-2xl">
-          <div className="bg-gray-50 px-4 py-2 text-xs font-bold text-gray-500 flex items-center justify-between border-b border-gray-100">
-            <span>মোট লেনদেন: {filteredTransactions.length} টি {selectedIds.length > 0 && `(নির্বাচিত: ${selectedIds.length} টি)`}</span>
+          <div className="bg-gray-50 px-4 py-2.5 text-xs font-bold text-gray-500 flex items-center justify-between border-b border-gray-100 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <span>মোট লেনদেন: {filteredTransactions.length} টি</span>
+              {selectedIds.length > 0 && (
+                <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-[11px] font-black">
+                  নির্বাচিত: {selectedIds.length} টি
+                </span>
+              )}
+            </div>
+
             {selectedIds.length > 0 && (
-              <button 
-                onClick={() => setSelectedIds([])}
-                className="text-rose-600 hover:underline text-[11px] font-bold cursor-pointer"
-              >
-                সিলেকশন বাতিল করুন
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleDownloadPDF}
+                  className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+                  title="নির্বাচিত লেনদেনের PDF ডাউনলোড করুন"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>PDF ডাউনলোড ({selectedIds.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowBulkDeleteConfirm(true)}
+                  className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+                  title="নির্বাচিত লেনদেনগুলো মুছে ফেলুন"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>মুছে ফেলুন ({selectedIds.length})</span>
+                </button>
+                <button 
+                  onClick={() => setSelectedIds([])}
+                  className="text-gray-500 hover:text-gray-700 text-[11px] font-bold cursor-pointer underline ml-1"
+                >
+                  বাতিল
+                </button>
+              </div>
             )}
           </div>
           <table className="w-full text-left border-collapse">
@@ -1361,7 +1534,7 @@ export default function AdminDollarExpenses(): React.JSX.Element {
         </div>
       )}
 
-      {/* Delete Confirmation Centered Modal */}
+      {/* Delete Single Confirmation Centered Modal */}
       {deletingId && (
         <div className="fixed inset-0 bg-black/45 backdrop-blur-xs flex items-center justify-center z-50 p-4 transition-all animate-fade-in">
           <div className="bg-white rounded-[24px] w-full max-w-sm shadow-xl overflow-hidden border border-gray-100 p-6 space-y-4">
@@ -1393,6 +1566,46 @@ export default function AdminDollarExpenses(): React.JSX.Element {
                 className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer text-center"
               >
                 হ্যাঁ, ডিলিট করুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Multiple Confirmation Centered Modal */}
+      {showBulkDeleteConfirm && selectedIds.length > 0 && (
+        <div className="fixed inset-0 bg-black/45 backdrop-blur-xs flex items-center justify-center z-50 p-4 transition-all animate-fade-in">
+          <div className="bg-white rounded-[24px] w-full max-w-sm shadow-xl overflow-hidden border border-gray-100 p-6 space-y-4">
+            <div className="text-center space-y-2">
+              <div className="mx-auto w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-black text-gray-900">{selectedIds.length}টি ডলার লেনদেন ডিলিট করতে চান?</h3>
+              <p className="text-xs text-gray-400 font-medium">
+                আপনি কি নিশ্চিত যে নির্বাচিত {selectedIds.length}টি লেনদেন একবারে চিরতরে মুছে ফেলতে চান? সমস্ত সম্পর্কিত ফাইন্যান্স রেকর্ড রিস্টোর করা হবে।
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                disabled={isBulkDeleting}
+                onClick={() => setShowBulkDeleteConfirm(false)}
+                className="flex-1 py-2.5 border border-gray-200 text-gray-500 hover:text-gray-700 rounded-xl text-xs font-bold hover:bg-gray-50 transition-all cursor-pointer text-center"
+              >
+                বাতিল করুন
+              </button>
+              <button
+                type="button"
+                disabled={isBulkDeleting}
+                onClick={async () => {
+                  const ids = [...selectedIds];
+                  setShowBulkDeleteConfirm(false);
+                  await handleDeleteMultipleTransactions(ids);
+                }}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer text-center"
+              >
+                {isBulkDeleting ? 'মুছে ফেলা হচ্ছে...' : 'হ্যাঁ, সব ডিলিট করুন'}
               </button>
             </div>
           </div>

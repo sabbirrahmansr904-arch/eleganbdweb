@@ -315,95 +315,117 @@ const removeDeletedId = (id: string) => {
 };
 
 export const isDemoProduct = (p: Product | null | undefined): boolean => {
-  if (!p) return true;
-  const deletedSet = getDeletedIds();
-  if (p.id && deletedSet.has(String(p.id))) return true;
-  
-  const pId = String(p.id || '').toLowerCase();
-  if (pId.startsWith('fp-') || pId.startsWith('fs-') || pId.startsWith('demo-')) {
-    return true;
-  }
-
-  const imagesStr = JSON.stringify(p.images || []).toLowerCase() + ' ' + (p.image || '').toLowerCase();
-  if (imagesStr.includes('unsplash.com')) {
-    return true;
-  }
-
-  // STRICT RULE: Only products with a valid SKU are allowed
-  const sku = (p.sku || '').trim();
-  if (!sku) return true;
-
+  if (!p || !p.id) return true;
   const name = (p.name || '').trim().toLowerCase();
-  // Filter out unnamed or corrupt records
   if (!name || name === 'unnamed product' || name === 'untitled product' || name === 'unnamed') {
     return true;
   }
-
-  // Must have a valid price
-  if (!p.price || Number(p.price) <= 0) {
-    return true;
-  }
-
   return false;
 };
 
 export const getCanonicalProductKey = (p: Product): string => {
   if (!p || typeof p !== 'object') return '';
   
-  const sku = (p.sku || '').trim().toLowerCase();
-  const name = (p.name || '').trim().toLowerCase();
-  const color = (p.color || '').trim().toLowerCase();
-  const category = (p.category || '').trim().toLowerCase();
+  const rawId = String(p.id || '').trim().toLowerCase();
+  const rawSku = (p.sku || '').trim().toLowerCase();
+  const rawName = (p.name || '').trim().toLowerCase();
+  const rawColor = (p.color || '').trim().toLowerCase();
+  const rawCat = (p.category || '').trim().toLowerCase();
+  
+  const isPant = rawCat.includes('pant') || rawName.includes('pant') || rawCat.includes('trouser') || rawName.includes('trouser');
+  const isShirt = rawCat.includes('shirt') || rawName.includes('shirt') || rawCat.includes('polo') || rawName.includes('polo');
+  const catPrefix = isPant ? 'pant' : isShirt ? 'shirt' : 'other';
 
-  // If SKU is present and unique (e.g. FP-01, FP-02)
-  if (sku && sku.length >= 3) {
-    return `sku_${sku}`;
+  // 1. Explicit Serial Code matching like (Code: FP 1), FP-01, Code-1, FP 1, FS 2, etc.
+  const fullSearchStr = `${rawSku} ${rawName} ${rawId} ${rawColor}`;
+  const explicitCodeMatch = fullSearchStr.match(/\b(?:code|fp|fs|pant|shirt)[\s:#_-]*0*(\d+)\b/i);
+  if (explicitCodeMatch && explicitCodeMatch[1]) {
+    return `${catPrefix}_code_${parseInt(explicitCodeMatch[1], 10)}`;
   }
 
-  // Check for explicit product code (e.g. Code: FP 1, FP-01, Code 1)
-  const fullText = `${name} ${sku} ${color}`;
-  const codeMatch = fullText.match(/\b(?:code|fp|fs)[\s-_#]*0*(\d+)\b/i);
-  if (codeMatch && codeMatch[1]) {
-    const isPant = category.includes('pant') || name.includes('pant');
-    const prefix = isPant ? 'pant' : 'shirt';
-    return `${prefix}_code_${parseInt(codeMatch[1], 10)}`;
+  // 2. Normalized SKU matching
+  const cleanSku = rawSku.replace(/[^a-z0-9]/g, '');
+  if (cleanSku && cleanSku.length >= 2) {
+    const skuCodeMatch = cleanSku.match(/^(?:fp|fs|p|s|pant|shirt)0*(\d+)$/i);
+    if (skuCodeMatch && skuCodeMatch[1]) {
+      return `${catPrefix}_code_${parseInt(skuCodeMatch[1], 10)}`;
+    }
+    return `sku_${cleanSku}`;
   }
 
-  const normName = name.replace(/[^a-z0-9]/g, '');
-  const normColor = color.replace(/[^a-z0-9]/g, '');
+  // 3. Normalized Name + Color (e.g. Formal Pant Deep Black)
+  const cleanName = rawName
+    .replace(/\(code:?[^\)]*\)/gi, '')
+    .replace(/code:?\s*[a-z0-9_-]+/gi, '')
+    .replace(/[^a-z0-9]/g, '');
 
-  if (normName && normColor) {
-    return `nc_${normName}_${normColor}`;
+  const cleanColor = rawColor.replace(/[^a-z0-9]/g, '');
+
+  if (cleanName && cleanColor) {
+    return `${catPrefix}_${cleanName}_${cleanColor}`;
   }
 
-  if (normName) {
-    return `n_${normName}`;
+  if (cleanName && cleanName.length > 5) {
+    return `${catPrefix}_${cleanName}`;
   }
 
-  return `id_${String(p.id || '').toLowerCase()}`;
+  return rawId ? `id_${rawId}` : '';
 };
 
-const deduplicateProducts = (list: Product[]): Product[] => {
+export const deduplicateProducts = (list: Product[]): Product[] => {
   if (!Array.isArray(list)) return [];
-  const seenIds = new Set<string>();
-  const seenCanonical = new Set<string>();
-  const deletedSet = getDeletedIds();
+  const canonicalMap = new Map<string, Product>();
+  const idMap = new Map<string, Product>();
 
-  return list.filter(p => {
-    if (!p || !p.id) return false;
-    const strId = String(p.id).trim();
-    if (!strId || deletedSet.has(strId)) return false;
+  for (const p of list) {
+    if (!p || !p.id || isDemoProduct(p)) continue;
+    const strId = String(p.id).trim().toLowerCase();
+    const canonKey = getCanonicalProductKey(p);
 
-    const lowerId = strId.toLowerCase();
-    if (seenIds.has(lowerId)) return false;
+    const existingById = idMap.get(strId);
+    const existingByCanon = canonKey ? canonicalMap.get(canonKey) : undefined;
+    const existing = existingById || existingByCanon;
 
-    const canonicalKey = getCanonicalProductKey(p);
-    if (canonicalKey && seenCanonical.has(canonicalKey)) return false;
+    if (!existing) {
+      if (canonKey) canonicalMap.set(canonKey, p);
+      idMap.set(strId, p);
+    } else {
+      // Determine which product is higher fidelity:
+      // Real uploaded/custom images beat demo Unsplash fallback images
+      const pHasCustomImg = Array.isArray(p.images) && p.images.some(img => img && !img.includes('unsplash.com') && img.length > 10);
+      const exHasCustomImg = Array.isArray(existing.images) && existing.images.some(img => img && !img.includes('unsplash.com') && img.length > 10);
 
-    seenIds.add(lowerId);
-    if (canonicalKey) seenCanonical.add(canonicalKey);
-    return true;
-  });
+      const pIsDefault = strId.startsWith('fp-') || strId.startsWith('fs-');
+      const exIsDefault = String(existing.id).toLowerCase().startsWith('fp-') || String(existing.id).toLowerCase().startsWith('fs-');
+
+      let winner = existing;
+      if (pHasCustomImg && !exHasCustomImg) {
+        winner = p;
+      } else if (!pIsDefault && exIsDefault) {
+        winner = p;
+      } else {
+        const pUpdated = (p as any).updatedAt || (p as any).createdAt ? new Date((p as any).updatedAt || (p as any).createdAt).getTime() : 0;
+        const exUpdated = (existing as any).updatedAt || (existing as any).createdAt ? new Date((existing as any).updatedAt || (existing as any).createdAt).getTime() : 0;
+        if (pUpdated > exUpdated) {
+          winner = p;
+        }
+      }
+
+      // Merge product metadata to prevent loss of stock, sizes, or descriptions
+      const merged: Product = {
+        ...existing,
+        ...p,
+        ...winner,
+        images: (winner.images && winner.images.length > 0) ? winner.images : (existing.images || p.images || []),
+        image: winner.image || existing.image || p.image || ''
+      };
+
+      if (canonKey) canonicalMap.set(canonKey, merged);
+      idMap.set(String(merged.id).trim().toLowerCase(), merged);
+    }
+  }
+
+  return Array.from(idMap.values());
 };
 
 function cleanFirestoreData(data: Record<string, any>): Record<string, any> {
@@ -482,54 +504,8 @@ const normalizeProductCategory = (p: Product): Product => {
 };
 
 const mergeProductsWithLocalCache = (incoming: Product[], local: Product[]): Product[] => {
-  const localMap = new Map<string, Product>();
-  local.forEach(p => {
-    if (p && p.id && !isDemoProduct(p)) localMap.set(String(p.id), p);
-  });
-
-  const mergedMap = new Map<string, Product>();
-
-  incoming.forEach(inc => {
-    if (!inc || !inc.id || isDemoProduct(inc)) return;
-    const cleanId = String(inc.id);
-    const loc = localMap.get(cleanId);
-    if (!loc) {
-      mergedMap.set(cleanId, inc);
-    } else {
-      // Incoming (live DB/server product) takes precedence for image and details
-      const incImages = (Array.isArray(inc.images) && inc.images.length > 0)
-        ? inc.images.filter(Boolean)
-        : (inc.image ? [inc.image] : []);
-
-      const locImages = (Array.isArray(loc.images) && loc.images.length > 0)
-        ? loc.images.filter(Boolean)
-        : (loc.image ? [loc.image] : []);
-
-      // If incoming has images, strictly use incoming images!
-      const finalImages = incImages.length > 0 ? incImages : locImages;
-      const mainImage = finalImages[0] || inc.image || loc.image || '';
-
-      const mergedProduct: Product = {
-        ...loc,
-        ...inc,
-        images: finalImages,
-        image: mainImage,
-        updatedAt: Math.max((inc as any).updatedAt || 0, (loc as any).updatedAt || 0, Date.now())
-      };
-      mergedMap.set(cleanId, mergedProduct);
-    }
-  });
-
-  local.forEach(loc => {
-    if (loc && loc.id && !isDemoProduct(loc)) {
-      const cleanId = String(loc.id);
-      if (!mergedMap.has(cleanId)) {
-        mergedMap.set(cleanId, loc);
-      }
-    }
-  });
-
-  return Array.from(mergedMap.values()).filter(p => !isDemoProduct(p));
+  const combined = [...incoming.filter(p => !isDemoProduct(p)), ...local.filter(p => !isDemoProduct(p))];
+  return deduplicateProducts(combined);
 };
 
 export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -548,23 +524,28 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
         baseList = CANONICAL_DEFAULT_PRODUCTS.filter(p => !isDemoProduct(p)).map(normalizeProductCategory);
       }
 
+      const canonSeen = new Set<string>();
       const map = new Map<string, Product>();
       baseList.forEach(p => {
         if (!isDemoProduct(p)) {
           map.set(String(p.id), p);
+          const cKey = getCanonicalProductKey(p);
+          if (cKey) canonSeen.add(cKey);
         }
       });
 
-      // Ensure any brand new canonical default products not yet in local storage are included
+      // Only add canonical default products if not already represented in baseList
       CANONICAL_DEFAULT_PRODUCTS.forEach(can => {
-        if (!isDemoProduct(can) && !map.has(String(can.id))) {
+        const canKey = getCanonicalProductKey(can);
+        if (!isDemoProduct(can) && !map.has(String(can.id)) && (!canKey || !canonSeen.has(canKey))) {
           map.set(String(can.id), normalizeProductCategory(can));
+          if (canKey) canonSeen.add(canKey);
         }
       });
 
       return deduplicateProducts(Array.from(map.values())).filter(p => !isDemoProduct(p));
     } catch (e) {}
-    return CANONICAL_DEFAULT_PRODUCTS.filter(p => !isDemoProduct(p));
+    return deduplicateProducts(CANONICAL_DEFAULT_PRODUCTS.filter(p => !isDemoProduct(p)));
   });
 
   const [loading, setLoading] = useState<boolean>(true);
@@ -689,26 +670,11 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (loadedProducts.length > 0 && isMounted) {
           const nonDeleted = loadedProducts.filter(p => !isDemoProduct(p));
           const normalized = deduplicateProducts(nonDeleted.map(normalizeProductCategory));
-          setProducts(prev => {
-            const incomingMap = new Map<string, Product>();
-            normalized.forEach(p => incomingMap.set(String(p.id), p));
-
-            const finalProducts = [...normalized];
-            prev.forEach(localItem => {
-              if (localItem && localItem.id && !isDemoProduct(localItem)) {
-                if (!incomingMap.has(String(localItem.id))) {
-                  finalProducts.push(localItem);
-                }
-              }
-            });
-
-            const finalNormalized = deduplicateProducts(finalProducts.map(normalizeProductCategory)).filter(p => !isDemoProduct(p));
-            try {
-              localStorage.setItem('eleganbd_products', JSON.stringify(finalNormalized));
-              localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
-            } catch (e) {}
-            return finalNormalized;
-          });
+          setProducts(normalized);
+          try {
+            localStorage.setItem('eleganbd_products', JSON.stringify(normalized));
+            localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
+          } catch (e) {}
         }
       } catch (err) {
         console.warn('[ProductContext] Supabase load notice:', err);
@@ -724,8 +690,9 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // B. Real-time Supabase subscription
     let supabaseChannel: any = null;
     try {
+      const uniqueSubId = Math.random().toString(36).substring(2, 9);
       supabaseChannel = supabase
-        .channel('realtime_products_changes')
+        .channel(`realtime_products_${uniqueSubId}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload) => {
           if (!isMounted) return;
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
@@ -795,29 +762,12 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
 
       if (prodData.length > 0) {
-        const normalized = deduplicateProducts(prodData.map(normalizeProductCategory));
-        setProducts(prev => {
-          // Cloud Firestore has live updates from all devices
-          const cloudMap = new Map<string, Product>();
-          normalized.forEach(p => cloudMap.set(String(p.id), p));
-
-          // Retain local items only if not yet in cloud
-          const merged: Product[] = [...normalized];
-          if (prev && prev.length > 0) {
-            prev.forEach(item => {
-              if (item && item.id && !cloudMap.has(String(item.id)) && !isDemoProduct(item)) {
-                merged.push(item);
-              }
-            });
-          }
-
-          const finalNormalized = deduplicateProducts(merged.map(normalizeProductCategory)).filter(p => !isDemoProduct(p));
-          try {
-            localStorage.setItem('eleganbd_products', JSON.stringify(finalNormalized));
-            localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
-          } catch (e) {}
-          return finalNormalized;
-        });
+        const normalized = deduplicateProducts(prodData.map(normalizeProductCategory)).filter(p => !isDemoProduct(p));
+        setProducts(normalized);
+        try {
+          localStorage.setItem('eleganbd_products', JSON.stringify(normalized));
+          localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
+        } catch (e) {}
       }
       setLoading(false);
     }, (err) => {

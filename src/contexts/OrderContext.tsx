@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Order } from '../types';
-import { supabase, orderToSupabaseRow, supabaseRowToOrder } from '../lib/supabase';
+import { supabase, orderToSupabaseRow, supabaseRowToOrder, getSupabaseClient } from '../lib/supabase';
+import { db } from '../lib/firebase';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { useProducts } from './ProductContext';
 import { useInventory } from './InventoryContext';
@@ -639,6 +641,105 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       console.warn('[OrderContext] Supabase channel subscription error:', e);
     }
 
+    // E. Robust Cross-Device Real-Time Sync & Stale Data Purge via Firestore onSnapshot with includeMetadataChanges
+    let unsubFirestore: (() => void) | null = null;
+    try {
+      const ordersCol = collection(db, 'orders');
+      unsubFirestore = onSnapshot(
+        ordersCol,
+        { includeMetadataChanges: true },
+        (snapshot: any) => {
+          if (!isMounted || !snapshot) return;
+
+          // 1. Process explicit docChanges to immediately catch and purge deletions across devices
+          if (snapshot.docChanges && typeof snapshot.docChanges === 'function') {
+            const changes = snapshot.docChanges();
+            const removedIds: string[] = [];
+            changes.forEach((change: any) => {
+              if (change && change.type === 'removed') {
+                const remId = change.doc?.id ? String(change.doc.id).trim() : '';
+                const data = typeof change.doc?.data === 'function' ? change.doc.data() : change.doc?.data;
+                const invNo = data?.invoiceNo ? String(data.invoiceNo).trim() : '';
+                if (remId) removedIds.push(remId);
+                if (invNo) removedIds.push(invNo);
+              }
+            });
+            if (removedIds.length > 0) {
+              clearDeletedOrdersFromCache(removedIds);
+            }
+          }
+
+          // 2. Parse live orders from authoritative snapshot
+          const liveOrders: Order[] = [];
+          const liveIdSet = new Set<string>();
+
+          if (Array.isArray(snapshot.docs)) {
+            snapshot.docs.forEach((d: any) => {
+              const data = typeof d.data === 'function' ? d.data() : d.data;
+              if (data && data.id) {
+                const orderId = String(data.id).trim();
+                const invNo = data.invoiceNo ? String(data.invoiceNo).trim() : '';
+                if (deletedOrderIdsRef.current.has(orderId) || (invNo && deletedOrderIdsRef.current.has(invNo))) {
+                  return;
+                }
+                liveOrders.push(data as Order);
+                liveIdSet.add(orderId);
+                if (invNo) liveIdSet.add(invNo);
+              }
+            });
+          }
+
+          // 3. Stale order detection: Discard any cached order not present in authoritative snapshot
+          setOrders(prev => {
+            const staleIds: string[] = [];
+            prev.forEach(o => {
+              if (!o || !o.id) return;
+              const oId = String(o.id).trim();
+              const invNo = o.invoiceNo ? String(o.invoiceNo).trim() : '';
+              if (!liveIdSet.has(oId) && (!invNo || !liveIdSet.has(invNo))) {
+                // Check if it's an offline pending order
+                let isPending = false;
+                try {
+                  const raw = localStorage.getItem('eleganbd_pending_sync_orders');
+                  if (raw) {
+                    const arr = JSON.parse(raw);
+                    isPending = Array.isArray(arr) && arr.some((po: any) => String(po?.id) === oId);
+                  }
+                } catch {}
+                if (!isPending) {
+                  staleIds.push(oId);
+                  if (invNo) staleIds.push(invNo);
+                }
+              }
+            });
+
+            if (staleIds.length > 0) {
+              recordDeletedIds(staleIds);
+            }
+
+            // If snapshot is empty, clean all caches
+            if (liveOrders.length === 0 && snapshot.empty) {
+              for (const k of CACHE_KEYS) {
+                try { localStorage.removeItem(k); } catch {}
+              }
+              return [];
+            }
+
+            liveOrders.sort((a, b) => compareOrdersByInvoice(a, b, 'desc'));
+            saveOrdersToCache(liveOrders);
+            return liveOrders;
+          });
+
+          setLoading(false);
+        },
+        (snapErr: any) => {
+          console.warn('[OrderContext] Firestore onSnapshot warning:', snapErr);
+        }
+      );
+    } catch (fsErr) {
+      console.warn('[OrderContext] Firestore onSnapshot setup notice:', fsErr);
+    }
+
     return () => {
       isMounted = false;
       clearInterval(heartbeatInterval);
@@ -651,6 +752,9 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       }
       if (supabaseChannel) {
         try { supabase.removeChannel(supabaseChannel); } catch {}
+      }
+      if (unsubFirestore) {
+        try { unsubFirestore(); } catch {}
       }
     };
   }, []);

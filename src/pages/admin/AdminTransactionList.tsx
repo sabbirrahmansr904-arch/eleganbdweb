@@ -40,6 +40,7 @@ export default function AdminTransactionList(): React.JSX.Element {
     toggleTransactionStatus,
     updateBankTransaction,
     deleteBankTransaction,
+    deleteMultipleBankTransactions,
     recalculateAllBalances
   } = useFinance();
 
@@ -481,6 +482,20 @@ export default function AdminTransactionList(): React.JSX.Element {
             >
               <Clock className="w-3.5 h-3.5" />
               <span>Unpaid</span>
+            </button>
+
+            <button
+              onClick={async () => {
+                if (window.confirm(`আপনি কি নিশ্চিত যে নির্বাচিত ${selectedTxIds.length}টি লেনদেন মুছে ফেলতে চান?`)) {
+                  await deleteMultipleBankTransactions(selectedTxIds);
+                  setSelectedTxIds([]);
+                }
+              }}
+              className="px-3 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              title="নির্বাচিত লেনদেন মুছে ফেলুন"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>মুছে ফেলুন ({selectedTxIds.length})</span>
             </button>
 
             <button
