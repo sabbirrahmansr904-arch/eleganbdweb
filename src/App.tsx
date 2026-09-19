@@ -109,6 +109,12 @@ const ProtectedRoute = ({ children, requireAdmin = true }: { children: React.Rea
 };
 
 function AppRoutes() {
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('elegan_db_mode', 'supabase');
+    } catch {}
+  }, []);
+
   return (
     <MainLayout>
       <Routes>

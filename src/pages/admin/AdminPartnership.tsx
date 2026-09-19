@@ -2117,14 +2117,7 @@ export default function AdminPartnership() {
               <div className="flex items-start justify-between border-b-2 border-slate-900 pb-5 gap-4">
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 rounded-2xl bg-slate-900 p-2 flex items-center justify-center shrink-0 border border-slate-200">
-                    <img 
-                      src={logoUrl || '/logo.png'} 
-                      alt="Elegan BD" 
-                      className="w-full h-full object-contain filter invert"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
-                      }}
-                    />
+                    <span className="text-white font-black text-xl tracking-tighter">MA</span>
                   </div>
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-2">

@@ -234,7 +234,7 @@ export default function AdminSettings() {
   // General settings state
   const [storeIsLive, setStoreIsLive] = useState(true);
   const [showZobityCredit, setShowZobityCredit] = useState(true);
-  const [storeName, setStoreName] = useState('Elegan BD');
+  const [storeName, setStoreName] = useState("Man's Avenue");
   const [shortDescription, setShortDescription] = useState('Premium minimalist fashion for the modern individual.');
   const [phone, setPhone] = useState('01619835133');
   const [whatsappNumber, setWhatsappNumber] = useState('01619835133');
@@ -244,7 +244,7 @@ export default function AdminSettings() {
   const [originalGeneral, setOriginalGeneral] = useState({
     storeIsLive: true,
     showZobityCredit: true,
-    storeName: 'Elegan BD',
+    storeName: "Man's Avenue",
     shortDescription: 'Premium minimalist fashion for the modern individual.',
     phone: '01619835133',
     whatsappNumber: '01619835133',
@@ -260,7 +260,7 @@ export default function AdminSettings() {
         const settings = {
           storeIsLive: d.storeIsLive !== undefined ? d.storeIsLive : true,
           showZobityCredit: d.showZobityCredit !== undefined ? d.showZobityCredit : true,
-          storeName: d.storeName || 'Elegan BD',
+          storeName: d.storeName || "Man's Avenue",
           shortDescription: d.shortDescription || '',
           phone: d.phone || '01619835133',
           whatsappNumber: d.whatsappNumber || '01619835133',
@@ -998,7 +998,7 @@ export default function AdminSettings() {
         const defaultLogs = [
           {
             phone: '8801327772213',
-            message: 'Dear Customer, welcome to Elegan BD! Your verification code is 5824. Do not share this OTP.',
+            message: "Dear Customer, welcome to Man's Avenue! Your verification code is 5824. Do not share this OTP.",
             status: 'Sent',
             sentAt: '10 Jul, 13:54',
             timestamp: Date.now() - 3600000
@@ -1135,6 +1135,47 @@ export default function AdminSettings() {
       toast.error(`Failed to save ${section.split('_').map(w => w.toUpperCase()).join(' ')} settings.`);
     } finally {
       setIsSavingPixel(prev => ({ ...prev, [section]: false }));
+    }
+  };
+
+  const handleRemoveMetaPixel = async () => {
+    setIsSavingPixel(prev => ({ ...prev, facebook: true }));
+    const tId = toast.loading('Removing Meta Pixel from website...');
+    try {
+      const docRef = doc(db, 'config', 'pixel_analytics');
+      const docSnap = await getDoc(docRef);
+      const currentData = docSnap.exists() ? docSnap.data() : {};
+      
+      const mergedConfig = {
+        ...currentData,
+        facebookPixelId: '',
+        facebookAccessToken: '',
+        facebookTestCode: '',
+        updatedAt: Date.now(),
+      };
+
+      await setDoc(docRef, mergedConfig);
+      setPixelConfig(prev => ({
+        ...prev,
+        facebookPixelId: '',
+        facebookAccessToken: '',
+        facebookTestCode: ''
+      }));
+      setLocalPixelConfig(mergedConfig as any);
+      
+      if (typeof window !== 'undefined') {
+        const fbScripts = document.querySelectorAll('script[src*="fbevents.js"], script[src*="connect.facebook.net"]');
+        fbScripts.forEach(s => s.remove());
+        // @ts-ignore
+        if (window.fbq) delete window.fbq;
+      }
+      
+      toast.success('Meta Pixel has been completely removed from the website!', { id: tId });
+    } catch (err) {
+      console.error('Error removing Meta Pixel:', err);
+      toast.error('Failed to remove Meta Pixel settings.', { id: tId });
+    } finally {
+      setIsSavingPixel(prev => ({ ...prev, facebook: false }));
     }
   };
 
@@ -1781,18 +1822,22 @@ export default function AdminSettings() {
                   {/* Chrome tab visual mockup */}
                   <div className="bg-[#e9eef6] dark:bg-slate-800 p-2.5 rounded-xl border border-gray-200/60">
                     <div className="inline-flex items-center gap-2.5 bg-white dark:bg-slate-900 px-3.5 py-2 rounded-t-lg shadow-xs border-t border-x border-gray-200/80 max-w-sm">
-                      <div className="w-4 h-4 rounded-xs overflow-hidden flex items-center justify-center bg-transparent shrink-0">
-                        <img 
-                          src={tempLogo || '/logo.png'} 
-                          alt="Tab Favicon" 
-                          className="w-full h-full object-contain"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = '/logo.png';
-                          }}
-                        />
+                      <div className="w-4 h-4 rounded-xs overflow-hidden flex items-center justify-center bg-slate-900 text-white text-[8px] font-black shrink-0">
+                        {tempLogo && !tempLogo.includes('logo.png') && !tempLogo.includes('logo.svg') ? (
+                          <img 
+                            src={tempLogo} 
+                            alt="Tab Favicon" 
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <span>MA</span>
+                        )}
                       </div>
                       <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate max-w-[200px]">
-                        Elegan BD | Premium Clothing Brand...
+                        Man's Avenue | Premium Clothing Brand...
                       </span>
                       <span className="text-gray-400 text-xs hover:text-gray-700 cursor-pointer ml-1 font-bold">×</span>
                     </div>
@@ -1800,15 +1845,19 @@ export default function AdminSettings() {
                 </div>
 
                 <div className="p-8 border-2 border-dashed border-gray-200 rounded-3xl bg-[#F8F9FD] shadow-xs flex flex-col items-center justify-center text-center space-y-6">
-                  <div className="w-56 h-36 bg-transparent flex items-center justify-center border border-gray-200 rounded-2xl overflow-hidden relative group/inner shadow-inner p-4">
-                    <img 
-                      src={tempLogo || '/logo.png'} 
-                      alt="Logo Preview" 
-                      className="max-h-24 max-w-full w-auto object-contain transition-transform group-hover/inner:scale-105"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement.prototype as any).src = '/logo.png';
-                      }}
-                    />
+                  <div className="w-56 h-36 bg-white flex items-center justify-center border border-gray-200 rounded-2xl overflow-hidden relative group/inner shadow-inner p-4">
+                    {tempLogo && !tempLogo.includes('logo.png') && !tempLogo.includes('logo.svg') ? (
+                      <img 
+                        src={tempLogo} 
+                        alt="Logo Preview" 
+                        className="max-h-24 max-w-full w-auto object-contain transition-transform group-hover/inner:scale-105"
+                      />
+                    ) : (
+                      <div className="text-center">
+                        <span className="font-black text-xl uppercase tracking-tight text-slate-900 block">MAN'S AVENUE</span>
+                        <span className="text-[10px] text-gray-400 font-semibold mt-1 block">Default Clean Typography (No custom image)</span>
+                      </div>
+                    )}
                     <div className="absolute inset-0 bg-black/80 opacity-0 group-hover/inner:opacity-100 transition-all flex items-center justify-center backdrop-blur-xs">
                        <label className="text-white text-xs uppercase tracking-wider font-extrabold cursor-pointer flex flex-col items-center gap-2">
                           <Upload size={22} />
@@ -1823,7 +1872,7 @@ export default function AdminSettings() {
                     <div className="flex gap-2">
                       <input 
                         type="url"
-                        placeholder="https://example.com/logo.png"
+                        placeholder="https://example.com/brand-logo.png"
                         value={tempLogo}
                         onChange={(e) => {
                           setTempLogo(e.target.value);
@@ -1834,13 +1883,13 @@ export default function AdminSettings() {
                       <button
                         type="button"
                         onClick={() => {
-                          setTempLogo('/logo.png');
-                          setLogoUrl('/logo.png');
-                          toast.success('Reset to default logo.');
+                          setTempLogo('');
+                          setLogoUrl('');
+                          toast.success('Reset to clean text logo.');
                         }}
                         className="px-4 py-2.5 border border-gray-200 hover:bg-gray-100 text-gray-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
                       >
-                        Reset
+                        Clear
                       </button>
                     </div>
                   </div>
@@ -1876,12 +1925,14 @@ export default function AdminSettings() {
                     <span className="text-[10px] uppercase tracking-widest text-gray-400 font-black">Dark Navbar Context</span>
                     <div className="flex items-center justify-between py-2 px-4 bg-black/90 border border-white/10 rounded-xl">
                       <div className="flex items-center gap-2">
-                        <img 
-                          src={tempLogo || '/logo.png'} 
-                          className="h-7 w-auto object-contain" 
-                          alt="Dark Navbar Logo"
-                        />
-                        <span className="text-white font-serif font-bold text-sm">ELEGAN BD</span>
+                        {tempLogo && !tempLogo.includes('logo.png') && !tempLogo.includes('logo.svg') ? (
+                          <img 
+                            src={tempLogo} 
+                            className="h-7 w-auto object-contain" 
+                            alt="Dark Navbar Logo"
+                          />
+                        ) : null}
+                        <span className="text-white font-serif font-bold text-sm">MAN'S AVENUE</span>
                       </div>
                       <div className="flex items-center gap-3 text-white/70 text-xs">
                         <span>Home</span>
@@ -1895,12 +1946,14 @@ export default function AdminSettings() {
                     <span className="text-[10px] uppercase tracking-widest text-gray-500 font-black">Light Context Matrix</span>
                     <div className="flex items-center justify-between py-2 px-4 bg-gray-50 border border-gray-200 rounded-xl">
                       <div className="flex items-center gap-2">
-                        <img 
-                          src={tempLogo || '/logo.png'} 
-                          className="h-7 w-auto object-contain" 
-                          alt="Light Navbar Logo"
-                        />
-                        <span className="text-black font-serif font-bold text-sm">ELEGAN BD</span>
+                        {tempLogo && !tempLogo.includes('logo.png') && !tempLogo.includes('logo.svg') ? (
+                          <img 
+                            src={tempLogo} 
+                            className="h-7 w-auto object-contain" 
+                            alt="Light Navbar Logo"
+                          />
+                        ) : null}
+                        <span className="text-black font-serif font-bold text-sm">MAN'S AVENUE</span>
                       </div>
                       <div className="flex items-center gap-3 text-gray-700 text-xs">
                         <span>Home</span>
@@ -1924,11 +1977,11 @@ export default function AdminSettings() {
                 <div className="p-8 border-2 border-dashed border-gray-200 rounded-3xl bg-[#F8F9FD] shadow-xs flex flex-col items-center justify-center text-center space-y-6">
                   <div className="w-full max-w-lg bg-gray-50 flex items-center justify-center border border-gray-200 rounded-2xl overflow-hidden relative group/inner shadow-inner p-4">
                     <img 
-                      src={tempHeroBanner || heroBannerUrl || logoUrl || '/logo.png'} 
+                      src={tempHeroBanner || heroBannerUrl || '/og-image.png'} 
                       alt="Google Search Preview" 
                       className="max-h-48 max-w-full w-auto object-contain transition-transform group-hover/inner:scale-105 rounded-lg"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = '/logo.png';
+                        (e.target as HTMLImageElement).style.display = 'none';
                       }}
                     />
                     <div className="absolute inset-0 bg-black/80 opacity-0 group-hover/inner:opacity-100 transition-all flex items-center justify-center backdrop-blur-xs">
@@ -1944,12 +1997,16 @@ export default function AdminSettings() {
                   <div className="w-full max-w-lg text-left bg-[#F8F9FD] border border-gray-200 rounded-2xl p-4 shadow-xs space-y-2">
                     <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Live Google Search Snippet Preview</span>
                     <div className="flex gap-3 items-start pt-1">
-                      <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200">
-                        <img src={tempLogo || logoUrl || '/logo.png'} className="w-full h-full object-contain" alt="Favicon" />
+                      <div className="w-12 h-12 bg-slate-900 text-white rounded-lg overflow-hidden flex-shrink-0 border border-gray-200 flex items-center justify-center">
+                        {tempLogo && !tempLogo.includes('logo.png') && !tempLogo.includes('logo.svg') ? (
+                          <img src={tempLogo} className="w-full h-full object-contain" alt="Favicon" />
+                        ) : (
+                          <span className="font-black text-sm">MA</span>
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs text-gray-700 truncate">Elegan BD · Premium Clothing</p>
-                        <p className="text-sm font-semibold text-blue-800 hover:underline cursor-pointer truncate">Elegan BD | Premium Clothing Brand in Bangladesh</p>
+                        <p className="text-xs text-gray-700 truncate">Man's Avenue · Premium Clothing</p>
+                        <p className="text-sm font-semibold text-blue-800 hover:underline cursor-pointer truncate">Man's Avenue | Premium Clothing Brand in Bangladesh</p>
                         <p className="text-[11px] text-gray-600 line-clamp-1">Discover minimalist luxury shirts, polos, and trousers. Premium fashion tailored for the modern individual.</p>
                       </div>
                     </div>
@@ -1958,13 +2015,13 @@ export default function AdminSettings() {
                       <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Social Share Card Preview (Facebook / WhatsApp / Twitter)</p>
                       <div className="rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
                         <img 
-                          src={tempHeroBanner || heroBannerUrl || logoUrl || '/logo.png'} 
+                          src={tempHeroBanner || heroBannerUrl || '/og-image.png'} 
                           alt="Share preview" 
                           className="w-full h-32 object-cover"
                         />
                         <div className="p-2.5 bg-[#F8F9FD] text-left">
-                          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">eleganbd.vercel.app</p>
-                          <p className="text-xs font-bold text-black truncate">Elegan BD - Premium Clothing Brand</p>
+                          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">mansavenue.com</p>
+                          <p className="text-xs font-bold text-black truncate">Man's Avenue - Premium Clothing Brand</p>
                         </div>
                       </div>
                     </div>
@@ -2450,12 +2507,17 @@ export default function AdminSettings() {
               <div className="bg-[#F8F9FD] border border-gray-200 rounded-2xl overflow-hidden shadow-3xs flex flex-col justify-between hover:border-gray-300 transition-all">
                 {/* Card Header */}
                 <div className="flex justify-between items-center bg-gray-50/50 border-b border-gray-100 px-6 py-4">
-                  <h4 className="text-sm font-bold text-slate-900 tracking-tight">Facebook Pixel</h4>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-slate-900 tracking-tight">Facebook Pixel</h4>
+                    <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 border border-amber-200/60 px-2 py-0.5 rounded-md">
+                      Removed from Storefront
+                    </span>
+                  </div>
                   <div className="flex gap-2">
                     {pixelConfig.facebookPixelId ? (
-                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-600 border border-emerald-100">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                        Connected
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                        Credentials Saved (Inactive)
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-500 border border-gray-200">
@@ -2472,6 +2534,12 @@ export default function AdminSettings() {
 
                 {/* Card Body */}
                 <div className="p-6 space-y-6">
+                  <div className="p-3.5 bg-amber-50/60 border border-amber-200/70 rounded-xl text-left">
+                    <p className="text-xs text-amber-900 font-medium leading-relaxed">
+                      ওয়েবসাইট থেকে মেটা পিক্সেল (Meta Pixel / Conversions API) ট্র্যাক সম্পূর্ণ বন্ধ ও রিমুভ করা হয়েছে। আপনি যদি আগের পিক্সেল ক্রেডেনশিয়াল সম্পূর্ণ ডিলিট করে দিতে চান, তাহলে নিচের <strong>"Remove Meta Pixel"</strong> বাটনে ক্লিক করুন।
+                    </p>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Left Column */}
                     <div className="space-y-6">
@@ -2496,7 +2564,7 @@ export default function AdminSettings() {
                           className="w-full bg-[#F8F9FD] border border-gray-200 rounded-lg px-4 py-2.5 outline-none focus:border-indigo-500 transition-all text-sm text-black"
                         />
                         <p className="text-xs text-gray-500 font-medium leading-relaxed mt-2 text-left">
-                          Meta Events Manager → Test Events tab থেকে code copy করে এখানে paste করুন। Server events তখন Test Events tab-এ live দেখাবে। Testing শেষে field-টা খালি করে Save দিন।
+                          Meta Events Manager → Test Events tab থেকে code copy করে এখানে paste করুন। Server events তখন Test Events tab-এ live দেখাবে।
                         </p>
                       </div>
                     </div>
@@ -2516,8 +2584,19 @@ export default function AdminSettings() {
                     </div>
                   </div>
 
-                  {/* Save Button */}
-                  <div className="flex justify-end pt-4 border-t border-gray-100">
+                  {/* Actions */}
+                  <div className="flex justify-between items-center pt-4 border-t border-gray-100">
+                    <button 
+                      onClick={handleRemoveMetaPixel}
+                      disabled={isSavingPixel['facebook']}
+                      className="px-4 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 disabled:opacity-50 transition-all text-xs font-bold uppercase tracking-wider rounded-lg flex items-center gap-2"
+                    >
+                      {isSavingPixel['facebook'] ? (
+                        <span className="w-3.5 h-3.5 border-2 border-rose-600/30 border-t-rose-600 rounded-full animate-spin" />
+                      ) : null}
+                      Remove Meta Pixel
+                    </button>
+
                     <button 
                       onClick={() => handleSavePixelSection('facebook')}
                       disabled={isSavingPixel['facebook']}

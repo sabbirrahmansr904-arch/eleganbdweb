@@ -65,7 +65,7 @@ export default function CustomerCare() {
               <h2 className="text-2xl font-black uppercase tracking-tight italic text-brand-ink">Shopping Assurance</h2>
             </div>
             <div className="space-y-4 text-gray-500 text-sm leading-relaxed">
-              <p>At Elegan BD, your satisfaction is our top priority. We guarantee the authenticity of every product and the security of every transaction.</p>
+              <p>At Man's Avenue, your satisfaction is our top priority. We guarantee the authenticity of every product and the security of every transaction.</p>
               <p>Our dedicated support team is trained to handle size recommendations, fabric details, and delivery logistics to ensure your experience is seamless.</p>
             </div>
           </div>

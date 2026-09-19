@@ -43,11 +43,24 @@ function formatTimeAgo(timestamp: number) {
 
 export default function HomeReviewsRealtime() {
   const [firestoreReviews, setFirestoreReviews] = useState<HomeReviewItem[]>([]);
+  const [localReviews, setLocalReviews] = useState<HomeReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedFilter, setSelectedFilter] = useState<'all' | '5' | '4' | 'photos'>('all');
 
   // Lightbox modal for customer photos
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+  // Load custom local reviews
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem('eleganbd_custom_reviews');
+      if (cached) {
+        setLocalReviews(JSON.parse(cached));
+      }
+    } catch (e) {
+      console.error('Error loading local custom reviews:', e);
+    }
+  }, []);
 
   // Real-time Firestore sync - ONLY actual live database reviews
   useEffect(() => {
@@ -83,18 +96,25 @@ export default function HomeReviewsRealtime() {
     }
   }, []);
 
+  // Combine local reviews and Firestore reviews
+  const combinedMap = new Map<string, HomeReviewItem>();
+  firestoreReviews.forEach(r => combinedMap.set(r.id, r));
+  localReviews.forEach(r => combinedMap.set(r.id, r));
+
+  const allReviews = Array.from(combinedMap.values()).sort((a, b) => b.createdAt - a.createdAt);
+
   // Filter reviews
   const filteredReviews = useMemo(() => {
-    if (selectedFilter === '5') return firestoreReviews.filter(r => r.rating === 5);
-    if (selectedFilter === '4') return firestoreReviews.filter(r => r.rating === 4);
-    if (selectedFilter === 'photos') return firestoreReviews.filter(r => r.images && r.images.length > 0);
-    return firestoreReviews;
-  }, [firestoreReviews, selectedFilter]);
+    if (selectedFilter === '5') return allReviews.filter(r => r.rating === 5);
+    if (selectedFilter === '4') return allReviews.filter(r => r.rating === 4);
+    if (selectedFilter === 'photos') return allReviews.filter(r => r.images && r.images.length > 0);
+    return allReviews;
+  }, [allReviews, selectedFilter]);
 
   // Average Rating
-  const totalReviewsCount = firestoreReviews.length;
+  const totalReviewsCount = allReviews.length;
   const avgRating = totalReviewsCount > 0
-    ? (firestoreReviews.reduce((acc, curr) => acc + curr.rating, 0) / totalReviewsCount).toFixed(1)
+    ? (allReviews.reduce((acc, curr) => acc + curr.rating, 0) / totalReviewsCount).toFixed(1)
     : '5.0';
 
   return (
@@ -112,7 +132,7 @@ export default function HomeReviewsRealtime() {
               <Sparkles size={22} className="text-amber-500 fill-amber-500" />
             </h2>
             <p className="text-xs sm:text-sm text-gray-600 font-medium max-w-xl">
-              Real-time authentic feedback and experiences from verified Elegan BD customers.
+              Real-time authentic feedback and experiences from verified Man's Avenue customers.
             </p>
           </div>
 
@@ -325,7 +345,7 @@ export default function HomeReviewsRealtime() {
         {/* Bottom Bar */}
         <div className="relative z-10 mt-8 pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
           <p className="text-xs text-gray-500 font-medium">
-            💡 Purchased from Elegan BD? Share your honest experience to help other shoppers.
+            💡 Purchased from Man's Avenue? Share your honest experience to help other shoppers.
           </p>
 
           <div className="flex items-center gap-3">

@@ -40,7 +40,7 @@ export default function AbandonedCheckoutsView() {
 
     const msg = `আসসালামু আলাইকুম ${checkout.customerName || 'সম্মানিত গ্রাহক'},
 
-Elegan BD থেকে যোগাযোগ করছি। আপনি আমাদের ওয়েবসাইটে নিচের পণ্যটি অর্ডার করতে চেয়েছিলেন:
+Man's Avenue থেকে যোগাযোগ করছি। আপনি আমাদের ওয়েবসাইটে নিচের পণ্যটি অর্ডার করতে চেয়েছিলেন:
 🛍️ ${productNames}
 💰 সর্বমোট: ৳${checkout.total}
 

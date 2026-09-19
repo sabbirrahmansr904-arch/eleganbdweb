@@ -459,7 +459,7 @@ export default function TrackOrder() {
                             break;
                           case 'Processing':
                             stepTitle = 'Quality Control & Secure Packing';
-                            stepDescription = 'Elegance garments are being quality inspected and safely boxed.';
+                            stepDescription = "Man's Avenue garments are being quality inspected and safely boxed.";
                             break;
                           case 'Shipped':
                             stepTitle = 'Dispatched and Handed to Courier';

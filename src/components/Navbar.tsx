@@ -89,16 +89,8 @@ export default function Navbar() {
           {/* Left: Brand Logo */}
           <div className="flex items-center gap-3">
             <Link to="/" className="flex items-center group gap-2">
-              <img 
-                src={logoUrl || '/logo.png'} 
-                alt="Brand Logo" 
-                className="h-8 md:h-11 w-auto max-w-[140px] object-contain transition-transform group-hover:scale-105" 
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
-              />
-              <span className="font-black text-lg sm:text-xl uppercase text-black whitespace-nowrap">
-                ELEGAN BD
+              <span className="font-black text-lg sm:text-xl uppercase text-black whitespace-nowrap tracking-tight">
+                MAN'S AVENUE
               </span>
             </Link>
           </div>
@@ -281,17 +273,10 @@ export default function Navbar() {
                 {/* Drawer Header */}
                 <div className="p-4 sm:p-5 border-b border-gray-100 bg-white shrink-0">
                   <div className="flex items-center justify-between mb-3.5">
-                    <Link to="/" onClick={() => setIsOpen(false)} className="flex items-center gap-2 group">
-                      {logoUrl ? (
-                        <img src={logoUrl} alt="Logo" className="h-9 w-auto object-contain" />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-black text-sm">
-                          E
-                        </div>
-                      )}
+                    <Link to="/" onClick={() => setIsOpen(false)} className="flex items-center gap-2.5 group">
                       <div>
-                        <span className="font-black text-lg uppercase tracking-tighter text-black block leading-none">
-                          Elegan BD
+                        <span className="font-black text-lg uppercase tracking-tight text-black block leading-none">
+                          Man's Avenue
                         </span>
                         <span className="text-[9px] font-bold tracking-widest text-gray-500 uppercase block mt-0.5">
                           Exclusive Fashion

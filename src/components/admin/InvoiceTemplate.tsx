@@ -96,7 +96,7 @@ export default function InvoiceTemplate({ order, preview = false }: InvoiceProps
           {/* Left: Brand Name, Subtitle, Location, Phone, Barcode */}
           <div className="text-left flex-1">
             <h1 className="text-3xl font-black tracking-tight text-black uppercase leading-none">
-              Elegan BD
+              Man's Avenue
             </h1>
             <p className="text-[9.5px] font-bold tracking-wider text-black uppercase mt-1">
               Fashion in everyday life make you stylist
@@ -290,7 +290,7 @@ export default function InvoiceTemplate({ order, preview = false }: InvoiceProps
           Thanks For Purchase
         </p>
         <p className="text-[8.5px] font-extrabold uppercase tracking-[0.25em] text-gray-400">
-          ELEGAN BD — FASHION IN EVERYDAY LIFE MAKE YOU STYLIST
+          MAN'S AVENUE — FASHION IN EVERYDAY LIFE MAKE YOU STYLIST
         </p>
       </div>
     </div>

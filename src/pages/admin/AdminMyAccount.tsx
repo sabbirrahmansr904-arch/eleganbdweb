@@ -28,6 +28,7 @@ import { cn } from '../../lib/utils';
 import { compressAvatar, compressDataUrl } from '../../utils/imageCompressor';
 import { autoSaveToMediaLibrary } from '../../utils/mediaLibrary';
 import { AdminProfile } from './AdminAccounts';
+import { saveDocumentToSupabase } from '../../lib/supabase';
 
 export default function AdminMyAccount() {
   const { currentUser, isSuperAdmin, isCEO, department: authDept, permissions, updateUserPhoto } = useAuth();
@@ -211,17 +212,20 @@ export default function AdminMyAccount() {
     };
 
     try {
-      // 1. Save to admin_profiles collection
+      // 1. Save to admin_profiles collection & Supabase
       await setDoc(doc(db, 'admin_profiles', emailDocKey), payload, { merge: true });
+      await saveDocumentToSupabase('admin_profiles', emailDocKey, payload).catch(() => {});
       
-      // 2. Sync to admin_permissions
-      await setDoc(doc(db, 'admin_permissions', userEmail.toLowerCase().trim()), {
+      // 2. Sync to admin_permissions & Supabase
+      const permPayload = {
         email: userEmail.toLowerCase().trim(),
         name: payload.name,
         department: payload.department,
         position: payload.position,
         updatedAt: Date.now()
-      }, { merge: true });
+      };
+      await setDoc(doc(db, 'admin_permissions', userEmail.toLowerCase().trim()), permPayload, { merge: true });
+      await saveDocumentToSupabase('admin_permissions', userEmail.toLowerCase().trim(), permPayload).catch(() => {});
 
       // Update local storage
       const localProfiles = localStorage.getItem('elegan_admin_profiles');

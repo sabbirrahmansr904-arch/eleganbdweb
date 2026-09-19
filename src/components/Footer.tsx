@@ -18,23 +18,11 @@ export default function Footer() {
         <div className="bg-[#18191e] border border-white/10 rounded-2xl p-6 flex flex-col justify-between space-y-5 shadow-sm hover:border-white/20 transition-all">
           <div className="space-y-4">
             <Link to="/" className="inline-block transform transition-transform hover:scale-102">
-              {logoUrl ? (
-                <div className="flex items-center gap-3">
-                  <img src={logoUrl} alt="Logo" className="h-10 w-auto object-contain brightness-0 invert" />
-                  <span className="font-black text-lg uppercase text-white serif">
-                    ELEGAN BD
-                  </span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 bg-white text-black font-black flex items-center justify-center rounded-sm text-sm">
-                    E
-                  </div>
-                  <span className="font-black text-xl uppercase text-white serif">
-                    ELEGAN BD
-                  </span>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <span className="font-black text-2xl uppercase text-white tracking-tight">
+                  MAN'S AVENUE
+                </span>
+              </div>
             </Link>
             
             <p className="text-xs text-gray-400 font-medium leading-relaxed">
@@ -111,7 +99,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link to="/about" className="hover:text-white transition-colors block">
-                  About Elegan BD
+                  About Man's Avenue
                 </Link>
               </li>
               <li>
@@ -188,7 +176,7 @@ export default function Footer() {
       {/* Copyright */}
       <div className="max-w-[1560px] mx-auto mt-8 pt-6 border-t border-white/10 text-center">
         <p className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.15em] text-gray-400">
-          © 2026 ELEGAN BD LIMITED. ALL RIGHTS RESERVED.
+          © 2026 MAN'S AVENUE LIMITED. ALL RIGHTS RESERVED.
         </p>
       </div>
     </footer>

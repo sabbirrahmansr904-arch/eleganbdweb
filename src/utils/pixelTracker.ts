@@ -14,11 +14,21 @@ export interface PixelAnalyticsConfig {
 let cachedConfig: PixelAnalyticsConfig | null = null;
 
 export function getLocalPixelConfig(): PixelAnalyticsConfig | null {
-  if (cachedConfig) return cachedConfig;
+  if (cachedConfig) {
+    cachedConfig.facebookPixelId = '';
+    cachedConfig.facebookAccessToken = '';
+    cachedConfig.facebookTestCode = '';
+    return cachedConfig;
+  }
   try {
     const saved = localStorage.getItem('eleganbd_pixel_analytics');
     if (saved) {
       cachedConfig = JSON.parse(saved);
+      if (cachedConfig) {
+        cachedConfig.facebookPixelId = '';
+        cachedConfig.facebookAccessToken = '';
+        cachedConfig.facebookTestCode = '';
+      }
       return cachedConfig;
     }
   } catch (e) {}
@@ -26,9 +36,15 @@ export function getLocalPixelConfig(): PixelAnalyticsConfig | null {
 }
 
 export function setLocalPixelConfig(config: PixelAnalyticsConfig) {
-  cachedConfig = config;
+  const sanitized = {
+    ...config,
+    facebookPixelId: '',
+    facebookAccessToken: '',
+    facebookTestCode: ''
+  };
+  cachedConfig = sanitized;
   try {
-    localStorage.setItem('eleganbd_pixel_analytics', JSON.stringify(config));
+    localStorage.setItem('eleganbd_pixel_analytics', JSON.stringify(sanitized));
   } catch (e) {}
 }
 
@@ -48,6 +64,21 @@ export async function hashSHA256(str: string): Promise<string> {
 }
 
 export async function initPixelTracker(configFromFirestore?: PixelAnalyticsConfig) {
+  // Purge any existing Meta Pixel / Facebook tags or objects from the DOM & window
+  if (typeof window !== 'undefined') {
+    try {
+      const fbScripts = document.querySelectorAll('script[src*="fbevents.js"], script[src*="connect.facebook.net"]');
+      fbScripts.forEach(s => s.remove());
+      // @ts-ignore
+      if (window.fbq) {
+        // @ts-ignore
+        delete window.fbq;
+        // @ts-ignore
+        delete window._fbq;
+      }
+    } catch (e) {}
+  }
+
   let config = configFromFirestore;
   if (!config) {
     try {
@@ -61,42 +92,14 @@ export async function initPixelTracker(configFromFirestore?: PixelAnalyticsConfi
   if (!config) {
     config = getLocalPixelConfig() || {};
   } else {
+    // Ensure Meta Pixel is stripped
+    config.facebookPixelId = '';
+    config.facebookAccessToken = '';
+    config.facebookTestCode = '';
     setLocalPixelConfig(config);
   }
 
-  // 1. Initialize Meta Pixel (fbq)
-  if (config.facebookPixelId && config.facebookPixelId.trim()) {
-    const fbId = config.facebookPixelId.trim();
-    // @ts-ignore
-    if (!window.hasOwnProperty('fbq') && !window.fbq) {
-      (function(f: any, b: any, e: any, v: any, n?: any, t?: any, s?: any) {
-        if (f.fbq) return;
-        n = f.fbq = function() {
-          n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
-        };
-        if (!f._fbq) f._fbq = n;
-        n.push = n;
-        n.loaded = !0;
-        n.version = '2.0';
-        n.queue = [];
-        t = b.createElement(e);
-        t.async = !0;
-        t.src = v;
-        s = b.getElementsByTagName(e)[0];
-        s.parentNode.insertBefore(t, s);
-      })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
-    }
-
-    // @ts-ignore
-    if (typeof window !== 'undefined' && window.fbq) {
-      // @ts-ignore
-      window.fbq('init', fbId);
-      // @ts-ignore
-      window.fbq('track', 'PageView');
-    }
-  }
-
-  // 2. Google Analytics 4
+  // 1. Google Analytics 4
   if (config.googleAnalyticsId && config.googleAnalyticsId.trim()) {
     const gaId = config.googleAnalyticsId.trim();
     if (!document.getElementById('ga-script')) {
@@ -117,7 +120,7 @@ export async function initPixelTracker(configFromFirestore?: PixelAnalyticsConfi
     }
   }
 
-  // 3. Google Tag Manager
+  // 2. Google Tag Manager
   if (config.gtmId && config.gtmId.trim()) {
     const gtmId = config.gtmId.trim();
     if (!document.getElementById('gtm-script')) {
@@ -134,7 +137,7 @@ export async function initPixelTracker(configFromFirestore?: PixelAnalyticsConfi
     }
   }
 
-  // 4. Google Ads
+  // 3. Google Ads
   if (config.googleAdsId && config.googleAdsId.trim()) {
     const adsId = config.googleAdsId.trim();
     // @ts-ignore
@@ -158,35 +161,9 @@ export async function trackPurchase(order: {
   deliveryCharge?: number;
 }) {
   if (!order) return;
-  const config = getLocalPixelConfig() || {};
-  const eventId = `ord_${order.id || Date.now()}`;
   const totalVal = Number(order.total) || 0;
 
-  const formattedContents = (order.items || []).map(i => ({
-    id: String(i.id || i.sku || i.name),
-    quantity: Number(i.quantity) || 1,
-    item_price: Number(i.price) || 0
-  }));
-
-  // 1. Client-side Meta Pixel
-  // @ts-ignore
-  if (typeof window !== 'undefined' && window.fbq) {
-    try {
-      // @ts-ignore
-      window.fbq('track', 'Purchase', {
-        value: totalVal,
-        currency: 'BDT',
-        content_name: 'Order Purchase',
-        content_type: 'product',
-        contents: formattedContents,
-        num_items: formattedContents.reduce((sum, item) => sum + item.quantity, 0)
-      }, { eventID: eventId });
-    } catch (e) {
-      console.warn('Meta Pixel Purchase notice:', e);
-    }
-  }
-
-  // 2. Client-side Google Analytics / Ads
+  // Google Analytics / Ads tracking
   // @ts-ignore
   if (typeof window !== 'undefined' && window.gtag) {
     try {
@@ -207,42 +184,6 @@ export async function trackPurchase(order: {
       console.warn('Google Analytics Purchase notice:', e);
     }
   }
-
-  // 3. Server-side Meta Conversions API (CAPI)
-  try {
-    const hashedPhone = order.phone ? await hashSHA256(order.phone.replace(/[^\d+]/g, '')) : '';
-    const hashedEmail = order.email ? await hashSHA256(order.email) : '';
-    const hashedName = order.customerName ? await hashSHA256(order.customerName) : '';
-    const hashedCity = order.city ? await hashSHA256(order.city) : '';
-
-    await fetch('/api/meta-conversion-event', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        eventName: 'Purchase',
-        eventId: eventId,
-        pixelId: config.facebookPixelId,
-        accessToken: config.facebookAccessToken,
-        testCode: config.facebookTestCode,
-        eventSourceUrl: typeof window !== 'undefined' ? window.location.href : '',
-        userData: {
-          ph: hashedPhone ? [hashedPhone] : undefined,
-          em: hashedEmail ? [hashedEmail] : undefined,
-          fn: hashedName ? [hashedName] : undefined,
-          ct: hashedCity ? [hashedCity] : undefined
-        },
-        eventData: {
-          currency: 'BDT',
-          value: totalVal,
-          content_type: 'product',
-          order_id: String(order.id),
-          contents: formattedContents
-        }
-      })
-    });
-  } catch (err) {
-    console.warn('Meta Conversions API Purchase notice:', err);
-  }
 }
 
 export async function trackAddToCart(
@@ -251,29 +192,10 @@ export async function trackAddToCart(
   size?: string
 ) {
   if (!product) return;
-  const config = getLocalPixelConfig() || {};
-  const eventId = `atc_${product.id || Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
   const itemPrice = Number(product.price) || 0;
   const totalVal = itemPrice * (quantity || 1);
 
-  // 1. Client-side Meta Pixel
-  // @ts-ignore
-  if (typeof window !== 'undefined' && window.fbq) {
-    try {
-      // @ts-ignore
-      window.fbq('track', 'AddToCart', {
-        value: totalVal,
-        currency: 'BDT',
-        content_name: product.name,
-        content_category: product.category || 'Apparel',
-        content_ids: [String(product.id || product.sku || product.name)],
-        content_type: 'product',
-        contents: [{ id: String(product.id || product.sku || product.name), quantity, item_price: itemPrice }]
-      }, { eventID: eventId });
-    } catch (e) {}
-  }
-
-  // 2. Google Analytics
+  // Google Analytics tracking
   // @ts-ignore
   if (typeof window !== 'undefined' && window.gtag) {
     try {
@@ -291,29 +213,6 @@ export async function trackAddToCart(
       });
     } catch (e) {}
   }
-
-  // 3. Meta Conversions API
-  try {
-    await fetch('/api/meta-conversion-event', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        eventName: 'AddToCart',
-        eventId: eventId,
-        pixelId: config.facebookPixelId,
-        accessToken: config.facebookAccessToken,
-        testCode: config.facebookTestCode,
-        eventSourceUrl: typeof window !== 'undefined' ? window.location.href : '',
-        eventData: {
-          currency: 'BDT',
-          value: totalVal,
-          content_name: product.name,
-          content_type: 'product',
-          contents: [{ id: String(product.id || product.sku || product.name), quantity, item_price: itemPrice }]
-        }
-      })
-    });
-  } catch (e) {}
 }
 
 export async function trackInitiateCheckout(
@@ -321,35 +220,9 @@ export async function trackInitiateCheckout(
   total: number
 ) {
   if (!items || items.length === 0) return;
-  const config = getLocalPixelConfig() || {};
-  const eventId = `ic_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
   const totalVal = Number(total) || 0;
 
-  const formattedContents = items.map(i => {
-    const prod = i.product || (i as any);
-    return {
-      id: String(prod.id || prod.sku || prod.name),
-      quantity: Number(i.quantity) || 1,
-      item_price: Number(prod.price || i.price) || 0
-    };
-  });
-
-  // 1. Client-side Meta Pixel
-  // @ts-ignore
-  if (typeof window !== 'undefined' && window.fbq) {
-    try {
-      // @ts-ignore
-      window.fbq('track', 'InitiateCheckout', {
-        value: totalVal,
-        currency: 'BDT',
-        content_type: 'product',
-        contents: formattedContents,
-        num_items: formattedContents.reduce((sum, item) => sum + item.quantity, 0)
-      }, { eventID: eventId });
-    } catch (e) {}
-  }
-
-  // 2. Google Analytics
+  // Google Analytics tracking
   // @ts-ignore
   if (typeof window !== 'undefined' && window.gtag) {
     try {
@@ -369,53 +242,13 @@ export async function trackInitiateCheckout(
       });
     } catch (e) {}
   }
-
-  // 3. Meta Conversions API
-  try {
-    await fetch('/api/meta-conversion-event', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        eventName: 'InitiateCheckout',
-        eventId: eventId,
-        pixelId: config.facebookPixelId,
-        accessToken: config.facebookAccessToken,
-        testCode: config.facebookTestCode,
-        eventSourceUrl: typeof window !== 'undefined' ? window.location.href : '',
-        eventData: {
-          currency: 'BDT',
-          value: totalVal,
-          content_type: 'product',
-          contents: formattedContents
-        }
-      })
-    });
-  } catch (e) {}
 }
 
 export async function trackViewContent(product: { id?: string; sku?: string; name: string; price: number; category?: string }) {
   if (!product) return;
-  const config = getLocalPixelConfig() || {};
-  const eventId = `vc_${product.id || Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
   const itemPrice = Number(product.price) || 0;
 
-  // 1. Client-side Meta Pixel
-  // @ts-ignore
-  if (typeof window !== 'undefined' && window.fbq) {
-    try {
-      // @ts-ignore
-      window.fbq('track', 'ViewContent', {
-        value: itemPrice,
-        currency: 'BDT',
-        content_name: product.name,
-        content_category: product.category || 'Apparel',
-        content_ids: [String(product.id || product.sku || product.name)],
-        content_type: 'product'
-      }, { eventID: eventId });
-    } catch (e) {}
-  }
-
-  // 2. Google Analytics
+  // Google Analytics tracking
   // @ts-ignore
   if (typeof window !== 'undefined' && window.gtag) {
     try {
@@ -431,27 +264,4 @@ export async function trackViewContent(product: { id?: string; sku?: string; nam
       });
     } catch (e) {}
   }
-
-  // 3. Meta Conversions API
-  try {
-    await fetch('/api/meta-conversion-event', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        eventName: 'ViewContent',
-        eventId: eventId,
-        pixelId: config.facebookPixelId,
-        accessToken: config.facebookAccessToken,
-        testCode: config.facebookTestCode,
-        eventSourceUrl: typeof window !== 'undefined' ? window.location.href : '',
-        eventData: {
-          currency: 'BDT',
-          value: itemPrice,
-          content_name: product.name,
-          content_type: 'product',
-          contents: [{ id: String(product.id || product.sku || product.name), quantity: 1, item_price: itemPrice }]
-        }
-      })
-    });
-  } catch (e) {}
 }

@@ -396,7 +396,7 @@ export default function AdminDashboard(): React.JSX.Element {
     return alertItems.map(p => ({
       id: p.id,
       name: p.name,
-      brand: p.category || 'Elegan BD',
+      brand: p.category || "Man's Avenue",
       stock: p.stock,
       price: p.price,
       formattedPrice: formatPrice(p.price, currency, rate),
@@ -717,7 +717,7 @@ export default function AdminDashboard(): React.JSX.Element {
       if (products && products.length > 0) {
         return {
           name: products[0].name,
-          brand: 'Elegan BD',
+          brand: "Man's Avenue",
           stock: products[0].stock,
           price: products[0].price,
           formattedPrice: formatPrice(products[0].price, currency, rate),
@@ -727,7 +727,7 @@ export default function AdminDashboard(): React.JSX.Element {
       }
       return {
         name: 'Premium Formal Shirt',
-        brand: 'Elegan BD',
+        brand: "Man's Avenue",
         stock: 450,
         price: 1850,
         formattedPrice: formatPrice(1850, currency, rate),
@@ -761,7 +761,7 @@ export default function AdminDashboard(): React.JSX.Element {
       if (prod) {
         return {
           name: prod.name,
-          brand: 'Elegan BD',
+          brand: "Man's Avenue",
           stock: prod.stock,
           price: prod.price,
           formattedPrice: formatPrice(prod.price, currency, rate),
@@ -773,7 +773,7 @@ export default function AdminDashboard(): React.JSX.Element {
 
     return {
       name: 'Premium Formal Shirt',
-      brand: 'Elegan BD',
+      brand: "Man's Avenue",
       stock: 450,
       price: 1850,
       formattedPrice: formatPrice(1850, currency, rate),
@@ -1265,7 +1265,7 @@ export default function AdminDashboard(): React.JSX.Element {
           <h1 className="text-2xl md:text-3xl font-black text-gray-950 tracking-tight flex items-center gap-2">
             Hi, {currentUser?.displayName || 'Admin'} 👋
           </h1>
-          <p className="text-xs text-gray-400 font-medium mt-0.5">Welcome back to Elegan BD Admin</p>
+          <p className="text-xs text-gray-400 font-medium mt-0.5">Welcome back to Man's Avenue Admin</p>
         </div>
       </div>
 
@@ -1670,11 +1670,11 @@ export default function AdminDashboard(): React.JSX.Element {
 
       </div>
 
-      {/* ROW 3: PRODUCT SALES (1/3) & RECENT ORDERS (2/3) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* ROW 3: PRODUCT SALES */}
+      <div className="w-full">
         
         {/* PRODUCT SALES Donut Chart */}
-        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between hover:-translate-y-1 hover:shadow-md hover:border-slate-300/80 transition-all duration-300 ease-out">
+        <div className="bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between hover:-translate-y-1 hover:shadow-md hover:border-slate-300/80 transition-all duration-300 ease-out max-w-xl">
           <div>
             <h3 className="text-base font-black text-gray-900 tracking-tight pb-3">Product Sales</h3>
             
@@ -1740,132 +1740,6 @@ export default function AdminDashboard(): React.JSX.Element {
             <span className="text-xs font-bold text-gray-500">
               Best Selling: <span className="text-[#6366F1] font-black">{bestSellingProductName}</span>
             </span>
-          </div>
-
-        </div>
-
-        {/* RECENT ORDERS TABLE */}
-        <div className="lg:col-span-2 bg-[#F8F9FD] border border-slate-200/70 rounded-[24px] p-6 shadow-2xs flex flex-col justify-between hover:-translate-y-1 hover:shadow-md hover:border-slate-300/80 transition-all duration-300 ease-out">
-          <div>
-            <div className="flex items-center justify-between pb-5">
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-black text-gray-900 tracking-tight">Recent Orders</h3>
-                <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-[11px] font-black border border-blue-100">
-                  {orders?.length || 0} Total
-                </span>
-              </div>
-              <button 
-                onClick={() => navigate('/admin/orders')}
-                className="flex items-center gap-1.5 text-[11px] font-black text-[#6366F1] hover:text-white bg-[#EEF2FF] hover:bg-[#4F46E5] px-3.5 py-1.5 rounded-full transition-all cursor-pointer shadow-3xs"
-                title="Go to Full Order Management"
-              >
-                <span>View All Orders ({orders?.length || 0})</span>
-                <span className="font-bold">→</span>
-              </button>
-            </div>
-
-            {/* Custom high-fidelity orders table */}
-            <div className="overflow-x-auto no-scrollbar">
-              <table className="w-full text-left border-collapse min-w-[540px]">
-                <thead>
-                  <tr className="border-b border-gray-100 text-[10px] font-black uppercase tracking-wider text-gray-400">
-                    <th className="pb-3">Invoice No</th>
-                    <th className="pb-3">Customer</th>
-                    <th className="pb-3">Date</th>
-                    <th className="pb-3">Items</th>
-                    <th className="pb-3">Amount</th>
-                    <th className="pb-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {tableOrders.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-8 text-center text-xs text-gray-400 font-medium">
-                        No orders recorded yet.
-                      </td>
-                    </tr>
-                  ) : (
-                    tableOrders.map((order, idx) => (
-                      <tr key={idx} className="group hover:bg-gray-50/50 transition-colors">
-                        <td className="py-3 text-xs font-black text-gray-900">
-                          {order.id}
-                        </td>
-                        <td className="py-3">
-                          <span className="text-xs font-black text-gray-800 truncate max-w-[140px] block" title={order.customerName}>
-                            {order.customerName}
-                          </span>
-                        </td>
-                        <td className="py-3 text-xs text-gray-400 font-bold">
-                          {order.date}
-                        </td>
-                        <td className="py-3 text-xs text-gray-500 font-bold">
-                          {order.items}
-                        </td>
-                        <td className="py-3 text-xs font-black text-gray-900">
-                          {order.amount}
-                        </td>
-                        <td className="py-3">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black ${order.statusColor}`}>
-                            {order.statusText}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Table Pagination */}
-          <div className="border-t border-gray-100 pt-4 mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs font-bold text-gray-400">
-            <div className="flex flex-wrap items-center gap-2">
-              <span>
-                {showAllDashboardOrders 
-                  ? `Showing all ${orders?.length || 0} orders`
-                  : `Showing ${tableOrders.length > 0 ? (dashboardPage - 1) * dashboardPageSize + 1 : 0} to ${Math.min(dashboardPage * dashboardPageSize, orders?.length || 0)} of ${orders?.length || 0} orders`}
-              </span>
-              <button
-                onClick={() => setShowAllDashboardOrders(prev => !prev)}
-                className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-black rounded-lg transition-all cursor-pointer"
-              >
-                {showAllDashboardOrders ? 'Paginate (10 per page)' : `Show All (${orders?.length || 0})`}
-              </button>
-            </div>
-
-            {!showAllDashboardOrders && (
-              <div className="flex items-center gap-1">
-                <button 
-                  onClick={() => setDashboardPage(p => Math.max(1, p - 1))}
-                  disabled={dashboardPage <= 1}
-                  className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                >
-                  &lt;
-                </button>
-                {Array.from({ length: Math.min(5, Math.ceil((orders?.length || 0) / dashboardPageSize) || 1) }, (_, i) => i + 1).map(pageNumber => (
-                  <button 
-                    key={pageNumber}
-                    onClick={() => setDashboardPage(pageNumber)}
-                    className={cn(
-                      "px-3 py-1.5 rounded-lg text-xs font-black shadow-xs cursor-pointer transition-all",
-                      dashboardPage === pageNumber ? "bg-[#6366F1] text-white" : "border border-gray-200 text-gray-700 hover:bg-gray-50"
-                    )}
-                  >
-                    {pageNumber}
-                  </button>
-                ))}
-                {Math.ceil((orders?.length || 0) / dashboardPageSize) > 5 && (
-                  <span className="px-1 text-gray-400">...</span>
-                )}
-                <button 
-                  onClick={() => setDashboardPage(p => Math.min(Math.ceil((orders?.length || 0) / dashboardPageSize) || 1, p + 1))}
-                  disabled={dashboardPage >= (Math.ceil((orders?.length || 0) / dashboardPageSize) || 1)}
-                  className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                >
-                  &gt;
-                </button>
-              </div>
-            )}
           </div>
 
         </div>

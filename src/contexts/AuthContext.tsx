@@ -244,7 +244,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       'elegantbd.ltd@gmail.com',
       'eleganbd@gmail.com',
       'elegantbd@gmail.com',
-      'sabbirrahmansr904@gmail.com'
+      'sabbirrahmansr904@gmail.com',
+      'mansavenue@gmail.com'
     ].includes(email.toLowerCase().trim()) && email.toLowerCase().trim() !== 'sohelmiah332004@gmail.com';
 
   const isCeoEmail = (email: string | null) =>
@@ -258,7 +259,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       'sabbirrahmansr904@gmail.com',
       'elegantbd.ltd@gmail.com',
       'eleganbd@gmail.com',
-      'elegantbd@gmail.com'
+      'elegantbd@gmail.com',
+      'mansavenue@gmail.com'
     ].includes(email.toLowerCase().trim()) && email.toLowerCase().trim() !== 'sohelmiah332004@gmail.com';
 
   const refreshAdminStatus = async () => {

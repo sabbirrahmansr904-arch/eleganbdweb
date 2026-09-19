@@ -14,7 +14,7 @@ export default function TermsConditions() {
           <h1 className="text-4xl md:text-6xl font-black italic tracking-tighter uppercase text-brand-ink">
             Terms & <span className="text-brand-gold">Conditions</span>
           </h1>
-          <p className="text-gray-500 uppercase tracking-widest text-xs font-bold ring-offset-2">Guidelines for your experience with Elegan BD</p>
+          <p className="text-gray-500 uppercase tracking-widest text-xs font-bold ring-offset-2">Guidelines for your experience with Man's Avenue</p>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-8 border-y border-gray-100">
@@ -49,7 +49,7 @@ export default function TermsConditions() {
 
           <section className="space-y-4">
             <h2 className="text-lg font-black uppercase tracking-tight text-brand-ink">4. Intellectual Property</h2>
-            <p>All content included on this site, such as text, graphics, logos, images, and software, is the property of Elegan BD and is protected by international copyright laws.</p>
+            <p>All content included on this site, such as text, graphics, logos, images, and software, is the property of Man's Avenue and is protected by international copyright laws.</p>
           </section>
 
           <section className="space-y-4">

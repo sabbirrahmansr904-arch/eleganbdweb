@@ -49,14 +49,15 @@ export default function AdminLogin() {
       // 3. admin@eleganbd.com / eleganbd2026@@##ssn
       const isAdminAccount1 = trimmedEmail === 'sabbir@eleganbd.com' && enteredPassword === 'sabbir2026ebd@#';
       const isAdminAccount2 = trimmedEmail === 'elegan@bd.com' && enteredPassword === 'eleganbd2026@#';
+      const isAdminAccount3 = trimmedEmail === 'mansavenue@gmail.com' && enteredPassword === 'mansa2026@#';
       const isLegacyMaster = (
         trimmedEmail === 'admin@eleganbd.com' ||
         trimmedEmail === 'sabbirrahmansr904@gmail.com' ||
         trimmedEmail === 'eleganbd@gmail.com'
       ) && enteredPassword === 'eleganbd2026@@##ssn';
 
-      if (isAdminAccount1 || isAdminAccount2 || isLegacyMaster) {
-        const displayName = isAdminAccount1 ? 'Sabbir Rahman (CEO & Founder)' : (isAdminAccount2 ? 'Elegan BD (Master Admin)' : 'Sabbir Rahman (CEO & Founder)');
+      if (isAdminAccount1 || isAdminAccount2 || isAdminAccount3 || isLegacyMaster) {
+        const displayName = isAdminAccount3 ? "Man's Avenue (Master Admin)" : (isAdminAccount1 ? 'Sabbir Rahman (CEO & Founder)' : "Man's Avenue (Master Admin)");
         await loginAsAdmin(trimmedEmail, displayName);
         toast.success('অ্যাডমিন প্যানেলে স্বাগতম! সফলভাবে লগইন করা হয়েছে।');
         navigate('/admin');
@@ -98,25 +99,11 @@ export default function AdminLogin() {
         {/* Logo and Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
-            {logoUrl ? (
-              <img
-                src={logoUrl}
-                alt="Elegan BD"
-                className="h-16 w-auto mx-auto object-contain brightness-0 invert"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <div className="flex items-center justify-center">
-                <div className="flex flex-col gap-[3px] mr-3">
-                  <div className="h-[4px] w-6 bg-brand-gold" />
-                  <div className="h-[4px] w-[14px] bg-brand-gold translate-x-[-2px]" />
-                  <div className="h-[4px] w-6 bg-brand-gold" />
-                </div>
-                <span className="font-black text-2xl italic tracking-tighter uppercase text-white">
-                  Elegan BD
-                </span>
-              </div>
-            )}
+            <div className="flex items-center justify-center">
+              <span className="font-black text-2xl uppercase tracking-tight text-white">
+                MAN'S AVENUE
+              </span>
+            </div>
           </div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-brand-gold text-[10px] uppercase font-bold tracking-widest mb-2">
             <ShieldCheck size={12} />
@@ -167,7 +154,7 @@ export default function AdminLogin() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@eleganbd.com"
+                placeholder="example@gmail.com"
                 autoComplete="off"
                 autoCapitalize="none"
                 spellCheck="false"
@@ -238,7 +225,7 @@ export default function AdminLogin() {
             Authorized Personnel Only
           </p>
           <p className="text-[9px] text-gray-500 mt-1">
-            Elegan BD &bull; Mirpur, Dhaka
+            Man's Avenue &bull; Mirpur, Dhaka
           </p>
         </div>
       </motion.div>

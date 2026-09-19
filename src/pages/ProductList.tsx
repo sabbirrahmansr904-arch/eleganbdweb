@@ -99,7 +99,7 @@ const ProductList = () => {
             <span>/</span>
             <span className="text-black font-bold">{categoryTitle}</span>
           </nav>
-          <h1 className="text-4xl md:text-6xl font-black italic tracking-tighter uppercase text-blue-600">
+          <h1 className="text-4xl md:text-6xl font-black italic tracking-tighter uppercase text-black">
             {categoryTitle}
           </h1>
           <p className="text-[10px] text-gray-400 uppercase tracking-[0.3em] font-bold mt-2">

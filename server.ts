@@ -471,98 +471,38 @@ async function startServer() {
     try {
       const accountsMap = new Map<string, any>();
       const transactionsMap = new Map<string, any>();
-      const reqDeletedAccountIds = new Set<string>();
-      const reqDeletedTxIds = new Set<string>();
 
-      // 0. Load explicitly deleted tombstones from metadata
+      // Load all bank_accounts and bank_transactions directly from Supabase
       try {
-        const [delAccDoc, delTxDoc] = await Promise.all([
-          getDoc(doc(db, 'finance_meta', 'deleted_accounts')).catch(() => null),
-          getDoc(doc(db, 'finance_meta', 'deleted_transactions')).catch(() => null)
+        const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://eeifewkhrtveenyrrirj.supabase.co';
+        const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_XD9wPgNEzlHdAaJ2RN_BFw_izYEgB2p';
+        const { createClient } = await import('@supabase/supabase-js');
+        const sb = createClient(supabaseUrl, supabaseKey);
+
+        const [accRes, txRes] = await Promise.all([
+          sb.from('app_documents').select('*').eq('collection_name', 'bank_accounts'),
+          sb.from('app_documents').select('*').eq('collection_name', 'bank_transactions')
         ]);
 
-        if (delAccDoc && delAccDoc.exists()) {
-          const list = delAccDoc.data()?.ids || [];
-          if (Array.isArray(list)) {
-            list.forEach(id => reqDeletedAccountIds.add(String(id)));
-          }
-        }
-        if (delTxDoc && delTxDoc.exists()) {
-          const list = delTxDoc.data()?.ids || [];
-          if (Array.isArray(list)) {
-            list.forEach(id => reqDeletedTxIds.add(String(id)));
-          }
-        }
-      } catch (err) {}
-
-      // 1. Fetch from Firestore (Authoritative Primary Source)
-      let fsAccountsLoaded = false;
-      let fsTransactionsLoaded = false;
-
-      try {
-        const [accDocs, txDocs] = await Promise.all([
-          getDocs(collection(db, 'bank_accounts')).catch(() => null),
-          getDocs(collection(db, 'bank_transactions')).catch(() => null)
-        ]);
-
-        if (accDocs && !accDocs.empty) {
-          fsAccountsLoaded = true;
-          accDocs.forEach(d => {
-            const data = d.data();
-            const accId = String(d.id);
-            accountsMap.set(accId, { ...data, id: accId });
+        if (accRes && !accRes.error && Array.isArray(accRes.data)) {
+          accRes.data.forEach((item: any) => {
+            if (item && item.data) {
+              const accId = String(item.record_id || item.data.id);
+              accountsMap.set(accId, { ...item.data, id: accId });
+            }
           });
         }
 
-        if (txDocs && !txDocs.empty) {
-          fsTransactionsLoaded = true;
-          txDocs.forEach(d => {
-            const data = d.data();
-            const txId = String(d.id);
-            transactionsMap.set(txId, { ...data, id: txId });
+        if (txRes && !txRes.error && Array.isArray(txRes.data)) {
+          txRes.data.forEach((item: any) => {
+            if (item && item.data) {
+              const txId = String(item.record_id || item.data.id);
+              transactionsMap.set(txId, { ...item.data, id: txId });
+            }
           });
         }
-      } catch (fsErr) {
-        console.warn("[Server API] Firestore finance fetch notice:", fsErr);
-      }
-
-      // 2. Fetch from Supabase ONLY if Firestore had no records (Fallback)
-      if (!fsAccountsLoaded || !fsTransactionsLoaded) {
-        try {
-          const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://eeifewkhrtveenyrrirj.supabase.co';
-          const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_XD9wPgNEzlHdAaJ2RN_BFw_izYEgB2p';
-          const { createClient } = await import('@supabase/supabase-js');
-          const sb = createClient(supabaseUrl, supabaseKey);
-
-          const [accRes, txRes] = await Promise.all([
-            !fsAccountsLoaded ? sb.from('app_documents').select('*').eq('collection_name', 'bank_accounts') : Promise.resolve({ data: [] }),
-            !fsTransactionsLoaded ? sb.from('app_documents').select('*').eq('collection_name', 'bank_transactions') : Promise.resolve({ data: [] })
-          ]);
-
-          if (!fsAccountsLoaded && accRes && !accRes.error && Array.isArray(accRes.data)) {
-            accRes.data.forEach((item: any) => {
-              if (item && item.data) {
-                const accId = String(item.record_id || item.data.id);
-                if (!reqDeletedAccountIds.has(accId)) {
-                  accountsMap.set(accId, { ...item.data, id: accId });
-                }
-              }
-            });
-          }
-
-          if (!fsTransactionsLoaded && txRes && !txRes.error && Array.isArray(txRes.data)) {
-            txRes.data.forEach((item: any) => {
-              if (item && item.data) {
-                const txId = String(item.record_id || item.data.id);
-                if (!reqDeletedTxIds.has(txId)) {
-                  transactionsMap.set(txId, { ...item.data, id: txId });
-                }
-              }
-            });
-          }
-        } catch (sbErr) {
-          console.warn("[Server API] Supabase finance fetch warning:", sbErr);
-        }
+      } catch (sbErr) {
+        console.warn("[Server API] Supabase finance fetch error:", sbErr);
       }
 
       const rawAccounts = Array.from(accountsMap.values());

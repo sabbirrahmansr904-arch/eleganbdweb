@@ -11,44 +11,15 @@ import {
   productToSupabaseRow
 } from './supabase';
 
-import {
-  getFirestore,
-  doc as realDoc,
-  collection as realCollection,
-  query as realQuery,
-  where as realWhere,
-  orderBy as realOrderBy,
-  limit as realLimit,
-  serverTimestamp as realServerTimestamp,
-  Timestamp as realTimestamp,
-  increment as realIncrement,
-  arrayUnion as realArrayUnion,
-  arrayRemove as realArrayRemove,
-  deleteField as realDeleteField,
-  writeBatch as realWriteBatch,
-  runTransaction as realRunTransaction,
-  setDoc as realSetDoc,
-  addDoc as realAddDoc,
-  updateDoc as realUpdateDoc,
-  deleteDoc as realDeleteDoc,
-  getDoc as realGetDoc,
-  getDocs as realGetDocs,
-  onSnapshot as realOnSnapshot,
-  collectionGroup as realCollectionGroup
-} from 'firebase/firestore';
+// Mock DB descriptor
+export const db = {
+  _isMockDb: true,
+  type: 'supabase_firestore'
+};
 
-import { initializeApp, getApp, getApps } from 'firebase/app';
-import firebaseConfig from '../../firebase-applet-config.json';
-
-// Initialize the real Firestore instance
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-export const realDb = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-
-// Export db as realDb for direct usage
-export const db = realDb;
-
-export const initializeFirestore = () => realDb;
-export const getFirestoreInstance = () => realDb;
+export const getFirestore = () => db;
+export const getFirestoreInstance = () => db;
+export const initializeFirestore = () => db;
 export const persistentLocalCache = () => ({});
 export const persistentMultipleTabManager = () => ({});
 export const setLogLevel = () => {};
@@ -93,6 +64,14 @@ export function collection(dbOrDoc: any, ...pathSegments: string[]): MockRef {
   };
 }
 
+export function collectionGroup(dbInstance: any, collectionId: string): MockRef {
+  return {
+    type: 'collection',
+    collectionName: collectionId,
+    path: collectionId
+  };
+}
+
 export function query(collectionRef: any, ...constraints: any[]): MockRef {
   return {
     type: 'query',
@@ -115,59 +94,117 @@ export function limit(n: number) {
 }
 
 export function serverTimestamp() {
-  return realServerTimestamp();
+  return new Date().toISOString();
 }
 
-export const Timestamp = realTimestamp;
+export const Timestamp = {
+  now: () => ({
+    toDate: () => new Date(),
+    toMillis: () => Date.now(),
+    seconds: Math.floor(Date.now() / 1000),
+    nanoseconds: 0,
+    toISOString: () => new Date().toISOString()
+  }),
+  fromDate: (date: Date) => ({
+    toDate: () => date,
+    toMillis: () => date.getTime(),
+    seconds: Math.floor(date.getTime() / 1000),
+    nanoseconds: 0,
+    toISOString: () => date.toISOString()
+  }),
+  fromMillis: (ms: number) => ({
+    toDate: () => new Date(ms),
+    toMillis: () => ms,
+    seconds: Math.floor(ms / 1000),
+    nanoseconds: 0,
+    toISOString: () => new Date(ms).toISOString()
+  })
+};
 
 export function increment(n: number) {
-  return realIncrement(n);
+  return { __type: 'increment', value: n };
 }
 
 export function arrayUnion(...elements: any[]) {
-  return realArrayUnion(...elements);
+  return { __type: 'arrayUnion', elements };
 }
 
 export function arrayRemove(...elements: any[]) {
-  return realArrayRemove(...elements);
+  return { __type: 'arrayRemove', elements };
 }
 
 export function deleteField() {
-  return realDeleteField();
+  return { __type: 'deleteField' };
 }
 
 export function writeBatch(dbInstance?: any) {
-  return realWriteBatch(realDb);
+  const operations: Array<() => Promise<any>> = [];
+  return {
+    set(docRef: MockRef, data: any, options?: any) {
+      operations.push(() => setDoc(docRef, data, options));
+      return this;
+    },
+    update(docRef: MockRef, data: any) {
+      operations.push(() => updateDoc(docRef, data));
+      return this;
+    },
+    delete(docRef: MockRef) {
+      operations.push(() => deleteDoc(docRef));
+      return this;
+    },
+    async commit() {
+      for (const op of operations) {
+        await op();
+      }
+    }
+  };
 }
 
 export async function runTransaction(dbInstance: any, updateFunction: (transaction: any) => Promise<any>) {
-  return realRunTransaction(realDb, updateFunction);
+  const transaction = {
+    async get(docRef: MockRef) {
+      return await getDoc(docRef);
+    },
+    set(docRef: MockRef, data: any, options?: any) {
+      return setDoc(docRef, data, options);
+    },
+    update(docRef: MockRef, data: any) {
+      return updateDoc(docRef, data);
+    },
+    delete(docRef: MockRef) {
+      return deleteDoc(docRef);
+    }
+  };
+  return await updateFunction(transaction);
 }
 
-// Helper to translate constraints to real Firestore query constraints
-function buildRealQuery(collectionName: string, constraints: any[] = []) {
-  let qRef: any = realCollection(realDb, collectionName);
+function resolveTransforms(existingData: any, newData: any, isMerge: boolean) {
+  let result = isMerge && existingData ? { ...existingData } : {};
+  const entries = Object.entries(newData || {});
   
-  if (constraints && constraints.length > 0) {
-    const realConstraints = constraints.map(c => {
-      if (c.type === 'where') {
-        return realWhere(c.field, c.op, c.val);
+  for (const [key, value] of entries) {
+    if (value && typeof value === 'object' && (value as any).__type) {
+      const transform = value as any;
+      if (transform.__type === 'increment') {
+        const currentVal = Number(result[key]) || 0;
+        result[key] = currentVal + (Number(transform.value) || 0);
+      } else if (transform.__type === 'arrayUnion') {
+        const currentArr = Array.isArray(result[key]) ? [...result[key]] : [];
+        for (const el of transform.elements || []) {
+          if (!currentArr.includes(el)) currentArr.push(el);
+        }
+        result[key] = currentArr;
+      } else if (transform.__type === 'arrayRemove') {
+        const currentArr = Array.isArray(result[key]) ? [...result[key]] : [];
+        result[key] = currentArr.filter(el => !(transform.elements || []).includes(el));
+      } else if (transform.__type === 'deleteField') {
+        delete result[key];
       }
-      if (c.type === 'orderBy') {
-        return realOrderBy(c.field, (c.dir || 'asc') as any);
-      }
-      if (c.type === 'limit') {
-        return realLimit(c.n);
-      }
-      return null;
-    }).filter(Boolean);
-
-    if (realConstraints.length > 0) {
-      qRef = realQuery(qRef, ...realConstraints);
+    } else {
+      result[key] = value;
     }
   }
-  
-  return qRef;
+  return result;
 }
 
 export async function setDoc(docRef: MockRef | any, data: any, options?: any) {
@@ -178,46 +215,37 @@ export async function setDoc(docRef: MockRef | any, data: any, options?: any) {
   if (collectionName === 'orders') {
     const row = orderToSupabaseRow({ id, ...data });
     await supabase.from('orders').upsert(row, { onConflict: 'id' });
+    notifySubscribers(collectionName);
     return;
   }
   if (collectionName === 'products') {
     const row = productToSupabaseRow({ id, ...data });
     await supabase.from('products').upsert(row, { onConflict: 'id' });
+    notifySubscribers(collectionName);
     return;
   }
 
-  // Use real Firestore
-  const realDocRef = realDoc(realDb, collectionName, id);
-  return await realSetDoc(realDocRef, data, options);
+  const isMerge = Boolean(options?.merge);
+  let finalData = data;
+  if (isMerge || Object.values(data || {}).some(v => v && typeof v === 'object' && (v as any).__type)) {
+    const existing = await fetchDocumentFromSupabase(collectionName, id);
+    finalData = resolveTransforms(existing, data, isMerge);
+  }
+
+  await saveDocumentToSupabase(collectionName, id, finalData);
+  notifySubscribers(collectionName);
 }
 
 export async function addDoc(collectionRef: MockRef | any, data: any) {
-  const collectionName = collectionRef.collectionName;
-  if (collectionName === 'orders' || collectionName === 'products') {
-    const id = `${collectionName}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const docRef = doc(collectionRef, id);
-    await setDoc(docRef, data);
-    return { id, path: `${collectionName}/${id}` };
-  }
-
-  // Real Firestore addDoc
-  const realColRef = realCollection(realDb, collectionName);
-  const docRef = await realAddDoc(realColRef, data);
-  return { id: docRef.id, path: docRef.path };
+  const collectionName = collectionRef.collectionName || (collectionRef.path ? collectionRef.path.split('/')[0] : 'general');
+  const id = `${collectionName}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const docRef = doc(collectionRef, id);
+  await setDoc(docRef, { ...data, id });
+  return { id, path: `${collectionName}/${id}` };
 }
 
 export async function updateDoc(docRef: MockRef | any, data: any) {
-  const collectionName = docRef.collectionName || (docRef.path ? docRef.path.split('/')[0] : '');
-  const id = docRef.id || (docRef.path ? docRef.path.split('/').pop() : '');
-  if (!id) return;
-
-  if (collectionName === 'orders' || collectionName === 'products') {
-    return setDoc(docRef, data, { merge: true });
-  }
-
-  // Real Firestore updateDoc
-  const realDocRef = realDoc(realDb, collectionName, id);
-  return await realUpdateDoc(realDocRef, data);
+  return setDoc(docRef, data, { merge: true });
 }
 
 export async function deleteDoc(docRef: MockRef | any) {
@@ -227,16 +255,17 @@ export async function deleteDoc(docRef: MockRef | any) {
 
   if (collectionName === 'orders') {
     await supabase.from('orders').delete().eq('id', id);
+    notifySubscribers(collectionName);
     return;
   }
   if (collectionName === 'products') {
     await supabase.from('products').delete().eq('id', id);
+    notifySubscribers(collectionName);
     return;
   }
 
-  // Real Firestore deleteDoc
-  const realDocRef = realDoc(realDb, collectionName, id);
-  return await realDeleteDoc(realDocRef);
+  await deleteDocumentFromSupabase(collectionName, id);
+  notifySubscribers(collectionName);
 }
 
 export async function getDoc(docRef: MockRef | any) {
@@ -264,14 +293,11 @@ export async function getDoc(docRef: MockRef | any) {
     return { exists: () => false, data: () => null, id };
   }
 
-  // Real Firestore
-  const realDocRef = realDoc(realDb, collectionName, id);
-  const snap = await realGetDoc(realDocRef);
+  const docData = await fetchDocumentFromSupabase(collectionName, id);
   return {
-    exists: () => snap.exists(),
-    data: () => snap.data() || null,
-    id: snap.id,
-    metadata: snap.metadata
+    exists: () => Boolean(docData),
+    data: () => docData || null,
+    id: id
   };
 }
 
@@ -284,14 +310,12 @@ function createMockQuerySnapshot(docs: any[], prevDocsMap?: Map<string, any>, op
   const changes: Array<{ type: 'added' | 'modified' | 'removed'; doc: any }> = [];
 
   if (prevDocsMap && prevDocsMap.size > 0) {
-    // Detect removed docs
     prevDocsMap.forEach((prevDoc, id) => {
       if (!currentMap.has(id)) {
         changes.push({ type: 'removed', doc: prevDoc });
       }
     });
 
-    // Detect added or modified docs
     docs.forEach(currentDoc => {
       const prevDoc = prevDocsMap.get(String(currentDoc.id));
       if (!prevDoc) {
@@ -305,7 +329,6 @@ function createMockQuerySnapshot(docs: any[], prevDocsMap?: Map<string, any>, op
       }
     });
   } else {
-    // Initial snapshot: all docs are 'added'
     docs.forEach(docItem => {
       changes.push({ type: 'added', doc: docItem });
     });
@@ -329,12 +352,51 @@ function createMockQuerySnapshot(docs: any[], prevDocsMap?: Map<string, any>, op
   };
 }
 
+function applyConstraints(items: any[], constraints: any[] = []): any[] {
+  let result = [...items];
+  if (!constraints || constraints.length === 0) return result;
+
+  for (const c of constraints) {
+    if (!c) continue;
+    if (c.type === 'where') {
+      result = result.filter(item => {
+        const val = item[c.field];
+        if (c.op === '==' || c.op === '===') return val === c.val;
+        if (c.op === '!=') return val !== c.val;
+        if (c.op === '>') return val > c.val;
+        if (c.op === '>=') return val >= c.val;
+        if (c.op === '<') return val < c.val;
+        if (c.op === '<=') return val <= c.val;
+        if (c.op === 'array-contains') return Array.isArray(val) && val.includes(c.val);
+        if (c.op === 'in') return Array.isArray(c.val) && c.val.includes(val);
+        return true;
+      });
+    } else if (c.type === 'orderBy') {
+      result.sort((a, b) => {
+        const valA = a[c.field];
+        const valB = b[c.field];
+        if (valA === valB) return 0;
+        if (valA === undefined || valA === null) return 1;
+        if (valB === undefined || valB === null) return -1;
+        const comp = valA < valB ? -1 : 1;
+        return c.dir === 'desc' ? -comp : comp;
+      });
+    } else if (c.type === 'limit') {
+      if (typeof c.n === 'number' && c.n > 0) {
+        result = result.slice(0, c.n);
+      }
+    }
+  }
+  return result;
+}
+
 export async function getDocs(queryOrCol: MockRef | any) {
   const collectionName = queryOrCol.collectionName;
 
   if (collectionName === 'orders') {
     const { data } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
-    const orders = (data || []).map(row => supabaseRowToOrder(row));
+    let orders = (data || []).map(row => supabaseRowToOrder(row));
+    orders = applyConstraints(orders, queryOrCol.constraints);
     const docs = orders.map(o => ({
       id: o.id,
       data: () => o,
@@ -345,7 +407,8 @@ export async function getDocs(queryOrCol: MockRef | any) {
 
   if (collectionName === 'products') {
     const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-    const products = (data || []).map(row => supabaseRowToProduct(row));
+    let products = (data || []).map(row => supabaseRowToProduct(row));
+    products = applyConstraints(products, queryOrCol.constraints);
     const docs = products.map(p => ({
       id: p.id,
       data: () => p,
@@ -354,16 +417,22 @@ export async function getDocs(queryOrCol: MockRef | any) {
     return createMockQuerySnapshot(docs);
   }
 
-  // Real Firestore
-  const qRef = buildRealQuery(collectionName, queryOrCol.constraints);
-  const snap = await realGetDocs(qRef);
-  const docs = snap.docs.map(d => ({
-    id: d.id,
-    data: () => d.data(),
-    exists: () => d.exists(),
-    metadata: d.metadata
+  const docsData = await fetchDocumentsFromSupabase(collectionName);
+  const filteredData = applyConstraints(docsData, queryOrCol.constraints);
+  const docs = filteredData.map(item => ({
+    id: item.id,
+    data: () => item,
+    exists: () => true
   }));
   return createMockQuerySnapshot(docs);
+}
+
+// In-memory subscriber registry for ultra-fast multi-tab/live synchronization
+const activeSubscribers = new Set<() => void>();
+function notifySubscribers(collectionName: string) {
+  activeSubscribers.forEach(cb => {
+    try { cb(); } catch {}
+  });
 }
 
 export function onSnapshot(
@@ -386,93 +455,44 @@ export function onSnapshot(
   }
 
   const collectionName = target.collectionName || (target.path ? target.path.split('/')[0] : '');
+  let isMounted = true;
+  let prevDocsMap = new Map<string, any>();
 
-  if (collectionName === 'orders' || collectionName === 'products') {
-    let isMounted = true;
-    let prevDocsMap = new Map<string, any>();
-
-    const fetchAndNotify = () => {
-      if (!isMounted) return;
-      if (collectionName === 'orders') {
-        supabase.from('orders').select('*').order('created_at', { ascending: false }).then(({ data, error }) => {
-          if (!isMounted) return;
-          if (error) {
-            if (typeof onError === 'function') onError(error);
-            return;
-          }
-          const orders = (data || []).map(row => supabaseRowToOrder(row));
-          const docs = orders.map(o => ({
-            id: o.id,
-            data: () => o,
-            exists: () => true
-          }));
-          const snap = createMockQuerySnapshot(docs, prevDocsMap, options);
-          prevDocsMap = new Map();
-          docs.forEach(d => prevDocsMap.set(String(d.id), d));
-          if (typeof onNext === 'function') onNext(snap);
-        }).catch(err => {
-          if (isMounted && typeof onError === 'function') onError(err);
-        });
+  const fetchAndNotify = async () => {
+    if (!isMounted) return;
+    try {
+      if (target.type === 'doc') {
+        const snap = await getDoc(target);
+        if (isMounted && typeof onNext === 'function') {
+          onNext(snap);
+        }
       } else {
-        supabase.from('products').select('*').order('created_at', { ascending: false }).then(({ data, error }) => {
-          if (!isMounted) return;
-          if (error) {
-            if (typeof onError === 'function') onError(error);
-            return;
-          }
-          const products = (data || []).map(row => supabaseRowToProduct(row));
-          const docs = products.map(p => ({
-            id: p.id,
-            data: () => p,
-            exists: () => true
-          }));
-          const snap = createMockQuerySnapshot(docs, prevDocsMap, options);
-          prevDocsMap = new Map();
-          docs.forEach(d => prevDocsMap.set(String(d.id), d));
-          if (typeof onNext === 'function') onNext(snap);
-        }).catch(err => {
-          if (isMounted && typeof onError === 'function') onError(err);
-        });
+        const snap = await getDocs(target);
+        if (isMounted && typeof onNext === 'function') {
+          onNext(snap);
+        }
       }
-    };
+    } catch (err) {
+      if (isMounted && typeof onError === 'function') {
+        onError(err);
+      }
+    }
+  };
 
+  fetchAndNotify();
+
+  // Fast polling interval (2.5s) ensuring real-time multi-device consistency
+  const interval = setInterval(fetchAndNotify, 2500);
+
+  // Also listen to local notification triggers
+  const triggerCb = () => {
     fetchAndNotify();
-    const interval = setInterval(fetchAndNotify, 3500);
+  };
+  activeSubscribers.add(triggerCb);
 
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }
-
-  // Real Firestore onSnapshot
-  if (target.type === 'doc') {
-    const id = target.id || (target.path ? target.path.split('/').pop() : '');
-    const realDocRef = realDoc(realDb, collectionName, id);
-    return realOnSnapshot(realDocRef, options, (snap) => {
-      const mockSnap = {
-        exists: () => snap.exists(),
-        data: () => snap.data() || null,
-        id: snap.id,
-        metadata: snap.metadata
-      };
-      onNext(mockSnap);
-    }, (err) => {
-      if (onError) onError(err);
-    });
-  } else {
-    const qRef = buildRealQuery(collectionName, target.constraints);
-    return realOnSnapshot(qRef, options, (snap) => {
-      const docs = snap.docs.map(d => ({
-        id: d.id,
-        data: () => d.data(),
-        exists: () => d.exists(),
-        metadata: d.metadata
-      }));
-      const mockSnap = createMockQuerySnapshot(docs, undefined, options);
-      onNext(mockSnap);
-    }, (err) => {
-      if (onError) onError(err);
-    });
-  }
+  return () => {
+    isMounted = false;
+    clearInterval(interval);
+    activeSubscribers.delete(triggerCb);
+  };
 }

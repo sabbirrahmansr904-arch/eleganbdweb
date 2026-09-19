@@ -23,7 +23,7 @@ const ScrollProductCard: React.FC<{ product: Product }> = ({ product }) => {
   }, [product.id, product.images?.[0], product.image]);
   
   const isPant = (product.category || '').toLowerCase().includes('pant') || (product.name || '').toLowerCase().includes('pant');
-  const fallback = '/logo.png';
+  const fallback = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400" viewBox="0 0 300 400" fill="%23f1f3f5"><rect width="300" height="400" fill="%23f4f5f7"/><text x="50%" y="50%" font-family="sans-serif" font-size="14" font-weight="bold" fill="%239ca3af" text-anchor="middle" dominant-baseline="middle">MAN%27S AVENUE</text></svg>';
 
   const rawMain = product.images?.[0] || product.image || fallback;
   const rawSecondary = product.images?.[1] || rawMain;

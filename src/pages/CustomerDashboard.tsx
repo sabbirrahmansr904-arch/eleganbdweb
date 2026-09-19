@@ -385,7 +385,7 @@ export default function CustomerDashboard() {
         </div>
         <h1 className="text-3xl md:text-4xl font-serif font-bold text-gray-900 mb-3">Please Sign In</h1>
         <p className="text-xs text-gray-500 uppercase tracking-widest max-w-md mb-8 leading-relaxed">
-          Sign in to your Elegan BD account to view your Gmail profile, order status, track shipments, and manage saved delivery addresses.
+          Sign in to your Man's Avenue account to view your Gmail profile, order status, track shipments, and manage saved delivery addresses.
         </p>
         <Link 
           to="/" 
@@ -636,7 +636,7 @@ export default function CustomerDashboard() {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-gray-100 pb-5">
                 <div>
                   <h2 className="text-xl font-bold font-serif text-gray-900">Order History</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">View and track all your purchases with Elegan BD</p>
+                  <p className="text-xs text-gray-500 mt-0.5">View and track all your purchases with Man's Avenue</p>
                 </div>
 
                 {/* Filter Chips */}
@@ -792,7 +792,7 @@ export default function CustomerDashboard() {
                           </div>
 
                           <a
-                            href={`https://wa.me/8801327772213?text=Hi%20Elegan%20BD,%20I%20have%20a%20question%20regarding%20Order%20%23${order.invoiceNo || order.id}`}
+                            href={`https://wa.me/8801327772213?text=Hi%20Mans%20Avenue,%20I%20have%20a%20question%20regarding%20Order%20%23${order.invoiceNo || order.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-lg font-extrabold text-[11px] flex items-center gap-1.5 transition-all"
@@ -866,7 +866,7 @@ export default function CustomerDashboard() {
                     
                     <p className="text-[11px] text-gray-600 mt-2 flex items-center gap-1 font-medium">
                       <ShieldCheck size={13} className="text-emerald-600 shrink-0" />
-                      <span>This Gmail account is permanently bound to your Elegan BD profile for secure order history tracking.</span>
+                      <span>This Gmail account is permanently bound to your Man's Avenue profile for secure order history tracking.</span>
                     </p>
                   </div>
 
@@ -1361,7 +1361,7 @@ export default function CustomerDashboard() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* WhatsApp Chat Card */}
                 <a
-                  href={`https://wa.me/8801327772213?text=Hello%20Elegan%20BD,%20I%20am%20${encodeURIComponent(accountDisplayName)}%20(${encodeURIComponent(accountEmail)}).%20I%20need%20assistance.`}
+                  href={`https://wa.me/8801327772213?text=Hello%20Mans%20Avenue,%20I%20am%20${encodeURIComponent(accountDisplayName)}%20(${encodeURIComponent(accountEmail)}).%20I%20need%20assistance.`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-5 rounded-2xl border border-emerald-200 bg-emerald-50/50 hover:bg-emerald-50 transition-all flex items-start gap-4 cursor-pointer group"

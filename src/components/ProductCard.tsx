@@ -68,7 +68,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
     ? product.images[0]
     : product.image;
 
-  const fallbackImage = '/logo.png';
+  const fallbackImage = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400" viewBox="0 0 300 400" fill="%23f1f3f5"><rect width="300" height="400" fill="%23f4f5f7"/><text x="50%" y="50%" font-family="sans-serif" font-size="14" font-weight="bold" fill="%239ca3af" text-anchor="middle" dominant-baseline="middle">MAN%27S AVENUE</text></svg>';
 
   const secondaryImage = (product.images && product.images.length > 1 && product.images[1])
     ? product.images[1]

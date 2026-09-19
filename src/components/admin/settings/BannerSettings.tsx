@@ -555,7 +555,10 @@ export default function BannerSettings() {
                 </div>
 
                 <div className="space-y-3">
-                  <label className="text-[10px] uppercase tracking-widest font-black text-gray-400 ml-1">Payload Asset</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] uppercase tracking-widest font-black text-gray-400 ml-1">Payload Asset</label>
+                    <span className="text-[10px] font-bold text-gray-400">Desktop: 1920×900px | Mobile: 1080×650px</span>
+                  </div>
                   <label className="aspect-[21/9] bg-gray-50 border-2 border-dashed border-gray-100 rounded-2xl flex flex-col items-center justify-center cursor-pointer overflow-hidden group hover:border-black/30 transition-all relative">
                     {formData.image ? (
                       <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
@@ -563,6 +566,7 @@ export default function BannerSettings() {
                       <div className="text-center flex flex-col items-center gap-3">
                         <div className="w-12 h-12 bg-white rounded-xl border border-gray-100 flex items-center justify-center text-brand-gold shadow-sm"><Upload size={20} /></div>
                         <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">UPLOAD VISUAL UNIT</p>
+                        <p className="text-[9px] text-gray-400 font-medium">Recommended: 1920 × 900 px (21:9 ratio)</p>
                       </div>
                     )}
                     <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />

@@ -426,7 +426,6 @@ export default function AdminLayout() {
       title: 'OVERVIEW',
       items: [
         { name: 'Dashboard', path: '/admin', icon: Home, perm: 'dashboard' },
-        { name: 'My Account', path: '/admin/my-account', icon: User, perm: 'my-account' },
       ]
     },
     {
@@ -439,22 +438,15 @@ export default function AdminLayout() {
       title: 'INVENTORY',
       items: [
         { name: 'Products', path: '/admin/products', icon: ShoppingBag, perm: 'products' },
+        { name: 'Categories', path: '/admin/settings?tab=Categories', icon: Folder, perm: 'categories' },
         { name: 'Master Table', path: '/admin/master-table', icon: Table, perm: 'master-table' },
         { name: 'Inventory Log', path: '/admin/inventory-log', icon: History, perm: 'inventory-log' },
       ]
     },
     {
-      title: 'ACCOUNTING',
-      items: [
-        { name: 'Finance', path: '/admin/finance', icon: DollarSign, perm: 'finance' },
-        { name: 'Partnership', path: '/admin/partnership', icon: Handshake, perm: 'partnership' },
-        { name: 'Dollar Expense', path: '/admin/dollar-expenses', icon: Coins, perm: 'dollar-expense' },
-      ]
-    },
-    {
       title: 'SYSTEM',
       items: [
-        { name: 'Settings', path: '/admin/settings', icon: Settings, perm: 'settings' },
+        { name: 'Account', path: '/admin/my-account', icon: User, perm: 'my-account' },
         { name: 'Promo Banners', path: '/admin/settings?tab=Banners', icon: ImageIcon, perm: 'settings' },
         { name: 'Supabase DB', path: '/admin/settings?tab=Supabase', icon: Database, perm: 'settings' },
       ]
@@ -556,11 +548,8 @@ export default function AdminLayout() {
               <div className="p-3 border-b border-[#DCE4EE] bg-[#EAEFF5]">
                 <div className="flex items-center justify-between p-2.5 bg-[#E6ECF4] rounded-2xl border border-white/90 shadow-[-4px_-4px_10px_rgba(255,255,255,0.95),4px_4px_12px_rgba(165,180,205,0.32)]">
                   <Link to="/" onClick={() => setIsMobileOpen(false)} className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 flex items-center justify-center shrink-0">
-                      {logoUrl ? <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" /> : <span className="font-black text-slate-900 text-base">EB</span>}
-                    </div>
                     <span className="font-black tracking-tight text-sm text-slate-900 truncate">
-                      Elegan Admin
+                      Man's Avenue Admin
                     </span>
                   </Link>
                   <button 
@@ -664,15 +653,8 @@ export default function AdminLayout() {
               title="Click to collapse sidebar"
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 flex items-center justify-center shrink-0">
-                  {logoUrl ? (
-                    <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
-                  ) : (
-                    <span className="font-black text-slate-900 text-base">EB</span>
-                  )}
-                </div>
                 <span className="font-black tracking-tight text-sm text-slate-900 truncate">
-                  Elegan Admin
+                  Man's Avenue Admin
                 </span>
               </div>
               <div className="w-6 h-6 rounded-full bg-[#E6ECF4] flex items-center justify-center text-slate-500 group-hover:text-slate-800 shadow-[-2px_-2px_5px_rgba(255,255,255,0.9),2px_2px_5px_rgba(165,180,205,0.25)] border border-white/80 shrink-0">
@@ -685,12 +667,8 @@ export default function AdminLayout() {
               className="w-12 h-12 flex items-center justify-center bg-[#E6ECF4] hover:bg-[#DEE5F0] rounded-2xl border border-white/90 shadow-[-3px_-3px_8px_rgba(255,255,255,0.95),3px_3px_8px_rgba(165,180,205,0.3)] transition-all cursor-pointer mx-auto group"
               title="Click to expand sidebar"
             >
-              <div className="w-7 h-7 flex items-center justify-center">
-                {logoUrl ? (
-                  <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
-                ) : (
-                  <span className="font-black text-slate-900 text-sm">EB</span>
-                )}
+              <div className="w-7 h-7 rounded-lg bg-slate-900 text-white flex items-center justify-center">
+                <span className="font-black text-white text-[11px]">MA</span>
               </div>
             </button>
           )}
@@ -746,10 +724,8 @@ export default function AdminLayout() {
         <div className="p-3 border-t border-[#DCE4EE] bg-[#EAEFF5] shrink-0">
           {isSidebarOpen ? (
             <div className="space-y-2">
-              <Link 
-                to="/admin/my-account"
-                className="flex items-center gap-2.5 p-2 bg-[#E6ECF4] hover:bg-[#DEE5F0] rounded-2xl border border-white/90 shadow-[-4px_-4px_10px_rgba(255,255,255,0.95),4px_4px_12px_rgba(165,180,205,0.32)] transition-all group"
-                title="Go to My Account Profile"
+              <div 
+                className="flex items-center gap-2.5 p-2 bg-[#E6ECF4] rounded-2xl border border-white/90 shadow-[-4px_-4px_10px_rgba(255,255,255,0.95),4px_4px_12px_rgba(165,180,205,0.32)]"
               >
                 {userPhoto ? (
                   <img src={userPhoto} alt="User Profile" className="w-9 h-9 rounded-full object-cover border border-white shrink-0 shadow-inner" />
@@ -764,7 +740,7 @@ export default function AdminLayout() {
                     {activeDepartment}
                   </span>
                 </div>
-              </Link>
+              </div>
               <div className="flex items-center gap-2 mt-2">
                 <Link 
                   to="/" 
@@ -901,34 +877,25 @@ export default function AdminLayout() {
                     </div>
 
                     <div className="py-4 space-y-3.5">
-                      <div className="grid grid-cols-2 gap-2">
-                        <Link
-                          to="/admin/my-account"
-                          onClick={() => setShowProfileDropdown(false)}
-                          className="flex items-center gap-2 p-2.5 bg-white border border-gray-200 hover:border-blue-500 rounded-xl text-xs font-bold text-gray-800 hover:text-blue-600 transition-all shadow-2xs"
-                        >
-                          <User size={14} className="text-blue-600" />
-                          <span>My Account</span>
-                        </Link>
-                        {isPermitted('admin-access') ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {isPermitted('admin-access') && (
                           <Link
                             to="/admin/all-accounts"
                             onClick={() => setShowProfileDropdown(false)}
-                            className="flex items-center gap-2 p-2.5 bg-white border border-gray-200 hover:border-blue-500 rounded-xl text-xs font-bold text-gray-800 hover:text-blue-600 transition-all shadow-2xs"
+                            className="flex items-center justify-center gap-2 p-2.5 bg-white border border-gray-200 hover:border-blue-500 rounded-xl text-xs font-bold text-gray-800 hover:text-blue-600 transition-all shadow-2xs"
                           >
                             <Users size={14} className="text-blue-600" />
                             <span>All Account</span>
                           </Link>
-                        ) : (
-                          <Link 
-                            to="/" 
-                            onClick={() => setShowProfileDropdown(false)}
-                            className="flex items-center gap-2 p-2.5 bg-white border border-gray-200 hover:border-blue-500 rounded-xl text-xs font-bold text-gray-800 hover:text-blue-600 transition-all shadow-2xs"
-                          >
-                            <Store size={14} className="text-slate-600" />
-                            <span>View Store</span>
-                          </Link>
                         )}
+                        <Link 
+                          to="/" 
+                          onClick={() => setShowProfileDropdown(false)}
+                          className="flex items-center justify-center gap-2 p-2.5 bg-white border border-gray-200 hover:border-blue-500 rounded-xl text-xs font-bold text-gray-800 hover:text-blue-600 transition-all shadow-2xs"
+                        >
+                          <Store size={14} className="text-slate-600" />
+                          <span>View Store</span>
+                        </Link>
                       </div>
 
                       <div>

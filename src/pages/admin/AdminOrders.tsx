@@ -33,7 +33,6 @@ import {
   Camera,
   MessageSquare,
   Printer,
-  Tag,
   Lock,
   ArrowLeftRight,
   Send,
@@ -497,7 +496,7 @@ export default function AdminOrders(): React.JSX.Element {
 
       // 5. Courier filter
       if (filterCourier !== 'All') {
-        const oCourier = order.courier || (order as any).courierName || 'Pathao';
+        const oCourier = order.courier || (order as any).courierName || 'Courier';
         if (oCourier.toLowerCase() !== filterCourier.toLowerCase()) return false;
       }
 
@@ -557,7 +556,7 @@ export default function AdminOrders(): React.JSX.Element {
     const set = new Set<string>();
     (orders || []).forEach(order => {
       if (!order) return;
-      const oCourier = order.courier || (order as any).courierName || 'Pathao';
+      const oCourier = order.courier || (order as any).courierName;
       if (oCourier) set.add(oCourier);
     });
     return Array.from(set);
@@ -887,52 +886,36 @@ export default function AdminOrders(): React.JSX.Element {
     }
   };
 
-  const handleConfirmPathaoEntry = async () => {
+  const handleConfirmOrderEntry = async () => {
     if (!activeScanOrder) return;
     
-    // Block Pathao entry if order has an active issue
+    // Block entry if order has an active issue
     if (activeScanOrder.issueType && activeScanOrder.issueStatus !== 'resolved') {
-      toast.error("Cannot book order with active issue!");
+      toast.error("Cannot process order with active issue!");
       return;
     }
     
     setBookingToPathao(true);
     const shortCode = (activeScanOrder?.id || '').slice(-6).toUpperCase();
-    const loadingToast = toast.loading(`Booking Order #${shortCode} with Pathao API...`);
+    const loadingToast = toast.loading(`Dispatching Order #${shortCode}...`);
     
     try {
-      const { ok, data } = await bookPathaoOrder(activeScanOrder);
-
-      if (ok && data.success) {
-        const consignment_id = data.consignment_id || "PL-000000";
-        const charge = activeScanOrder.courierCharge || 120;
-        const payout = Math.max(0, (activeScanOrder.total || 0) - charge);
-        // Update the order status to 'Shipped' and save consignment ID
-        if (updateOrder) {
-          await updateOrder(activeScanOrder.id, { 
-            status: 'Shipped', 
-            trackingId: consignment_id,
-            trackingCode: consignment_id, 
-            pathaoConsignmentId: consignment_id,
-            courier: 'Pathao',
-            partner: 'Pathao',
-            courierCharge: charge,
-            courierPayoutAmount: payout
-          });
-        } else {
-          await updateOrderStatus(activeScanOrder.id, 'Shipped', true);
-        }
-        
-        // Store in session arrays
-        setScannedOrders(prev => [activeScanOrder, ...prev]);
-        setScannedIds(prev => [...prev, activeScanOrder.id]);
-        
-        toast.success(`Successfully created parcel in Pathao Merchant Portal! Consignment ID: ${data.consignment_id}`, { id: loadingToast, duration: 8000 });
+      if (updateOrder) {
+        await updateOrder(activeScanOrder.id, { 
+          status: 'Shipped',
+          dispatchedAt: new Date().toISOString()
+        });
       } else {
-        toast.error(`Pathao API Error: ${data.error || 'Failed to create order'}`, { id: loadingToast, duration: 7000 });
+        await updateOrderStatus(activeScanOrder.id, 'Shipped', true);
       }
+      
+      // Store in session arrays
+      setScannedOrders(prev => [activeScanOrder, ...prev]);
+      setScannedIds(prev => [...prev, activeScanOrder.id]);
+      
+      toast.success(`Order #${shortCode} marked as Shipped!`, { id: loadingToast, duration: 4000 });
     } catch (err: any) {
-      toast.error(`Network Error calling Pathao API: ${err.message}`, { id: loadingToast });
+      toast.error(`Error updating order: ${err.message}`, { id: loadingToast });
     } finally {
       setActiveScanOrder(null);
       setBookingToPathao(false);
@@ -1409,14 +1392,6 @@ export default function AdminOrders(): React.JSX.Element {
             title="Scan Barcode / QR Code"
           >
             <Camera size={14} className="stroke-[2.5]" />
-          </button>
-
-          <button 
-            onClick={handleSyncPathao}
-            className="px-4 py-2.5 bg-[#F8F9FD] hover:bg-slate-50 border border-slate-200 text-slate-800 font-extrabold text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-2"
-          >
-            <RefreshCw size={13} className="text-emerald-500 stroke-[2.5]" />
-            <span>Sync Pathao</span>
           </button>
 
           <button 
@@ -1918,7 +1893,7 @@ export default function AdminOrders(): React.JSX.Element {
                       {/* Courier */}
                       <td className="py-4 px-4 whitespace-nowrap text-xs text-slate-700 font-semibold" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-1 bg-[#F1F5F9]/60 hover:bg-[#F1F5F9] px-2.5 py-1.5 rounded-lg border border-slate-200/40 w-fit cursor-pointer">
-                          <span>{order.courier || 'Pathao'}</span>
+                          <span>{order.courier || '—'}</span>
                           <ChevronDown size={11} className="text-slate-400 stroke-[2.5]" />
                         </div>
                       </td>
@@ -2155,67 +2130,6 @@ export default function AdminOrders(): React.JSX.Element {
                             >
                               <Printer size={17} className="stroke-[2.2]" />
                             </button>
-                            
-                            <div className="w-[1px] h-4 sm:h-5 bg-[#E2E8F0] mx-0.5" />
-                            
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedOrder(order);
-                                setNewCustomerName(order.customerName || '');
-                                setNewCustomerPhone(order.phone || '');
-                                setNewCustomerAddress(order.address || '');
-                                setNewCustomerCity(order.city || '');
-                                setEditName(order.customerName || '');
-                                setEditPhone(order.phone || '');
-                                setEditAddress(order.address || '');
-                                setEditCity(order.city || '');
-                                setEditThana((order as any).thana || '');
-                                setEditStatus(order.status || 'Pending');
-                                setEditDeliveryCharge(order.deliveryCharge ?? 100);
-                                setEditDiscount((order as any).discount ?? 0);
-                                setEditAdvancePayment((order as any).advancePayment ?? 0);
-                                setEditNotes((order as any).notes || '');
-                                setEditInvoiceBy(order.invoiceBy || '');
-                                setIsEditingDetails(true);
-                              }} 
-                              title="Edit Order"
-                              className="p-1.5 sm:p-2 rounded-lg transition-all text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8F9FD] hover:shadow-xs cursor-pointer"
-                            >
-                              <Tag size={17} className="stroke-[2.2]" />
-                            </button>
-                            
-                            <div className="w-[1px] h-4 sm:h-5 bg-[#E2E8F0] mx-0.5" />
-                            
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (order.issueType && order.issueStatus !== 'resolved') {
-                                  toast.error("Cannot book order with active issue!");
-                                  return;
-                                }
-                                
-                                const parsedLoc = parseCustomerAddress(order.address, order.city, order.thana);
-
-                                setPathaoBookingOrder(order);
-                                setPathaoCity(parsedLoc.city || order.city || 'Dhaka');
-                                setPathaoZone(parsedLoc.zone || order.thana || '');
-                                setPathaoDetectedAddressInfo({
-                                  districtBangla: parsedLoc.districtBangla,
-                                  isAutoDetected: parsedLoc.isAutoDetected
-                                });
-                                setPathaoArea('');
-                                setPathaoWeight('0.5');
-                                setPathaoDeliveryType('48');
-                                setPathaoSpecialInstruction(order.notes || '');
-                                setPathaoSuccessResult(null);
-                              }} 
-                              title="Book via Pathao Courier"
-                              className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/90 text-emerald-700 font-extrabold text-xs rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
-                            >
-                              <Send size={14} className="text-emerald-600 stroke-[2.5]" />
-                              <span className="font-bold">Pathao</span>
-                            </button>
 
                             {(isAdmin || isSuperAdmin || isCEO) && (
                               <>
@@ -2342,7 +2256,7 @@ export default function AdminOrders(): React.JSX.Element {
                   <div className="text-left">
                     <h2 className="text-lg font-black text-[#0D1829] tracking-tight">Bulk Delivery</h2>
                     <p className="text-xs text-gray-400 font-semibold uppercase tracking-widest mt-0.5">
-                      Scan invoice barcodes → Book all to Pathao
+                      Scan invoice barcodes → Fast Dispatch & Ship
                     </p>
                   </div>
                 </div>
@@ -2554,7 +2468,7 @@ export default function AdminOrders(): React.JSX.Element {
                             <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
                           </span>
                           <span className="text-xs font-black uppercase text-amber-850 tracking-wider">
-                            Pathao Delivery Booking Confirmation
+                            Order Dispatch Confirmation
                           </span>
                         </div>
                         <button 
@@ -2612,24 +2526,24 @@ export default function AdminOrders(): React.JSX.Element {
                         {/* Confirmation Button with name "Entry" */}
                         <div className="pt-2 text-left">
                           <button 
-                            onClick={handleConfirmPathaoEntry}
+                            onClick={handleConfirmOrderEntry}
                             disabled={bookingToPathao}
                             className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[12px] tracking-widest uppercase rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer shadow-sm shadow-emerald-600/10"
                           >
                             {bookingToPathao ? (
                               <>
                                 <RefreshCw className="animate-spin text-white" size={13} />
-                                <span>COMMUNICATING WITH PATHAO API...</span>
+                                <span>PROCESSING DISPATCH...</span>
                               </>
                             ) : (
                               <>
                                 <Truck size={14} className="stroke-[2.5]" />
-                                <span>Entry</span>
+                                <span>Entry (Mark as Shipped)</span>
                               </>
                             )}
                           </button>
                           <p className="text-[9px] text-gray-400 text-center mt-2 font-medium">
-                            Clicking "Entry" will record this dispatch sheet, print invoice labels, and register this status in the Pathao network.
+                            Clicking "Entry" will record this dispatch and mark the order as Shipped in your system.
                           </p>
                         </div>
                       </div>
@@ -2672,8 +2586,8 @@ export default function AdminOrders(): React.JSX.Element {
                               </span>
                             </div>
                             <p className="text-[10px] text-[#0D9488] font-bold mt-1 uppercase tracking-wider flex items-center gap-1 text-left">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-505 inline-block animate-pulse" />
-                              Pathao Registered (Tracking: PL-{Math.floor(123450 + index * 99)})
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
+                              Dispatched & Recorded
                             </p>
                           </div>
                           
@@ -3603,7 +3517,7 @@ export default function AdminOrders(): React.JSX.Element {
                           <div>
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Partner</span>
                             <span className="text-sm font-black text-slate-900 block truncate leading-tight">
-                              {selectedOrder.partner || selectedOrder.courier || 'Pathao'}
+                              {selectedOrder.partner || selectedOrder.courier || '—'}
                             </span>
                           </div>
                           <div>

@@ -136,12 +136,10 @@ const cleanBannerUrl = (url?: string) => {
 };
 
 const cleanUrl = (url?: string) => {
-  if (!url) return "/logo.png";
-  if (url.includes('images.unsplash.com')) return "/logo.png";
-  return url;
+  return "";
 };
 
-const DEFAULT_LOGO = "/logo.png";
+const DEFAULT_LOGO = "";
 const DEFAULT_SIZE_CHART = "";
 const DEFAULT_COLLECTIONS_BANNER = "";
 const DEFAULT_HERO_BANNER = "";
@@ -165,9 +163,9 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (cached) {
       try {
         return cleanUrl(JSON.parse(cached).logoUrl);
-      } catch (e) { return "/logo.png"; }
+      } catch (e) { return ""; }
     }
-    return "/logo.png";
+    return "";
   });
   
   const [sizeChartUrl, setSizeChartUrlState] = useState<string>(() => {
@@ -1167,8 +1165,8 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   useEffect(() => {
-    const targetImage = heroBannerUrl || logoUrl || 'https://eleganbd.vercel.app/og-image.png';
-    const faviconImage = logoUrl || '/logo.png';
+    const targetImage = heroBannerUrl || logoUrl || '/og-image.png';
+    const faviconImage = logoUrl || '/favicon.svg';
     
     if (typeof document !== 'undefined') {
       const origin = window.location.origin;

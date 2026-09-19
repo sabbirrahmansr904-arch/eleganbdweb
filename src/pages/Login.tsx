@@ -181,21 +181,9 @@ export default function Login() {
         {/* Brand Header */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center mb-3">
-            {logoUrl ? (
-              <img 
-                src={logoUrl} 
-                alt="Elegan BD" 
-                className="h-12 w-auto object-contain" 
-                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-              />
-            ) : (
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-black text-white font-black flex items-center justify-center text-lg shadow-md">
-                  E
-                </div>
-                <span className="font-black text-2xl uppercase text-black">ELEGAN BD</span>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              <span className="font-black text-2xl uppercase text-black tracking-tight">MAN'S AVENUE</span>
+            </div>
           </div>
           <h1 className="text-xl font-black uppercase tracking-tight text-gray-900">
             Account Authentication

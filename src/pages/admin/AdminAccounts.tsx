@@ -30,6 +30,7 @@ import {
   Home
 } from 'lucide-react';
 import { VerifiedBadge } from '../../components/admin/VerifiedBadge';
+import { saveDocumentToSupabase, deleteDocumentFromSupabase } from '../../lib/supabase';
 import { db } from '../../lib/firebase';
 import { 
   collection, 
@@ -512,7 +513,7 @@ export default function AdminAccounts() {
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canEditAccounts) {
-      toast.error('অনুমতি নেই: শুধুমাত্র সাব্বির রহমান ও এলিগান বিডি (Sabbir & Elegan BD) এডমিন প্রোফাইল সেভ করতে পারেন।');
+      toast.error('অনুমতি নেই: শুধুমাত্র সাব্বir রহমান ও Man\'s Avenue এডমিন প্রোফাইল সেভ করতে পারেন।');
       return;
     }
     if (!formData.name?.trim() || !formData.email?.trim()) {
@@ -565,11 +566,12 @@ export default function AdminAccounts() {
     };
 
     try {
-      // 1. Save to admin_profiles
+      // 1. Save to admin_profiles & Supabase
       await setDoc(doc(db, 'admin_profiles', docId), payload, { merge: true });
+      await saveDocumentToSupabase('admin_profiles', docId, payload).catch(() => {});
       
-      // 2. Sync with admin_permissions
-      await setDoc(doc(db, 'admin_permissions', cleanEmail), {
+      // 2. Sync with admin_permissions & Supabase
+      const permPayload = {
         email: cleanEmail,
         name: payload.name,
         phone: payload.phone,
@@ -582,10 +584,12 @@ export default function AdminAccounts() {
         role: isCeo ? 'ceo' : 'admin',
         updatedAt: Date.now(),
         updatedBy: currentUser?.email || 'admin'
-      }, { merge: true });
+      };
+      await setDoc(doc(db, 'admin_permissions', cleanEmail), permPayload, { merge: true });
+      await saveDocumentToSupabase('admin_permissions', cleanEmail, permPayload).catch(() => {});
 
-      // 3. Sync with admin_invites
-      await setDoc(doc(db, 'admin_invites', cleanEmail), {
+      // 3. Sync with admin_invites & Supabase
+      const invitePayload = {
         email: cleanEmail,
         name: payload.name,
         phone: payload.phone,
@@ -597,10 +601,12 @@ export default function AdminAccounts() {
         permissions: payload.permissions,
         role: isCeo ? 'ceo' : 'admin',
         updatedAt: Date.now()
-      }, { merge: true });
+      };
+      await setDoc(doc(db, 'admin_invites', cleanEmail), invitePayload, { merge: true });
+      await saveDocumentToSupabase('admin_invites', cleanEmail, invitePayload).catch(() => {});
 
-      // 4. Sync with admins
-      await setDoc(doc(db, 'admins', cleanEmail), {
+      // 4. Sync with admins & Supabase
+      const adminPayload = {
         email: cleanEmail,
         name: payload.name,
         phone: payload.phone,
@@ -612,7 +618,9 @@ export default function AdminAccounts() {
         permissions: payload.permissions,
         role: isCeo ? 'ceo' : 'admin',
         updatedAt: Date.now()
-      }, { merge: true });
+      };
+      await setDoc(doc(db, 'admins', cleanEmail), adminPayload, { merge: true });
+      await saveDocumentToSupabase('admins', cleanEmail, adminPayload).catch(() => {});
 
       // Update local state instantly
       setProfiles(prev => {
@@ -642,7 +650,7 @@ export default function AdminAccounts() {
 
   const handleDeleteProfile = (profile: AdminProfile) => {
     if (!canEditAccounts) {
-      toast.error('শুধুমাত্র সাব্বির রহমান ও এলিগান বিডি (Sabbir & Elegan BD) এডমিন অ্যাকাউন্ট রিমুভ বা ডিলিট করতে পারবেন।');
+      toast.error('শুধুমাত্র সাব্বির রহমান ও Man\'s Avenue এডমিন অ্যাকাউন্ট রিমুভ বা ডিলিট করতে পারবেন।');
       return;
     }
     if (isCeoRoleOrEmail(profile)) {

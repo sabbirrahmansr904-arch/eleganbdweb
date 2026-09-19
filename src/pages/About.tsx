@@ -31,11 +31,11 @@ export default function About() {
             <span className="text-xs uppercase tracking-[0.4em] text-brand-gold font-bold">Since 2024</span>
             <h1 className="text-5xl md:text-7xl font-serif leading-tight">Our Philosophy</h1>
             <p className="text-xl font-serif italic text-brand-ink/70 leading-relaxed">
-              "Elegan BD is born from the belief that true beauty lies in the essential. We strip away the noise to find the soul of style."
+              "Man's Avenue is born from the belief that true beauty lies in the essential. We strip away the noise to find the soul of style."
             </p>
             <div className="space-y-6 text-brand-ink/70 leading-relaxed max-w-lg">
               <p className="whitespace-pre-line">
-                {aboutText || "In a world of fast fashion and fleeting trends, we chose a different path. Founded in Dhaka with a vision to redefine luxury for the region, Elegan BD focuses on the harmony between craftsmanship and contemporary minimalism."}
+                {aboutText || "In a world of fast fashion and fleeting trends, we chose a different path. Founded in Dhaka with a vision to redefine luxury for the region, Man's Avenue focuses on the harmony between craftsmanship and contemporary minimalism."}
               </p>
             </div>
             
@@ -88,7 +88,7 @@ export default function About() {
         </h2>
         <div className="pt-8 flex flex-col items-center">
             <div className="w-24 h-[1px] bg-brand-ink/20 mb-4" />
-            <p className="text-xs uppercase tracking-widest font-bold">The Elegan BD Team</p>
+            <p className="text-xs uppercase tracking-widest font-bold">The Man's Avenue Team</p>
         </div>
       </section>
     </div>

@@ -71,7 +71,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
               </button>
 
               <h2 className="text-xl font-black uppercase tracking-tighter mb-6 text-center">
-                Sign In to Elegan BD
+                Sign In to Man's Avenue
               </h2>
 
               <form onSubmit={handleEmailLogin} className="space-y-4" autoComplete="off">
