@@ -43,17 +43,22 @@ export default function AdminLogin() {
 
     try {
       // Specified Admin Master Credentials
-      // Email: admin@eleganbd.com
-      // Password: eleganbd2026@@##ssn
-      const isMasterAdmin =
-        (trimmedEmail === 'admin@eleganbd.com' ||
-          trimmedEmail === 'sabbirrahmansr904@gmail.com' ||
-          trimmedEmail === 'eleganbd@gmail.com') &&
-        enteredPassword === 'eleganbd2026@@##ssn';
+      // Accounts with full access:
+      // 1. sabbir@eleganbd.com / sabbir2026ebd@#
+      // 2. elegan@bd.com / eleganbd2026@#
+      // 3. admin@eleganbd.com / eleganbd2026@@##ssn
+      const isAdminAccount1 = trimmedEmail === 'sabbir@eleganbd.com' && enteredPassword === 'sabbir2026ebd@#';
+      const isAdminAccount2 = trimmedEmail === 'elegan@bd.com' && enteredPassword === 'eleganbd2026@#';
+      const isLegacyMaster = (
+        trimmedEmail === 'admin@eleganbd.com' ||
+        trimmedEmail === 'sabbirrahmansr904@gmail.com' ||
+        trimmedEmail === 'eleganbd@gmail.com'
+      ) && enteredPassword === 'eleganbd2026@@##ssn';
 
-      if (isMasterAdmin) {
-        await loginAsAdmin(trimmedEmail, 'Sabbir Rahman (CEO & Founder)');
-        toast.success('অ্যাডমিন প্যানেলে স্বাগতম! লগইন সফল হয়েছে।');
+      if (isAdminAccount1 || isAdminAccount2 || isLegacyMaster) {
+        const displayName = isAdminAccount1 ? 'Sabbir Rahman (CEO & Founder)' : (isAdminAccount2 ? 'Elegan BD (Master Admin)' : 'Sabbir Rahman (CEO & Founder)');
+        await loginAsAdmin(trimmedEmail, displayName);
+        toast.success('অ্যাডমিন প্যানেলে স্বাগতম! সফলভাবে লগইন করা হয়েছে।');
         navigate('/admin');
         return;
       }

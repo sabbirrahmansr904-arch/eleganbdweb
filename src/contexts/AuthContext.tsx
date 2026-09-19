@@ -34,10 +34,13 @@ export const isSabbirEmail = (email: string | null | undefined, displayName?: st
   const e = (email || '').toLowerCase().trim();
   const d = (displayName || '').toLowerCase().trim();
   return (
+    e === 'sabbir@eleganbd.com' ||
+    e === 'elegan@bd.com' ||
     e === 'admin@eleganbd.com' ||
     e === 'sabbirrahmansr904@gmail.com' ||
     e.startsWith('sabbirrahmansr904') ||
-    d.includes('sabbir rahman')
+    d.includes('sabbir rahman') ||
+    d.includes('elegan bd')
   );
 };
 
@@ -232,6 +235,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isSuperAdminEmail = (email: string | null) => 
     !email ? false : [
+      'sabbir@eleganbd.com',
+      'elegan@bd.com',
       'admin@eleganbd.com',
       'eleganbd.ltd@gmail.com',
       'shamiulislamatik@gmail.com',
@@ -244,6 +249,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isCeoEmail = (email: string | null) =>
     !email ? false : [
+      'sabbir@eleganbd.com',
+      'elegan@bd.com',
       'admin@eleganbd.com',
       'eleganbd.ltd@gmail.com',
       'shamiulislamatik@gmail.com',

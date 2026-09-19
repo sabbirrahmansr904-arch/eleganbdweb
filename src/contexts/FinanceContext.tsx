@@ -93,41 +93,7 @@ interface FinanceContextType {
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
-export const DEFAULT_ACCOUNTS: BankAccount[] = [
-  {
-    id: 'acc_cash_main',
-    bankName: 'Cash',
-    accountName: 'ক্যাশ ড্রয়ার (প্রধান)',
-    accountNumber: 'CASH-01',
-    branch: 'Main Office',
-    initialBalance: 0,
-    balance: 0,
-    accountType: 'নগদ ক্যাশ',
-    currency: 'BDT'
-  },
-  {
-    id: 'acc_bkash_merchant',
-    bankName: 'bKash',
-    accountName: 'বিকাশ মার্চেন্ট',
-    accountNumber: '01700000000',
-    branch: 'Online',
-    initialBalance: 0,
-    balance: 0,
-    accountType: 'মোবাইল ব্যাংকিং',
-    currency: 'BDT'
-  },
-  {
-    id: 'acc_sonali_bank',
-    bankName: 'Sonali Bank',
-    accountName: 'সোনালী ব্যাংক পিএলসি',
-    accountNumber: '1234567890',
-    branch: 'Principal Branch',
-    initialBalance: 0,
-    balance: 0,
-    accountType: 'ব্যাংক অ্যাকাউন্ট',
-    currency: 'BDT'
-  }
-];
+export const DEFAULT_ACCOUNTS: BankAccount[] = [];
 
 export const sortBankAccounts = (accounts: BankAccount[]): BankAccount[] => {
   const getRank = (acc: BankAccount): number => {
@@ -252,19 +218,18 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isSyncing, setIsSyncing] = useState(false);
 
   // Tracking deleted transaction IDs in memory and localStorage so they are never restored via live listeners
-  const deletedTxIdsRef = useRef<Set<string>>(new Set<string>());
-
-  useEffect(() => {
+  const deletedTxIdsRef = useRef<Set<string>>((() => {
     try {
       const cached = localStorage.getItem('eleganbd_deleted_tx_ids');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed)) {
-          deletedTxIdsRef.current = new Set(parsed);
+          return new Set(parsed);
         }
       }
     } catch {}
-  }, []);
+    return new Set<string>();
+  })());
 
   const markTransactionIdAsDeleted = useCallback((id: string) => {
     deletedTxIdsRef.current.add(id);
@@ -419,15 +384,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const recalculated = computeBalances(cloudAccounts, txsToUse);
           setBankAccounts(recalculated);
           try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
-        } else if (snapshot.empty && bankAccountsRef.current.length === 0) {
-          const existing = DEFAULT_ACCOUNTS;
-          const sorted = sortBankAccounts(existing);
-          const recalculated = computeBalances(sorted, bankTransactionsRef.current);
-          setBankAccounts(recalculated);
-          try { localStorage.setItem('eleganbd_bank_accounts', JSON.stringify(recalculated)); } catch {}
-          sorted.forEach(acc => {
-            setDoc(doc(db, 'bank_accounts', acc.id), sanitizeForFirestore(acc), { merge: true }).catch(() => {});
-          });
+        } else if (snapshot.empty) {
+          setBankAccounts([]);
+          try { localStorage.removeItem('eleganbd_bank_accounts'); } catch {}
         }
         setLoading(false);
       },

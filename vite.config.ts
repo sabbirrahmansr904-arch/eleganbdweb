@@ -10,10 +10,28 @@ export default defineConfig({
     tailwindcss(),
   ],
   resolve: {
-    alias: {
-      'firebase/firestore': path.resolve(__dirname, './src/lib/firestoreMock.ts'),
-      '@firebase/firestore': path.resolve(__dirname, './src/lib/firestoreMock.ts')
-    }
+    alias: [
+      {
+        find: 'firebase/firestore',
+        replacement: path.resolve(__dirname, './src/lib/firestoreMock.ts'),
+        customResolver(updatedId, importer) {
+          if (importer && (importer.includes('node_modules') || importer.includes('firestoreMock.ts'))) {
+            return null; // Let Vite resolve to the real package normally
+          }
+          return path.resolve(__dirname, './src/lib/firestoreMock.ts');
+        }
+      },
+      {
+        find: '@firebase/firestore',
+        replacement: path.resolve(__dirname, './src/lib/firestoreMock.ts'),
+        customResolver(updatedId, importer) {
+          if (importer && (importer.includes('node_modules') || importer.includes('firestoreMock.ts'))) {
+            return null; // Let Vite resolve to the real package normally
+          }
+          return path.resolve(__dirname, './src/lib/firestoreMock.ts');
+        }
+      }
+    ]
   },
   server: {
     port: 3000,
