@@ -792,7 +792,7 @@ export default function CustomerDashboard() {
                           </div>
 
                           <a
-                            href={`https://wa.me/8801327772213?text=Hi%20Mans%20Avenue,%20I%20have%20a%20question%20regarding%20Order%20%23${order.invoiceNo || order.id}`}
+                            href={`https://wa.me/8801619835133?text=Hi%20Mans%20Avenue,%20I%20have%20a%20question%20regarding%20Order%20%23${order.invoiceNo || order.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-lg font-extrabold text-[11px] flex items-center gap-1.5 transition-all"
@@ -1361,7 +1361,7 @@ export default function CustomerDashboard() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* WhatsApp Chat Card */}
                 <a
-                  href={`https://wa.me/8801327772213?text=Hello%20Mans%20Avenue,%20I%20am%20${encodeURIComponent(accountDisplayName)}%20(${encodeURIComponent(accountEmail)}).%20I%20need%20assistance.`}
+                  href={`https://wa.me/8801619835133?text=Hello%20Mans%20Avenue,%20I%20am%20${encodeURIComponent(accountDisplayName)}%20(${encodeURIComponent(accountEmail)}).%20I%20need%20assistance.`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-5 rounded-2xl border border-emerald-200 bg-emerald-50/50 hover:bg-emerald-50 transition-all flex items-start gap-4 cursor-pointer group"
@@ -1382,7 +1382,7 @@ export default function CustomerDashboard() {
 
                 {/* Phone Call Card */}
                 <a
-                  href="tel:01327772213"
+                  href="tel:01619835133"
                   className="p-5 rounded-2xl border border-emerald-200 bg-emerald-50/40 hover:bg-emerald-50 transition-all flex items-start gap-4 cursor-pointer group shadow-2xs"
                 >
                   <div className="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/20 group-hover:scale-105 transition-transform">
@@ -1392,9 +1392,9 @@ export default function CustomerDashboard() {
                     <h3 className="text-sm font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">
                       Helpline Call
                     </h3>
-                    <p className="text-xs text-gray-600 mt-1">Call us directly at 01327772213 (10 AM - 10 PM)</p>
+                    <p className="text-xs text-gray-600 mt-1">Call us directly at 01619835133 (10 AM - 10 PM)</p>
                     <span className="text-xs font-extrabold text-emerald-700 font-mono mt-3 inline-flex items-center gap-1.5 bg-emerald-100/80 px-2.5 py-1 rounded-lg border border-emerald-200">
-                      <Phone size={13} className="text-emerald-700" /> 01327772213
+                      <Phone size={13} className="text-emerald-700" /> 01619835133
                     </span>
                   </div>
                 </a>

@@ -413,6 +413,7 @@ export default function AdminLayout() {
       if (tab === 'Courier') return 'pathao';
       if (tab === 'Payments') return 'payments';
       if (tab === 'Admin Access') return 'admin-access';
+      if (tab === 'Pixel & Analytics') return 'settings';
       return 'settings';
     }
     return null;
@@ -447,6 +448,7 @@ export default function AdminLayout() {
       title: 'SYSTEM',
       items: [
         { name: 'Account', path: '/admin/my-account', icon: User, perm: 'my-account' },
+        { name: 'Pixel & Analytics', path: '/admin/settings?tab=Pixel+%26+Analytics', icon: Megaphone, perm: 'settings' },
         { name: 'Promo Banners', path: '/admin/settings?tab=Banners', icon: ImageIcon, perm: 'settings' },
         { name: 'Supabase DB', path: '/admin/settings?tab=Supabase', icon: Database, perm: 'settings' },
       ]
@@ -543,33 +545,33 @@ export default function AdminLayout() {
                exit={{ x: '-100%' }}
                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
                style={{ willChange: 'transform' }}
-               className="fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-[#EAEFF5] z-[70] lg:hidden flex flex-col shadow-2xl border-r border-[#DCE4EE] transform-gpu touch-manipulation"
+               className="fixed inset-y-0 left-0 w-[218px] max-w-[68vw] bg-[#EAEFF5] z-[70] lg:hidden flex flex-col shadow-2xl border-r border-[#DCE4EE] transform-gpu touch-manipulation"
             >
-              <div className="p-3 border-b border-[#DCE4EE] bg-[#EAEFF5]">
-                <div className="flex items-center justify-between p-2.5 bg-[#E6ECF4] rounded-2xl border border-white/90 shadow-[-4px_-4px_10px_rgba(255,255,255,0.95),4px_4px_12px_rgba(165,180,205,0.32)]">
-                  <Link to="/" onClick={() => setIsMobileOpen(false)} className="flex items-center gap-2.5 min-w-0">
-                    <span className="font-black tracking-tight text-sm text-slate-900 truncate">
+              <div className="p-2.5 border-b border-[#DCE4EE] bg-[#EAEFF5]">
+                <div className="flex items-center justify-between p-2 bg-[#E6ECF4] rounded-2xl border border-white/90 shadow-[-4px_-4px_10px_rgba(255,255,255,0.95),4px_4px_12px_rgba(165,180,205,0.32)]">
+                  <Link to="/" onClick={() => setIsMobileOpen(false)} className="flex items-center gap-2 min-w-0">
+                    <span className="font-black tracking-tight text-xs text-slate-900 truncate">
                       Man's Avenue Admin
                     </span>
                   </Link>
                   <button 
                     onClick={() => setIsMobileOpen(false)} 
-                    className="p-2 rounded-xl bg-[#E6ECF4] active:scale-90 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer touch-manipulation"
+                    className="p-1.5 rounded-xl bg-[#E6ECF4] active:scale-90 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer touch-manipulation"
                     aria-label="Close menu"
                   >
-                    <X size={18} />
+                    <X size={16} />
                   </button>
                 </div>
               </div>
-              <nav className="flex-1 py-4 px-4 space-y-4 overflow-y-auto no-scrollbar bg-[#EAEFF5]">
+              <nav className="flex-1 py-3 px-2.5 space-y-3 overflow-y-auto no-scrollbar bg-[#EAEFF5]">
                 {menuGroups.map((group, gIdx) => (
                   <React.Fragment key={gIdx}>
                     {group.title && (
-                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-2 pt-2 pb-1">
+                      <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest px-2 pt-1.5 pb-0.5">
                         {group.title}
                       </p>
                     )}
-                    <div className="space-y-1.5">
+                    <div className="space-y-1">
                       {group.items.map((item) => {
                         const isActive = getIsActive(item.path);
                         const Icon = item.icon;
@@ -579,16 +581,16 @@ export default function AdminLayout() {
                             to={item.path}
                             onClick={() => setIsMobileOpen(false)}
                             className={cn(
-                              "flex items-center space-x-3 px-3.5 py-2.5 rounded-[18px] transition-all font-bold text-xs tracking-tight",
+                              "flex items-center space-x-2.5 px-2.5 py-2 rounded-[14px] transition-all font-bold text-xs tracking-tight",
                               isActive 
-                                ? "bg-[#E6ECF4] text-slate-900 shadow-[-5px_-5px_12px_rgba(255,255,255,0.95),5px_5px_12px_rgba(165,180,205,0.35)] border border-white/80" 
-                                : "text-gray-600 hover:text-black hover:bg-[#E6ECF4] hover:shadow-[-3px_-3px_8px_rgba(255,255,255,0.9),3px_3px_8px_rgba(165,180,205,0.25)]"
+                                ? "bg-[#E6ECF4] text-slate-900 shadow-[-4px_-4px_10px_rgba(255,255,255,0.95),4px_4px_10px_rgba(165,180,205,0.35)] border border-white/80" 
+                                : "text-gray-600 hover:text-black hover:bg-[#E6ECF4] hover:shadow-[-2px_-2px_6px_rgba(255,255,255,0.9),2px_2px_6px_rgba(165,180,205,0.25)]"
                             )}
                           >
-                            <Icon size={17} strokeWidth={isActive ? 2.5 : 1.8} className={cn(isActive ? "text-[#f97316]" : "text-gray-500")} />
-                            <span className="flex-1 text-left">{item.name}</span>
+                            <Icon size={16} strokeWidth={isActive ? 2.5 : 1.8} className={cn(isActive ? "text-[#f97316]" : "text-gray-500", "shrink-0")} />
+                            <span className="flex-1 text-left truncate">{item.name}</span>
                             {item.badge && (
-                              <span className="text-[10px] bg-[#EEF2FF] text-[#4F46E5] px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                              <span className="text-[9px] bg-[#EEF2FF] text-[#4F46E5] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider shrink-0">
                                 {item.badge}
                               </span>
                             )}
@@ -599,36 +601,36 @@ export default function AdminLayout() {
                   </React.Fragment>
                 ))}
               </nav>
-              <div className="p-3.5 border-t border-[#DCE4EE] bg-[#EAEFF5]">
-                <div className="flex items-center gap-3 mb-3 p-2.5 bg-[#E6ECF4] rounded-2xl border border-white/90 shadow-[-4px_-4px_10px_rgba(255,255,255,0.95),4px_4px_12px_rgba(165,180,205,0.32)]">
+              <div className="p-2.5 border-t border-[#DCE4EE] bg-[#EAEFF5]">
+                <div className="flex items-center gap-2 mb-2 p-2 bg-[#E6ECF4] rounded-2xl border border-white/90 shadow-[-4px_-4px_10px_rgba(255,255,255,0.95),4px_4px_12px_rgba(165,180,205,0.32)]">
                   {userPhoto && !imgError ? (
-                    <img src={userPhoto} alt="User Profile" onError={() => setImgError(true)} className="w-9 h-9 rounded-full object-cover border border-white shrink-0 shadow-inner" />
+                    <img src={userPhoto} alt="User Profile" onError={() => setImgError(true)} className="w-8 h-8 rounded-full object-cover border border-white shrink-0 shadow-inner" />
                   ) : (
-                    <div className="w-9 h-9 bg-[#1E293B] text-white rounded-full flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
+                    <div className="w-8 h-8 bg-[#1E293B] text-white rounded-full flex items-center justify-center font-black text-[11px] shrink-0 shadow-xs">
                       {userInitials}
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-black text-gray-900 truncate" title={currentUser?.email || ''}>{currentUser?.email || 'Admin User'}</p>
-                    <span className={`inline-block px-2 py-0.5 mt-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border truncate max-w-full ${getDepartmentBadgeStyle(activeDepartment)}`}>
+                    <p className="text-[11px] font-black text-gray-900 truncate" title={currentUser?.email || ''}>{currentUser?.email || 'Admin User'}</p>
+                    <span className={`inline-block px-1.5 py-0.5 mt-0.5 rounded-full text-[8.5px] font-black uppercase tracking-wider border truncate max-w-full ${getDepartmentBadgeStyle(activeDepartment)}`}>
                       {activeDepartment}
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <Link 
                     to="/" 
                     onClick={() => setIsMobileOpen(false)}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-full bg-[#E6ECF4] hover:bg-[#DEE5F0] text-slate-800 font-bold text-xs transition-all border border-white/90 shadow-[-3px_-3px_8px_rgba(255,255,255,0.95),3px_3px_8px_rgba(165,180,205,0.3)]"
+                    className="flex-1 flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-full bg-[#E6ECF4] hover:bg-[#DEE5F0] text-slate-800 font-bold text-xs transition-all border border-white/90 shadow-[-3px_-3px_8px_rgba(255,255,255,0.95),3px_3px_8px_rgba(165,180,205,0.3)]"
                   >
-                    <Store size={15} className="text-slate-700" />
+                    <Store size={14} className="text-slate-700" />
                     <span>Store</span>
                   </Link>
                   <button 
                     onClick={handleLogout}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-full bg-[#E6ECF4] hover:bg-[#FEE2E2] text-red-600 font-bold text-xs transition-all border border-white/90 shadow-[-3px_-3px_8px_rgba(255,255,255,0.95),3px_3px_8px_rgba(165,180,205,0.3)] cursor-pointer"
+                    className="flex-1 flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-full bg-[#E6ECF4] hover:bg-[#FEE2E2] text-red-600 font-bold text-xs transition-all border border-white/90 shadow-[-3px_-3px_8px_rgba(255,255,255,0.95),3px_3px_8px_rgba(165,180,205,0.3)] cursor-pointer"
                   >
-                    <LogOut size={15} />
+                    <LogOut size={14} />
                     <span>Sign Out</span>
                   </button>
                 </div>

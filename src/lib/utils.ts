@@ -37,6 +37,7 @@ export interface SubtotalItem {
 
 export function calculateCartSubtotal(items: SubtotalItem[]): number {
   let shirtItems: { price: number; quantity: number }[] = [];
+  let pantItems: { price: number; quantity: number }[] = [];
   let otherItemsPriceSum = 0;
   
   items.forEach(item => {
@@ -46,43 +47,58 @@ export function calculateCartSubtotal(items: SubtotalItem[]): number {
       
     if (isShirt) {
       shirtItems.push({ price: item.product.price, quantity: item.quantity });
+    } else if (isPantProduct(item.product)) {
+      pantItems.push({ price: item.product.price, quantity: item.quantity });
     } else {
       otherItemsPriceSum += item.product.price * item.quantity;
     }
   });
   
-  // Total quantity of shirts
+  // Total quantity of shirts (3 for 1999 TK)
+  let shirtsTotal = 0;
   const totalShirts = shirtItems.reduce((sum, item) => sum + item.quantity, 0);
-  
   if (totalShirts >= 3) {
     const numCombos = Math.floor(totalShirts / 3);
-    
-    // Combo price is 1999 TK for every 3 pieces of shirts
     const comboPriceTotal = numCombos * 1999;
-    
-    // Convert shirt items to list of individual prices
     let individualShirtPrices: number[] = [];
     shirtItems.forEach(item => {
       for (let i = 0; i < item.quantity; i++) {
         individualShirtPrices.push(item.price);
       }
     });
-    
-    // Sort prices descending so we apply the combo discount on the most expensive ones, 
-    // leaving the cheapest shirts as the remainder charged at their individual prices.
     individualShirtPrices.sort((a, b) => b - a);
-    
-    // Sum the remainder items (the cheapest ones)
     let remainderPriceSum = 0;
     for (let i = numCombos * 3; i < individualShirtPrices.length; i++) {
       remainderPriceSum += individualShirtPrices[i];
     }
-    
-    return otherItemsPriceSum + comboPriceTotal + remainderPriceSum;
+    shirtsTotal = comboPriceTotal + remainderPriceSum;
   } else {
-    const shirtsPriceSum = shirtItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    return otherItemsPriceSum + shirtsPriceSum;
+    shirtsTotal = shirtItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   }
+
+  // Total quantity of pants (3 for 2700 TK combo)
+  let pantsTotal = 0;
+  const totalPants = pantItems.reduce((sum, item) => sum + item.quantity, 0);
+  if (totalPants >= 3) {
+    const numCombos = Math.floor(totalPants / 3);
+    const comboPriceTotal = numCombos * 2700;
+    let individualPantPrices: number[] = [];
+    pantItems.forEach(item => {
+      for (let i = 0; i < item.quantity; i++) {
+        individualPantPrices.push(item.price);
+      }
+    });
+    individualPantPrices.sort((a, b) => b - a);
+    let remainderPriceSum = 0;
+    for (let i = numCombos * 3; i < individualPantPrices.length; i++) {
+      remainderPriceSum += individualPantPrices[i];
+    }
+    pantsTotal = comboPriceTotal + remainderPriceSum;
+  } else {
+    pantsTotal = pantItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  }
+
+  return otherItemsPriceSum + shirtsTotal + pantsTotal;
 }
 
 export function getCartPriceBreakdown(items: SubtotalItem[]) {
@@ -111,13 +127,12 @@ export function getCartPriceBreakdown(items: SubtotalItem[]) {
     numCombos: Math.floor(totalShirts / 3),
     totalShirts,
     totalPants,
-    hasPantFreeShipping: totalPants >= 3
+    hasPantCombo: totalPants >= 3
   };
 }
 
 /**
- * Calculates whether an order qualifies for free delivery strictly based on:
- * 3 or more Formal Pants/Pants ordered (Pants counting progress)
+ * Calculates pant combo status (3 pcs for 2700 TK, delivery charge separate)
  */
 export function checkIsFreeShipping(
   items: SubtotalItem[]
@@ -137,21 +152,21 @@ export function checkIsFreeShipping(
 
   if (pantsCount >= 3) {
     return {
-      isFree: true,
+      isFree: false, // delivery charge is not free, separate
       pantsCount,
       pantsNeeded: 0,
       progress: 100,
-      label: '🎉 ৩টি ফরমাল প্যান্ট অর্ডারে ডেলিভারি চার্জ সম্পূর্ণ ফ্রি!'
+      label: '🎉 ৩টি ফরমাল প্যান্টে কম্বো অফার কার্যকর: ২৭০০ টাকা (ডেলিভারি চার্জ প্রযোজ্য)'
     };
   }
 
   let label = '';
   if (pantsCount === 2) {
-    label = '২টি প্যান্ট যোগ হয়েছে — আর মাত্র ১টি ফরমাল প্যান্ট যোগ করলেই ডেলিভারি চার্জ ফ্রি!';
+    label = '২টি প্যান্ট যুক্ত — আর মাত্র ১টি ফরমাল প্যান্টে কম্বো অফার (৩ পিস ২৭০০ টাকা)!';
   } else if (pantsCount === 1) {
-    label = '১টি প্যান্ট যোগ হয়েছে — ফ্রি ডেলিভারির জন্য আর মাত্র ২টি ফরমাল প্যান্ট প্রয়োজন!';
+    label = '১টি প্যান্ট যুক্ত — কম্বো অফারের জন্য আর মাত্র ২টি ফরমাল প্যান্ট প্রয়োজন (৩ পিস ২৭০০ টাকা)!';
   } else {
-    label = 'যেকোনো ৩টি ফরমাল প্যান্ট অর্ডারে ডেলিভারি চার্জ সম্পূর্ণ ফ্রি!';
+    label = 'যেকোনো ৩টি ফরমাল প্যান্টে বিশেষ কম্বো অফার: মাত্র ২৭০০ টাকা!';
   }
 
   return {

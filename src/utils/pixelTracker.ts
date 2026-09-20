@@ -1,5 +1,6 @@
 import { db } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { fetchDocumentFromSupabase } from '../lib/supabase';
 
 export interface PixelAnalyticsConfig {
   facebookPixelId?: string;
@@ -15,20 +16,12 @@ let cachedConfig: PixelAnalyticsConfig | null = null;
 
 export function getLocalPixelConfig(): PixelAnalyticsConfig | null {
   if (cachedConfig) {
-    cachedConfig.facebookPixelId = '';
-    cachedConfig.facebookAccessToken = '';
-    cachedConfig.facebookTestCode = '';
     return cachedConfig;
   }
   try {
     const saved = localStorage.getItem('eleganbd_pixel_analytics');
     if (saved) {
       cachedConfig = JSON.parse(saved);
-      if (cachedConfig) {
-        cachedConfig.facebookPixelId = '';
-        cachedConfig.facebookAccessToken = '';
-        cachedConfig.facebookTestCode = '';
-      }
       return cachedConfig;
     }
   } catch (e) {}
@@ -36,15 +29,9 @@ export function getLocalPixelConfig(): PixelAnalyticsConfig | null {
 }
 
 export function setLocalPixelConfig(config: PixelAnalyticsConfig) {
-  const sanitized = {
-    ...config,
-    facebookPixelId: '',
-    facebookAccessToken: '',
-    facebookTestCode: ''
-  };
-  cachedConfig = sanitized;
+  cachedConfig = config;
   try {
-    localStorage.setItem('eleganbd_pixel_analytics', JSON.stringify(sanitized));
+    localStorage.setItem('eleganbd_pixel_analytics', JSON.stringify(config));
   } catch (e) {}
 }
 
@@ -64,21 +51,6 @@ export async function hashSHA256(str: string): Promise<string> {
 }
 
 export async function initPixelTracker(configFromFirestore?: PixelAnalyticsConfig) {
-  // Purge any existing Meta Pixel / Facebook tags or objects from the DOM & window
-  if (typeof window !== 'undefined') {
-    try {
-      const fbScripts = document.querySelectorAll('script[src*="fbevents.js"], script[src*="connect.facebook.net"]');
-      fbScripts.forEach(s => s.remove());
-      // @ts-ignore
-      if (window.fbq) {
-        // @ts-ignore
-        delete window.fbq;
-        // @ts-ignore
-        delete window._fbq;
-      }
-    } catch (e) {}
-  }
-
   let config = configFromFirestore;
   if (!config) {
     try {
@@ -90,13 +62,48 @@ export async function initPixelTracker(configFromFirestore?: PixelAnalyticsConfi
   }
 
   if (!config) {
+    try {
+      const supConfig = await fetchDocumentFromSupabase('config', 'pixel_analytics');
+      if (supConfig && (supConfig.facebookPixelId || supConfig.googleAnalyticsId || supConfig.gtmId)) {
+        config = supConfig as PixelAnalyticsConfig;
+      }
+    } catch (e) {}
+  }
+
+  if (!config) {
     config = getLocalPixelConfig() || {};
   } else {
-    // Ensure Meta Pixel is stripped
-    config.facebookPixelId = '';
-    config.facebookAccessToken = '';
-    config.facebookTestCode = '';
     setLocalPixelConfig(config);
+  }
+
+  // 0. Meta Pixel (Facebook Pixel)
+  if (config.facebookPixelId && config.facebookPixelId.trim()) {
+    const pixelId = config.facebookPixelId.trim();
+    // @ts-ignore
+    if (typeof window !== 'undefined' && !window.fbq) {
+      // @ts-ignore
+      !(function(f, b, e, v, n, t, s) {
+        if (f.fbq) return;
+        n = f.fbq = function() {
+          n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+        };
+        if (!f._fbq) f._fbq = n;
+        n.push = n;
+        n.loaded = !0;
+        n.version = '2.0';
+        n.queue = [];
+        t = b.createElement(e);
+        t.async = !0;
+        t.src = v;
+        s = b.getElementsByTagName(e)[0];
+        s.parentNode.insertBefore(t, s);
+      })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
+
+      // @ts-ignore
+      window.fbq('init', pixelId);
+      // @ts-ignore
+      window.fbq('track', 'PageView');
+    }
   }
 
   // 1. Google Analytics 4
@@ -163,6 +170,27 @@ export async function trackPurchase(order: {
   if (!order) return;
   const totalVal = Number(order.total) || 0;
 
+  // Meta Pixel tracking
+  // @ts-ignore
+  if (typeof window !== 'undefined' && window.fbq) {
+    try {
+      // @ts-ignore
+      window.fbq('track', 'Purchase', {
+        value: totalVal,
+        currency: 'BDT',
+        content_type: 'product',
+        contents: (order.items || []).map(i => ({
+          id: String(i.id || i.sku || i.name),
+          quantity: Number(i.quantity) || 1,
+          item_price: Number(i.price) || 0
+        })),
+        num_items: (order.items || []).reduce((sum, i) => sum + (Number(i.quantity) || 1), 0)
+      });
+    } catch (e) {
+      console.warn('Meta Pixel Purchase notice:', e);
+    }
+  }
+
   // Google Analytics / Ads tracking
   // @ts-ignore
   if (typeof window !== 'undefined' && window.gtag) {
@@ -195,6 +223,21 @@ export async function trackAddToCart(
   const itemPrice = Number(product.price) || 0;
   const totalVal = itemPrice * (quantity || 1);
 
+  // Meta Pixel tracking
+  // @ts-ignore
+  if (typeof window !== 'undefined' && window.fbq) {
+    try {
+      // @ts-ignore
+      window.fbq('track', 'AddToCart', {
+        content_name: product.name,
+        content_ids: [String(product.id || product.sku || product.name)],
+        content_type: 'product',
+        value: totalVal,
+        currency: 'BDT'
+      });
+    } catch (e) {}
+  }
+
   // Google Analytics tracking
   // @ts-ignore
   if (typeof window !== 'undefined' && window.gtag) {
@@ -222,6 +265,20 @@ export async function trackInitiateCheckout(
   if (!items || items.length === 0) return;
   const totalVal = Number(total) || 0;
 
+  // Meta Pixel tracking
+  // @ts-ignore
+  if (typeof window !== 'undefined' && window.fbq) {
+    try {
+      // @ts-ignore
+      window.fbq('track', 'InitiateCheckout', {
+        content_type: 'product',
+        num_items: items.reduce((sum, i) => sum + (Number(i.quantity) || 1), 0),
+        value: totalVal,
+        currency: 'BDT'
+      });
+    } catch (e) {}
+  }
+
   // Google Analytics tracking
   // @ts-ignore
   if (typeof window !== 'undefined' && window.gtag) {
@@ -247,6 +304,21 @@ export async function trackInitiateCheckout(
 export async function trackViewContent(product: { id?: string; sku?: string; name: string; price: number; category?: string }) {
   if (!product) return;
   const itemPrice = Number(product.price) || 0;
+
+  // Meta Pixel tracking
+  // @ts-ignore
+  if (typeof window !== 'undefined' && window.fbq) {
+    try {
+      // @ts-ignore
+      window.fbq('track', 'ViewContent', {
+        content_name: product.name,
+        content_ids: [String(product.id || product.sku || product.name)],
+        content_type: 'product',
+        value: itemPrice,
+        currency: 'BDT'
+      });
+    } catch (e) {}
+  }
 
   // Google Analytics tracking
   // @ts-ignore

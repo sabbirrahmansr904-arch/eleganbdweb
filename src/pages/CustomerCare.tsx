@@ -7,22 +7,22 @@ export default function CustomerCare() {
     {
       icon: Phone,
       title: "Call Us",
-      value: "+8801327772213",
-      href: "tel:+8801327772213",
+      value: "+8801619835133",
+      href: "tel:+8801619835133",
       desc: "Available daily 11:00 AM - 9:00 PM"
     },
     {
       icon: MessageSquare,
       title: "WhatsApp",
-      value: "+8801327772213",
-      href: "https://wa.me/8801327772213",
+      value: "+8801619835133",
+      href: "https://wa.me/8801619835133",
       desc: "Fastest support for order queries"
     },
     {
       icon: Mail,
       title: "Email Us",
-      value: "eleganbdltd@gmail.com",
-      href: "mailto:eleganbdltd@gmail.com",
+      value: "mansavenuebd@gmail.com",
+      href: "mailto:mansavenuebd@gmail.com",
       desc: "General inquiries and feedback"
     }
   ];

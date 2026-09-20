@@ -810,32 +810,32 @@ export default function Checkout() {
             </span>
           </div>
 
-          {/* Free Shipping Milestone Indicator (Formal Pant 3 pcs) */}
+          {/* Pant Combo Offer Milestone Indicator (3 pcs 2700 TK) */}
           {items.length > 0 && (
             <div className={cn(
               "border p-3.5 rounded-2xl transition-colors",
-              freeShippingStatus.isFree 
+              freeShippingStatus.pantsCount >= 3 
                 ? "bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200" 
                 : "bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200/80"
             )}>
               <div className="flex items-center justify-between text-xs mb-1.5 font-bold text-slate-900">
                 <div className="flex items-center gap-1.5">
-                  <Truck size={14} className={freeShippingStatus.isFree ? "text-emerald-600" : "text-amber-600"} />
-                  {freeShippingStatus.isFree ? (
+                  <Truck size={14} className={freeShippingStatus.pantsCount >= 3 ? "text-emerald-600" : "text-amber-600"} />
+                  {freeShippingStatus.pantsCount >= 3 ? (
                     <span className="text-emerald-700 font-extrabold flex items-center gap-1">
-                      🎉 ৩টি ফরমাল প্যান্ট অর্ডারে ডেলিভারি চার্জ সম্পূর্ণ ফ্রি!
+                      🎉 ৩টি প্যান্টে কম্বো অফার কার্যকর: ২৭০০ টাকা (ডেলিভারি চার্জ আলাদা)
                     </span>
                   ) : (
                     <span className="text-amber-950">
                       {freeShippingStatus.pantsCount > 0 ? (
-                        <><b>{freeShippingStatus.pantsCount}/3</b> প্যান্ট যুক্ত — আর মাত্র <b>{freeShippingStatus.pantsNeeded}টি</b> ফরমাল প্যান্টে ফ্রি ডেলিভারি!</>
+                        <><b>{freeShippingStatus.pantsCount}/3</b> প্যান্ট যুক্ত — আর মাত্র <b>{freeShippingStatus.pantsNeeded}টি</b> প্যান্টে কম্বো অফার (৩ পিস ২৭০০ টাকা)!</>
                       ) : (
-                        <>যেকোনো <b>৩টি ফরমাল প্যান্ট</b> অর্ডারে <b>ডেলিভারি সম্পূর্ণ ফ্রি!</b></>
+                        <>যেকোনো <b>৩টি প্যান্টে</b> বিশেষ কম্বো অফার: <b>মাত্র ২৭০০ টাকা!</b></>
                       )}
                     </span>
                   )}
                 </div>
-                <span className={cn("text-[10px] font-black", freeShippingStatus.isFree ? "text-emerald-800" : "text-amber-800")}>
+                <span className={cn("text-[10px] font-black", freeShippingStatus.pantsCount >= 3 ? "text-emerald-800" : "text-amber-800")}>
                   {freeShippingStatus.pantsCount}/3 ({freeShippingStatus.progress}%)
                 </span>
               </div>
@@ -843,7 +843,7 @@ export default function Checkout() {
                 <div 
                   className={cn(
                     "h-full rounded-full transition-all duration-500",
-                    freeShippingStatus.isFree ? "bg-emerald-500" : "bg-amber-600"
+                    freeShippingStatus.pantsCount >= 3 ? "bg-emerald-500" : "bg-amber-600"
                   )}
                   style={{ width: `${freeShippingStatus.progress}%` }}
                 />

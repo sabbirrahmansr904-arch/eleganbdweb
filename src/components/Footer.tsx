@@ -50,7 +50,7 @@ export default function Footer() {
               <Instagram size={18} />
             </a>
             <a 
-              href="tel:+8801327772213" 
+              href="tel:+8801619835133" 
               className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-300 hover:text-white hover:bg-white/15 hover:border-white/30 transition-all cursor-pointer"
               aria-label="Call Us"
             >
@@ -129,19 +129,6 @@ export default function Footer() {
             </h4>
             
             <div className="space-y-4 text-xs font-medium">
-              {/* Address */}
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-300 shrink-0 mt-0.5">
-                  <MapPin size={16} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">ADDRESS</p>
-                  <p className="text-gray-200 font-semibold leading-snug">
-                    Ma Villa, House #11, Road #3, Block F, Section #1, Mirpur, Dhaka-1216
-                  </p>
-                </div>
-              </div>
-
               {/* Email */}
               <div className="flex items-start gap-3">
                 <div className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-300 shrink-0 mt-0.5">
@@ -149,8 +136,8 @@ export default function Footer() {
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">EMAIL US</p>
-                  <a href="mailto:eleganbdltd@gmail.com" className="text-gray-200 hover:text-white font-bold transition-colors">
-                    eleganbdltd@gmail.com
+                  <a href="mailto:mansavenuebd@gmail.com" className="text-gray-200 hover:text-white font-bold transition-colors">
+                    mansavenuebd@gmail.com
                   </a>
                 </div>
               </div>
@@ -162,8 +149,8 @@ export default function Footer() {
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">CALL US</p>
-                  <a href="tel:+8801327772213" className="text-gray-200 hover:text-white font-bold transition-colors block">
-                    +8801327772213
+                  <a href="tel:+8801619835133" className="text-gray-200 hover:text-white font-bold transition-colors block">
+                    01619835133
                   </a>
                 </div>
               </div>

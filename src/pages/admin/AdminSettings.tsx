@@ -5,7 +5,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { setLocalPixelConfig } from '../../utils/pixelTracker';
+import { setLocalPixelConfig, getLocalPixelConfig } from '../../utils/pixelTracker';
+import { saveDocumentToSupabase, fetchDocumentFromSupabase } from '../../lib/supabase';
 import { 
   Globe, 
   Settings, 
@@ -318,9 +319,28 @@ export default function AdminSettings() {
   const loadPixelConfig = async () => {
     setIsPixelLoading(true);
     try {
-      const docSnap = await getDoc(doc(db, 'config', 'pixel_analytics'));
-      if (docSnap.exists()) {
-        const data = docSnap.data();
+      let data: any = null;
+      try {
+        const docSnap = await getDoc(doc(db, 'config', 'pixel_analytics'));
+        if (docSnap.exists()) {
+          data = docSnap.data();
+        }
+      } catch (err) {}
+
+      if (!data || (!data.facebookPixelId && !data.googleAnalyticsId && !data.gtmId)) {
+        try {
+          const supData = await fetchDocumentFromSupabase('config', 'pixel_analytics');
+          if (supData && (supData.facebookPixelId || supData.googleAnalyticsId || supData.gtmId)) {
+            data = { ...data, ...supData };
+          }
+        } catch (e) {}
+      }
+
+      if (!data) {
+        data = getLocalPixelConfig();
+      }
+
+      if (data) {
         setPixelConfig({
           facebookPixelId: data.facebookPixelId || '',
           facebookAccessToken: data.facebookAccessToken || '',
@@ -1126,7 +1146,12 @@ export default function AdminSettings() {
         updatedAt: Date.now(),
       };
 
-      await setDoc(docRef, mergedConfig);
+      try {
+        await setDoc(docRef, mergedConfig);
+      } catch (fsErr) {
+        console.warn("Firestore save warning (falling back to Supabase & localStorage):", fsErr);
+      }
+      await saveDocumentToSupabase('config', 'pixel_analytics', mergedConfig).catch(() => {});
       setLocalPixelConfig(mergedConfig as any);
 
       toast.success(`${section.split('_').map(w => w.toUpperCase()).join(' ')} saved successfully!`);
@@ -1143,8 +1168,11 @@ export default function AdminSettings() {
     const tId = toast.loading('Removing Meta Pixel from website...');
     try {
       const docRef = doc(db, 'config', 'pixel_analytics');
-      const docSnap = await getDoc(docRef);
-      const currentData = docSnap.exists() ? docSnap.data() : {};
+      let currentData = {};
+      try {
+        const docSnap = await getDoc(docRef);
+        currentData = docSnap.exists() ? docSnap.data() : {};
+      } catch (e) {}
       
       const mergedConfig = {
         ...currentData,
@@ -1154,7 +1182,12 @@ export default function AdminSettings() {
         updatedAt: Date.now(),
       };
 
-      await setDoc(docRef, mergedConfig);
+      try {
+        await setDoc(docRef, mergedConfig);
+      } catch (fsErr) {
+        console.warn("Firestore remove warning (falling back to Supabase):", fsErr);
+      }
+      await saveDocumentToSupabase('config', 'pixel_analytics', mergedConfig).catch(() => {});
       setPixelConfig(prev => ({
         ...prev,
         facebookPixelId: '',

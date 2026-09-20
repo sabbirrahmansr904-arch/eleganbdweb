@@ -191,7 +191,7 @@ export default function AdminOrders(): React.JSX.Element {
   
   // Pathao Booking Modal States
   const [pathaoBookingOrder, setPathaoBookingOrder] = useState<Order | null>(null);
-  const [pathaoPickupStore, setPathaoPickupStore] = useState('Elegan BD — Ma Villa, House #11, Road #3, Block F, Section #1, Mirpur, Dhaka-1216');
+  const [pathaoPickupStore, setPathaoPickupStore] = useState('Man\'s Avenue — Dhaka');
   const [pathaoCity, setPathaoCity] = useState('');
   const [pathaoZone, setPathaoZone] = useState('');
   const [pathaoArea, setPathaoArea] = useState('');
@@ -2282,7 +2282,7 @@ export default function AdminOrders(): React.JSX.Element {
                     PICKUP STORE
                   </label>
                   <div className="w-full bg-[#FAFBFD] border border-[#EFF2F6] rounded-xl px-4 py-3 text-sm font-bold text-gray-700 select-all leading-relaxed whitespace-nowrap overflow-x-auto text-left">
-                    Elegan BD. — Ma Villa, House #11, Road #3, Block F, Section #1, Mirpur, Dhaka-1216
+                    Man's Avenue — Dhaka
                   </div>
                 </div>
 

@@ -362,12 +362,7 @@ export default function ProductDetails() {
                 referrerPolicy="no-referrer"
               />
 
-              {/* Discount Tag */}
-              {discount > 0 && (
-                <div className="absolute top-4 left-4 bg-red-600 text-white text-[11px] font-black px-3 py-1 uppercase tracking-widest rounded-xs shadow-md">
-                  {discount}% OFF
-                </div>
-              )}
+
 
               {/* Wishlist Button */}
               <button
@@ -497,24 +492,24 @@ export default function ProductDetails() {
             </div>
 
             {/* Delivery Info */}
-            <div className="border border-gray-100 rounded-xl p-4 bg-gray-50/50 space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                  <Truck size={18} />
+            <div className="border border-gray-100 rounded-2xl p-5 bg-gray-50/50 space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                  <Truck size={22} />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-800">হোম ডেলিভারি সুবিধা (Home Delivery)</p>
-                  <p className="text-[11px] text-slate-500">ঢাকা: ৳{shippingInsideDhaka} • ঢাকার বাইরে: ৳{shippingOutsideDhaka}</p>
+                  <p className="text-sm font-bold text-slate-900">হোম ডেলিভারি সুবিধা (Home Delivery)</p>
+                  <p className="text-xs text-slate-600 mt-0.5">ঢাকা: ৳{shippingInsideDhaka} • ঢাকার বাইরে: ৳{shippingOutsideDhaka}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center">
-                  <RotateCcw size={18} />
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
+                  <RotateCcw size={22} />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-800">সহজ রিটার্ন ও এক্সচেঞ্জ (Easy Exchange)</p>
-                  <p className="text-[11px] text-slate-500">৭ দিনের মধ্যে যেকোনো সাইজ বা ত্রুটি পরিবর্তনযোগ্য</p>
+                  <p className="text-sm font-bold text-slate-900">সহজ রিটার্ন ও এক্সচেঞ্জ (Easy Exchange)</p>
+                  <p className="text-xs text-slate-600 mt-0.5">৭ দিনের মধ্যে যেকোনো সাইজ বা ত্রুটি পরিবর্তনযোগ্য</p>
                 </div>
               </div>
             </div>

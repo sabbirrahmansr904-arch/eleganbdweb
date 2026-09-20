@@ -27,7 +27,7 @@ export default function Contact() {
               </div>
               <div>
                 <h4 className="text-[10px] uppercase tracking-widest text-brand-ink/40 font-bold mb-2">Email Us</h4>
-                <p className="text-xl font-serif">support@mansavenue.com</p>
+                <p className="text-xl font-serif">mansavenuebd@gmail.com</p>
               </div>
             </div>
             
@@ -37,17 +37,7 @@ export default function Contact() {
               </div>
               <div>
                 <h4 className="text-[10px] uppercase tracking-widest text-brand-ink/40 font-bold mb-2">Call Us</h4>
-                <p className="text-xl font-serif">+880 1327-772213</p>
-              </div>
-            </div>
-
-            <div className="flex items-start space-x-6 group">
-              <div className="w-12 h-12 border border-brand-ink/10 flex items-center justify-center group-hover:bg-brand-gold group-hover:border-brand-gold group-hover:text-white transition-all duration-300">
-                <MapPin size={18} strokeWidth={1} />
-              </div>
-              <div>
-                <h4 className="text-[10px] uppercase tracking-widest text-brand-ink/40 font-bold mb-2">Visit Our Atelier</h4>
-                <p className="text-xl font-serif">Ma Villa, House #11, Road #3, Block F, Section #1, Mirpur, Dhaka-1216</p>
+                <p className="text-xl font-serif">01619835133</p>
               </div>
             </div>
           </div>

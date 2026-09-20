@@ -230,13 +230,13 @@ export default function Navbar() {
 
             {/* Hotline 24/7 */}
             <a 
-              href="tel:01327772213" 
+              href="tel:01619835133" 
               className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 border border-gray-200 hover:bg-gray-200/80 transition-all text-gray-900 group shadow-2xs"
             >
               <Phone size={14} className="text-amber-500 group-hover:rotate-12 transition-transform" />
               <div className="flex flex-col text-left leading-tight">
                 <span className="text-[7.5px] font-black uppercase tracking-widest text-gray-500">SUPPORT 24/7</span>
-                <span className="text-[10.5px] font-mono font-bold text-gray-900 tracking-wider">01327772213</span>
+                <span className="text-[10.5px] font-mono font-bold text-gray-900 tracking-wider">01619835133</span>
               </div>
             </a>
           </div>

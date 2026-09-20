@@ -40,7 +40,7 @@ const CartDrawer: React.FC = () => {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-[101] flex flex-col"
+            className="fixed top-0 right-0 h-[100dvh] w-full sm:max-w-md bg-white shadow-2xl z-[101] flex flex-col"
           >
             {/* Header */}
             <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
@@ -58,31 +58,31 @@ const CartDrawer: React.FC = () => {
               </button>
             </div>
 
-            {/* Free Shipping Milestone Bar (Formal Pant 3 pcs) */}
+            {/* Pant Combo Offer Milestone Bar (3 pcs 2700 TK) */}
             {items.length > 0 && (
               <div className={cn(
                 "border-b px-6 py-3 transition-colors",
-                freeShippingStatus.isFree ? "bg-emerald-50/90 border-emerald-100" : "bg-amber-50/80 border-amber-100"
+                freeShippingStatus.pantsCount >= 3 ? "bg-emerald-50/90 border-emerald-100" : "bg-amber-50/80 border-amber-100"
               )}>
                 <div className="flex items-center justify-between text-xs mb-1.5">
                   <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                    <Truck size={14} className={freeShippingStatus.isFree ? "text-emerald-600" : "text-amber-600"} />
-                    {freeShippingStatus.isFree ? (
+                    <Truck size={14} className={freeShippingStatus.pantsCount >= 3 ? "text-emerald-600" : "text-amber-600"} />
+                    {freeShippingStatus.pantsCount >= 3 ? (
                       <span className="text-emerald-700 font-extrabold flex items-center gap-1">
                         <Sparkles size={12} className="text-emerald-500 fill-emerald-500" />
-                        🎉 ৩টি ফরমাল প্যান্টে ফ্রি ডেলিভারি একটিভ!
+                        🎉 ৩টি প্যান্টে কম্বো অফার কার্যকর: ২৭০০ টাকা (ডেলিভারি চার্জ আলাদা)
                       </span>
                     ) : (
                       <span className="text-amber-950">
                         {freeShippingStatus.pantsCount > 0 ? (
-                          <><b>{freeShippingStatus.pantsCount}/3</b> প্যান্ট যুক্ত — আর <b>{freeShippingStatus.pantsNeeded}টি</b> প্যান্টে ফ্রি ডেলিভারি!</>
+                          <><b>{freeShippingStatus.pantsCount}/3</b> প্যান্ট যুক্ত — আর <b>{freeShippingStatus.pantsNeeded}টি</b> প্যান্টে কম্বো অফার (৩ পিস ২৭০০ টাকা)!</>
                         ) : (
-                          <>যেকোনো <b>৩টি ফরমাল প্যান্ট</b> অর্ডারে <b>ডেলিভারি সম্পূর্ণ ফ্রি!</b></>
+                          <>যেকোনো <b>৩টি প্যান্টে</b> বিশেষ কম্বো অফার: <b>মাত্র ২৭০০ টাকা!</b></>
                         )}
                       </span>
                     )}
                   </div>
-                  <span className={cn("text-[10px] font-black", freeShippingStatus.isFree ? "text-emerald-700" : "text-amber-700")}>
+                  <span className={cn("text-[10px] font-black", freeShippingStatus.pantsCount >= 3 ? "text-emerald-700" : "text-amber-700")}>
                     {freeShippingStatus.pantsCount}/3 ({freeShippingStatus.progress}%)
                   </span>
                 </div>
@@ -90,7 +90,7 @@ const CartDrawer: React.FC = () => {
                   <motion.div
                     className={cn(
                       "h-full rounded-full transition-all duration-500",
-                      freeShippingStatus.isFree ? "bg-emerald-500" : "bg-amber-600"
+                      freeShippingStatus.pantsCount >= 3 ? "bg-emerald-500" : "bg-amber-600"
                     )}
                     initial={{ width: 0 }}
                     animate={{ width: `${freeShippingStatus.progress}%` }}

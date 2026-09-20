@@ -44,6 +44,16 @@ export default function AdminInventoryLog() {
   const [selectedType, setSelectedType] = useState<'all' | 'in' | 'out'>(typeParam);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState<number>(10);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+  const [deletedLogIds, setDeletedLogIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('eleganbd_deleted_inventory_logs');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
 
   const loading = invLoading && ordersLoading;
 
@@ -117,8 +127,10 @@ export default function AdminInventoryLog() {
       });
     }
 
-    return list.sort((a, b) => (Number(b.timestamp) || 0) - (Number(a.timestamp) || 0));
-  }, [transactions, orders]);
+    return list
+      .filter(t => !deletedLogIds.includes(t.id))
+      .sort((a, b) => (Number(b.timestamp) || 0) - (Number(a.timestamp) || 0));
+  }, [transactions, orders, deletedLogIds]);
 
   // Always reset to initial 10 items when filters change
   useEffect(() => {
@@ -223,15 +235,44 @@ export default function AdminInventoryLog() {
   };
 
   const handleDeleteConfirm = async () => {
-    if (!deleteId || !deleteTransaction) return;
+    if (!deleteId) return;
     try {
-      await deleteTransaction(deleteId);
-      toast.success('Transaction log removed.');
+      const newDeleted = Array.from(new Set([...deletedLogIds, deleteId]));
+      setDeletedLogIds(newDeleted);
+      try {
+        localStorage.setItem('eleganbd_deleted_inventory_logs', JSON.stringify(newDeleted));
+      } catch {}
+
+      if (!deleteId.startsWith('ord_tx_') && deleteTransaction) {
+        await deleteTransaction(deleteId);
+      }
+      toast.success('Transaction log permanently removed.');
     } catch (err) {
       toast.error('Failed to delete log entry.');
     } finally {
       setDeleteId(null);
     }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    const newDeleted = Array.from(new Set([...deletedLogIds, ...selectedIds]));
+    setDeletedLogIds(newDeleted);
+    try {
+      localStorage.setItem('eleganbd_deleted_inventory_logs', JSON.stringify(newDeleted));
+    } catch {}
+
+    for (const id of selectedIds) {
+      if (!id.startsWith('ord_tx_') && deleteTransaction) {
+        try {
+          await deleteTransaction(id);
+        } catch {}
+      }
+    }
+
+    toast.success(`Permanently deleted ${selectedIds.length} inventory logs.`);
+    setSelectedIds([]);
+    setIsBulkDeleteModalOpen(false);
   };
 
   return (
@@ -347,6 +388,21 @@ export default function AdminInventoryLog() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/80 border-b border-gray-100">
+                <th className="px-4 py-4 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    checked={displayedTransactions.length > 0 && displayedTransactions.every(t => selectedIds.includes(t.id))}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedIds(displayedTransactions.map(t => t.id));
+                      } else {
+                        setSelectedIds([]);
+                      }
+                    }}
+                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+                    title="Select All Displayed"
+                  />
+                </th>
                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-wider text-gray-500">Date & Time</th>
                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-wider text-gray-500">Product & SKU</th>
                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-wider text-gray-500">Movement & Sizes</th>
@@ -546,6 +602,69 @@ export default function AdminInventoryLog() {
                   className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
                 >
                   Delete Log
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Floating Bulk Action Bar */}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-gray-900 text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-6 border border-gray-800 animate-in fade-in slide-in-from-bottom-4">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
+            <span className="text-xs font-bold">{selectedIds.length} logs selected</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSelectedIds([])}
+              className="text-xs text-gray-400 hover:text-white font-medium transition-colors cursor-pointer"
+            >
+              Deselect All
+            </button>
+            <button
+              onClick={() => setIsBulkDeleteModalOpen(true)}
+              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+            >
+              <Trash2 size={14} />
+              <span>Permanent Delete ({selectedIds.length})</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      <AnimatePresence>
+        {isBulkDeleteModalOpen && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-gray-100"
+            >
+              <div className="flex items-center gap-3 text-rose-600">
+                <div className="p-2.5 bg-rose-50 rounded-xl">
+                  <Trash2 size={20} />
+                </div>
+                <h3 className="font-bold text-base text-gray-900">Permanently Delete {selectedIds.length} Inventory Logs?</h3>
+              </div>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                This action is irreversible. The selected inventory log entries will be permanently deleted from database archives and local records.
+              </p>
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button 
+                  onClick={() => setIsBulkDeleteModalOpen(false)}
+                  className="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-xl transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleBulkDelete}
+                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+                >
+                  Confirm Permanent Delete
                 </button>
               </div>
             </motion.div>
