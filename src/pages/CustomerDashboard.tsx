@@ -385,7 +385,7 @@ export default function CustomerDashboard() {
         </div>
         <h1 className="text-3xl md:text-4xl font-serif font-bold text-gray-900 mb-3">Please Sign In</h1>
         <p className="text-xs text-gray-500 uppercase tracking-widest max-w-md mb-8 leading-relaxed">
-          Sign in to your Man's Avenue account to view your Gmail profile, order status, track shipments, and manage saved delivery addresses.
+          Sign in to your Elegan BD account to view your Gmail profile, order status, track shipments, and manage saved delivery addresses.
         </p>
         <Link 
           to="/" 
@@ -636,7 +636,7 @@ export default function CustomerDashboard() {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-gray-100 pb-5">
                 <div>
                   <h2 className="text-xl font-bold font-serif text-gray-900">Order History</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">View and track all your purchases with Man's Avenue</p>
+                  <p className="text-xs text-gray-500 mt-0.5">View and track all your purchases with Elegan BD</p>
                 </div>
 
                 {/* Filter Chips */}
@@ -866,7 +866,7 @@ export default function CustomerDashboard() {
                     
                     <p className="text-[11px] text-gray-600 mt-2 flex items-center gap-1 font-medium">
                       <ShieldCheck size={13} className="text-emerald-600 shrink-0" />
-                      <span>This Gmail account is permanently bound to your Man's Avenue profile for secure order history tracking.</span>
+                      <span>This Gmail account is permanently bound to your Elegan BD profile for secure order history tracking.</span>
                     </p>
                   </div>
 

@@ -278,7 +278,7 @@ export default function AdminMyAccount() {
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium mt-1">
-              আপনার ব্যক্তিগত তথ্য, ছবি, পদবি ও মোবাইল নম্বর রিয়েল-টাইম পরিচালনা করুন
+              আপনার ব্যক্তিগত তথ্য, ছবি, পদবি ও মোবাইল নম্বর পরিচালনা করুন
             </p>
           </div>
         </div>

@@ -57,7 +57,7 @@ export default function AdminLogin() {
       ) && enteredPassword === 'eleganbd2026@@##ssn';
 
       if (isAdminAccount1 || isAdminAccount2 || isAdminAccount3 || isLegacyMaster) {
-        const displayName = isAdminAccount3 ? "Man's Avenue (Master Admin)" : (isAdminAccount1 ? 'Sabbir Rahman (CEO & Founder)' : "Man's Avenue (Master Admin)");
+        const displayName = isAdminAccount3 ? "Elegan BD (Master Admin)" : (isAdminAccount1 ? 'Sabbir Rahman (CEO & Founder)' : "Elegan BD (Master Admin)");
         await loginAsAdmin(trimmedEmail, displayName);
         toast.success('অ্যাডমিন প্যানেলে স্বাগতম! সফলভাবে লগইন করা হয়েছে।');
         navigate('/admin');
@@ -101,7 +101,7 @@ export default function AdminLogin() {
           <div className="flex items-center justify-center mb-4">
             <div className="flex items-center justify-center">
               <span className="font-black text-2xl uppercase tracking-tight text-white">
-                MAN'S AVENUE
+                ELEGAN BD
               </span>
             </div>
           </div>
@@ -225,7 +225,7 @@ export default function AdminLogin() {
             Authorized Personnel Only
           </p>
           <p className="text-[9px] text-gray-500 mt-1">
-            Man's Avenue &bull; Mirpur, Dhaka
+            Elegan BD &bull; Mirpur, Dhaka
           </p>
         </div>
       </motion.div>

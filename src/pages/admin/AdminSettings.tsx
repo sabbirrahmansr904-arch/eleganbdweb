@@ -235,7 +235,7 @@ export default function AdminSettings() {
   // General settings state
   const [storeIsLive, setStoreIsLive] = useState(true);
   const [showZobityCredit, setShowZobityCredit] = useState(true);
-  const [storeName, setStoreName] = useState("Man's Avenue");
+  const [storeName, setStoreName] = useState("Elegan BD");
   const [shortDescription, setShortDescription] = useState('Premium minimalist fashion for the modern individual.');
   const [phone, setPhone] = useState('01619835133');
   const [whatsappNumber, setWhatsappNumber] = useState('01619835133');
@@ -245,7 +245,7 @@ export default function AdminSettings() {
   const [originalGeneral, setOriginalGeneral] = useState({
     storeIsLive: true,
     showZobityCredit: true,
-    storeName: "Man's Avenue",
+    storeName: "Elegan BD",
     shortDescription: 'Premium minimalist fashion for the modern individual.',
     phone: '01619835133',
     whatsappNumber: '01619835133',
@@ -261,7 +261,7 @@ export default function AdminSettings() {
         const settings = {
           storeIsLive: d.storeIsLive !== undefined ? d.storeIsLive : true,
           showZobityCredit: d.showZobityCredit !== undefined ? d.showZobityCredit : true,
-          storeName: d.storeName || "Man's Avenue",
+          storeName: d.storeName || "Elegan BD",
           shortDescription: d.shortDescription || '',
           phone: d.phone || '01619835133',
           whatsappNumber: d.whatsappNumber || '01619835133',
@@ -1018,7 +1018,7 @@ export default function AdminSettings() {
         const defaultLogs = [
           {
             phone: '8801327772213',
-            message: "Dear Customer, welcome to Man's Avenue! Your verification code is 5824. Do not share this OTP.",
+            message: "Dear Customer, welcome to Elegan BD! Your verification code is 5824. Do not share this OTP.",
             status: 'Sent',
             sentAt: '10 Jul, 13:54',
             timestamp: Date.now() - 3600000
@@ -1866,11 +1866,11 @@ export default function AdminSettings() {
                             }}
                           />
                         ) : (
-                          <span>MA</span>
+                          <span>EBD</span>
                         )}
                       </div>
                       <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate max-w-[200px]">
-                        Man's Avenue | Premium Clothing Brand...
+                        Elegan BD | Premium Clothing Brand...
                       </span>
                       <span className="text-gray-400 text-xs hover:text-gray-700 cursor-pointer ml-1 font-bold">×</span>
                     </div>
@@ -1887,7 +1887,7 @@ export default function AdminSettings() {
                       />
                     ) : (
                       <div className="text-center">
-                        <span className="font-black text-xl uppercase tracking-tight text-slate-900 block">MAN'S AVENUE</span>
+                        <span className="font-black text-xl uppercase tracking-tight text-slate-900 block">ELEGAN BD</span>
                         <span className="text-[10px] text-gray-400 font-semibold mt-1 block">Default Clean Typography (No custom image)</span>
                       </div>
                     )}
@@ -1965,7 +1965,7 @@ export default function AdminSettings() {
                             alt="Dark Navbar Logo"
                           />
                         ) : null}
-                        <span className="text-white font-serif font-bold text-sm">MAN'S AVENUE</span>
+                        <span className="text-white font-serif font-bold text-sm">ELEGAN BD</span>
                       </div>
                       <div className="flex items-center gap-3 text-white/70 text-xs">
                         <span>Home</span>
@@ -1986,7 +1986,7 @@ export default function AdminSettings() {
                             alt="Light Navbar Logo"
                           />
                         ) : null}
-                        <span className="text-black font-serif font-bold text-sm">MAN'S AVENUE</span>
+                        <span className="text-black font-serif font-bold text-sm">ELEGAN BD</span>
                       </div>
                       <div className="flex items-center gap-3 text-gray-700 text-xs">
                         <span>Home</span>
@@ -2034,12 +2034,12 @@ export default function AdminSettings() {
                         {tempLogo && !tempLogo.includes('logo.png') && !tempLogo.includes('logo.svg') ? (
                           <img src={tempLogo} className="w-full h-full object-contain" alt="Favicon" />
                         ) : (
-                          <span className="font-black text-sm">MA</span>
+                          <span className="font-black text-sm">EBD</span>
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs text-gray-700 truncate">Man's Avenue · Premium Clothing</p>
-                        <p className="text-sm font-semibold text-blue-800 hover:underline cursor-pointer truncate">Man's Avenue | Premium Clothing Brand in Bangladesh</p>
+                        <p className="text-xs text-gray-700 truncate">Elegan BD · Premium Clothing</p>
+                        <p className="text-sm font-semibold text-blue-800 hover:underline cursor-pointer truncate">Elegan BD | Premium Clothing Brand in Bangladesh</p>
                         <p className="text-[11px] text-gray-600 line-clamp-1">Discover minimalist luxury shirts, polos, and trousers. Premium fashion tailored for the modern individual.</p>
                       </div>
                     </div>
@@ -2053,8 +2053,8 @@ export default function AdminSettings() {
                           className="w-full h-32 object-cover"
                         />
                         <div className="p-2.5 bg-[#F8F9FD] text-left">
-                          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">mansavenue.com</p>
-                          <p className="text-xs font-bold text-black truncate">Man's Avenue - Premium Clothing Brand</p>
+                          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">eleganbd.com</p>
+                          <p className="text-xs font-bold text-black truncate">Elegan BD - Premium Clothing Brand</p>
                         </div>
                       </div>
                     </div>

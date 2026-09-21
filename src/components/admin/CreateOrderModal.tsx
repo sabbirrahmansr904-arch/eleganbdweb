@@ -749,20 +749,20 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
 
                     <div className="space-y-1 text-left">
                       <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">ORDER DATE & TIME (রিয়েল টাইম)</label>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">ORDER DATE & TIME</label>
                         <button
                           type="button"
                           onClick={() => {
                             const now = getDhakaNow();
                             setOrderDate(now.dateStr);
                             setOrderTime(now.timeStr);
-                            toast.success("Real-time timestamp synced!", { id: "real-time-sync" });
+                            toast.success("Timestamp synced!", { id: "timestamp-sync" });
                           }}
                           className="text-[10px] font-extrabold text-indigo-600 hover:text-indigo-800 inline-flex items-center gap-1 cursor-pointer transition-colors bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded-md border border-indigo-100"
-                          title="এখনকার রিয়েল তারিখ ও সময় সেট করুন"
+                          title="এখনকার তারিখ ও সময় সেট করুন"
                         >
                           <Clock className="w-2.5 h-2.5 stroke-[2.5]" />
-                          <span>Real-Time</span>
+                          <span>Now</span>
                         </button>
                       </div>
                       <div className="grid grid-cols-2 gap-2">

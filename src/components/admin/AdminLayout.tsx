@@ -17,6 +17,7 @@ import {
   Palette,
   File,
   Layout,
+  LayoutDashboard,
   Globe,
   Megaphone,
   Tag,
@@ -37,6 +38,7 @@ import {
   Sun,
   Store,
   Table,
+  Table2,
   Lock,
   CheckSquare,
   AlertCircle,
@@ -54,6 +56,7 @@ import {
   Images,
   Crown,
   BarChart3,
+  Layers,
   Plus,
   Minus,
   Clock,
@@ -423,15 +426,15 @@ export default function AdminLayout() {
   const isCurrentRouteAllowed = !currentRequiredPerm || isPermitted(currentRequiredPerm);
 
   const rawMenuItems = [
-    { name: 'Dashboard', path: '/admin', icon: Home, perm: 'dashboard' },
-    { name: 'Orders', path: '/admin/orders', icon: FileText, perm: 'orders' },
-    { name: 'Products', path: '/admin/products', icon: ShoppingBag, perm: 'products' },
-    { name: 'Categories', path: '/admin/settings?tab=Categories', icon: Folder, perm: 'categories' },
-    { name: 'Master Table', path: '/admin/master-table', icon: Table, perm: 'master-table' },
+    { name: 'Dashboard', path: '/admin', icon: LayoutDashboard, perm: 'dashboard' },
+    { name: 'Orders', path: '/admin/orders', icon: ShoppingCart, perm: 'orders' },
+    { name: 'Products', path: '/admin/products', icon: Package, perm: 'products' },
+    { name: 'Categories', path: '/admin/settings?tab=Categories', icon: Layers, perm: 'categories' },
+    { name: 'Master Table', path: '/admin/master-table', icon: Table2, perm: 'master-table' },
     { name: 'Inventory Log', path: '/admin/inventory-log', icon: History, perm: 'inventory-log' },
-    { name: 'Account', path: '/admin/my-account', icon: User, perm: 'my-account' },
-    { name: 'Pixel & Analytics', path: '/admin/settings?tab=Pixel+%26+Analytics', icon: Megaphone, perm: 'settings' },
-    { name: 'Promo Banners', path: '/admin/settings?tab=Banners', icon: ImageIcon, perm: 'settings' },
+    { name: 'Account', path: '/admin/my-account', icon: UserCheck, perm: 'my-account' },
+    { name: 'Pixel & Analytics', path: '/admin/settings?tab=Pixel+%26+Analytics', icon: BarChart3, perm: 'settings' },
+    { name: 'Promo Banners', path: '/admin/settings?tab=Banners', icon: Images, perm: 'settings' },
     { name: 'Supabase DB', path: '/admin/settings?tab=Supabase', icon: Database, perm: 'settings' },
   ];
 
@@ -455,14 +458,14 @@ export default function AdminLayout() {
   React.useEffect(() => {
     if (location.pathname === '/admin' || location.pathname === '/admin/') {
       if (!isPermitted('dashboard')) {
-        const allAvailable = menuGroups.flatMap(g => g.items);
+        const allAvailable = menuItems;
         const firstValid = allAvailable.find(i => i.path !== '/admin' && i.path !== '/admin/');
         if (firstValid) {
           navigate(firstValid.path, { replace: true });
         }
       }
     }
-  }, [location.pathname, permissions, isSuperAdmin]);
+  }, [location.pathname, permissions, isSuperAdmin, menuItems]);
 
   const getIsActive = (itemPath: string) => {
     const currentTabVal = new URLSearchParams(location.search).get('tab');
@@ -528,7 +531,7 @@ export default function AdminLayout() {
                 <div className="flex items-center justify-between p-2 bg-[#E6ECF4] rounded-2xl border border-white/90 shadow-[-4px_-4px_10px_rgba(255,255,255,0.95),4px_4px_12px_rgba(165,180,205,0.32)]">
                   <Link to="/" onClick={() => setIsMobileOpen(false)} className="flex items-center gap-2 min-w-0">
                     <span className="font-black tracking-tight text-xs text-slate-900 truncate">
-                      Man's Avenue Admin
+                      Elegan BD Admin
                     </span>
                   </Link>
                   <button 
@@ -550,13 +553,18 @@ export default function AdminLayout() {
                       to={item.path}
                       onClick={() => setIsMobileOpen(false)}
                       className={cn(
-                        "flex items-center space-x-2.5 px-2.5 py-2 rounded-[14px] transition-all font-bold text-xs tracking-tight",
+                        "flex items-center space-x-2.5 px-2.5 py-2 rounded-[14px] transition-all font-bold text-xs tracking-tight group",
                         isActive 
                           ? "bg-[#E6ECF4] text-slate-900 shadow-[-4px_-4px_10px_rgba(255,255,255,0.95),4px_4px_10px_rgba(165,180,205,0.35)] border border-white/80" 
                           : "text-gray-600 hover:text-black hover:bg-[#E6ECF4] hover:shadow-[-2px_-2px_6px_rgba(255,255,255,0.9),2px_2px_6px_rgba(165,180,205,0.25)]"
                       )}
                     >
-                      <Icon size={16} strokeWidth={isActive ? 2.5 : 1.8} className={cn(isActive ? "text-[#f97316]" : "text-gray-500", "shrink-0")} />
+                      <div className={cn(
+                        "w-5 h-5 flex items-center justify-center shrink-0 transition-colors",
+                        isActive ? "text-[#f97316]" : "text-gray-500 group-hover:text-slate-800"
+                      )}>
+                        <Icon size={16} strokeWidth={isActive ? 2.4 : 1.8} />
+                      </div>
                       <span className="flex-1 text-left truncate">{item.name}</span>
                       {item.badge && (
                         <span className="text-[9px] bg-[#EEF2FF] text-[#4F46E5] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider shrink-0">
@@ -622,7 +630,7 @@ export default function AdminLayout() {
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 <span className="font-black tracking-tight text-sm text-slate-900 truncate">
-                  Man's Avenue Admin
+                  Elegan BD Admin
                 </span>
               </div>
               <div className="w-6 h-6 rounded-full bg-[#E6ECF4] flex items-center justify-center text-slate-500 group-hover:text-slate-800 shadow-[-2px_-2px_5px_rgba(255,255,255,0.9),2px_2px_5px_rgba(165,180,205,0.25)] border border-white/80 shrink-0">
@@ -658,7 +666,12 @@ export default function AdminLayout() {
                     : "text-gray-600 hover:text-black hover:bg-[#E6ECF4] hover:shadow-[-3px_-3px_8px_rgba(255,255,255,0.9),3px_3px_8px_rgba(165,180,205,0.25)]"
                 )}
               >
-                <Icon size={18} strokeWidth={isActive ? 2.5 : 1.8} className={cn(isActive ? "text-[#f97316]" : "text-gray-500")} />
+                <div className={cn(
+                  "w-6 h-6 flex items-center justify-center shrink-0 transition-colors",
+                  isActive ? "text-[#f97316]" : "text-gray-500 group-hover:text-slate-800"
+                )}>
+                  <Icon size={18} strokeWidth={isActive ? 2.4 : 1.8} />
+                </div>
                 {isSidebarOpen && (
                   <span className="truncate flex-1 text-left">{item.name}</span>
                 )}

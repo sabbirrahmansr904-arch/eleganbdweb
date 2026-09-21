@@ -785,7 +785,7 @@ export default function AdminAccounts() {
                 </span>
               </div>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                রিয়েল-টাইম এডমিন অ্যাক্সেস প্রাপ্ত সকল সদস্যের প্রোফাইল, ফটো ও দায়িত্বসমূহ
+                এডমিন অ্যাক্সেস প্রাপ্ত সকল সদস্যের প্রোফাইল, ফটো ও দায়িত্বসমূহ
               </p>
             </div>
           </div>

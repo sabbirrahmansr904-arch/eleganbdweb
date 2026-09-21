@@ -170,7 +170,7 @@ export default function AdminStockIn() {
                 Stock In (স্টক ইন)
               </h3>
               <p className="text-xs text-gray-500 font-medium">
-                নতুন পণ্য বা অতিরিক্ত স্টক ডেটাবেজে যুক্ত করুন ও রিয়েল-টাইম আপডেট রাখুন
+                নতুন পণ্য বা অতিরিক্ত স্টক ডেটাবেজে যুক্ত করুন ও আপডেট রাখুন
               </p>
             </div>
           </div>

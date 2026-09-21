@@ -90,7 +90,7 @@ export default function Navbar() {
           <div className="flex items-center gap-3">
             <Link to="/" className="flex items-center group gap-2">
               <span className="font-black text-lg sm:text-xl uppercase text-black whitespace-nowrap tracking-tight">
-                MAN'S AVENUE
+                ELEGAN BD
               </span>
             </Link>
           </div>
@@ -276,7 +276,7 @@ export default function Navbar() {
                     <Link to="/" onClick={() => setIsOpen(false)} className="flex items-center gap-2.5 group">
                       <div>
                         <span className="font-black text-lg uppercase tracking-tight text-black block leading-none">
-                          Man's Avenue
+                          Elegan BD
                         </span>
                         <span className="text-[9px] font-bold tracking-widest text-gray-500 uppercase block mt-0.5">
                           Exclusive Fashion

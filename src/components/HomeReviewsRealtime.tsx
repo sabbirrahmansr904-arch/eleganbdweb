@@ -132,7 +132,7 @@ export default function HomeReviewsRealtime() {
               <Sparkles size={22} className="text-amber-500 fill-amber-500" />
             </h2>
             <p className="text-xs sm:text-sm text-gray-600 font-medium max-w-xl">
-              Real-time authentic feedback and experiences from verified Man's Avenue customers.
+              Real-time authentic feedback and experiences from verified Elegan BD customers.
             </p>
           </div>
 
@@ -345,7 +345,7 @@ export default function HomeReviewsRealtime() {
         {/* Bottom Bar */}
         <div className="relative z-10 mt-8 pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
           <p className="text-xs text-gray-500 font-medium">
-            💡 Purchased from Man's Avenue? Share your honest experience to help other shoppers.
+            💡 Purchased from Elegan BD? Share your honest experience to help other shoppers.
           </p>
 
           <div className="flex items-center gap-3">

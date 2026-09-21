@@ -21,7 +21,8 @@ import {
   Flame,
   CheckCircle2,
   Sparkles,
-  Table
+  Table,
+  SlidersHorizontal
 } from 'lucide-react';
 import { useProducts } from '../../contexts/ProductContext';
 import { useCategories } from '../../contexts/CategoryContext';
@@ -39,6 +40,27 @@ export default function AdminProducts(): React.JSX.Element {
   const [filterCategory, setFilterCategory] = useState('All');
   const [isSearchBarOpen, setIsSearchBarOpen] = useState(true);
 
+  // Defined threshold for low stock warning (persisted locally, default = 5)
+  const [lowStockThreshold, setLowStockThreshold] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('elegan_admin_low_stock_threshold');
+      return saved !== null ? Math.max(1, parseInt(saved, 10)) : 5;
+    } catch {
+      return 5;
+    }
+  });
+
+  const handleThresholdChange = (val: number) => {
+    const validVal = Math.max(1, Math.min(100, val));
+    setLowStockThreshold(validVal);
+    try {
+      localStorage.setItem('elegan_admin_low_stock_threshold', validVal.toString());
+    } catch {}
+  };
+
+  // Stock status filter: 'all' | 'low' | 'out'
+  const [filterStockStatus, setFilterStockStatus] = useState<'all' | 'low' | 'out'>('all');
+
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
@@ -55,6 +77,25 @@ export default function AdminProducts(): React.JSX.Element {
   const [isFeaturedModalOpen, setIsFeaturedModalOpen] = useState(false);
   const [featuredModalTab, setFeaturedModalTab] = useState<'bestSelling' | 'newArrival'>('bestSelling');
   const [modalSearchTerm, setModalSearchTerm] = useState('');
+
+  // Stock statistics based on defined threshold
+  const stockStats = useMemo(() => {
+    let outCount = 0;
+    let lowCount = 0;
+    products.forEach((p) => {
+      const s = Number(p.stock ?? 0);
+      if (s <= 0) {
+        outCount++;
+      } else if (s <= lowStockThreshold) {
+        lowCount++;
+      }
+    });
+    return {
+      outCount,
+      lowCount,
+      totalAlerts: outCount + lowCount
+    };
+  }, [products, lowStockThreshold]);
 
   const toggleProductFeatured = async (product: Product, section: 'bestSelling' | 'newArrival') => {
     try {
@@ -79,7 +120,7 @@ export default function AdminProducts(): React.JSX.Element {
     }
   };
 
-  // Filter products by search and category
+  // Filter products by search, category, and stock status
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
       const matchesSearch = 
@@ -91,9 +132,17 @@ export default function AdminProducts(): React.JSX.Element {
         filterCategory === 'All' || 
         product.category?.toLowerCase() === filterCategory.toLowerCase();
 
-      return matchesSearch && matchesCategory;
+      const stock = Number(product.stock ?? 0);
+      let matchesStock = true;
+      if (filterStockStatus === 'low') {
+        matchesStock = stock > 0 && stock <= lowStockThreshold;
+      } else if (filterStockStatus === 'out') {
+        matchesStock = stock <= 0;
+      }
+
+      return matchesSearch && matchesCategory && matchesStock;
     });
-  }, [products, searchTerm, filterCategory]);
+  }, [products, searchTerm, filterCategory, filterStockStatus, lowStockThreshold]);
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage) || 1;
@@ -247,35 +296,115 @@ export default function AdminProducts(): React.JSX.Element {
       {/* Main card matching categories layout */}
       <div className="bg-[#F8F9FD] rounded-[24px] border border-slate-200/70 p-6 shadow-2xs space-y-6">
         
-        {/* First row of the Card: Left: Tab, Right: Category Select Filter */}
-        <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-          <div className="flex items-center gap-2">
+        {/* First row of the Card: Left: Stock Status Tabs, Right: Threshold Selector + Category Select Filter */}
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between border-b border-gray-100 pb-4 gap-3.5">
+          <div className="flex items-center gap-2 flex-wrap">
             <button 
               className={cn(
-                "px-4 py-2 text-xs font-bold rounded-xl transition-all border cursor-pointer",
-                filterCategory === 'All' 
-                  ? "bg-[#F8F9FD] border-gray-200 text-gray-900 shadow-3xs" 
-                  : "bg-transparent border-transparent text-gray-500 hover:text-gray-900"
+                "px-3.5 py-2 text-xs font-bold rounded-xl transition-all border cursor-pointer flex items-center gap-2",
+                filterStockStatus === 'all' 
+                  ? "bg-white border-gray-200 text-gray-900 shadow-3xs" 
+                  : "bg-transparent border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-100/60"
               )}
-              onClick={() => setFilterCategory('All')}
+              onClick={() => {
+                setFilterStockStatus('all');
+                setCurrentPage(1);
+              }}
             >
-              All products
+              <span>All products</span>
+              <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full font-mono">
+                {products.length}
+              </span>
+            </button>
+
+            <button 
+              className={cn(
+                "px-3.5 py-2 text-xs font-bold rounded-xl transition-all border cursor-pointer flex items-center gap-1.5",
+                filterStockStatus === 'low' 
+                  ? "bg-amber-50 border-amber-300 text-amber-900 shadow-3xs" 
+                  : "bg-transparent border-transparent text-gray-500 hover:text-amber-800 hover:bg-amber-50/60"
+              )}
+              onClick={() => {
+                setFilterStockStatus('low');
+                setCurrentPage(1);
+              }}
+              title={`Show products with stock ≤ ${lowStockThreshold}`}
+            >
+              <AlertTriangle size={13} className="text-amber-500 shrink-0" />
+              <span>Low Stock (≤{lowStockThreshold})</span>
+              <span className={cn(
+                "text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold",
+                stockStats.lowCount > 0 ? "bg-amber-200 text-amber-900" : "bg-gray-100 text-gray-500"
+              )}>
+                {stockStats.lowCount}
+              </span>
+            </button>
+
+            <button 
+              className={cn(
+                "px-3.5 py-2 text-xs font-bold rounded-xl transition-all border cursor-pointer flex items-center gap-1.5",
+                filterStockStatus === 'out' 
+                  ? "bg-rose-50 border-rose-300 text-rose-900 shadow-3xs" 
+                  : "bg-transparent border-transparent text-gray-500 hover:text-rose-800 hover:bg-rose-50/60"
+              )}
+              onClick={() => {
+                setFilterStockStatus('out');
+                setCurrentPage(1);
+              }}
+              title="Show products with 0 stock"
+            >
+              <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+              <span>Out of Stock</span>
+              <span className={cn(
+                "text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold",
+                stockStats.outCount > 0 ? "bg-rose-200 text-rose-900" : "bg-gray-100 text-gray-500"
+              )}>
+                {stockStats.outCount}
+              </span>
             </button>
           </div>
 
-          <div className="relative">
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="appearance-none bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-2.5 pr-10 text-xs font-bold text-gray-700 hover:border-gray-300 transition-all cursor-pointer outline-none shadow-3xs"
-            >
-              <option value="All">Show All</option>
-              {categories.map(cat => (
-                <option key={cat.id} value={cat.name}>{cat.name}</option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400">
-              <Filter size={12} className="stroke-[2.5]" />
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Low Stock Warning Threshold Selector */}
+            <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-3xs text-xs">
+              <SlidersHorizontal size={13} className="text-amber-600 shrink-0" />
+              <span className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                Threshold:
+              </span>
+              <select
+                value={lowStockThreshold}
+                onChange={(e) => handleThresholdChange(Number(e.target.value))}
+                className="bg-transparent font-bold text-gray-900 outline-none cursor-pointer text-xs"
+                title="Define the minimum stock quantity to trigger the low-stock warning highlight"
+              >
+                <option value={2}>≤ 2 pcs</option>
+                <option value={3}>≤ 3 pcs</option>
+                <option value={5}>≤ 5 pcs (Default)</option>
+                <option value={8}>≤ 8 pcs</option>
+                <option value={10}>≤ 10 pcs</option>
+                <option value={15}>≤ 15 pcs</option>
+                <option value={20}>≤ 20 pcs</option>
+              </select>
+            </div>
+
+            {/* Category Select Filter */}
+            <div className="relative">
+              <select
+                value={filterCategory}
+                onChange={(e) => {
+                  setFilterCategory(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="appearance-none bg-[#F8F9FD] border border-gray-200 rounded-xl px-4 py-2 pr-10 text-xs font-bold text-gray-700 hover:border-gray-300 transition-all cursor-pointer outline-none shadow-3xs"
+              >
+                <option value="All">All Categories</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.name}>{cat.name}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                <Filter size={12} className="stroke-[2.5]" />
+              </div>
             </div>
           </div>
         </div>
@@ -331,10 +460,21 @@ export default function AdminProducts(): React.JSX.Element {
                 </tr>
               ) : (
                 paginatedProducts.map((product) => {
+                  const stock = Number(product.stock ?? 0);
+                  const isOutOfStock = stock <= 0;
+                  const isLowStock = stock > 0 && stock <= lowStockThreshold;
+
                   return (
                     <tr 
                       key={product.id} 
-                      className="hover:bg-gray-50/50 transition-colors group h-16 border-b border-gray-100"
+                      className={cn(
+                        "transition-colors group h-16 border-b",
+                        isOutOfStock 
+                          ? "bg-rose-50/50 hover:bg-rose-100/50 border-b-rose-200/80 border-l-4 border-l-rose-500" 
+                          : isLowStock 
+                            ? "bg-amber-50/40 hover:bg-amber-100/50 border-b-amber-200/80 border-l-4 border-l-amber-500" 
+                            : "hover:bg-gray-50/50 border-b-gray-100 border-l-4 border-l-transparent"
+                      )}
                     >
                       {/* Drag Handle */}
                       <td className="py-4 px-6 text-gray-300 group-hover:text-gray-400 transition-colors">
@@ -344,7 +484,14 @@ export default function AdminProducts(): React.JSX.Element {
                       {/* Product Name & Image */}
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-4">
-                          <div className="w-11 h-11 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden shrink-0">
+                          <div className={cn(
+                            "w-11 h-11 rounded-xl bg-gray-50 border flex items-center justify-center overflow-hidden shrink-0 transition-all",
+                            isOutOfStock 
+                              ? "border-rose-300 ring-2 ring-rose-200/60" 
+                              : isLowStock 
+                                ? "border-amber-300 ring-2 ring-amber-200/60" 
+                                : "border-gray-100"
+                          )}>
                             {product.images?.[0] ? (
                               <img 
                                 src={product.images[0]} 
@@ -353,7 +500,7 @@ export default function AdminProducts(): React.JSX.Element {
                                 referrerPolicy="no-referrer"
                               />
                             ) : (
-                              <Package size={18} className="text-gray-400" />
+                              <Package size={18} className={isOutOfStock ? "text-rose-400" : isLowStock ? "text-amber-400" : "text-gray-400"} />
                             )}
                           </div>
                           <div className="flex flex-col max-w-[280px]">
@@ -364,10 +511,28 @@ export default function AdminProducts(): React.JSX.Element {
                               <span className="truncate">{product.name}</span>
                               <ExternalLink size={12} className="text-gray-400 group-hover:text-[#6366F1] transition-colors shrink-0" />
                             </button>
-                            <div className="flex items-center gap-2 mt-0.5">
+
+                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                               <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">
                                 {product.category || 'Uncategorized'}
                               </span>
+
+                              {/* Warning Indicator Badges under product name */}
+                              {isOutOfStock ? (
+                                <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-rose-700 bg-rose-100/90 border border-rose-300 px-1.5 py-0.2 rounded shadow-2xs">
+                                  <AlertTriangle size={10} className="text-rose-600 shrink-0" />
+                                  Out of Stock
+                                </span>
+                              ) : isLowStock ? (
+                                <span 
+                                  className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-amber-800 bg-amber-100/90 border border-amber-300 px-1.5 py-0.2 rounded shadow-2xs"
+                                  title={`Warning: stock (${stock}) is at or below threshold (${lowStockThreshold})`}
+                                >
+                                  <AlertTriangle size={10} className="text-amber-600 shrink-0" />
+                                  Low Stock ({stock})
+                                </span>
+                              ) : null}
+
                               <div className="flex items-center gap-1">
                                 <button
                                   type="button"
@@ -431,14 +596,38 @@ export default function AdminProducts(): React.JSX.Element {
                         </span>
                       </td>
 
-                      {/* Quantity Badge */}
+                      {/* Quantity Badge with Dynamic Warning Indicator */}
                       <td className="py-4 px-4 text-center">
-                        {product.stock > 0 ? (
-                          <span className="inline-flex items-center justify-center bg-gray-100 text-gray-700 text-xs font-bold px-3 py-1 rounded-lg min-w-[32px]">
-                            {product.stock}
-                          </span>
+                        {isOutOfStock ? (
+                          <div className="flex flex-col items-center justify-center">
+                            <span 
+                              className="inline-flex items-center justify-center gap-1 bg-rose-100 text-rose-800 border border-rose-300 text-xs font-black px-2.5 py-1 rounded-lg min-w-[50px] shadow-2xs"
+                              title="Out of Stock - Click 'Add' to restock"
+                            >
+                              <AlertTriangle size={12} className="text-rose-600 shrink-0" />
+                              0
+                            </span>
+                            <span className="text-[9px] font-black text-rose-600 uppercase tracking-tight mt-0.5">
+                              Out
+                            </span>
+                          </div>
+                        ) : isLowStock ? (
+                          <div className="flex flex-col items-center justify-center">
+                            <span 
+                              className="inline-flex items-center justify-center gap-1 bg-amber-100 text-amber-900 border border-amber-300 text-xs font-black px-2.5 py-1 rounded-lg min-w-[50px] shadow-2xs"
+                              title={`Low Stock Warning: Only ${stock} remaining (Threshold: ≤ ${lowStockThreshold})`}
+                            >
+                              <AlertTriangle size={12} className="text-amber-600 shrink-0" />
+                              {stock}
+                            </span>
+                            <span className="text-[9px] font-black text-amber-700 uppercase tracking-tight mt-0.5">
+                              ≤ {lowStockThreshold} Low
+                            </span>
+                          </div>
                         ) : (
-                          <span className="text-gray-300 font-bold">—</span>
+                          <span className="inline-flex items-center justify-center bg-gray-100 text-gray-700 text-xs font-bold px-3 py-1 rounded-lg min-w-[32px]">
+                            {stock}
+                          </span>
                         )}
                       </td>
 
@@ -462,10 +651,17 @@ export default function AdminProducts(): React.JSX.Element {
                           <button
                             id={`quick-add-${product.id}`}
                             onClick={() => handleOpenQuickStock(product)}
-                            className="border border-gray-200 bg-[#F8F9FD] hover:bg-gray-50 text-gray-700 font-semibold text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-3xs transition-all cursor-pointer"
+                            className={cn(
+                              "font-semibold text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-3xs transition-all cursor-pointer border",
+                              isOutOfStock
+                                ? "bg-rose-600 hover:bg-rose-700 text-white border-rose-600 shadow-rose-600/20"
+                                : isLowStock
+                                  ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-500 shadow-amber-500/20"
+                                  : "border-gray-200 bg-[#F8F9FD] hover:bg-gray-50 text-gray-700"
+                            )}
                             title="Quickly add inventory stock"
                           >
-                            <PlusSquare size={12} className="text-gray-500" />
+                            <PlusSquare size={12} className={isOutOfStock || isLowStock ? "text-white" : "text-gray-500"} />
                             <span>Add</span>
                           </button>
 

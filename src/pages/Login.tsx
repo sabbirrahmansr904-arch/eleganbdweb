@@ -182,7 +182,7 @@ export default function Login() {
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center mb-3">
             <div className="flex items-center gap-2">
-              <span className="font-black text-2xl uppercase text-black tracking-tight">MAN'S AVENUE</span>
+              <span className="font-black text-2xl uppercase text-black tracking-tight">ELEGAN BD</span>
             </div>
           </div>
           <h1 className="text-xl font-black uppercase tracking-tight text-gray-900">

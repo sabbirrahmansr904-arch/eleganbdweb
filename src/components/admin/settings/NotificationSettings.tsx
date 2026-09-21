@@ -374,7 +374,7 @@ export default function NotificationSettings() {
                     <li>Go to your <a href="https://myaccount.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-semibold hover:text-blue-700">Google Account dashboard</a>.</li>
                     <li>Navigate to <b>Security</b> and turn on <b>2-Step Verification</b>.</li>
                     <li>Search or scroll down to find <b>App Passwords</b>.</li>
-                    <li>Choose "Mail" as app type, "Other (Custom name)" as "MansAvenue Web", and click <b>Generate</b>.</li>
+                    <li>Choose "Mail" as app type, "Other (Custom name)" as "EleganBD Web", and click <b>Generate</b>.</li>
                     <li>Copy the <b>16-digit yellow app password</b>.</li>
                     <li>Navigate to your Hosting Env / Dev settings and add:</li>
                   </ol>

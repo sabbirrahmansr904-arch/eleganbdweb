@@ -2282,7 +2282,7 @@ export default function AdminOrders(): React.JSX.Element {
                     PICKUP STORE
                   </label>
                   <div className="w-full bg-[#FAFBFD] border border-[#EFF2F6] rounded-xl px-4 py-3 text-sm font-bold text-gray-700 select-all leading-relaxed whitespace-nowrap overflow-x-auto text-left">
-                    Man's Avenue — Dhaka
+                    Elegan BD — Dhaka
                   </div>
                 </div>
 
@@ -3552,7 +3552,7 @@ export default function AdminOrders(): React.JSX.Element {
                             </span>
                           </div>
                           <div className="col-span-2 border-t border-slate-100/80 pt-3">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Order Placed Date & Time (রিয়েল টাইম)</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Order Placed Date & Time</span>
                             <div className="flex items-center gap-2 text-xs font-black text-slate-800 font-mono">
                               <Calendar size={13} className="text-slate-400 stroke-[2.5]" />
                               <span>{formatOrderDateTime(selectedOrder.createdAt).date}</span>

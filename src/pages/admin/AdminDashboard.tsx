@@ -396,7 +396,7 @@ export default function AdminDashboard(): React.JSX.Element {
     return alertItems.map(p => ({
       id: p.id,
       name: p.name,
-      brand: p.category || "Man's Avenue",
+      brand: p.category || "Elegan BD",
       stock: p.stock,
       price: p.price,
       formattedPrice: formatPrice(p.price, currency, rate),
@@ -717,7 +717,7 @@ export default function AdminDashboard(): React.JSX.Element {
       if (products && products.length > 0) {
         return {
           name: products[0].name,
-          brand: "Man's Avenue",
+          brand: "Elegan BD",
           stock: products[0].stock,
           price: products[0].price,
           formattedPrice: formatPrice(products[0].price, currency, rate),
@@ -727,7 +727,7 @@ export default function AdminDashboard(): React.JSX.Element {
       }
       return {
         name: 'Premium Formal Shirt',
-        brand: "Man's Avenue",
+        brand: "Elegan BD",
         stock: 450,
         price: 1850,
         formattedPrice: formatPrice(1850, currency, rate),
@@ -761,7 +761,7 @@ export default function AdminDashboard(): React.JSX.Element {
       if (prod) {
         return {
           name: prod.name,
-          brand: "Man's Avenue",
+          brand: "Elegan BD",
           stock: prod.stock,
           price: prod.price,
           formattedPrice: formatPrice(prod.price, currency, rate),
@@ -773,7 +773,7 @@ export default function AdminDashboard(): React.JSX.Element {
 
     return {
       name: 'Premium Formal Shirt',
-      brand: "Man's Avenue",
+      brand: "Elegan BD",
       stock: 450,
       price: 1850,
       formattedPrice: formatPrice(1850, currency, rate),
@@ -1265,7 +1265,7 @@ export default function AdminDashboard(): React.JSX.Element {
           <h1 className="text-2xl md:text-3xl font-black text-gray-950 tracking-tight flex items-center gap-2">
             Hi, {currentUser?.displayName || 'Admin'} 👋
           </h1>
-          <p className="text-xs text-gray-400 font-medium mt-0.5">Welcome back to Man's Avenue Admin</p>
+          <p className="text-xs text-gray-400 font-medium mt-0.5">Welcome back to Elegan BD Admin</p>
         </div>
       </div>
 
@@ -1300,7 +1300,6 @@ export default function AdminDashboard(): React.JSX.Element {
               </div>
               <p className="text-[11px] font-black text-rose-600/90 mt-1 flex items-center gap-1">
                 <span>{dynamicReturnedOrdersCount.toLocaleString()} টি অর্ডার রিটার্ন হয়েছে</span>
-                <span className="text-gray-400 font-bold text-[10px]">(রিয়েল-টাইম)</span>
               </p>
             </div>
           </div>
@@ -1466,7 +1465,7 @@ export default function AdminDashboard(): React.JSX.Element {
                   <TrendingUp className="w-5 h-5" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-gray-400">Today Sales (রিয়েল-টাইম)</span>
+                  <span className="text-xs font-bold text-gray-400">Today Sales</span>
                 </div>
               </div>
               <button className="text-gray-400 hover:text-gray-900 p-1 rounded-lg hover:bg-gray-50 transition-colors">
@@ -1485,10 +1484,7 @@ export default function AdminDashboard(): React.JSX.Element {
           </div>
 
           {/* Trend & Sparkline */}
-          <div className="flex items-end justify-between mt-2 pt-2 border-t border-gray-50/50">
-            <span className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
-              <span>● Live updates</span>
-            </span>
+          <div className="flex items-end justify-end mt-2 pt-2 border-t border-gray-50/50">
             <div className="w-20 h-8">
               <svg width="80" height="32" viewBox="0 0 80 32" className="text-emerald-600">
                 <path
@@ -1758,7 +1754,7 @@ export default function AdminDashboard(): React.JSX.Element {
                 Best Sellers
               </h3>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">
-                REAL-TIME TOP PERFORMING PRODUCTS
+                TOP PERFORMING PRODUCTS
               </p>
             </div>
           </div>

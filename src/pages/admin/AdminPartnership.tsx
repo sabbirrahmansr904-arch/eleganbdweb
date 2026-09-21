@@ -919,13 +919,9 @@ export default function AdminPartnership() {
                 <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
                   ৩ পার্টনারশিপ ও ইনভেস্টমেন্ট ট্র্যাকার
                 </h1>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Real-time Live Sync
-                </span>
               </div>
               <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-                ৩ জন পার্টনারের বিনিয়োগ, ক্যাপিটাল রেশিও, তারিখ ও সঠিক সময় রিয়েল-টাইম ট্র্যাকিং
+                ৩ জন পার্টনারের বিনিয়োগ, ক্যাপিটাল রেশিও, তারিখ ও সঠিক সময় ট্র্যাকিং
               </p>
             </div>
           </div>
@@ -1444,7 +1440,7 @@ export default function AdminPartnership() {
           </div>
 
           <div className="text-xs text-slate-400">
-            রিয়েল-টাইম অটো সেভ ও সিঙ্ক
+            অটো সেভ ও সিঙ্ক
           </div>
         </div>
 

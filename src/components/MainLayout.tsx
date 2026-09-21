@@ -3,6 +3,7 @@ import Navbar from './Navbar';
 import Footer from './Footer';
 import BottomNav from './BottomNav';
 import CartDrawer from './CartDrawer';
+import FloatingWhatsApp from './FloatingWhatsApp';
 import { FirestoreQuotaBanner } from './FirestoreQuotaBanner';
 import { useCart } from '../contexts/CartContext';
 import { useLocation, Link } from 'react-router-dom';
@@ -26,6 +27,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         {children}
       </main>
       <Footer />
+
+      {/* Floating WhatsApp Live Chat on Storefront */}
+      <FloatingWhatsApp phoneNumber="8801619835133" />
 
       {/* Floating Order Now Widget when Cart has 3+ items */}
       <AnimatePresence>

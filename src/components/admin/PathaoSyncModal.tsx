@@ -408,7 +408,7 @@ export const PathaoSyncModal: React.FC<PathaoSyncModalProps> = ({
                 )}
               </div>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                সবগুলো পার্সেলের রিয়েল-টাইম কুরিয়ার ট্র্যাকিং স্ট্যাটাস লাইভ ফেচ এবং ডাটাবেজে আপডেট হচ্ছে
+                সবগুলো পার্সেলের কুরিয়ার ট্র্যাকিং স্ট্যাটাস লাইভ ফেচ এবং ডাটাবেজে আপডেট হচ্ছে
               </p>
             </div>
           </div>
@@ -651,7 +651,7 @@ export const PathaoSyncModal: React.FC<PathaoSyncModalProps> = ({
             {isRunning ? (
               <span className="flex items-center gap-1.5 text-emerald-600 font-bold">
                 <RefreshCw size={12} className="animate-spin" />
-                রিয়েল-টাইম সিঙ্ক চলমান... অনুকম্পা করে অপেক্ষা করুন।
+                সিঙ্ক চলমান... অনুকম্পা করে অপেক্ষা করুন।
               </span>
             ) : (
               <span className="flex items-center gap-1.5 text-slate-700 font-bold">

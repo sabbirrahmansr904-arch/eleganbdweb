@@ -120,7 +120,7 @@ export default function LiveVisitorTracker() {
     const pingData = {
       id: visitorIdRef.current,
       path: path || '/',
-      pageTitle: document.title || "Man's Avenue",
+      pageTitle: document.title || "Elegan BD",
       referrer: referrerRef.current,
       device,
       browser,

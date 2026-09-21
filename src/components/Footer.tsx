@@ -20,7 +20,7 @@ export default function Footer() {
             <Link to="/" className="inline-block transform transition-transform hover:scale-102">
               <div className="flex items-center gap-2">
                 <span className="font-black text-2xl uppercase text-white tracking-tight">
-                  MAN'S AVENUE
+                  ELEGAN BD
                 </span>
               </div>
             </Link>
@@ -99,7 +99,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link to="/about" className="hover:text-white transition-colors block">
-                  About Man's Avenue
+                  About Elegan BD
                 </Link>
               </li>
               <li>
@@ -136,8 +136,8 @@ export default function Footer() {
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">EMAIL US</p>
-                  <a href="mailto:mansavenuebd@gmail.com" className="text-gray-200 hover:text-white font-bold transition-colors">
-                    mansavenuebd@gmail.com
+                  <a href="mailto:eleganbd.ltd@gmail.com" className="text-gray-200 hover:text-white font-bold transition-colors">
+                    eleganbd.ltd@gmail.com
                   </a>
                 </div>
               </div>
@@ -163,7 +163,7 @@ export default function Footer() {
       {/* Copyright */}
       <div className="max-w-[1560px] mx-auto mt-8 pt-6 border-t border-white/10 text-center">
         <p className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.15em] text-gray-400">
-          © 2026 MAN'S AVENUE LIMITED. ALL RIGHTS RESERVED.
+          © 2026 ELEGAN BD LIMITED. ALL RIGHTS RESERVED.
         </p>
       </div>
     </footer>

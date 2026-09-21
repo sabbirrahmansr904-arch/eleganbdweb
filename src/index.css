@@ -21,7 +21,6 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  transform: translateZ(0);
 }
 
 .no-scrollbar::-webkit-scrollbar {
