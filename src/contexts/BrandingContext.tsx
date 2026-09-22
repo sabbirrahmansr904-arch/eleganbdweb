@@ -144,7 +144,7 @@ const cleanUrl = (url?: string) => {
 const DEFAULT_LOGO = "";
 const DEFAULT_SIZE_CHART = "";
 const DEFAULT_COLLECTIONS_BANNER = "";
-const DEFAULT_HERO_BANNER = "";
+const DEFAULT_HERO_BANNER = "/default-hero-banner.webp";
 const DEFAULT_SUB_HERO_BANNER = "";
 const DEFAULT_FEATURE_BANNER = "";
 const DEFAULT_POLO_BANNER = "";
@@ -204,10 +204,11 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const cached = localStorage.getItem('eleganbd_banners_large');
     if (cached) {
       try {
-        return cleanBannerUrl(JSON.parse(cached).heroBannerUrl);
-      } catch (e) { return ""; }
+        const val = cleanBannerUrl(JSON.parse(cached).heroBannerUrl);
+        if (val) return val;
+      } catch (e) { return DEFAULT_HERO_BANNER; }
     }
-    return "";
+    return DEFAULT_HERO_BANNER;
   });
 
   const [heroBannerMobileUrl, setHeroBannerMobileUrlState] = useState<string>(() => {
