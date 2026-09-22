@@ -745,15 +745,30 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const loadAllConfigs = async () => {
       try {
         const apiRes = await fetch('/api/config/all');
-        const apiJson = await apiRes.json();
-        if (apiJson.success && apiJson.configs && Object.keys(apiJson.configs).length > 0) {
-          Object.entries(apiJson.configs).forEach(([recId, data]) => {
-            applyConfigDoc(recId, data);
-          });
-          return;
+        if (apiRes.ok) {
+          const apiJson = await apiRes.json();
+          if (apiJson.success && apiJson.configs && Object.keys(apiJson.configs).length > 0) {
+            Object.entries(apiJson.configs).forEach(([recId, data]) => {
+              applyConfigDoc(recId, data);
+            });
+            return;
+          }
         }
       } catch (err) {
         console.warn('[BrandingContext] Config fetch notice:', err);
+      }
+
+      // Direct Firestore fetch (Guaranteed on Vercel and static hosts)
+      try {
+        const querySnapshot = await getDocs(collection(db, 'config'));
+        if (!querySnapshot.empty) {
+          querySnapshot.forEach(docSnap => {
+            applyConfigDoc(docSnap.id, docSnap.data());
+          });
+          return;
+        }
+      } catch (fsErr) {
+        console.warn('[BrandingContext] Direct Firestore getDocs notice:', fsErr);
       }
 
       // Fallback: Supabase documents if available

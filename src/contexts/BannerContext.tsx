@@ -27,7 +27,10 @@ export function BannerProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // 1. Fetch from Server API first (Fast & Reliable Firestore data)
     fetch('/api/banners')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('API not available');
+        return res.json();
+      })
       .then(data => {
         if (data.success && Array.isArray(data.banners) && data.banners.length > 0) {
           setBanners(data.banners);
@@ -36,7 +39,20 @@ export function BannerProvider({ children }: { children: React.ReactNode }) {
           } catch {}
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        // Direct Firestore fallback for Vercel / static hosts
+        getDocs(collection(db, 'banners'))
+          .then(snap => {
+            if (!snap.empty) {
+              const bannerList = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Banner[];
+              setBanners(bannerList);
+              try {
+                localStorage.setItem('eleganbd_banners', JSON.stringify(bannerList));
+              } catch {}
+            }
+          })
+          .catch(() => {});
+      });
 
     // 2. Fetch from Supabase fallback
     fetchDocumentsFromSupabase('banners').then(data => {

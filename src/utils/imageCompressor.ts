@@ -117,8 +117,17 @@ export async function compressImage(
 export async function compressBannerImage(
   file: File,
   maxWidth: number = 1920,
-  maxHeight: number = 1080,
-  quality: number = 0.90
+  maxHeight: number = 900,
+  quality: number = 0.92
+): Promise<string> {
+  return compressImage(file, maxWidth, maxHeight, quality, false);
+}
+
+export async function compressMobileBannerImage(
+  file: File,
+  maxWidth: number = 1080,
+  maxHeight: number = 650,
+  quality: number = 0.92
 ): Promise<string> {
   return compressImage(file, maxWidth, maxHeight, quality, false);
 }

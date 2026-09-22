@@ -416,7 +416,7 @@ const Home = () => {
                       <img 
                         src={activeHeroBanners[currentBanner].image} 
                         alt={`Hero Banner ${currentBanner + 1}`} 
-                        className="w-full h-auto max-h-[70vh] object-cover block mx-auto"
+                        className="w-full h-auto max-h-[85vh] object-cover block mx-auto transition-opacity duration-300"
                         referrerPolicy="no-referrer"
                       />
                     </picture>
@@ -429,7 +429,7 @@ const Home = () => {
                     <img 
                       src={activeHeroBanners[currentBanner].image} 
                       alt={`Hero Banner ${currentBanner + 1}`} 
-                      className="w-full h-auto max-h-[70vh] object-cover block mx-auto"
+                      className="w-full h-auto max-h-[85vh] object-cover block mx-auto transition-opacity duration-300"
                       referrerPolicy="no-referrer"
                     />
                   </picture>
@@ -773,14 +773,14 @@ const Home = () => {
             to="/category/all" 
             className="group block relative rounded-2xl sm:rounded-3xl overflow-hidden bg-gray-100 shadow-sm border border-gray-100/80 transition-all hover:shadow-md"
           >
-            <picture>
+            <picture className="w-full block">
               {subHeroBannerMobileUrl && (
-                <source media="(max-width: 640px)" srcSet={subHeroBannerMobileUrl} />
+                <source media="(max-width: 767px)" srcSet={subHeroBannerMobileUrl} />
               )}
               <img 
                 src={subHeroBannerUrl} 
                 alt="Sub-Hero Promotional Banner" 
-                className="w-full h-auto object-cover object-center transition-transform duration-700 group-hover:scale-[1.01]" 
+                className="w-full aspect-[1080/650] md:aspect-[1920/900] object-cover object-center transition-transform duration-700 group-hover:scale-[1.01]" 
                 referrerPolicy="no-referrer"
               />
             </picture>

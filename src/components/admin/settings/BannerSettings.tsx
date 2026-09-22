@@ -100,9 +100,12 @@ export default function BannerSettings() {
     if (file) {
       const loadingToast = toast.loading(`Uploading & optimizing ${key}...`);
       try {
+        const isMobileField = field === 'mobileUrl';
         const result = isPortrait 
           ? await compressImage(file, 800, 1000, 0.85)
-          : await compressBannerImage(file, 1920, 1080, 0.92);
+          : isMobileField 
+            ? await compressBannerImage(file, 1080, 650, 0.92)
+            : await compressBannerImage(file, 1920, 900, 0.92);
         setter(result);
 
         if (configDoc) {
@@ -173,7 +176,7 @@ export default function BannerSettings() {
     const file = e.target.files?.[0];
     if (file) {
       try {
-        const result = await compressBannerImage(file, 1920, 1080, 0.92);
+        const result = await compressBannerImage(file, 1920, 900, 0.92);
         setFormData(prev => ({ ...prev, image: result }));
         autoSaveToMediaLibrary(result, { name: `Hero Banner Slider: ${file.name.replace(/\.[^/.]+$/, "") || 'Slider'}`, category: 'Banners & Sliders', source: 'banner' });
       } catch (err) {
@@ -546,7 +549,7 @@ export default function BannerSettings() {
                       </button>
                     )}
                   </div>
-                  <div className="aspect-[21/9] w-full rounded-xl bg-white border border-gray-200 overflow-hidden relative flex items-center justify-center shadow-3xs">
+                  <div className="aspect-[1920/900] w-full rounded-xl bg-white border border-gray-200 overflow-hidden relative flex items-center justify-center shadow-3xs">
                     {pBanner.desktopUrl ? (
                       <img src={pBanner.desktopUrl} alt="Desktop Banner" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
@@ -599,7 +602,7 @@ export default function BannerSettings() {
                         </button>
                       )}
                     </div>
-                    <div className="aspect-[5/3] w-full max-w-[280px] mx-auto rounded-xl bg-white border border-gray-200 overflow-hidden relative flex items-center justify-center shadow-3xs">
+                    <div className="aspect-[1080/650] w-full max-w-[280px] mx-auto rounded-xl bg-white border border-gray-200 overflow-hidden relative flex items-center justify-center shadow-3xs">
                       {pBanner.mobileUrl ? (
                         <img src={pBanner.mobileUrl} alt="Mobile Banner" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                       ) : (
@@ -669,14 +672,14 @@ export default function BannerSettings() {
                     <label className="text-[10px] uppercase tracking-widest font-black text-gray-400 ml-1">Payload Asset</label>
                     <span className="text-[10px] font-bold text-gray-400">Desktop: 1920×900px | Mobile: 1080×650px</span>
                   </div>
-                  <label className="aspect-[21/9] bg-gray-50 border-2 border-dashed border-gray-100 rounded-2xl flex flex-col items-center justify-center cursor-pointer overflow-hidden group hover:border-black/30 transition-all relative">
+                  <label className="aspect-[1920/900] bg-gray-50 border-2 border-dashed border-gray-100 rounded-2xl flex flex-col items-center justify-center cursor-pointer overflow-hidden group hover:border-black/30 transition-all relative">
                     {formData.image ? (
                       <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
                     ) : (
                       <div className="text-center flex flex-col items-center gap-3">
                         <div className="w-12 h-12 bg-white rounded-xl border border-gray-100 flex items-center justify-center text-brand-gold shadow-sm"><Upload size={20} /></div>
                         <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">UPLOAD VISUAL UNIT</p>
-                        <p className="text-[9px] text-gray-400 font-medium">Recommended: 1920 × 900 px (21:9 ratio)</p>
+                        <p className="text-[9px] text-gray-400 font-medium">Recommended: 1920 × 900 px (Desktop) / 1080 × 650 px (Mobile)</p>
                       </div>
                     )}
                     <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
