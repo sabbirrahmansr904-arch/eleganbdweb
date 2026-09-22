@@ -31,7 +31,9 @@ const Home = () => {
     shirtBannerUrl,
     pantBannerUrl,
     subHeroBannerUrl,
-    subHeroBannerMobileUrl
+    subHeroBannerMobileUrl,
+    collectionsBannerUrl,
+    featureBannerUrl
   } = useBranding();
 
   const bestSellingScrollRef = React.useRef<HTMLDivElement>(null);
@@ -96,7 +98,7 @@ const Home = () => {
   const activeHeroBanners = React.useMemo(() => {
     // 1. From Banner Management
     const fromDb = banners
-      .filter(b => b.active && b.type === 'hero' && b.image && !b.image.includes('unsplash.com'))
+      .filter(b => b.active && b.image)
       .map(b => ({
         id: b.id,
         active: true,
@@ -117,7 +119,7 @@ const Home = () => {
     const fromBranding: typeof fromDb = [];
     brandingList.forEach((item) => {
       const url = item.desktop || item.mobile;
-      if (url && !url.includes('unsplash.com') && !fromDb.some(b => b.image === item.desktop)) {
+      if (url && !fromDb.some(b => b.image === item.desktop || (item.mobile && b.mobileImage === item.mobile))) {
         fromBranding.push({
           id: item.id,
           active: true,
@@ -130,7 +132,7 @@ const Home = () => {
       }
     });
 
-    return [...fromDb, ...fromBranding];
+    return [...fromBranding, ...fromDb];
   }, [banners, heroBannerUrl, heroBannerMobileUrl, heroBanner2Url, heroBanner2MobileUrl, heroBanner3Url, heroBanner3MobileUrl]);
 
   const [currentBanner, setCurrentBanner] = React.useState(0);
@@ -392,7 +394,7 @@ const Home = () => {
     <div className="flex flex-col min-h-screen bg-white">
       
       {/* TOP SECTION: HERO BANNER (SLIDER SUPPORT FOR 2 OR MORE BANNERS) */}
-      {activeHeroBanners.length > 0 && showHeroBanner && (
+      {activeHeroBanners.length > 0 && showHeroBanner !== false && (
         <section className="w-full m-0 p-0 pb-2 sm:pb-4">
           <div className="relative w-full overflow-hidden bg-white flex items-center justify-center m-0 p-0 group">
             <AnimatePresence mode="wait">
@@ -630,6 +632,23 @@ const Home = () => {
         )}
       </section>
 
+      {/* FEATURE SPOTLIGHT BANNER */}
+      {featureBannerUrl && (
+        <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-8">
+          <Link 
+            to="/category/all" 
+            className="group block relative rounded-2xl sm:rounded-3xl overflow-hidden bg-gray-100 shadow-sm border border-gray-100/80 transition-all hover:shadow-md"
+          >
+            <img 
+              src={featureBannerUrl} 
+              alt="Feature Spotlight Banner" 
+              className="w-full h-auto object-cover max-h-[420px] object-center transition-transform duration-700 group-hover:scale-[1.01]" 
+              referrerPolicy="no-referrer"
+            />
+          </Link>
+        </section>
+      )}
+
       {/* 3. NEW ARRIVAL PRODUCTS SECTION */}
       {(newArrivalProducts.length > 0 || productsLoading) && (
         <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-10">
@@ -697,6 +716,20 @@ const Home = () => {
 
       {/* 4. EXPLORE OUR COLLECTION - MAIN PRODUCT SECTION SHOWING FORMAL PANTS FIRST, THEN FORMAL SHIRTS */}
       <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
+        {/* Collections Promotional Header Banner */}
+        {collectionsBannerUrl && (
+          <div className="mb-8 rounded-2xl sm:rounded-3xl overflow-hidden bg-gray-100 shadow-sm border border-gray-100/80">
+            <Link to="/category/all" className="block group">
+              <img 
+                src={collectionsBannerUrl} 
+                alt="Collections Banner" 
+                className="w-full h-auto object-cover max-h-[420px] object-center transition-transform duration-700 group-hover:scale-[1.01]" 
+                referrerPolicy="no-referrer"
+              />
+            </Link>
+          </div>
+        )}
+
         {/* Section Header: EXPLORE OUR COLLECTION */}
         <div className="relative flex items-center justify-center border-b border-gray-100 pb-4 mb-8">
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase text-gray-900 tracking-tight text-center">
@@ -740,12 +773,17 @@ const Home = () => {
             to="/category/all" 
             className="group block relative rounded-2xl sm:rounded-3xl overflow-hidden bg-gray-100 shadow-sm border border-gray-100/80 transition-all hover:shadow-md"
           >
-            <img 
-              src={subHeroBannerUrl} 
-              alt="Sub-Hero Promotional Banner" 
-              className="w-full h-auto object-cover object-center transition-transform duration-700 group-hover:scale-101" 
-              referrerPolicy="no-referrer"
-            />
+            <picture>
+              {subHeroBannerMobileUrl && (
+                <source media="(max-width: 640px)" srcSet={subHeroBannerMobileUrl} />
+              )}
+              <img 
+                src={subHeroBannerUrl} 
+                alt="Sub-Hero Promotional Banner" 
+                className="w-full h-auto object-cover object-center transition-transform duration-700 group-hover:scale-[1.01]" 
+                referrerPolicy="no-referrer"
+              />
+            </picture>
           </Link>
         </section>
       )}

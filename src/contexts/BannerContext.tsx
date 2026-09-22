@@ -25,7 +25,20 @@ export function BannerProvider({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
-    // 1. Fetch from Supabase
+    // 1. Fetch from Server API first (Fast & Reliable Firestore data)
+    fetch('/api/banners')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.banners) && data.banners.length > 0) {
+          setBanners(data.banners);
+          try {
+            localStorage.setItem('eleganbd_banners', JSON.stringify(data.banners));
+          } catch {}
+        }
+      })
+      .catch(() => {});
+
+    // 2. Fetch from Supabase fallback
     fetchDocumentsFromSupabase('banners').then(data => {
       if (Array.isArray(data) && data.length > 0) {
         setBanners(data);
@@ -33,25 +46,29 @@ export function BannerProvider({ children }: { children: React.ReactNode }) {
       }
     }).catch(() => {});
 
-    if (isFirestoreQuotaExceeded) return;
+    // 3. Realtime Firestore listener
+    let unsubscribe: (() => void) | null = null;
+    try {
+      const q = query(collection(db, 'banners'));
+      unsubscribe = onSnapshot(q, (snapshot) => {
+        const bannerList = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Banner[];
+        setBanners(bannerList);
+        try {
+          localStorage.setItem('eleganbd_banners', JSON.stringify(bannerList));
+        } catch {}
+      }, (error) => {
+        if (!isQuotaError(error)) {
+          console.warn("Banner real-time listener notice:", error);
+        }
+      });
+    } catch (e) {}
 
-    const q = query(collection(db, 'banners'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const bannerList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Banner[];
-      setBanners(bannerList);
-      try {
-        localStorage.setItem('eleganbd_banners', JSON.stringify(bannerList));
-      } catch {}
-    }, (error) => {
-      if (!isQuotaError(error)) {
-        console.warn("Banner real-time listener notice:", error);
-      }
-    });
-
-    return () => unsubscribe();
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   const addBanner = async (banner: Omit<Banner, 'id'>) => {
@@ -67,13 +84,17 @@ export function BannerProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
 
-    // 1. Save to Supabase
-    await saveDocumentToSupabase('banners', id, banner);
-
-    // 2. Save to Firestore as backup
+    // 1. Save to Firestore as primary persistent database
     try {
-      await setDoc(doc(db, 'banners', id), banner);
-    } catch (e) {}
+      await setDoc(doc(db, 'banners', id), newBanner);
+    } catch (e) {
+      console.warn("Firestore banner save notice:", e);
+    }
+
+    // 2. Supabase mirror in background (non-blocking)
+    try {
+      saveDocumentToSupabase('banners', id, newBanner).catch(() => {});
+    } catch {}
   };
 
   const updateBanner = async (id: string, updates: Partial<Banner>) => {
@@ -86,13 +107,17 @@ export function BannerProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
 
-    // 1. Save to Supabase
-    await saveDocumentToSupabase('banners', id, updates);
-
-    // 2. Save to Firestore as backup
+    // 1. Save to Firestore as primary
     try {
       await setDoc(doc(db, 'banners', id), updates, { merge: true });
-    } catch (e) {}
+    } catch (e) {
+      console.warn("Firestore banner update notice:", e);
+    }
+
+    // 2. Supabase mirror in background (non-blocking)
+    try {
+      saveDocumentToSupabase('banners', id, updates).catch(() => {});
+    } catch {}
   };
 
   const deleteBanner = async (id: string) => {
@@ -105,13 +130,17 @@ export function BannerProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
 
-    // 1. Delete from Supabase
-    await deleteDocumentFromSupabase('banners', id);
-
-    // 2. Delete from Firestore
+    // 1. Delete from Firestore as primary
     try {
       await deleteDoc(doc(db, 'banners', id));
-    } catch (e) {}
+    } catch (e) {
+      console.warn("Firestore banner delete notice:", e);
+    }
+
+    // 2. Delete from Supabase in background (non-blocking)
+    try {
+      deleteDocumentFromSupabase('banners', id).catch(() => {});
+    } catch {}
   };
 
   return (

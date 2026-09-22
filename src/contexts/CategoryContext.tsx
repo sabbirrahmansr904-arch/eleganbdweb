@@ -117,15 +117,40 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setCategories(sortCategories(DEFAULT_CATEGORIES));
     }
 
-    // Load from Supabase
+    // 1. Fetch from Server API (Ultra Fast & Universal for all devices)
+    fetch('/api/categories')
+      .then(r => r.json())
+      .then(res => {
+        if (res.success && Array.isArray(res.categories) && res.categories.length > 0) {
+          const sorted = sortCategories(res.categories);
+          setCategories(sorted);
+          localStorage.setItem('eleganbd_categories', JSON.stringify(sorted));
+        }
+      })
+      .catch(() => {});
+
+    // 2. Load from Firestore
+    getDocs(collection(db, 'categories')).then(snapshot => {
+      if (snapshot && !snapshot.empty) {
+        const rawData: Category[] = [];
+        snapshot.forEach(doc => {
+          rawData.push({ ...doc.data() as Category, id: doc.id });
+        });
+        if (rawData.length > 0) {
+          const sorted = sortCategories(rawData);
+          setCategories(sorted);
+          localStorage.setItem('eleganbd_categories', JSON.stringify(sorted));
+        }
+      }
+    }).catch(() => {});
+
+    // Background secondary load from Supabase
     fetchDocumentsFromSupabase('categories').then(data => {
       if (Array.isArray(data) && data.length > 0) {
         const sorted = sortCategories(data);
-        setCategories(sorted);
-        localStorage.setItem('eleganbd_categories', JSON.stringify(sorted));
+        setCategories(prev => prev.length === 0 ? sorted : prev);
       }
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    }).catch(() => {}).finally(() => setLoading(false));
 
     if (isFirestoreQuotaExceeded) {
       setLoading(false);
@@ -174,13 +199,22 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setCategories(updated);
     localStorage.setItem('eleganbd_categories', JSON.stringify(updated));
 
-    // 1. Save to Supabase
-    await saveDocumentToSupabase('categories', category.id, category);
+    // 1. Save via Server API (Bypasses all client restrictions & syncs across all devices)
+    fetch('/api/categories/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category })
+    }).catch(() => {});
 
-    // 2. Save to Firestore
+    // 2. Save to Firestore (Direct SDK)
     try {
       await setDoc(doc(db, 'categories', category.id), category);
-    } catch (error) {}
+    } catch (error) {
+      console.warn('[CategoryContext] Firestore addCategory notice:', error);
+    }
+
+    // 3. Mirror to Supabase in background
+    saveDocumentToSupabase('categories', category.id, category).catch(() => {});
   };
 
   const updateCategory = async (updatedCategory: Category) => {
@@ -188,13 +222,22 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setCategories(updated);
     localStorage.setItem('eleganbd_categories', JSON.stringify(updated));
 
-    // 1. Save to Supabase
-    await saveDocumentToSupabase('categories', updatedCategory.id, updatedCategory);
+    // 1. Save via Server API (Bypasses all client restrictions & syncs across all devices)
+    fetch('/api/categories/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category: updatedCategory })
+    }).catch(() => {});
 
-    // 2. Save to Firestore
+    // 2. Save to Firestore (Direct SDK)
     try {
       await setDoc(doc(db, 'categories', updatedCategory.id), updatedCategory, { merge: true });
-    } catch (error) {}
+    } catch (error) {
+      console.warn('[CategoryContext] Firestore updateCategory notice:', error);
+    }
+
+    // 3. Mirror to Supabase in background
+    saveDocumentToSupabase('categories', updatedCategory.id, updatedCategory).catch(() => {});
   };
 
   const deleteCategory = async (id: string) => {
@@ -202,13 +245,15 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setCategories(updated);
     localStorage.setItem('eleganbd_categories', JSON.stringify(updated));
 
-    // 1. Delete from Supabase
-    await deleteDocumentFromSupabase('categories', id);
-
-    // 2. Delete from Firestore
+    // 1. Delete from Firestore (Primary)
     try {
       await deleteDoc(doc(db, 'categories', id));
-    } catch (error) {}
+    } catch (error) {
+      console.warn('[CategoryContext] Firestore deleteCategory notice:', error);
+    }
+
+    // 2. Delete from Supabase in background
+    deleteDocumentFromSupabase('categories', id).catch(() => {});
   };
 
   return (

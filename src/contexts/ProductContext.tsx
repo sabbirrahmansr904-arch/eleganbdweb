@@ -52,15 +52,11 @@ const removeDeletedId = (id: string) => {
 export const isDemoProduct = (p: Product | null | undefined): boolean => {
   if (!p || !p.id) return true;
   const strId = String(p.id).toLowerCase();
-  if (strId.startsWith('fp-') || strId.startsWith('fs-') || strId.startsWith('demo-') || strId === 'demo') {
+  if (strId.startsWith('demo-') || strId === 'demo') {
     return true;
   }
   const name = (p.name || '').trim().toLowerCase();
   if (!name || name === 'unnamed product' || name === 'untitled product' || name === 'unnamed') {
-    return true;
-  }
-  // Filter out any template/mock formal shirts that use demo unsplash urls
-  if (name.includes("men's premium formal shirt") && Array.isArray(p.images) && p.images.some(img => img.includes('unsplash.com'))) {
     return true;
   }
   return false;
@@ -68,93 +64,34 @@ export const isDemoProduct = (p: Product | null | undefined): boolean => {
 
 export const getCanonicalProductKey = (p: Product): string => {
   if (!p || typeof p !== 'object') return '';
-  
-  const rawId = String(p.id || '').trim().toLowerCase();
-  const rawSku = (p.sku || '').trim().toLowerCase();
-  const rawName = (p.name || '').trim().toLowerCase();
-  const rawColor = (p.color || '').trim().toLowerCase();
-  const rawCat = (p.category || '').trim().toLowerCase();
-  
-  const isPant = rawCat.includes('pant') || rawName.includes('pant') || rawCat.includes('trouser') || rawName.includes('trouser');
-  const isShirt = rawCat.includes('shirt') || rawName.includes('shirt') || rawCat.includes('polo') || rawName.includes('polo');
-  const catPrefix = isPant ? 'pant' : isShirt ? 'shirt' : 'other';
-
-  // 1. Explicit Serial Code matching like (Code: FP 1), FP-01, Code-1, FP 1, FS 2, etc.
-  const fullSearchStr = `${rawSku} ${rawName} ${rawId} ${rawColor}`;
-  const explicitCodeMatch = fullSearchStr.match(/\b(?:code|fp|fs|pant|shirt)[\s:#_-]*0*(\d+)\b/i);
-  if (explicitCodeMatch && explicitCodeMatch[1]) {
-    return `${catPrefix}_code_${parseInt(explicitCodeMatch[1], 10)}`;
-  }
-
-  // 2. Normalized SKU matching
-  const cleanSku = rawSku.replace(/[^a-z0-9]/g, '');
-  if (cleanSku && cleanSku.length >= 2) {
-    const skuCodeMatch = cleanSku.match(/^(?:fp|fs|p|s|pant|shirt)0*(\d+)$/i);
-    if (skuCodeMatch && skuCodeMatch[1]) {
-      return `${catPrefix}_code_${parseInt(skuCodeMatch[1], 10)}`;
-    }
-    return `sku_${cleanSku}`;
-  }
-
-  // 3. Normalized Name + Color (e.g. Formal Pant Deep Black)
-  const cleanName = rawName
-    .replace(/\(code:?[^\)]*\)/gi, '')
-    .replace(/code:?\s*[a-z0-9_-]+/gi, '')
-    .replace(/[^a-z0-9]/g, '');
-
-  const cleanColor = rawColor.replace(/[^a-z0-9]/g, '');
-
-  if (cleanName && cleanColor) {
-    return `${catPrefix}_${cleanName}_${cleanColor}`;
-  }
-
-  if (cleanName && cleanName.length > 5) {
-    return `${catPrefix}_${cleanName}`;
-  }
-
-  return rawId ? `id_${rawId}` : '';
+  return String(p.id || '').trim().toLowerCase();
 };
 
 export const deduplicateProducts = (list: Product[]): Product[] => {
   if (!Array.isArray(list)) return [];
-  const canonicalMap = new Map<string, Product>();
   const idMap = new Map<string, Product>();
 
   for (const p of list) {
     if (!p || !p.id || isDemoProduct(p)) continue;
     const strId = String(p.id).trim().toLowerCase();
-    const canonKey = getCanonicalProductKey(p);
 
-    const existingById = idMap.get(strId);
-    const existingByCanon = canonKey ? canonicalMap.get(canonKey) : undefined;
-    const existing = existingById || existingByCanon;
-
+    const existing = idMap.get(strId);
     if (!existing) {
-      if (canonKey) canonicalMap.set(canonKey, p);
       idMap.set(strId, p);
     } else {
-      // Determine which product is higher fidelity:
-      // Real uploaded/custom images beat demo Unsplash fallback images
+      // Determine which product is higher fidelity or newer
       const pHasCustomImg = Array.isArray(p.images) && p.images.some(img => img && !img.includes('unsplash.com') && img.length > 10);
       const exHasCustomImg = Array.isArray(existing.images) && existing.images.some(img => img && !img.includes('unsplash.com') && img.length > 10);
-
-      const pIsDefault = strId.startsWith('fp-') || strId.startsWith('fs-');
-      const exIsDefault = String(existing.id).toLowerCase().startsWith('fp-') || String(existing.id).toLowerCase().startsWith('fs-');
+      const pUpdated = (p as any).updatedAt || (p as any).createdAt ? new Date((p as any).updatedAt || (p as any).createdAt).getTime() : 0;
+      const exUpdated = (existing as any).updatedAt || (existing as any).createdAt ? new Date((existing as any).updatedAt || (existing as any).createdAt).getTime() : 0;
 
       let winner = existing;
       if (pHasCustomImg && !exHasCustomImg) {
         winner = p;
-      } else if (!pIsDefault && exIsDefault) {
+      } else if (pUpdated > exUpdated) {
         winner = p;
-      } else {
-        const pUpdated = (p as any).updatedAt || (p as any).createdAt ? new Date((p as any).updatedAt || (p as any).createdAt).getTime() : 0;
-        const exUpdated = (existing as any).updatedAt || (existing as any).createdAt ? new Date((existing as any).updatedAt || (existing as any).createdAt).getTime() : 0;
-        if (pUpdated > exUpdated) {
-          winner = p;
-        }
       }
 
-      // Merge product metadata to prevent loss of stock, sizes, or descriptions
       const merged: Product = {
         ...existing,
         ...p,
@@ -163,8 +100,7 @@ export const deduplicateProducts = (list: Product[]): Product[] => {
         image: winner.image || existing.image || p.image || ''
       };
 
-      if (canonKey) canonicalMap.set(canonKey, merged);
-      idMap.set(String(merged.id).trim().toLowerCase(), merged);
+      idMap.set(strId, merged);
     }
   }
 
@@ -304,6 +240,48 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const refreshProducts = useCallback(async () => {
     setLoading(true);
     try {
+      // 1. Fetch from direct Server API (reads Firestore as primary)
+      const apiRes = await fetch('/api/products', { cache: 'no-store' });
+      if (apiRes.ok) {
+        const json = await apiRes.json();
+        if (json.success && Array.isArray(json.products) && json.products.length > 0) {
+          const mapped: Product[] = json.products.map(supabaseRowToProduct);
+          const nonDeleted = mapped.filter(p => !isDemoProduct(p));
+          const normalized = deduplicateProducts(nonDeleted.map(normalizeProductCategory));
+          setProducts(normalized);
+          try {
+            localStorage.setItem('eleganbd_products', JSON.stringify(normalized));
+            localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
+          } catch (e) {}
+          setLoading(false);
+          return;
+        }
+      }
+
+      // 2. Fetch directly from Firestore
+      try {
+        const snap = await getDocs(collection(db, 'products'));
+        if (!snap.empty) {
+          const fsProds: Product[] = [];
+          snap.forEach(docSnap => {
+            const data = docSnap.data() as Product;
+            const p = { ...data, id: docSnap.id };
+            if (!isDemoProduct(p)) fsProds.push(p);
+          });
+          if (fsProds.length > 0) {
+            const normalized = deduplicateProducts(fsProds.map(normalizeProductCategory));
+            setProducts(normalized);
+            try {
+              localStorage.setItem('eleganbd_products', JSON.stringify(normalized));
+              localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
+            } catch (e) {}
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (fsErr) {}
+
+      // 3. Fallback to Supabase
       const { data, error } = await supabase
         .from('products')
         .select('*')
@@ -325,7 +303,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const cached = localStorage.getItem('eleganbd_products');
       if (cached !== null) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           const nonDeleted = parsed.filter(p => !isDemoProduct(p));
           setProducts(deduplicateProducts(nonDeleted.map(normalizeProductCategory)));
           setLoading(false);
@@ -464,61 +442,78 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.warn('[ProductContext] Supabase channel notice:', e);
     }
 
-    if (isFirestoreQuotaExceeded) {
-      setLoading(false);
-      return () => {
-        isMounted = false;
-        if (supabaseChannel) {
-          try { supabase.removeChannel(supabaseChannel); } catch {}
-        }
-      };
-    }
-
     // 1. Real-time offers listener
-    const unsubOffers = onSnapshot(doc(db, 'config', 'offers'), (snap) => {
-      if (snap.exists()) {
-        const ids = snap.data().productIds || [];
-        setOfferProductIds(ids);
-        try {
-          localStorage.setItem('eleganbd_offers', JSON.stringify(ids));
-        } catch {}
-      }
-    }, (err) => {
-      if (!isQuotaError(err)) {
-        console.warn('[ProductContext] Offers listener notice:', err);
-      }
-    });
-
-    // 2. Real-time products listener (Firestore primary real-time stream)
-    const productsCol = collection(db, 'products');
-    const unsubProducts = onSnapshot(productsCol, (snapshot) => {
-      const prodData: Product[] = [];
-      snapshot.forEach(docSnap => {
-        const data = docSnap.data() as Product;
-        const p = {
-          ...data,
-          id: docSnap.id
-        };
-        if (!isDemoProduct(p)) {
-          prodData.push(p);
+    let unsubOffers: (() => void) | null = null;
+    try {
+      unsubOffers = onSnapshot(doc(db, 'config', 'offers'), (snap) => {
+        if (snap.exists() && isMounted) {
+          const ids = snap.data().productIds || [];
+          setOfferProductIds(ids);
+          try {
+            localStorage.setItem('eleganbd_offers', JSON.stringify(ids));
+          } catch {}
+        }
+      }, (err) => {
+        if (!isQuotaError(err)) {
+          console.warn('[ProductContext] Offers listener notice:', err);
         }
       });
+    } catch (e) {}
 
-      if (prodData.length > 0) {
-        const normalized = deduplicateProducts(prodData.map(normalizeProductCategory)).filter(p => !isDemoProduct(p));
-        setProducts(normalized);
-        try {
-          localStorage.setItem('eleganbd_products', JSON.stringify(normalized));
-          localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
-        } catch (e) {}
+    // 2. Real-time products listener (Firestore primary real-time stream)
+    let unsubProducts: (() => void) | null = null;
+    try {
+      const productsCol = collection(db, 'products');
+      unsubProducts = onSnapshot(productsCol, (snapshot) => {
+        if (!isMounted) return;
+        const prodData: Product[] = [];
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data() as Product;
+          const p = {
+            ...data,
+            id: docSnap.id
+          };
+          if (!isDemoProduct(p)) {
+            prodData.push(p);
+          }
+        });
+
+        if (prodData.length > 0) {
+          const normalized = deduplicateProducts(prodData.map(normalizeProductCategory)).filter(p => !isDemoProduct(p));
+          setProducts(normalized);
+          try {
+            localStorage.setItem('eleganbd_products', JSON.stringify(normalized));
+            localStorage.setItem('eleganbd_products_last_fetched', Date.now().toString());
+          } catch (e) {}
+        }
+        setLoading(false);
+      }, (err) => {
+        if (!isQuotaError(err)) {
+          handleFirestoreError(err, OperationType.GET, 'products');
+        }
+        setLoading(false);
+      });
+    } catch (e) {}
+
+    // 3. Periodic polling every 3 seconds for continuous cross-device sync
+    const pollInterval = setInterval(() => {
+      if (isMounted) {
+        fetch('/api/products', { cache: 'no-store' })
+          .then(res => res.json())
+          .then(json => {
+            if (json.success && Array.isArray(json.products) && json.products.length > 0 && isMounted) {
+              const mapped: Product[] = json.products.map(supabaseRowToProduct);
+              const nonDeleted = mapped.filter(p => !isDemoProduct(p));
+              const normalized = deduplicateProducts(nonDeleted.map(normalizeProductCategory));
+              setProducts(normalized);
+              try {
+                localStorage.setItem('eleganbd_products', JSON.stringify(normalized));
+              } catch (e) {}
+            }
+          })
+          .catch(() => {});
       }
-      setLoading(false);
-    }, (err) => {
-      if (!isQuotaError(err)) {
-        handleFirestoreError(err, OperationType.GET, 'products');
-      }
-      setLoading(false);
-    });
+    }, 3000);
 
     const safetyTimer = setTimeout(() => {
       if (isMounted) {
@@ -529,8 +524,9 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return () => {
       isMounted = false;
       clearTimeout(safetyTimer);
-      unsubOffers();
-      unsubProducts();
+      clearInterval(pollInterval);
+      if (unsubOffers) unsubOffers();
+      if (unsubProducts) unsubProducts();
       if (supabaseChannel) {
         try { supabase.removeChannel(supabaseChannel); } catch {}
       }

@@ -350,11 +350,11 @@ export default function ProductDetails() {
               onTouchMove={handleTouchMove}
             >
               <img 
-                src={currentMainImage} 
+                src={currentMainImage || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800" fill="%23f8fafc"><rect width="600" height="800" fill="%23f1f5f9"/><text x="50%" y="50%" font-family="sans-serif" font-size="20" font-weight="bold" fill="%2394a3b8" text-anchor="middle">ELEGAN BD</text></svg>'} 
                 alt={product.name} 
                 className={cn(
                   "w-full h-full object-contain max-h-[650px] transition-transform duration-200",
-                  isHovering ? "opacity-0 md:opacity-100 md:scale-150" : "scale-100"
+                  isHovering ? "md:scale-150" : "scale-100"
                 )}
                 style={isHovering ? {
                   transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`

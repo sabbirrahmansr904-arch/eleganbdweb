@@ -88,7 +88,14 @@ export default function BannerSettings() {
     primaryDeliveryDistrict, shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter, aboutText
   ]);
 
-  const handleStaticBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>, key: string, setter: (url: string) => void, isPortrait?: boolean) => {
+  const handleStaticBannerUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>, 
+    key: string, 
+    setter: (url: string) => void, 
+    isPortrait?: boolean,
+    configDoc?: string,
+    field: string = 'url'
+  ) => {
     const file = e.target.files?.[0];
     if (file) {
       const loadingToast = toast.loading(`Uploading & optimizing ${key}...`);
@@ -97,16 +104,68 @@ export default function BannerSettings() {
           ? await compressImage(file, 800, 1000, 0.85)
           : await compressBannerImage(file, 1920, 1080, 0.92);
         setter(result);
+
+        if (configDoc) {
+          try {
+            await fetch('/api/config/save', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                path: configDoc,
+                data: { [field]: result }
+              })
+            });
+          } catch {}
+        }
+
         autoSaveToMediaLibrary(result, { name: `Banner: ${key}`, category: 'Banners & Sliders', source: 'banner' });
-        toast.success(`${key} updated in Ultra-HD quality & saved to Media Library!`, { id: loadingToast });
+        toast.success(`${key} লাইভ আপডেট হয়েছে এবং সেভ হয়েছে!`, { id: loadingToast });
       } catch (err) {
         toast.error(`Failed to process and upload banner.`, { id: loadingToast });
       }
     }
   };
 
-  const handleRemoveStaticBanner = (key: string, setter: (url: string) => void) => {
+  const saveSinglePromoBanner = async (id: string, desktopUrl: string, mobileUrl: string, title: string) => {
+    const loadingToast = toast.loading(`${title} লাইভ সেভ করা হচ্ছে...`);
+    try {
+      let configDoc = 'branding';
+      if (id === 'heroBanner1' || id === 'hero') configDoc = 'banner_hero';
+      else if (id === 'heroBanner2') configDoc = 'banner_hero_2';
+      else if (id === 'heroBanner3') configDoc = 'banner_hero_3';
+      else if (id === 'subHeroBanner' || id === 'sub_hero') configDoc = 'banner_sub_hero';
+      else if (id === 'collectionsBannerUrl' || id === 'collections') configDoc = 'banner_collections';
+      else if (id === 'featureBanner' || id === 'feature') configDoc = 'banner_feature';
+      else if (id === 'poloBanner' || id === 'polo') configDoc = 'banner_polo';
+      else if (id === 'comboOfferBanner' || id === 'combo_offer') configDoc = 'banner_combo_offer';
+      
+      const payload: any = { url: desktopUrl };
+      if (mobileUrl !== undefined) payload.mobileUrl = mobileUrl;
+
+      await fetch('/api/config/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: configDoc, data: payload })
+      });
+
+      // Dispatch local event so other tabs and components update instantly
+      window.dispatchEvent(new Event('eleganbd_branding_updated'));
+
+      toast.success(`${title} সফলভাবে লাইভ সাইটে সেভ হয়েছে!`, { id: loadingToast });
+    } catch (e) {
+      toast.error('সেভ করতে সমস্যা হয়েছে, পুনরায় চেষ্টা করুন।', { id: loadingToast });
+    }
+  };
+
+  const handleRemoveStaticBanner = (key: string, setter: (url: string) => void, configDoc?: string, field: string = 'url') => {
     setter('');
+    if (configDoc) {
+      fetch('/api/config/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: configDoc, data: { [field]: '' } })
+      }).catch(console.warn);
+    }
     toast.success(`${key} removed successfully.`);
   };
 
@@ -398,6 +457,7 @@ export default function BannerSettings() {
             {[
               {
                 id: 'heroBanner1',
+                configDoc: 'banner_hero',
                 title: 'Hero Banner 1 (স্লাইড ১ - মূল ব্যানার)',
                 description: 'হোম পেজের হিরো স্লাইডারের ১ম ব্যানার। আলাদা ডেস্কটপ এবং মোবাইল ইমেজ সেট করুন যাতে সব ডিভাইসে পারফেক্ট দেখায়।',
                 desktopUrl: heroBannerUrl,
@@ -408,6 +468,7 @@ export default function BannerSettings() {
               },
               {
                 id: 'heroBanner2',
+                configDoc: 'banner_hero_2',
                 title: 'Hero Banner 2 (স্লাইড ২ - দ্বিতীয় ব্যানার)',
                 description: 'হোম পেজের হিরো স্লাইডারের ২য় ব্যানার। আলাদা ডেস্কটপ এবং মোবাইল ইমেজ সেট করুন।',
                 desktopUrl: heroBanner2Url,
@@ -418,6 +479,7 @@ export default function BannerSettings() {
               },
               {
                 id: 'heroBanner3',
+                configDoc: 'banner_hero_3',
                 title: 'Hero Banner 3 (স্লাইড ৩ - অতিরিক্ত ব্যানার)',
                 description: 'হোম পেজের হিরো স্লাইডারের ৩য় ব্যানার (অপশনাল)।',
                 desktopUrl: heroBanner3Url,
@@ -428,16 +490,18 @@ export default function BannerSettings() {
               },
               {
                 id: 'subHeroBanner',
+                configDoc: 'banner_sub_hero',
                 title: 'Sub-Hero Banner (প্রমোশনাল ব্যানার)',
-                description: 'হোম পেজের প্রোডাক্ট সেকশনের নিচে প্রদর্শিত বড় প্রোমো ব্যানার।',
+                description: 'হোম পেজের রিভিউ সেকশনের নিচে প্রদর্শিত বড় প্রোমো ব্যানার (Live Website Bottom)।',
                 desktopUrl: subHeroBannerUrl,
                 desktopSetter: setSubHeroBannerUrl,
                 mobileUrl: subHeroBannerMobileUrl,
                 mobileSetter: setSubHeroBannerMobileUrl,
-                badge: 'Promo Banner',
+                badge: 'Live Promo Banner',
               },
               {
                 id: 'collectionsBannerUrl',
+                configDoc: 'banner_collections',
                 title: 'Collections Section Banner',
                 description: 'Promotional graphic featured in the collections layout.',
                 desktopUrl: collectionsBannerUrl,
@@ -451,11 +515,17 @@ export default function BannerSettings() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-black uppercase tracking-wider text-black">{pBanner.title}</h4>
-                    {pBanner.badge && (
-                      <span className="text-[9px] font-black uppercase px-2.5 py-1 rounded-md bg-black text-white">
-                        {pBanner.badge}
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Live Sync
                       </span>
-                    )}
+                      {pBanner.badge && (
+                        <span className="text-[9px] font-black uppercase px-2.5 py-1 rounded-md bg-black text-white">
+                          {pBanner.badge}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <p className="text-xs text-gray-400 font-medium leading-relaxed">{pBanner.description}</p>
                 </div>
@@ -466,6 +536,15 @@ export default function BannerSettings() {
                     <span className="text-[10px] font-black uppercase tracking-widest text-indigo-900 flex items-center gap-1.5">
                       <Laptop size={13} /> Desktop Responsive (1920 × 900 px)
                     </span>
+                    {pBanner.desktopUrl && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveStaticBanner(`${pBanner.title} (Desktop)`, pBanner.desktopSetter, (pBanner as any).configDoc, 'url')}
+                        className="text-[10px] font-bold text-rose-500 hover:text-rose-700 flex items-center gap-1 transition-colors"
+                      >
+                        <Trash2 size={11} /> রিমুভ
+                      </button>
+                    )}
                   </div>
                   <div className="aspect-[21/9] w-full rounded-xl bg-white border border-gray-200 overflow-hidden relative flex items-center justify-center shadow-3xs">
                     {pBanner.desktopUrl ? (
@@ -476,7 +555,7 @@ export default function BannerSettings() {
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <input 
                       type="url"
                       placeholder="ডেস্কটপ ইমেজ লিংক..."
@@ -484,11 +563,22 @@ export default function BannerSettings() {
                       onChange={(e) => pBanner.desktopSetter(e.target.value)}
                       className="flex-1 bg-white border border-gray-200 rounded-xl px-3.5 py-2 text-xs text-gray-800 outline-none focus:border-black font-medium shadow-3xs"
                     />
-                    <label className="px-4 py-2 text-[10px] uppercase tracking-wider font-black bg-black text-white hover:bg-gray-800 transition-all rounded-xl shadow-sm text-center cursor-pointer flex items-center gap-1.5">
-                      <Upload size={12} />
-                      <span>Upload</span>
-                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleStaticBannerUpload(e, `${pBanner.title} (Desktop)`, pBanner.desktopSetter, false)} />
-                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <label className="px-3.5 py-2 text-[10px] uppercase tracking-wider font-black bg-black text-white hover:bg-gray-800 transition-all rounded-xl shadow-sm text-center cursor-pointer flex items-center gap-1.5 whitespace-nowrap">
+                        <Upload size={12} />
+                        <span>Upload</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleStaticBannerUpload(e, `${pBanner.title} (Desktop)`, pBanner.desktopSetter, false, (pBanner as any).configDoc, 'url')} />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => saveSinglePromoBanner(pBanner.id, pBanner.desktopUrl || '', pBanner.mobileUrl || '', pBanner.title)}
+                        className="px-3 py-2 text-[10px] uppercase tracking-wider font-black bg-emerald-600 text-white hover:bg-emerald-700 transition-all rounded-xl shadow-sm flex items-center gap-1 whitespace-nowrap"
+                        title="Save to live site"
+                      >
+                        <Save size={12} />
+                        <span>সেভ</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -499,6 +589,15 @@ export default function BannerSettings() {
                       <span className="text-[10px] font-black uppercase tracking-widest text-emerald-950 flex items-center gap-1.5">
                         <Smartphone size={13} /> Mobile Responsive (1080 × 650 px / 5:3)
                       </span>
+                      {pBanner.mobileUrl && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveStaticBanner(`${pBanner.title} (Mobile)`, pBanner.mobileSetter, (pBanner as any).configDoc, 'mobileUrl')}
+                          className="text-[10px] font-bold text-rose-500 hover:text-rose-700 flex items-center gap-1 transition-colors"
+                        >
+                          <Trash2 size={11} /> রিমুভ
+                        </button>
+                      )}
                     </div>
                     <div className="aspect-[5/3] w-full max-w-[280px] mx-auto rounded-xl bg-white border border-gray-200 overflow-hidden relative flex items-center justify-center shadow-3xs">
                       {pBanner.mobileUrl ? (
@@ -509,7 +608,7 @@ export default function BannerSettings() {
                         </div>
                       )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <input 
                         type="url"
                         placeholder="মোবাইল ইমেজ লিংক..."
@@ -517,11 +616,22 @@ export default function BannerSettings() {
                         onChange={(e) => pBanner.mobileSetter(e.target.value)}
                         className="flex-1 bg-white border border-gray-200 rounded-xl px-3.5 py-2 text-xs text-gray-800 outline-none focus:border-black font-medium shadow-3xs"
                       />
-                      <label className="px-4 py-2 text-[10px] uppercase tracking-wider font-black bg-emerald-600 text-white hover:bg-emerald-700 transition-all rounded-xl shadow-sm text-center cursor-pointer flex items-center gap-1.5">
-                        <Upload size={12} />
-                        <span>Upload</span>
-                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleStaticBannerUpload(e, `${pBanner.title} (Mobile)`, pBanner.mobileSetter, false)} />
-                      </label>
+                      <div className="flex items-center gap-1.5">
+                        <label className="px-3.5 py-2 text-[10px] uppercase tracking-wider font-black bg-emerald-600 text-white hover:bg-emerald-700 transition-all rounded-xl shadow-sm text-center cursor-pointer flex items-center gap-1.5 whitespace-nowrap">
+                          <Upload size={12} />
+                          <span>Upload</span>
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleStaticBannerUpload(e, `${pBanner.title} (Mobile)`, pBanner.mobileSetter, false, (pBanner as any).configDoc, 'mobileUrl')} />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => saveSinglePromoBanner(pBanner.id, pBanner.desktopUrl || '', pBanner.mobileUrl || '', pBanner.title)}
+                          className="px-3 py-2 text-[10px] uppercase tracking-wider font-black bg-emerald-600 text-white hover:bg-emerald-700 transition-all rounded-xl shadow-sm flex items-center gap-1 whitespace-nowrap"
+                          title="Save to live site"
+                        >
+                          <Save size={12} />
+                          <span>সেভ</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}

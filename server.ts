@@ -5,7 +5,7 @@ import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 import { initializeApp } from "firebase/app";
 import { 
-  db, 
+  getFirestore,
   doc, 
   setDoc, 
   getDoc, 
@@ -15,7 +15,7 @@ import {
   where, 
   getDocs, 
   updateDoc 
-} from "./src/lib/firestoreMock";
+} from "firebase/firestore";
 import { supabase, orderToSupabaseRow, supabaseRowToOrder } from "./src/lib/supabase";
 import { createRequire } from "module";
 
@@ -26,6 +26,7 @@ const require = createRequire(import.meta.url);
 const firebaseConfig = require("./firebase-applet-config.json");
 
 const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId || "(default)");
 
 async function startServer() {
   const app = express();
@@ -312,6 +313,17 @@ async function startServer() {
     }
   });
 
+  app.get("/api/banners", async (req, res) => {
+    try {
+      const bannerSnaps = await getDocs(collection(db, 'banners'));
+      const bannersList = bannerSnaps.docs.map(d => ({ id: d.id, ...d.data() }));
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.json({ success: true, banners: bannersList });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message, banners: [] });
+    }
+  });
+
   app.get("/api/debug-banners", async (req, res) => {
     try {
       const bannerSnaps = await getDocs(collection(db, 'banners'));
@@ -344,68 +356,79 @@ async function startServer() {
     }
   });
 
-  // Direct robust Server API to fetch all active products from Supabase + Firestore
+  // Direct robust Server API to fetch all active products from Firebase Firestore (primary) + Supabase
   app.get("/api/products", async (req, res) => {
     try {
       let productsList: any[] = [];
       let fetched = false;
 
-      // 1. Try Supabase first if available
+      // 1. Fetch from Firebase Firestore as primary source of truth for products
       try {
-        const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://eeifewkhrtveenyrrirj.supabase.co';
-        const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_XD9wPgNEzlHdAaJ2RN_BFw_izYEgB2p';
-        const { createClient } = await import('@supabase/supabase-js');
-        const sb = createClient(supabaseUrl, supabaseKey);
-
-        const { data, error } = await sb
-          .from('products')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (!error && Array.isArray(data)) {
-          productsList = data;
-          fetched = true;
+        const snapshot = await getDocs(collection(db, 'products'));
+        if (snapshot && !snapshot.empty) {
+          const fsProducts: any[] = [];
+          snapshot.forEach((docSnap) => {
+            const d = docSnap.data();
+            const imgs = Array.isArray(d.images) && d.images.length > 0 ? d.images : (d.image ? [d.image] : []);
+            const mainImg = imgs[0] || d.image || '';
+            fsProducts.push({
+              id: docSnap.id,
+              name: d.name || 'Unnamed Product',
+              price: Number(d.price) || 0,
+              category: d.category || 'General',
+              images: imgs,
+              image: mainImg,
+              sizes: Array.isArray(d.sizes) ? d.sizes : [],
+              stock: Number(d.stock) || 0,
+              sizeStock: d.sizeStock || {},
+              size_stock: d.sizeStock || {},
+              sku: d.sku || null,
+              cost: d.cost !== undefined ? d.cost : null,
+              regularPrice: d.regularPrice !== undefined ? d.regularPrice : null,
+              regular_price: d.regularPrice !== undefined ? d.regularPrice : null,
+              fabric: d.fabric || null,
+              fitType: d.fitType || null,
+              fit_type: d.fitType || null,
+              description: d.description || '',
+              rating: d.rating || 0,
+              isTopRated: Boolean(d.isTopRated),
+              is_top_rated: Boolean(d.isTopRated),
+              newArrival: d.newArrival !== undefined ? Boolean(d.newArrival) : true,
+              new_arrival: d.newArrival !== undefined ? Boolean(d.newArrival) : true,
+              featured: Boolean(d.featured || d.bestSelling),
+              bestSelling: Boolean(d.featured || d.bestSelling),
+              created_at: d.createdAt ? new Date(d.createdAt).toISOString() : new Date().toISOString(),
+              createdAt: d.createdAt || Date.now(),
+              updatedAt: d.updatedAt || Date.now()
+            });
+          });
+          if (fsProducts.length > 0) {
+            productsList = fsProducts;
+            fetched = true;
+          }
         }
-      } catch (sbErr: any) {
-        console.warn("[Server API] Supabase products fetch notice (falling back to Firestore):", sbErr?.message || sbErr);
+      } catch (fsErr: any) {
+        console.warn("[Server API] Firestore products fetch notice:", fsErr?.message || fsErr);
       }
 
-      // 2. Fallback to Firestore products collection if Supabase fails or is restricted
+      // 2. Secondary fallback to Supabase if Firestore was empty
       if (!fetched || productsList.length === 0) {
         try {
-          const snapshot = await getDocs(collection(db, 'products'));
-          if (snapshot && !snapshot.empty) {
-            const fsProducts: any[] = [];
-            snapshot.forEach((docSnap) => {
-              const d = docSnap.data();
-              fsProducts.push({
-                id: docSnap.id,
-                name: d.name || 'Unnamed Product',
-                price: Number(d.price) || 0,
-                category: d.category || 'General',
-                images: Array.isArray(d.images) ? d.images : [],
-                sizes: Array.isArray(d.sizes) ? d.sizes : [],
-                stock: Number(d.stock) || 0,
-                size_stock: d.sizeStock || {},
-                sku: d.sku || null,
-                cost: d.cost || null,
-                regular_price: d.regularPrice || null,
-                fabric: d.fabric || null,
-                fit_type: d.fitType || null,
-                description: d.description || '',
-                rating: d.rating || 0,
-                is_top_rated: d.isTopRated || false,
-                new_arrival: d.newArrival || false,
-                featured: d.featured || false,
-                created_at: d.createdAt ? new Date(d.createdAt).toISOString() : new Date().toISOString()
-              });
-            });
-            if (fsProducts.length > 0) {
-              productsList = fsProducts;
-            }
+          const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://eeifewkhrtveenyrrirj.supabase.co';
+          const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_XD9wPgNEzlHdAaJ2RN_BFw_izYEgB2p';
+          const { createClient } = await import('@supabase/supabase-js');
+          const sb = createClient(supabaseUrl, supabaseKey);
+
+          const { data, error } = await sb
+            .from('products')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (!error && Array.isArray(data) && data.length > 0) {
+            productsList = data;
           }
-        } catch (fsErr: any) {
-          console.warn("[Server API] Firestore products fallback notice:", fsErr?.message || fsErr);
+        } catch (sbErr: any) {
+          console.warn("[Server API] Supabase products fetch notice:", sbErr?.message || sbErr);
         }
       }
 
@@ -422,45 +445,209 @@ async function startServer() {
     try {
       const configs: Record<string, any> = {};
 
-      // 1. Try Supabase
+      // 1. Fetch from Firestore first (Primary persistent database)
       try {
-        const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://eeifewkhrtveenyrrirj.supabase.co';
-        const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_XD9wPgNEzlHdAaJ2RN_BFw_izYEgB2p';
-        const { createClient } = await import('@supabase/supabase-js');
-        const sb = createClient(supabaseUrl, supabaseKey);
-
-        const { data, error } = await sb
-          .from('app_documents')
-          .select('*')
-          .eq('collection_name', 'config');
-
-        if (!error && Array.isArray(data)) {
-          data.forEach(item => {
-            configs[item.record_id] = item.data;
+        const snapshot = await getDocs(collection(db, 'config'));
+        if (snapshot && !snapshot.empty) {
+          snapshot.forEach((docSnap) => {
+            configs[docSnap.id] = docSnap.data();
           });
         }
-      } catch (sbErr: any) {
-        console.warn("[Server API] Supabase config fetch notice:", sbErr?.message || sbErr);
+      } catch (fsErr: any) {
+        console.warn("[Server API] Firestore config fetch notice:", fsErr?.message || fsErr);
       }
 
-      // 2. Fallback to Firestore config
+      // 2. Fallback to Supabase if Firestore was empty
       if (Object.keys(configs).length === 0) {
         try {
-          const snapshot = await getDocs(collection(db, 'config'));
-          if (snapshot && !snapshot.empty) {
-            snapshot.forEach((docSnap) => {
-              configs[docSnap.id] = docSnap.data();
+          const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://eeifewkhrtveenyrrirj.supabase.co';
+          const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_XD9wPgNEzlHdAaJ2RN_BFw_izYEgB2p';
+          const { createClient } = await import('@supabase/supabase-js');
+          const sb = createClient(supabaseUrl, supabaseKey);
+
+          const { data, error } = await sb
+            .from('app_documents')
+            .select('*')
+            .eq('collection_name', 'config');
+
+          if (!error && Array.isArray(data)) {
+            data.forEach(item => {
+              configs[item.record_id] = item.data;
             });
           }
-        } catch (fsErr: any) {
-          console.warn("[Server API] Firestore config fallback notice:", fsErr?.message || fsErr);
+        } catch (sbErr: any) {
+          console.warn("[Server API] Supabase config fallback notice:", sbErr?.message || sbErr);
         }
+      }
+
+      // Ensure branding document has latest unified banner URLs
+      if (!configs['branding']) configs['branding'] = {};
+      if (configs['banner_sub_hero']?.url) {
+        configs['branding'].subHeroBannerUrl = configs['banner_sub_hero'].url;
+        if (configs['banner_sub_hero'].mobileUrl) configs['branding'].subHeroBannerMobileUrl = configs['banner_sub_hero'].mobileUrl;
+      }
+      if (configs['banner_collections']?.url) {
+        configs['branding'].collectionsBannerUrl = configs['banner_collections'].url;
+      }
+      if (configs['banner_hero']?.url) {
+        configs['branding'].heroBannerUrl = configs['banner_hero'].url;
+        if (configs['banner_hero'].mobileUrl) configs['branding'].heroBannerMobileUrl = configs['banner_hero'].mobileUrl;
+      }
+      if (configs['banner_hero_2']?.url) {
+        configs['branding'].heroBanner2Url = configs['banner_hero_2'].url;
+        if (configs['banner_hero_2'].mobileUrl) configs['branding'].heroBanner2MobileUrl = configs['banner_hero_2'].mobileUrl;
+      }
+      if (configs['banner_hero_3']?.url) {
+        configs['branding'].heroBanner3Url = configs['banner_hero_3'].url;
+        if (configs['banner_hero_3'].mobileUrl) configs['branding'].heroBanner3MobileUrl = configs['banner_hero_3'].mobileUrl;
+      }
+      if (configs['banner_feature']?.url) {
+        configs['branding'].featureBannerUrl = configs['banner_feature'].url;
+      }
+      if (configs['banner_polo']?.url) {
+        configs['branding'].poloBannerUrl = configs['banner_polo'].url;
+      }
+      if (configs['banner_combo_offer']?.url) {
+        configs['branding'].comboOfferBannerUrl = configs['banner_combo_offer'].url;
       }
 
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       return res.json({ success: true, configs });
     } catch (e: any) {
       return res.json({ success: true, configs: {} });
+    }
+  });
+
+  // Direct robust Server API to save configuration (banners, branding, etc.) to Firestore
+  app.post("/api/config/save", async (req, res) => {
+    try {
+      const { path: configPath, data } = req.body;
+      if (!configPath || !data) {
+        return res.status(400).json({ error: "Missing config path or data" });
+      }
+      const timestamp = new Date().toISOString();
+      const docRef = doc(db, 'config', configPath);
+      await setDoc(docRef, { ...data, updatedAt: timestamp }, { merge: true });
+
+      // Automatically sync banner paths to the global branding document for unified cross-device state
+      try {
+        const brandingRef = doc(db, 'config', 'branding');
+        const brandingUpdates: Record<string, any> = { updatedAt: timestamp };
+
+        if (configPath === 'banner_sub_hero') {
+          if (data.url !== undefined) brandingUpdates.subHeroBannerUrl = data.url;
+          if (data.mobileUrl !== undefined) brandingUpdates.subHeroBannerMobileUrl = data.mobileUrl;
+        } else if (configPath === 'banner_collections') {
+          if (data.url !== undefined) brandingUpdates.collectionsBannerUrl = data.url;
+        } else if (configPath === 'banner_hero') {
+          if (data.url !== undefined) brandingUpdates.heroBannerUrl = data.url;
+          if (data.mobileUrl !== undefined) brandingUpdates.heroBannerMobileUrl = data.mobileUrl;
+        } else if (configPath === 'banner_hero_2') {
+          if (data.url !== undefined) brandingUpdates.heroBanner2Url = data.url;
+          if (data.mobileUrl !== undefined) brandingUpdates.heroBanner2MobileUrl = data.mobileUrl;
+        } else if (configPath === 'banner_hero_3') {
+          if (data.url !== undefined) brandingUpdates.heroBanner3Url = data.url;
+          if (data.mobileUrl !== undefined) brandingUpdates.heroBanner3MobileUrl = data.mobileUrl;
+        } else if (configPath === 'banner_feature') {
+          if (data.url !== undefined) brandingUpdates.featureBannerUrl = data.url;
+        } else if (configPath === 'banner_polo') {
+          if (data.url !== undefined) brandingUpdates.poloBannerUrl = data.url;
+        } else if (configPath === 'banner_combo_offer') {
+          if (data.url !== undefined) brandingUpdates.comboOfferBannerUrl = data.url;
+        }
+
+        if (Object.keys(brandingUpdates).length > 1) {
+          await setDoc(brandingRef, brandingUpdates, { merge: true });
+        }
+      } catch (brandErr) {
+        console.warn("[Server API] Branding doc sync notice:", brandErr);
+      }
+
+      // Supabase app_documents mirror
+      try {
+        const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://eeifewkhrtveenyrrirj.supabase.co';
+        const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_XD9wPgNEzlHdAaJ2RN_BFw_izYEgB2p';
+        const { createClient } = await import('@supabase/supabase-js');
+        const sb = createClient(supabaseUrl, supabaseKey);
+        await sb.from('app_documents').upsert({
+          collection_name: 'config',
+          record_id: configPath,
+          data: { ...data, updatedAt: timestamp },
+          updated_at: timestamp
+        }, { onConflict: 'collection_name,record_id' });
+      } catch (sbErr: any) {
+        console.warn("[Server API] Supabase config mirror notice:", sbErr?.message || sbErr);
+      }
+
+      return res.json({ success: true, message: `Config ${configPath} saved successfully` });
+    } catch (e: any) {
+      console.error("[Server API] /api/config/save error:", e);
+      return res.status(500).json({ error: e?.message || "Failed to save config" });
+    }
+  });
+
+  // Direct robust Server API to fetch all categories from Firestore (Primary) + Supabase
+  app.get("/api/categories", async (req, res) => {
+    try {
+      let categoriesList: any[] = [];
+      let fetched = false;
+
+      // 1. Fetch from Firestore
+      try {
+        const snapshot = await getDocs(collection(db, 'categories'));
+        if (snapshot && !snapshot.empty) {
+          snapshot.forEach((docSnap) => {
+            categoriesList.push({ id: docSnap.id, ...docSnap.data() });
+          });
+          if (categoriesList.length > 0) fetched = true;
+        }
+      } catch (fsErr: any) {
+        console.warn("[Server API] Firestore categories fetch notice:", fsErr?.message || fsErr);
+      }
+
+      // 2. Secondary fallback to Supabase
+      if (!fetched || categoriesList.length === 0) {
+        try {
+          const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://eeifewkhrtveenyrrirj.supabase.co';
+          const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_XD9wPgNEzlHdAaJ2RN_BFw_izYEgB2p';
+          const { createClient } = await import('@supabase/supabase-js');
+          const sb = createClient(supabaseUrl, supabaseKey);
+
+          const { data, error } = await sb
+            .from('app_documents')
+            .select('*')
+            .eq('collection_name', 'categories');
+
+          if (!error && Array.isArray(data)) {
+            data.forEach(item => {
+              categoriesList.push({ id: item.record_id, ...item.data });
+            });
+          }
+        } catch (sbErr: any) {
+          console.warn("[Server API] Supabase categories fallback notice:", sbErr?.message || sbErr);
+        }
+      }
+
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      return res.json({ success: true, categories: categoriesList });
+    } catch (e: any) {
+      return res.json({ success: true, categories: [] });
+    }
+  });
+
+  // Direct robust Server API to save category to Firestore
+  app.post("/api/categories/save", async (req, res) => {
+    try {
+      const { category } = req.body;
+      if (!category || !category.id) {
+        return res.status(400).json({ error: "Missing category data or ID" });
+      }
+      const docRef = doc(db, 'categories', String(category.id));
+      await setDoc(docRef, category, { merge: true });
+      return res.json({ success: true, message: `Category ${category.name} saved successfully` });
+    } catch (e: any) {
+      console.error("[Server API] /api/categories/save error:", e);
+      return res.status(500).json({ error: e?.message || "Failed to save category" });
     }
   });
 

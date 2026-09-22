@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useProducts } from '../contexts/ProductContext';
+import { useBranding } from '../contexts/BrandingContext';
 import ProductCard from '../components/ProductCard';
 import { ProductGridSkeleton } from '../components/ProductSkeleton';
 import { Filter, ChevronDown, SlidersHorizontal, X } from 'lucide-react';
@@ -10,6 +11,7 @@ import { cn } from '../lib/utils';
 const ProductList = () => {
   const { category } = useParams<{ category: string }>();
   const { products, loading, offerProductIds = [] } = useProducts();
+  const { collectionsBannerUrl, shirtBannerUrl, pantBannerUrl } = useBranding();
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState('newest');
 
@@ -89,9 +91,29 @@ const ProductList = () => {
 
   const categoryTitle = category ? category.replace(/-/g, ' ').toUpperCase() : 'ALL PRODUCTS';
 
+  const currentBanner = useMemo(() => {
+    const cat = (category || '').toLowerCase();
+    if (cat.includes('pant') && pantBannerUrl) return pantBannerUrl;
+    if (cat.includes('shirt') && shirtBannerUrl) return shirtBannerUrl;
+    if (collectionsBannerUrl) return collectionsBannerUrl;
+    return null;
+  }, [category, pantBannerUrl, shirtBannerUrl, collectionsBannerUrl]);
+
   return (
     <div className="pt-2 md:pt-4 pb-20 px-3 sm:px-6 lg:px-8">
       <div className="max-w-[1560px] mx-auto">
+        {/* Category / Collection Banner */}
+        {currentBanner && (
+          <div className="mb-6 rounded-2xl sm:rounded-3xl overflow-hidden shadow-xs border border-gray-100">
+            <img 
+              src={currentBanner} 
+              alt={categoryTitle} 
+              className="w-full h-auto object-cover max-h-[380px]"
+              referrerPolicy="no-referrer"
+            />
+          </div>
+        )}
+
         {/* Breadcrumbs & Header */}
         <div className="mb-4 text-center">
           <nav className="flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest text-gray-400 mb-2">

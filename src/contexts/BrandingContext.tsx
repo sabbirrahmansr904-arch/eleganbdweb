@@ -136,7 +136,9 @@ const cleanBannerUrl = (url?: string) => {
 };
 
 const cleanUrl = (url?: string) => {
-  return "";
+  if (!url) return "";
+  if (url.includes('images.unsplash.com/photo-1441986300917') || url.includes('images.unsplash.com/photo-1490481651871')) return "";
+  return url;
 };
 
 const DEFAULT_LOGO = "";
@@ -606,6 +608,18 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   });
 
   useEffect(() => {
+    // Helper to safely write to localStorage without throwing quota errors
+    const safeSetLocal = (key: string, val: any) => {
+      try {
+        localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val));
+      } catch (e) {
+        try {
+          localStorage.removeItem('eleganbd_banners_large');
+          localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val));
+        } catch {}
+      }
+    };
+
     // Helper to apply configuration data to state and localStorage
     const applyConfigDoc = (recordId: string, data: any) => {
       if (!data) return;
@@ -613,6 +627,15 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (data.logoUrl) setLogoUrlState(cleanUrl(data.logoUrl));
         if (data.sizeChartUrl) setSizeChartUrlState(cleanUrl(data.sizeChartUrl));
         if (data.ceoPhotoUrl) setCeoPhotoUrlState(data.ceoPhotoUrl);
+        if (data.heroBannerUrl !== undefined) setHeroBannerUrlState(cleanBannerUrl(data.heroBannerUrl));
+        if (data.heroBannerMobileUrl !== undefined) setHeroBannerMobileUrlState(cleanBannerUrl(data.heroBannerMobileUrl));
+        if (data.heroBanner2Url !== undefined) setHeroBanner2UrlState(cleanBannerUrl(data.heroBanner2Url));
+        if (data.heroBanner2MobileUrl !== undefined) setHeroBanner2MobileUrlState(cleanBannerUrl(data.heroBanner2MobileUrl));
+        if (data.heroBanner3Url !== undefined) setHeroBanner3UrlState(cleanBannerUrl(data.heroBanner3Url));
+        if (data.heroBanner3MobileUrl !== undefined) setHeroBanner3MobileUrlState(cleanBannerUrl(data.heroBanner3MobileUrl));
+        if (data.subHeroBannerUrl !== undefined) setSubHeroBannerUrlState(cleanBannerUrl(data.subHeroBannerUrl));
+        if (data.subHeroBannerMobileUrl !== undefined) setSubHeroBannerMobileUrlState(cleanBannerUrl(data.subHeroBannerMobileUrl));
+        if (data.collectionsBannerUrl !== undefined) setCollectionsBannerUrlState(cleanBannerUrl(data.collectionsBannerUrl));
         if (data.showShowcase !== undefined) setShowShowcaseState(data.showShowcase);
         if (data.showAnnouncementBar !== undefined) setShowAnnouncementBarState(data.showAnnouncementBar);
         if (data.announcementMessage !== undefined) setAnnouncementMessageState(data.announcementMessage);
@@ -634,24 +657,48 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (data.primaryDeliveryDistrict !== undefined) setPrimaryDeliveryDistrictState(data.primaryDeliveryDistrict);
         if (data.aboutText !== undefined) setAboutTextState(data.aboutText);
 
+        if (data.whyChooseImg1) setWhyChooseImg1State(data.whyChooseImg1);
+        if (data.whyChooseImg2) setWhyChooseImg2State(data.whyChooseImg2);
+        if (data.whyChooseImg3) setWhyChooseImg3State(data.whyChooseImg3);
+        if (data.whyChooseImg4) setWhyChooseImg4State(data.whyChooseImg4);
+        if (data.whyChooseImg5) setWhyChooseImg5State(data.whyChooseImg5);
+        if (data.whyChooseText1) setWhyChooseText1State(data.whyChooseText1);
+        if (data.whyChooseText2) setWhyChooseText2State(data.whyChooseText2);
+        if (data.whyChooseText3) setWhyChooseText3State(data.whyChooseText3);
+        if (data.whyChooseText4) setWhyChooseText4State(data.whyChooseText4);
+        if (data.whyChooseText5) setWhyChooseText5State(data.whyChooseText5);
+        if (data.categoryImages && typeof data.categoryImages === 'object') {
+          setCategoryImagesState(data.categoryImages);
+        }
+
         try {
           const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
-          localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, ...data }));
+          safeSetLocal('eleganbd_branding', { ...cache, ...data });
         } catch {}
+      } else if (recordId === 'why_choose') {
+        if (data.img1 || data.whyChooseImg1) setWhyChooseImg1State(data.img1 || data.whyChooseImg1);
+        if (data.img2 || data.whyChooseImg2) setWhyChooseImg2State(data.img2 || data.whyChooseImg2);
+        if (data.img3 || data.whyChooseImg3) setWhyChooseImg3State(data.img3 || data.whyChooseImg3);
+        if (data.img4 || data.whyChooseImg4) setWhyChooseImg4State(data.img4 || data.whyChooseImg4);
+        if (data.img5 || data.whyChooseImg5) setWhyChooseImg5State(data.img5 || data.whyChooseImg5);
+        if (data.text1 || data.whyChooseText1) setWhyChooseText1State(data.text1 || data.whyChooseText1);
+        if (data.text2 || data.whyChooseText2) setWhyChooseText2State(data.text2 || data.whyChooseText2);
+        if (data.text3 || data.whyChooseText3) setWhyChooseText3State(data.text3 || data.whyChooseText3);
+        if (data.text4 || data.whyChooseText4) setWhyChooseText4State(data.text4 || data.whyChooseText4);
+        if (data.text5 || data.whyChooseText5) setWhyChooseText5State(data.text5 || data.whyChooseText5);
       } else if (recordId === 'categories') {
         if (data.images && typeof data.images === 'object') {
           setCategoryImagesState(data.images);
-          try {
-            localStorage.setItem('eleganbd_category_images_map', JSON.stringify(data.images));
-          } catch {}
+          safeSetLocal('eleganbd_category_images_map', data.images);
         }
       } else if (recordId.startsWith('banner_')) {
         const key = recordId.replace('banner_', '');
-        const url = cleanBannerUrl(data.url);
-        const mobileUrl = cleanBannerUrl(data.mobileUrl);
+        const url = cleanBannerUrl(data.url ?? data[`${key}BannerUrl`]);
+        const mobileUrl = cleanBannerUrl(data.mobileUrl ?? data[`${key}BannerMobileUrl`]);
         const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
         const cacheUpdates: any = {};
-        if (url) {
+        
+        if (url !== undefined) {
           const cacheKey = key === 'sub_hero' ? 'subHeroBannerUrl' : key === 'hero_2' ? 'heroBanner2Url' : key === 'hero_3' ? 'heroBanner3Url' : `${key}BannerUrl`;
           cacheUpdates[cacheKey] = url;
           if (key === 'hero') setHeroBannerUrlState(url);
@@ -663,7 +710,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           if (key === 'polo') setPoloBannerUrlState(url);
           if (key === 'combo_offer') setComboOfferBannerUrlState(url);
         }
-        if (mobileUrl || data.mobileUrl !== undefined) {
+        if (mobileUrl !== undefined || data.mobileUrl !== undefined) {
           const mobileCacheKey = key === 'sub_hero' ? 'subHeroBannerMobileUrl' : key === 'hero_2' ? 'heroBanner2MobileUrl' : key === 'hero_3' ? 'heroBanner3MobileUrl' : key === 'hero' ? 'heroBannerMobileUrl' : `${key}BannerMobileUrl`;
           cacheUpdates[mobileCacheKey] = mobileUrl;
           if (key === 'hero') setHeroBannerMobileUrlState(mobileUrl);
@@ -672,9 +719,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           if (key === 'sub_hero') setSubHeroBannerMobileUrlState(mobileUrl);
         }
         if (Object.keys(cacheUpdates).length > 0) {
-          try {
-            localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, ...cacheUpdates }));
-          } catch {}
+          safeSetLocal('eleganbd_banners_large', { ...cache, ...cacheUpdates });
         }
       } else if (recordId.startsWith('why_choose_')) {
         const i = parseInt(recordId.replace('why_choose_', ''), 10);
@@ -696,32 +741,89 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
     };
 
-    // 1. Fetch all configs from Supabase and Server API (Fast & Reliable)
+    // 1. Fetch all configs from Server API & Firestore (Fast & Reliable)
     const loadAllConfigs = async () => {
+      try {
+        const apiRes = await fetch('/api/config/all');
+        const apiJson = await apiRes.json();
+        if (apiJson.success && apiJson.configs && Object.keys(apiJson.configs).length > 0) {
+          Object.entries(apiJson.configs).forEach(([recId, data]) => {
+            applyConfigDoc(recId, data);
+          });
+          return;
+        }
+      } catch (err) {
+        console.warn('[BrandingContext] Config fetch notice:', err);
+      }
+
+      // Fallback: Supabase documents if available
       try {
         const sbDocs = await fetchDocumentsFromSupabase('config');
         if (Array.isArray(sbDocs) && sbDocs.length > 0) {
           sbDocs.forEach(item => {
             applyConfigDoc(item.id, item);
           });
-        } else {
-          // Fallback to Server API
-          try {
-            const apiRes = await fetch('/api/config/all');
-            const apiJson = await apiRes.json();
-            if (apiJson.success && apiJson.configs) {
-              Object.entries(apiJson.configs).forEach(([recId, data]) => {
-                applyConfigDoc(recId, data);
-              });
-            }
-          } catch {}
         }
-      } catch (err) {
-        console.warn('[BrandingContext] Config fetch notice:', err);
-      }
+      } catch (sbErr) {}
     };
 
     loadAllConfigs();
+
+    // Setup Realtime Firestore listeners for instant live updates across all devices
+    let unsubConfigCollection: (() => void) | null = null;
+    let unsubBannerHero: (() => void) | null = null;
+    let unsubBranding: (() => void) | null = null;
+    let unsubBannerSubHero: (() => void) | null = null;
+    let unsubBannerCollections: (() => void) | null = null;
+    let unsubBannerHero2: (() => void) | null = null;
+    let unsubBannerHero3: (() => void) | null = null;
+    try {
+      // Primary: Listen to all documents in config collection in real time
+      unsubConfigCollection = onSnapshot(collection(db, 'config'), (snapshot) => {
+        if (!isMountedRef.current) return;
+        snapshot.forEach((docSnap) => {
+          applyConfigDoc(docSnap.id, docSnap.data());
+        });
+      }, (err) => {
+        console.warn('[BrandingContext] Config collection listener fallback notice:', err);
+      });
+
+      unsubBannerHero = onSnapshot(doc(db, 'config', 'banner_hero'), (snap) => {
+        if (snap.exists() && isMountedRef.current) {
+          applyConfigDoc('banner_hero', snap.data());
+        }
+      }, () => {});
+
+      unsubBranding = onSnapshot(doc(db, 'config', 'branding'), (snap) => {
+        if (snap.exists() && isMountedRef.current) {
+          applyConfigDoc('branding', snap.data());
+        }
+      }, () => {});
+
+      unsubBannerSubHero = onSnapshot(doc(db, 'config', 'banner_sub_hero'), (snap) => {
+        if (snap.exists() && isMountedRef.current) {
+          applyConfigDoc('banner_sub_hero', snap.data());
+        }
+      }, () => {});
+
+      unsubBannerCollections = onSnapshot(doc(db, 'config', 'banner_collections'), (snap) => {
+        if (snap.exists() && isMountedRef.current) {
+          applyConfigDoc('banner_collections', snap.data());
+        }
+      }, () => {});
+
+      unsubBannerHero2 = onSnapshot(doc(db, 'config', 'banner_hero_2'), (snap) => {
+        if (snap.exists() && isMountedRef.current) {
+          applyConfigDoc('banner_hero_2', snap.data());
+        }
+      }, () => {});
+
+      unsubBannerHero3 = onSnapshot(doc(db, 'config', 'banner_hero_3'), (snap) => {
+        if (snap.exists() && isMountedRef.current) {
+          applyConfigDoc('banner_hero_3', snap.data());
+        }
+      }, () => {});
+    } catch (fsErr) {}
 
     // Setup Supabase Realtime subscription for config changes in app_documents
     let supabaseChannel: any = null;
@@ -738,12 +840,12 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         .subscribe();
     } catch (e) {}
 
-    // Polling interval every 4 seconds for instant cross-device sync
+    // Polling interval every 3 seconds for instant cross-device sync
     const pollInterval = setInterval(() => {
       if (isMountedRef.current) {
         loadAllConfigs();
       }
-    }, 4000);
+    }, 3000);
 
     // 2. Fetch Branding Config from Firestore (supplemental)
     async function fetchBranding() {
@@ -810,6 +912,13 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return () => {
       isMountedRef.current = false;
       clearInterval(pollInterval);
+      if (unsubConfigCollection) unsubConfigCollection();
+      if (unsubBannerHero) unsubBannerHero();
+      if (unsubBranding) unsubBranding();
+      if (unsubBannerSubHero) unsubBannerSubHero();
+      if (unsubBannerCollections) unsubBannerCollections();
+      if (unsubBannerHero2) unsubBannerHero2();
+      if (unsubBannerHero3) unsubBannerHero3();
       if (supabaseChannel) {
         try { supabase.removeChannel(supabaseChannel); } catch {}
       }
@@ -817,12 +926,16 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const updateFirestore = async (path: string, data: any) => {
+    // 1. Direct Server API save (bypasses browser adblockers/network issues, writes immediately to Firestore)
     try {
-      await saveDocumentToSupabase('config', path, data);
-    } catch (sbErr) {
-      console.warn(`[BrandingContext] Supabase save notice for config/${path}:`, sbErr);
-    }
+      fetch('/api/config/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path, data })
+      }).catch(err => console.warn(`[BrandingContext] Server save notice for config/${path}:`, err));
+    } catch (apiErr) {}
 
+    // 2. Direct client-side Firestore write
     try {
       await setDoc(doc(db, 'config', path), data, { merge: true });
     } catch (e) {
@@ -830,111 +943,140 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         console.warn(`[BrandingContext] Failed to update config/${path}:`, e);
       }
     }
+
+    // 3. Supabase mirror (if available)
+    try {
+      await saveDocumentToSupabase('config', path, data);
+    } catch (sbErr) {}
+  };
+
+  const safeSetStorage = (key: string, val: any) => {
+    try {
+      localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val));
+    } catch (e) {
+      try {
+        localStorage.removeItem('eleganbd_banners_large');
+        localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val));
+      } catch {}
+    }
+  };
+
+  const getBannersCache = () => {
+    try {
+      return JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
+    } catch {
+      return {};
+    }
+  };
+
+  const getBrandingCache = () => {
+    try {
+      return JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
+    } catch {
+      return {};
+    }
   };
 
   const setLogoUrl = (url: string) => {
     setLogoUrlState(url);
-    const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
-    localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, logoUrl: url }));
+    safeSetStorage('eleganbd_branding', { ...getBrandingCache(), logoUrl: url });
     updateFirestore('branding', { logoUrl: url });
   };
 
   const setSizeChartUrl = (url: string) => {
     setSizeChartUrlState(url);
-    const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
-    localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, sizeChartUrl: url }));
+    safeSetStorage('eleganbd_branding', { ...getBrandingCache(), sizeChartUrl: url });
     updateFirestore('branding', { sizeChartUrl: url });
   };
 
   const setCeoPhotoUrl = (url: string) => {
     setCeoPhotoUrlState(url);
-    const cache = JSON.parse(localStorage.getItem('eleganbd_branding') || '{}');
-    localStorage.setItem('eleganbd_branding', JSON.stringify({ ...cache, ceoPhotoUrl: url }));
+    safeSetStorage('eleganbd_branding', { ...getBrandingCache(), ceoPhotoUrl: url });
     updateFirestore('branding', { ceoPhotoUrl: url });
   };
 
   const setCollectionsBannerUrl = (url: string) => {
     setCollectionsBannerUrlState(url);
-    const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
-    localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, collectionsBannerUrl: url }));
+    safeSetStorage('eleganbd_banners_large', { ...getBannersCache(), collectionsBannerUrl: url });
     updateFirestore('banner_collections', { url });
+    updateFirestore('branding', { collectionsBannerUrl: url });
   };
 
   const setHeroBannerUrl = (url: string) => {
     setHeroBannerUrlState(url);
-    const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
-    localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, heroBannerUrl: url }));
+    safeSetStorage('eleganbd_banners_large', { ...getBannersCache(), heroBannerUrl: url });
     updateFirestore('banner_hero', { url });
+    updateFirestore('branding', { heroBannerUrl: url });
   };
 
   const setHeroBannerMobileUrl = (url: string) => {
     setHeroBannerMobileUrlState(url);
-    const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
-    localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, heroBannerMobileUrl: url }));
+    safeSetStorage('eleganbd_banners_large', { ...getBannersCache(), heroBannerMobileUrl: url });
     updateFirestore('banner_hero', { mobileUrl: url });
+    updateFirestore('branding', { heroBannerMobileUrl: url });
   };
 
   const setHeroBanner2Url = (url: string) => {
     setHeroBanner2UrlState(url);
-    const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
-    localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, heroBanner2Url: url }));
+    safeSetStorage('eleganbd_banners_large', { ...getBannersCache(), heroBanner2Url: url });
     updateFirestore('banner_hero_2', { url });
+    updateFirestore('branding', { heroBanner2Url: url });
   };
 
   const setHeroBanner2MobileUrl = (url: string) => {
     setHeroBanner2MobileUrlState(url);
-    const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
-    localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, heroBanner2MobileUrl: url }));
+    safeSetStorage('eleganbd_banners_large', { ...getBannersCache(), heroBanner2MobileUrl: url });
     updateFirestore('banner_hero_2', { mobileUrl: url });
+    updateFirestore('branding', { heroBanner2MobileUrl: url });
   };
 
   const setHeroBanner3Url = (url: string) => {
     setHeroBanner3UrlState(url);
-    const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
-    localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, heroBanner3Url: url }));
+    safeSetStorage('eleganbd_banners_large', { ...getBannersCache(), heroBanner3Url: url });
     updateFirestore('banner_hero_3', { url });
+    updateFirestore('branding', { heroBanner3Url: url });
   };
 
   const setHeroBanner3MobileUrl = (url: string) => {
     setHeroBanner3MobileUrlState(url);
-    const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
-    localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, heroBanner3MobileUrl: url }));
+    safeSetStorage('eleganbd_banners_large', { ...getBannersCache(), heroBanner3MobileUrl: url });
     updateFirestore('banner_hero_3', { mobileUrl: url });
+    updateFirestore('branding', { heroBanner3MobileUrl: url });
   };
 
   const setSubHeroBannerUrl = (url: string) => {
     setSubHeroBannerUrlState(url);
-    const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
-    localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, subHeroBannerUrl: url }));
+    safeSetStorage('eleganbd_banners_large', { ...getBannersCache(), subHeroBannerUrl: url });
     updateFirestore('banner_sub_hero', { url });
+    updateFirestore('branding', { subHeroBannerUrl: url });
   };
 
   const setSubHeroBannerMobileUrl = (url: string) => {
     setSubHeroBannerMobileUrlState(url);
-    const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
-    localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, subHeroBannerMobileUrl: url }));
+    safeSetStorage('eleganbd_banners_large', { ...getBannersCache(), subHeroBannerMobileUrl: url });
     updateFirestore('banner_sub_hero', { mobileUrl: url });
+    updateFirestore('branding', { subHeroBannerMobileUrl: url });
   };
 
   const setFeatureBannerUrl = (url: string) => {
     setFeatureBannerUrlState(url);
-    const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
-    localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, featureBannerUrl: url }));
+    safeSetStorage('eleganbd_banners_large', { ...getBannersCache(), featureBannerUrl: url });
     updateFirestore('banner_feature', { url });
+    updateFirestore('branding', { featureBannerUrl: url });
   };
 
   const setPoloBannerUrl = (url: string) => {
     setPoloBannerUrlState(url);
-    const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
-    localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, poloBannerUrl: url }));
+    safeSetStorage('eleganbd_banners_large', { ...getBannersCache(), poloBannerUrl: url });
     updateFirestore('banner_polo', { url });
+    updateFirestore('branding', { poloBannerUrl: url });
   };
 
   const setComboOfferBannerUrl = (url: string) => {
     setComboOfferBannerUrlState(url);
-    const cache = JSON.parse(localStorage.getItem('eleganbd_banners_large') || '{}');
-    localStorage.setItem('eleganbd_banners_large', JSON.stringify({ ...cache, comboOfferBannerUrl: url }));
+    safeSetStorage('eleganbd_banners_large', { ...getBannersCache(), comboOfferBannerUrl: url });
     updateFirestore('banner_combo_offer', { url });
+    updateFirestore('branding', { comboOfferBannerUrl: url });
   };
 
   const setShowShowcase = (show: boolean) => {

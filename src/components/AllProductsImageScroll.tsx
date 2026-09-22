@@ -43,14 +43,11 @@ const ScrollProductCard: React.FC<{ product: Product }> = ({ product }) => {
       onMouseLeave={() => setIsHovered(false)}
       className="min-w-[200px] sm:min-w-[240px] max-w-[240px] bg-white rounded-2xl border border-gray-100 shadow-xs hover:shadow-lg hover:-translate-y-1.5 hover:border-gray-200 transition-all duration-300 ease-out snap-start cursor-pointer flex flex-col overflow-hidden group shrink-0 will-change-transform"
     >
-      <div className={cn("relative w-full overflow-hidden", isPant ? "aspect-square bg-white" : "aspect-3/4 bg-gray-50")}>
+      <div className="relative w-full overflow-hidden aspect-[3/4] bg-gray-50">
         <img
           src={isHovered ? secondaryImage : mainImage}
           alt={product.name}
-          className={cn(
-            "w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105",
-            isPant ? "object-contain p-2" : ""
-          )}
+          className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
           loading="lazy"
           referrerPolicy="no-referrer"
           onError={() => setImgError(true)}
@@ -86,10 +83,6 @@ const ScrollProductCard: React.FC<{ product: Product }> = ({ product }) => {
               </span>
             )}
           </div>
-
-          <span className="text-[10px] font-extrabold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">
-            Buy Now
-          </span>
         </div>
       </div>
     </div>
