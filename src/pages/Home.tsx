@@ -624,8 +624,6 @@ const Home = () => {
               <ProductCard 
                 key={`bestselling-${product.id}-${(product as any).updatedAt || ''}-${(product.images?.[0] || product.image || '').slice(-25)}`} 
                 product={product} 
-                badgeText="BEST SELLING" 
-                showPantDiscountBadge={false} 
               />
             ))}
           </div>
@@ -703,8 +701,6 @@ const Home = () => {
                     <ProductCard 
                       key={`newarrival-card-${product.id}-${(product as any).updatedAt || ''}-${(product.images?.[0] || product.image || '').slice(-25)}`}
                       product={product} 
-                      badgeText="NEW" 
-                      showPantDiscountBadge={false} 
                     />
                   </div>
                 ))}
@@ -716,20 +712,6 @@ const Home = () => {
 
       {/* 4. EXPLORE OUR COLLECTION - MAIN PRODUCT SECTION SHOWING FORMAL PANTS FIRST, THEN FORMAL SHIRTS */}
       <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
-        {/* Collections Promotional Header Banner */}
-        {collectionsBannerUrl && (
-          <div className="mb-8 rounded-2xl sm:rounded-3xl overflow-hidden bg-gray-100 shadow-sm border border-gray-100/80">
-            <Link to="/category/all" className="block group">
-              <img 
-                src={collectionsBannerUrl} 
-                alt="Collections Banner" 
-                className="w-full h-auto object-cover max-h-[420px] object-center transition-transform duration-700 group-hover:scale-[1.01]" 
-                referrerPolicy="no-referrer"
-              />
-            </Link>
-          </div>
-        )}
-
         {/* Section Header: EXPLORE OUR COLLECTION */}
         <div className="relative flex items-center justify-center border-b border-gray-100 pb-4 mb-8">
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase text-gray-900 tracking-tight text-center">

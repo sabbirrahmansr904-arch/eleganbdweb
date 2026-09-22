@@ -29,6 +29,9 @@ import toast from 'react-hot-toast';
 import { cn } from '../../../lib/utils';
 import { compressImage, compressBannerImage } from '../../../utils/imageCompressor';
 import { autoSaveToMediaLibrary } from '../../../utils/mediaLibrary';
+import { db } from '../../../lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
+import { saveDocumentToSupabase } from '../../../lib/supabase';
 
 export default function BannerSettings() {
   const [activeTab, setActiveTab] = useState<'design' | 'banners' | 'promo'>('design');
@@ -109,6 +112,20 @@ export default function BannerSettings() {
         setter(result);
 
         if (configDoc) {
+          const updateData = { [field]: result, updatedAt: Date.now() };
+          // 1. Direct Firestore write
+          try {
+            await setDoc(doc(db, 'config', configDoc), updateData, { merge: true });
+          } catch (fsErr) {
+            console.warn('[BannerSettings] Firestore upload save notice:', fsErr);
+          }
+          // 2. Direct Supabase write
+          try {
+            await saveDocumentToSupabase('config', configDoc, updateData);
+          } catch (sbErr) {
+            console.warn('[BannerSettings] Supabase upload save notice:', sbErr);
+          }
+          // 3. Server API save fallback
           try {
             await fetch('/api/config/save', {
               method: 'POST',
@@ -122,6 +139,7 @@ export default function BannerSettings() {
         }
 
         autoSaveToMediaLibrary(result, { name: `Banner: ${key}`, category: 'Banners & Sliders', source: 'banner' });
+        window.dispatchEvent(new Event('eleganbd_branding_updated'));
         toast.success(`${key} লাইভ আপডেট হয়েছে এবং সেভ হয়েছে!`, { id: loadingToast });
       } catch (err) {
         toast.error(`Failed to process and upload banner.`, { id: loadingToast });
@@ -142,14 +160,70 @@ export default function BannerSettings() {
       else if (id === 'poloBanner' || id === 'polo') configDoc = 'banner_polo';
       else if (id === 'comboOfferBanner' || id === 'combo_offer') configDoc = 'banner_combo_offer';
       
-      const payload: any = { url: desktopUrl };
+      const payload: any = { url: desktopUrl, updatedAt: Date.now() };
       if (mobileUrl !== undefined) payload.mobileUrl = mobileUrl;
 
-      await fetch('/api/config/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: configDoc, data: payload })
-      });
+      // 1. Direct Firestore write (Primary live database)
+      try {
+        await setDoc(doc(db, 'config', configDoc), payload, { merge: true });
+        // Also sync to global branding document
+        const brandingUpdates: Record<string, any> = { updatedAt: Date.now() };
+        if (configDoc === 'banner_hero') {
+          brandingUpdates.heroBannerUrl = desktopUrl;
+          if (mobileUrl !== undefined) brandingUpdates.heroBannerMobileUrl = mobileUrl;
+        } else if (configDoc === 'banner_hero_2') {
+          brandingUpdates.heroBanner2Url = desktopUrl;
+          if (mobileUrl !== undefined) brandingUpdates.heroBanner2MobileUrl = mobileUrl;
+        } else if (configDoc === 'banner_hero_3') {
+          brandingUpdates.heroBanner3Url = desktopUrl;
+          if (mobileUrl !== undefined) brandingUpdates.heroBanner3MobileUrl = mobileUrl;
+        } else if (configDoc === 'banner_sub_hero') {
+          brandingUpdates.subHeroBannerUrl = desktopUrl;
+          if (mobileUrl !== undefined) brandingUpdates.subHeroBannerMobileUrl = mobileUrl;
+        } else if (configDoc === 'banner_collections') {
+          brandingUpdates.collectionsBannerUrl = desktopUrl;
+        } else if (configDoc === 'banner_feature') {
+          brandingUpdates.featureBannerUrl = desktopUrl;
+        } else if (configDoc === 'banner_polo') {
+          brandingUpdates.poloBannerUrl = desktopUrl;
+        } else if (configDoc === 'banner_combo_offer') {
+          brandingUpdates.comboOfferBannerUrl = desktopUrl;
+        }
+        await setDoc(doc(db, 'config', 'branding'), brandingUpdates, { merge: true });
+      } catch (fsErr) {
+        console.warn('[BannerSettings] Firestore save notice:', fsErr);
+      }
+
+      // 2. Direct Supabase mirror (Cross-device sync & Vercel fallback)
+      try {
+        await saveDocumentToSupabase('config', configDoc, payload);
+        const sbBrandingUpdates: Record<string, any> = { updatedAt: Date.now() };
+        if (configDoc === 'banner_hero') {
+          sbBrandingUpdates.heroBannerUrl = desktopUrl;
+          if (mobileUrl !== undefined) sbBrandingUpdates.heroBannerMobileUrl = mobileUrl;
+        } else if (configDoc === 'banner_hero_2') {
+          sbBrandingUpdates.heroBanner2Url = desktopUrl;
+          if (mobileUrl !== undefined) sbBrandingUpdates.heroBanner2MobileUrl = mobileUrl;
+        } else if (configDoc === 'banner_hero_3') {
+          sbBrandingUpdates.heroBanner3Url = desktopUrl;
+          if (mobileUrl !== undefined) sbBrandingUpdates.heroBanner3MobileUrl = mobileUrl;
+        } else if (configDoc === 'banner_sub_hero') {
+          sbBrandingUpdates.subHeroBannerUrl = desktopUrl;
+          if (mobileUrl !== undefined) sbBrandingUpdates.subHeroBannerMobileUrl = mobileUrl;
+        }
+        await saveDocumentToSupabase('config', 'branding', sbBrandingUpdates);
+      } catch (sbErr) {
+        console.warn('[BannerSettings] Supabase mirror notice:', sbErr);
+      }
+
+      // 3. Server API save fallback
+      try {
+        await fetch('/api/config/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: configDoc, data: payload })
+        });
+      } catch {}
 
       // Dispatch local event so other tabs and components update instantly
       window.dispatchEvent(new Event('eleganbd_branding_updated'));
@@ -160,15 +234,32 @@ export default function BannerSettings() {
     }
   };
 
-  const handleRemoveStaticBanner = (key: string, setter: (url: string) => void, configDoc?: string, field: string = 'url') => {
+  const handleRemoveStaticBanner = async (key: string, setter: (url: string) => void, configDoc?: string, field: string = 'url') => {
     setter('');
     if (configDoc) {
+      const clearData = { [field]: '', updatedAt: Date.now() };
+      // 1. Direct Firestore
+      try {
+        await setDoc(doc(db, 'config', configDoc), clearData, { merge: true });
+        if (configDoc === 'banner_hero' && field === 'url') {
+          await setDoc(doc(db, 'config', 'branding'), { heroBannerUrl: '', updatedAt: Date.now() }, { merge: true });
+        }
+      } catch (fsErr) {}
+      // 2. Direct Supabase
+      try {
+        await saveDocumentToSupabase('config', configDoc, clearData);
+        if (configDoc === 'banner_hero' && field === 'url') {
+          await saveDocumentToSupabase('config', 'branding', { heroBannerUrl: '', updatedAt: Date.now() });
+        }
+      } catch (sbErr) {}
+      // 3. Server API
       fetch('/api/config/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: configDoc, data: { [field]: '' } })
       }).catch(console.warn);
     }
+    window.dispatchEvent(new Event('eleganbd_branding_updated'));
     toast.success(`${key} removed successfully.`);
   };
 

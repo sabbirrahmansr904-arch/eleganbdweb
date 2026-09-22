@@ -497,22 +497,43 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     // 3. Periodic polling every 3 seconds for continuous cross-device sync
     const pollInterval = setInterval(() => {
-      if (isMounted) {
-        fetch('/api/products', { cache: 'no-store' })
-          .then(res => res.json())
-          .then(json => {
-            if (json.success && Array.isArray(json.products) && json.products.length > 0 && isMounted) {
-              const mapped: Product[] = json.products.map(supabaseRowToProduct);
-              const nonDeleted = mapped.filter(p => !isDemoProduct(p));
-              const normalized = deduplicateProducts(nonDeleted.map(normalizeProductCategory));
-              setProducts(normalized);
-              try {
-                localStorage.setItem('eleganbd_products', JSON.stringify(normalized));
-              } catch (e) {}
-            }
-          })
-          .catch(() => {});
-      }
+      if (!isMounted) return;
+      
+      const fetchFromSupabase = () => {
+        supabase.from('products').select('*').then(({ data, error }) => {
+          if (!error && Array.isArray(data) && data.length > 0 && isMounted) {
+            const mapped: Product[] = data.map(supabaseRowToProduct);
+            const nonDeleted = mapped.filter(p => !isDemoProduct(p));
+            const normalized = deduplicateProducts(nonDeleted.map(normalizeProductCategory));
+            setProducts(normalized);
+            try {
+              localStorage.setItem('eleganbd_products', JSON.stringify(normalized));
+            } catch (e) {}
+          }
+        }).catch(() => {});
+      };
+
+      fetch('/api/products', { cache: 'no-store' })
+        .then(res => {
+          if (!res.ok) throw new Error('API not available');
+          return res.json();
+        })
+        .then(json => {
+          if (json.success && Array.isArray(json.products) && json.products.length > 0 && isMounted) {
+            const mapped: Product[] = json.products.map(supabaseRowToProduct);
+            const nonDeleted = mapped.filter(p => !isDemoProduct(p));
+            const normalized = deduplicateProducts(nonDeleted.map(normalizeProductCategory));
+            setProducts(normalized);
+            try {
+              localStorage.setItem('eleganbd_products', JSON.stringify(normalized));
+            } catch (e) {}
+          } else {
+            fetchFromSupabase();
+          }
+        })
+        .catch(() => {
+          fetchFromSupabase();
+        });
     }, 3000);
 
     const safetyTimer = setTimeout(() => {

@@ -108,42 +108,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             )}
 
             {/* Badges Overlay */}
-            <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 z-10 pointer-events-none">
-              {/* Out of Stock Badge */}
-              {isOutOfStock && (
+            {isOutOfStock && (
+              <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 z-10 pointer-events-none">
                 <span className="bg-black/90 text-white text-[10px] sm:text-[11px] font-black uppercase px-2.5 py-0.5 rounded-md tracking-wider shadow-sm backdrop-blur-xs">
                   Stock Out
                 </span>
-              )}
-
-              {/* Dynamic Badge (BEST SELLING, NEW, etc.) */}
-              {badgeText && !isOutOfStock && (
-                <span className={cn(
-                  "text-[10px] sm:text-[11px] font-black uppercase px-2.5 py-0.5 rounded-md tracking-wider shadow-sm",
-                  badgeText.includes('BEST') 
-                    ? "bg-[#D97706] text-white" 
-                    : badgeText.includes('NEW') 
-                    ? "bg-[#2563EB] text-white" 
-                    : "bg-gray-900 text-white"
-                )}>
-                  {badgeText}
-                </span>
-              )}
-
-              {/* Discount Badge */}
-              {hasDiscount && !isOutOfStock && (
-                <span className="bg-[#EF4444] text-white text-[10px] sm:text-[11px] font-black px-2 py-0.5 rounded-md tracking-wider shadow-xs">
-                  {discountPercent}% OFF
-                </span>
-              )}
-
-              {/* Special Pant Discount Promo if enabled */}
-              {showPantDiscountBadge && !hasDiscount && isPant && (
-                <span className="bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-md tracking-wider shadow-xs">
-                  Special Offer
-                </span>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Floating Action Buttons on Hover */}
             <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200 z-10 transform translate-y-2 group-hover:translate-y-0">

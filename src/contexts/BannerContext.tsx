@@ -3,7 +3,7 @@ import { Banner } from '../types';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, query, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { isFirestoreQuotaExceeded, isQuotaError } from '../lib/firestoreUtils';
-import { saveDocumentToSupabase, deleteDocumentFromSupabase, fetchDocumentsFromSupabase } from '../lib/supabase';
+import { saveDocumentToSupabase, deleteDocumentFromSupabase, fetchDocumentsFromSupabase, supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
 interface BannerContextType {
@@ -82,8 +82,38 @@ export function BannerProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (e) {}
 
+    // 4. Supabase Realtime listener
+    let supabaseChannel: any = null;
+    try {
+      supabaseChannel = supabase
+        .channel('realtime_banners_live')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'app_documents', filter: 'collection_name=eq.banners' }, () => {
+          fetchDocumentsFromSupabase('banners').then(data => {
+            if (Array.isArray(data) && data.length > 0) {
+              setBanners(data);
+              try { localStorage.setItem('eleganbd_banners', JSON.stringify(data)); } catch {}
+            }
+          }).catch(() => {});
+        })
+        .subscribe();
+    } catch (e) {}
+
+    // 5. Polling sync every 4 seconds for instant cross-device updates
+    const interval = setInterval(() => {
+      fetchDocumentsFromSupabase('banners').then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setBanners(data);
+          try { localStorage.setItem('eleganbd_banners', JSON.stringify(data)); } catch {}
+        }
+      }).catch(() => {});
+    }, 4000);
+
     return () => {
       if (unsubscribe) unsubscribe();
+      if (supabaseChannel) {
+        try { supabase.removeChannel(supabaseChannel); } catch {}
+      }
+      clearInterval(interval);
     };
   }, []);
 
