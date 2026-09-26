@@ -440,6 +440,74 @@ async function startServer() {
     }
   });
 
+  // Direct robust Server API to save product to Firestore + Supabase
+  app.post("/api/products/save", async (req, res) => {
+    try {
+      const { product } = req.body;
+      if (!product || !product.id) {
+        return res.status(400).json({ error: "Missing product data or ID" });
+      }
+
+      const timestamp = Date.now();
+      const updatedProduct = {
+        ...product,
+        updatedAt: timestamp
+      };
+
+      // 1. Save to Firestore doc
+      try {
+        const docRef = doc(db, 'products', String(product.id));
+        await setDoc(docRef, updatedProduct, { merge: true });
+      } catch (fsErr) {
+        console.warn("[Server API] Firestore product save notice:", fsErr);
+      }
+
+      // 2. Save to Supabase
+      try {
+        const sbRow = productToSupabaseRow(updatedProduct);
+        await supabase.from('products').upsert(sbRow, { onConflict: 'id' });
+      } catch (sbErr) {
+        console.warn("[Server API] Supabase product save notice:", sbErr);
+      }
+
+      return res.json({ success: true, message: `Product ${product.id} saved successfully`, product: updatedProduct });
+    } catch (e: any) {
+      console.error("[Server API] /api/products/save error:", e);
+      return res.status(500).json({ error: e?.message || "Failed to save product" });
+    }
+  });
+
+  // Direct robust Server API to delete product from Firestore + Supabase
+  app.post("/api/products/delete", async (req, res) => {
+    try {
+      const { id } = req.body;
+      if (!id) {
+        return res.status(400).json({ error: "Missing product ID" });
+      }
+
+      const strId = String(id).trim();
+
+      // 1. Delete from Firestore
+      try {
+        await deleteDoc(doc(db, 'products', strId));
+      } catch (fsErr) {
+        console.warn("[Server API] Firestore product delete notice:", fsErr);
+      }
+
+      // 2. Delete from Supabase
+      try {
+        await supabase.from('products').delete().eq('id', strId);
+      } catch (sbErr) {
+        console.warn("[Server API] Supabase product delete notice:", sbErr);
+      }
+
+      return res.json({ success: true, message: `Product ${strId} deleted successfully` });
+    } catch (e: any) {
+      console.error("[Server API] /api/products/delete error:", e);
+      return res.status(500).json({ error: e?.message || "Failed to delete product" });
+    }
+  });
+
   // Direct robust Server API to fetch all configurations (banners, branding, etc.)
   app.get("/api/config/all", async (req, res) => {
     try {

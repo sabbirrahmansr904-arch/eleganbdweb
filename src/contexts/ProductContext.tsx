@@ -79,25 +79,31 @@ export const deduplicateProducts = (list: Product[]): Product[] => {
     if (!existing) {
       idMap.set(strId, p);
     } else {
-      // Determine which product is higher fidelity or newer
-      const pHasCustomImg = Array.isArray(p.images) && p.images.some(img => img && !img.includes('unsplash.com') && img.length > 10);
-      const exHasCustomImg = Array.isArray(existing.images) && existing.images.some(img => img && !img.includes('unsplash.com') && img.length > 10);
       const pUpdated = (p as any).updatedAt || (p as any).createdAt ? new Date((p as any).updatedAt || (p as any).createdAt).getTime() : 0;
       const exUpdated = (existing as any).updatedAt || (existing as any).createdAt ? new Date((existing as any).updatedAt || (existing as any).createdAt).getTime() : 0;
 
+      // The later item 'p' or item with newer timestamp wins
       let winner = p;
-      if (exHasCustomImg && !pHasCustomImg && exUpdated > pUpdated) {
-        winner = existing;
-      } else if (exUpdated > pUpdated && !pHasCustomImg) {
-        winner = existing;
+      if (exUpdated > pUpdated) {
+        const pImages = (Array.isArray(p.images) && p.images.length > 0) ? p.images.filter(Boolean) : (p.image ? [p.image] : []);
+        if (pImages.length === 0) {
+          winner = existing;
+        }
       }
+
+      const pImages = (Array.isArray(p.images) && p.images.length > 0) ? p.images.filter(Boolean) : (p.image ? [p.image] : []);
+      const exImages = (Array.isArray(existing.images) && existing.images.length > 0) ? existing.images.filter(Boolean) : (existing.image ? [existing.image] : []);
+
+      // Always give priority to p's images if p provided images
+      const finalImages = pImages.length > 0 ? pImages : (exImages.length > 0 ? exImages : (winner.images || []));
+      const finalMainImage = finalImages[0] || winner.image || p.image || existing.image || '';
 
       const merged: Product = {
         ...existing,
         ...p,
         ...winner,
-        images: (winner.images && winner.images.length > 0) ? winner.images : (p.images && p.images.length > 0 ? p.images : (existing.images || [])),
-        image: winner.image || p.image || existing.image || ''
+        images: finalImages,
+        image: finalMainImage
       };
 
       idMap.set(strId, merged);
