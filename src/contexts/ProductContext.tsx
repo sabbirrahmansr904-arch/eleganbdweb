@@ -85,19 +85,19 @@ export const deduplicateProducts = (list: Product[]): Product[] => {
       const pUpdated = (p as any).updatedAt || (p as any).createdAt ? new Date((p as any).updatedAt || (p as any).createdAt).getTime() : 0;
       const exUpdated = (existing as any).updatedAt || (existing as any).createdAt ? new Date((existing as any).updatedAt || (existing as any).createdAt).getTime() : 0;
 
-      let winner = existing;
-      if (pHasCustomImg && !exHasCustomImg) {
-        winner = p;
-      } else if (pUpdated > exUpdated) {
-        winner = p;
+      let winner = p;
+      if (exHasCustomImg && !pHasCustomImg && exUpdated > pUpdated) {
+        winner = existing;
+      } else if (exUpdated > pUpdated && !pHasCustomImg) {
+        winner = existing;
       }
 
       const merged: Product = {
         ...existing,
         ...p,
         ...winner,
-        images: (winner.images && winner.images.length > 0) ? winner.images : (existing.images || p.images || []),
-        image: winner.image || existing.image || p.image || ''
+        images: (winner.images && winner.images.length > 0) ? winner.images : (p.images && p.images.length > 0 ? p.images : (existing.images || [])),
+        image: winner.image || p.image || existing.image || ''
       };
 
       idMap.set(strId, merged);
