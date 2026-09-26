@@ -38,9 +38,11 @@ const Home = () => {
 
   const bestSellingScrollRef = React.useRef<HTMLDivElement>(null);
   const newArrivalScrollRef = React.useRef<HTMLDivElement>(null);
+  const formalShirtScrollRef = React.useRef<HTMLDivElement>(null);
   const shopByCategoryScrollRef = React.useRef<HTMLDivElement>(null);
   const [isHoveredBestSelling, setIsHoveredBestSelling] = React.useState(false);
   const [isHoveredNewArrival, setIsHoveredNewArrival] = React.useState(false);
+  const [isHoveredFormalShirt, setIsHoveredFormalShirt] = React.useState(false);
   const [isHoveredShopCategory, setIsHoveredShopCategory] = React.useState(false);
 
   // FAQ Accordion state
@@ -87,13 +89,16 @@ const Home = () => {
       if (!isHoveredNewArrival) {
         autoScrollSection(newArrivalScrollRef);
       }
+      if (!isHoveredFormalShirt) {
+        autoScrollSection(formalShirtScrollRef);
+      }
       if (!isHoveredShopCategory) {
         autoScrollSection(shopByCategoryScrollRef);
       }
     }, 3000); // Synchronized 3-second timing
 
     return () => clearInterval(timer);
-  }, [isHoveredBestSelling, isHoveredNewArrival, isHoveredShopCategory]);
+  }, [isHoveredBestSelling, isHoveredNewArrival, isHoveredFormalShirt, isHoveredShopCategory]);
   
   const activeHeroBanners = React.useMemo(() => {
     // 1. From Banner Management
@@ -354,17 +359,44 @@ const Home = () => {
     return sortCategories(list);
   }, [categories, uniqueProducts]);
 
-  // New Arrival Products
-  const newArrivalProducts = React.useMemo(() => {
+  // Formal Pant Collection Products
+  const formalPantProducts = React.useMemo(() => {
     if (!uniqueProducts || uniqueProducts.length === 0) return [];
-    const explicitNew = uniqueProducts.filter(p => p.newArrival === true);
-    if (explicitNew.length > 0) return explicitNew;
-    return [...uniqueProducts].sort((a, b) => {
-      const da = (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0;
-      const db = (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0;
-      return db - da;
+
+    const isPant = (p: typeof uniqueProducts[0]) => {
+      const cat = (p.category || '').toLowerCase();
+      const name = (p.name || '').toLowerCase();
+      return cat.includes('pant') || cat.includes('trouser') || name.includes('pant') || name.includes('trouser');
+    };
+
+    const pants = sortedProducts.filter(p => isPant(p));
+    if (pants.length > 0) return pants;
+
+    return sortedProducts;
+  }, [uniqueProducts, sortedProducts]);
+
+  // Formal Shirt Collection Products
+  const formalShirtProducts = React.useMemo(() => {
+    if (!uniqueProducts || uniqueProducts.length === 0) return [];
+
+    const isShirt = (p: typeof uniqueProducts[0]) => {
+      const cat = (p.category || '').toLowerCase();
+      const name = (p.name || '').toLowerCase();
+      const isP = cat.includes('pant') || cat.includes('trouser') || name.includes('pant') || name.includes('trouser');
+      return (cat.includes('shirt') || name.includes('shirt') || cat.includes('polo') || name.includes('polo')) && !isP;
+    };
+
+    const shirts = sortedProducts.filter(p => isShirt(p));
+    if (shirts.length > 0) return shirts;
+
+    const nonPants = sortedProducts.filter(p => {
+      const cat = (p.category || '').toLowerCase();
+      const name = (p.name || '').toLowerCase();
+      return !(cat.includes('pant') || cat.includes('trouser') || name.includes('pant') || name.includes('trouser'));
     });
-  }, [uniqueProducts]);
+
+    return nonPants.length > 0 ? nonPants : sortedProducts;
+  }, [uniqueProducts, sortedProducts]);
 
   // FAQ Items List
   const faqList = [
@@ -606,29 +638,71 @@ const Home = () => {
       )}
 
       {/* 2. BEST SELLING SECTION (FORMAL PANT / FORMAL SHIRT Filter) */}
-      <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-10 sm:pb-12">
-        <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-gray-900 uppercase tracking-tight text-center mb-4 sm:mb-6">
-          BEST SELLING PRODUCTS
-        </h2>
+      {(bestSellingFilteredProducts.length > 0 || productsLoading) && (
+        <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-10 sm:pb-12">
+          {/* Section Header: BEST SELLING PRODUCTS */}
+          <div className="relative flex items-center justify-center border-b border-gray-100 pb-4 mb-3 sm:mb-4 px-1">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase text-gray-900 tracking-tight text-center">
+              BEST SELLING PRODUCTS
+            </h2>
+            <Link 
+              to="/category/all" 
+              className="absolute right-0 text-xs sm:text-sm font-bold uppercase text-gray-500 hover:text-blue-600 transition-colors tracking-wider flex items-center gap-1 shrink-0"
+            >
+              <span className="hidden sm:inline">See All</span>
+              <ArrowRight size={14} />
+            </Link>
+          </div>
 
-        {/* 2-Column Product Grid */}
-        {productsLoading ? (
-          <ProductGridSkeleton count={8} />
-        ) : bestSellingFilteredProducts.length === 0 ? (
-          <div className="py-12 text-center bg-gray-50 rounded-2xl border border-gray-100">
-            <p className="text-sm font-bold text-gray-500">No products available at the moment.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5 md:gap-4 pt-2">
-            {bestSellingFilteredProducts.map((product) => (
-              <ProductCard 
-                key={`bestselling-${product.id}-${(product as any).updatedAt || ''}-${(product.images?.[0] || product.image || '').slice(-25)}`} 
-                product={product} 
-              />
-            ))}
-          </div>
-        )}
-      </section>
+          {productsLoading ? (
+            <ProductScrollSkeleton count={6} />
+          ) : bestSellingFilteredProducts.length === 0 ? (
+            <div className="py-12 text-center bg-gray-50 rounded-2xl border border-gray-100">
+              <p className="text-sm font-bold text-gray-500">No products available at the moment.</p>
+            </div>
+          ) : (
+            <div className="relative group/carousel">
+              {/* Scroll Left Button */}
+              <button
+                onClick={() => scrollLeft(bestSellingScrollRef)}
+                className="absolute -left-2 sm:-left-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-all cursor-pointer opacity-90 hover:opacity-100"
+                aria-label="Scroll left"
+              >
+                <ChevronLeft size={18} />
+              </button>
+
+              {/* Scroll Right Button */}
+              <button
+                onClick={() => scrollRight(bestSellingScrollRef)}
+                className="absolute -right-2 sm:-right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-all cursor-pointer opacity-90 hover:opacity-100"
+                aria-label="Scroll right"
+              >
+                <ChevronRight size={18} />
+              </button>
+
+              {/* Scrollable Container */}
+              <div 
+                ref={bestSellingScrollRef}
+                onMouseEnter={() => setIsHoveredBestSelling(true)}
+                onMouseLeave={() => setIsHoveredBestSelling(false)}
+                onTouchStart={() => setIsHoveredBestSelling(true)}
+                onTouchEnd={() => setIsHoveredBestSelling(false)}
+                className="flex gap-2 sm:gap-3 overflow-x-auto pt-2 pb-3 scroll-smooth snap-x snap-mandatory no-scrollbar"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {bestSellingFilteredProducts.map((product) => (
+                  <div key={`bestselling-${product.id}`} className="w-[calc(50%-4px)] sm:w-[calc(50%-6px)] md:w-[calc(33.333%-8px)] lg:w-[calc(25%-9px)] flex-shrink-0 snap-start">
+                    <ProductCard 
+                      key={`bestselling-card-${product.id}-${(product as any).updatedAt || ''}-${(product.images?.[0] || product.image || '').slice(-25)}`} 
+                      product={product} 
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* FEATURE SPOTLIGHT BANNER */}
       {featureBannerUrl && (
@@ -647,13 +721,13 @@ const Home = () => {
         </section>
       )}
 
-      {/* 3. NEW ARRIVAL PRODUCTS SECTION */}
-      {(newArrivalProducts.length > 0 || productsLoading) && (
+      {/* 3. FORMAL PANT COLLECTION SECTION */}
+      {(formalPantProducts.length > 0 || productsLoading) && (
         <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-10">
-          {/* Section Header: NEW ARRIVAL PRODUCTS (Larger & Centered) */}
+          {/* Section Header: Formal Pant Collection (Larger & Centered) */}
           <div className="relative flex items-center justify-center border-b border-gray-100 pb-4 mb-3 sm:mb-4 px-1">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase text-gray-900 tracking-tight text-center">
-              NEW ARRIVAL PRODUCTS
+              Formal Pant Collection
             </h2>
             <Link 
               to="/category/all" 
@@ -696,10 +770,10 @@ const Home = () => {
                 className="flex gap-2 sm:gap-3 overflow-x-auto pt-2 pb-3 scroll-smooth snap-x snap-mandatory no-scrollbar"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
-                {newArrivalProducts.map((product) => (
-                  <div key={`newarrival-${product.id}`} className="w-[calc(50%-4px)] sm:w-[calc(50%-6px)] md:w-[calc(33.333%-8px)] lg:w-[calc(25%-9px)] flex-shrink-0 snap-start">
+                {formalPantProducts.map((product) => (
+                  <div key={`formalpant-${product.id}`} className="w-[calc(50%-4px)] sm:w-[calc(50%-6px)] md:w-[calc(33.333%-8px)] lg:w-[calc(25%-9px)] flex-shrink-0 snap-start">
                     <ProductCard 
-                      key={`newarrival-card-${product.id}-${(product as any).updatedAt || ''}-${(product.images?.[0] || product.image || '').slice(-25)}`}
+                      key={`formalpant-card-${product.id}-${(product as any).updatedAt || ''}-${(product.images?.[0] || product.image || '').slice(-25)}`}
                       product={product} 
                     />
                   </div>
@@ -710,40 +784,90 @@ const Home = () => {
         </section>
       )}
 
-      {/* 4. EXPLORE OUR COLLECTION - MAIN PRODUCT SECTION SHOWING FORMAL PANTS FIRST, THEN FORMAL SHIRTS */}
-      <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
-        {/* Section Header: EXPLORE OUR COLLECTION */}
-        <div className="relative flex items-center justify-center border-b border-gray-100 pb-4 mb-8">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase text-gray-900 tracking-tight text-center">
-            EXPLORE OUR COLLECTION
-          </h2>
-          <Link 
-            to="/category/all" 
-            className="absolute right-0 flex items-center gap-1 text-xs font-black uppercase text-gray-900 hover:text-red-600 transition-colors tracking-wider"
-          >
-            <span className="hidden sm:inline">VIEW ALL</span>
-            <ArrowRight size={14} />
-          </Link>
-        </div>
+      {/* BANNER ABOVE FORMAL SHIRT COLLECTION - HERO BANNER SIZE */}
+      {(shirtBannerUrl || featureBannerUrl || subHeroBannerUrl) && (
+        <section className="w-full m-0 p-0 pb-6 sm:pb-8">
+          <div className="relative w-full overflow-hidden bg-white flex items-center justify-center m-0 p-0">
+            <Link to="/category/all" className="relative z-10 block w-full">
+              <picture className="w-full block">
+                <img 
+                  src={shirtBannerUrl || featureBannerUrl || subHeroBannerUrl} 
+                  alt="Formal Shirt Collection Banner" 
+                  className="w-full h-auto max-h-[85vh] object-cover block mx-auto transition-opacity duration-300"
+                  referrerPolicy="no-referrer"
+                />
+              </picture>
+            </Link>
+          </div>
+        </section>
+      )}
 
-        {/* Product Grid displaying sorted products (Pants first, then Shirts) */}
-        {productsLoading ? (
-          <ProductGridSkeleton count={8} />
-        ) : sortedProducts.length === 0 ? (
-          <div className="py-16 text-center bg-gray-50 rounded-2xl border border-gray-100">
-            <p className="text-sm font-bold text-gray-500">No products available at the moment.</p>
+      {/* 4. FORMAL SHIRT COLLECTION - MAIN PRODUCT SECTION SHOWING FORMAL SHIRTS */}
+      {(formalShirtProducts.length > 0 || productsLoading) && (
+        <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
+          {/* Section Header: FORMAL SHIRT COLLECTION */}
+          <div className="relative flex items-center justify-center border-b border-gray-100 pb-4 mb-3 sm:mb-4 px-1">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase text-gray-900 tracking-tight text-center">
+              FORMAL SHIRT COLLECTION
+            </h2>
+            <Link 
+              to="/category/all" 
+              className="absolute right-0 text-xs sm:text-sm font-bold uppercase text-gray-500 hover:text-blue-600 transition-colors tracking-wider flex items-center gap-1 shrink-0"
+            >
+              <span className="hidden sm:inline">See All</span>
+              <ArrowRight size={14} />
+            </Link>
           </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5 md:gap-4 pt-2">
-            {sortedProducts.map((product) => (
-              <ProductCard 
-                key={`all-${product.id}-${(product as any).updatedAt || ''}-${(product.images?.[0] || product.image || '').slice(-25)}`} 
-                product={product} 
-              />
-            ))}
-          </div>
-        )}
-      </section>
+
+          {productsLoading ? (
+            <ProductScrollSkeleton count={6} />
+          ) : formalShirtProducts.length === 0 ? (
+            <div className="py-12 text-center bg-gray-50 rounded-2xl border border-gray-100">
+              <p className="text-sm font-bold text-gray-500">No formal shirts available at the moment.</p>
+            </div>
+          ) : (
+            <div className="relative group/carousel">
+              {/* Scroll Left Button */}
+              <button
+                onClick={() => scrollLeft(formalShirtScrollRef)}
+                className="absolute -left-2 sm:-left-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-all cursor-pointer opacity-90 hover:opacity-100"
+                aria-label="Scroll left"
+              >
+                <ChevronLeft size={18} />
+              </button>
+
+              {/* Scroll Right Button */}
+              <button
+                onClick={() => scrollRight(formalShirtScrollRef)}
+                className="absolute -right-2 sm:-right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-all cursor-pointer opacity-90 hover:opacity-100"
+                aria-label="Scroll right"
+              >
+                <ChevronRight size={18} />
+              </button>
+
+              {/* Scrollable Container */}
+              <div 
+                ref={formalShirtScrollRef}
+                onMouseEnter={() => setIsHoveredFormalShirt(true)}
+                onMouseLeave={() => setIsHoveredFormalShirt(false)}
+                onTouchStart={() => setIsHoveredFormalShirt(true)}
+                onTouchEnd={() => setIsHoveredFormalShirt(false)}
+                className="flex gap-2 sm:gap-3 overflow-x-auto pt-2 pb-3 scroll-smooth snap-x snap-mandatory no-scrollbar"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {formalShirtProducts.map((product) => (
+                  <div key={`formalshirt-${product.id}`} className="w-[calc(50%-4px)] sm:w-[calc(50%-6px)] md:w-[calc(33.333%-8px)] lg:w-[calc(25%-9px)] flex-shrink-0 snap-start">
+                    <ProductCard 
+                      key={`formalshirt-card-${product.id}-${(product as any).updatedAt || ''}-${(product.images?.[0] || product.image || '').slice(-25)}`}
+                      product={product} 
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* 5. REAL-TIME CUSTOMER REVIEWS SECTION (Directly Below ALL COLLECTIONS) */}
       <HomeReviewsRealtime />
