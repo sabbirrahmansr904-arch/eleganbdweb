@@ -284,62 +284,62 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
       valid.sort((a, b) => compareOrdersByInvoice(a, b, 'desc'));
 
-      setOrders(valid);
-      saveOrdersToCache(valid);
+      setOrders(prev => {
+        if (prev && prev.length === valid.length) {
+          let hasChange = false;
+          for (let i = 0; i < prev.length; i++) {
+            if (
+              prev[i].id !== valid[i].id || 
+              prev[i].status !== valid[i].status || 
+              (prev[i] as any).updatedAt !== (valid[i] as any).updatedAt || 
+              prev[i].totalPrice !== valid[i].totalPrice
+            ) {
+              hasChange = true;
+              break;
+            }
+          }
+          if (!hasChange) return prev;
+        }
+        saveOrdersToCache(valid);
+        return valid;
+      });
       setLoading(false);
     };
 
     const mergeAndSetOrders = (newIncoming: Order[], isAuthoritativeFullList = false) => {
       if (!isMounted || !Array.isArray(newIncoming)) return;
-      if (newIncoming.length === 0 && isAuthoritativeFullList) {
-        setOrders([]);
-        saveOrdersToCache([]);
-        return;
-      }
       if (newIncoming.length === 0) return;
       
       setOrders(prev => {
-        const incomingMap = new Map<string, Order>();
-        newIncoming.forEach(o => {
-          if (o && o.id) {
-            incomingMap.set(String(o.id), o);
-          }
-        });
-
         const map = new Map<string, Order>();
-        const now = Date.now();
 
-        // 1. Evaluate existing orders in memory/cache
+        // 1. Preserve existing orders in memory/cache unless explicitly deleted
         if (Array.isArray(prev)) {
           prev.forEach(o => {
             if (!o || !o.id) return;
             const idStr = String(o.id);
             const invStr = o.invoiceNo ? String(o.invoiceNo) : '';
-            if (deletedOrderIdsRef.current.has(idStr) || (invStr && deletedOrderIdsRef.current.has(invStr))) {
-              return;
-            }
-
-            if (incomingMap.has(idStr)) {
-              // Existing order is in incoming database list - will be merged below
+            if (!deletedOrderIdsRef.current.has(idStr) && (!invStr || !deletedOrderIdsRef.current.has(invStr))) {
               map.set(idStr, o);
-            } else {
-              // If this is an authoritative full list from Supabase and the order is missing,
-              // it means it was deleted on another device. Do not keep or resurrect it!
-              if (isAuthoritativeFullList) {
-                // Skip (prune) deleted order
-                return;
-              }
-              // Otherwise preserve local-only offline orders
-              map.set(idStr, o);
-              try {
-                const sbRow = orderToSupabaseRow(o);
-                supabase.from('orders').upsert(sbRow).catch(() => {});
-              } catch {}
             }
           });
         }
 
         // 2. Merge incoming orders (updating existing or adding new)
+        if (prev && prev.length > 0) {
+          const prevIdSet = new Set(prev.map(p => String(p.id)));
+          newIncoming.forEach(inc => {
+            if (inc && inc.id && !prevIdSet.has(String(inc.id))) {
+              try {
+                toast.success(`🛒 নতুন অর্ডার এসেছে! Invoice #${inc.invoiceNo || inc.id} (${inc.customerName || 'Customer'})`, {
+                  id: `toast_new_order_${inc.id}`,
+                  duration: 6000
+                });
+              } catch {}
+            }
+          });
+        }
+
         newIncoming.forEach(o => {
           if (o && o.id) {
             const idStr = String(o.id);
@@ -393,6 +393,22 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         }
 
         merged.sort((a, b) => compareOrdersByInvoice(a, b, 'desc'));
+
+        if (prev && prev.length === merged.length) {
+          let hasChange = false;
+          for (let i = 0; i < prev.length; i++) {
+            if (
+              prev[i].id !== merged[i].id || 
+              prev[i].status !== merged[i].status || 
+              (prev[i] as any).updatedAt !== (merged[i] as any).updatedAt || 
+              prev[i].totalPrice !== merged[i].totalPrice
+            ) {
+              hasChange = true;
+              break;
+            }
+          }
+          if (!hasChange) return prev;
+        }
 
         saveOrdersToCache(merged);
 
@@ -515,14 +531,13 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     // Initial load
     syncOrders(false);
 
-    // Strategic Stale-While-Revalidate event listeners (focus, visibility, online, touch)
+    // Strategic Stale-While-Revalidate event listeners (focus, visibility, online)
     const handleFocus = () => {
       if (isMounted) syncOrders(true);
     };
     window.addEventListener('focus', handleFocus);
     window.addEventListener('visibilitychange', handleFocus);
     window.addEventListener('online', handleFocus);
-    window.addEventListener('touchstart', handleFocus, { passive: true });
 
     // B. Real-time Heartbeat Poll (every 4 seconds, checks count & latest order in <50ms without loading heavy items)
     const heartbeatInterval = setInterval(async () => {
@@ -669,66 +684,23 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             }
           }
 
-          // 2. Parse live orders from authoritative snapshot
+          // 2. Parse live orders from Firestore snapshot if any
           const liveOrders: Order[] = [];
-          const liveIdSet = new Set<string>();
-
-          if (Array.isArray(snapshot.docs)) {
+          if (Array.isArray(snapshot.docs) && snapshot.docs.length > 0) {
             snapshot.docs.forEach((d: any) => {
               const data = typeof d.data === 'function' ? d.data() : d.data;
               if (data && data.id) {
                 const orderId = String(data.id).trim();
                 const invNo = data.invoiceNo ? String(data.invoiceNo).trim() : '';
-                if (deletedOrderIdsRef.current.has(orderId) || (invNo && deletedOrderIdsRef.current.has(invNo))) {
-                  return;
+                if (!deletedOrderIdsRef.current.has(orderId) && (!invNo || !deletedOrderIdsRef.current.has(invNo))) {
+                  liveOrders.push(data as Order);
                 }
-                liveOrders.push(data as Order);
-                liveIdSet.add(orderId);
-                if (invNo) liveIdSet.add(invNo);
               }
             });
+            if (liveOrders.length > 0) {
+              mergeAndSetOrders(liveOrders, false);
+            }
           }
-
-          // 3. Stale order detection: Discard any cached order not present in authoritative snapshot
-          setOrders(prev => {
-            const staleIds: string[] = [];
-            prev.forEach(o => {
-              if (!o || !o.id) return;
-              const oId = String(o.id).trim();
-              const invNo = o.invoiceNo ? String(o.invoiceNo).trim() : '';
-              if (!liveIdSet.has(oId) && (!invNo || !liveIdSet.has(invNo))) {
-                // Check if it's an offline pending order
-                let isPending = false;
-                try {
-                  const raw = localStorage.getItem('eleganbd_pending_sync_orders');
-                  if (raw) {
-                    const arr = JSON.parse(raw);
-                    isPending = Array.isArray(arr) && arr.some((po: any) => String(po?.id) === oId);
-                  }
-                } catch {}
-                if (!isPending) {
-                  staleIds.push(oId);
-                  if (invNo) staleIds.push(invNo);
-                }
-              }
-            });
-
-            if (staleIds.length > 0) {
-              recordDeletedIds(staleIds);
-            }
-
-            // If snapshot is empty, clean all caches
-            if (liveOrders.length === 0 && snapshot.empty) {
-              for (const k of CACHE_KEYS) {
-                try { localStorage.removeItem(k); } catch {}
-              }
-              return [];
-            }
-
-            liveOrders.sort((a, b) => compareOrdersByInvoice(a, b, 'desc'));
-            saveOrdersToCache(liveOrders);
-            return liveOrders;
-          });
 
           setLoading(false);
         },
@@ -988,10 +960,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const updateOrderStatus = async (id: string, status: Order['status'], overrideLock: boolean = false) => {
     try {
       const order = orders.find(o => o.id === id);
-      if (order && !overrideLock && !canChangeOrderStatus(order.status)) {
-        console.warn(`[OrderContext] Blocked status modification for order ${id} with status "${order.status}". Status is locked.`);
-        throw new Error('অর্ডারের স্ট্যাটাস পরিবর্তন করা যাবে না। শুধুমাত্র ORDER PLACED, PRINTED, PREPARING এবং PICK UP CANCEL স্ট্যাটাসের অর্ডারের স্ট্যাটাস পরিবর্তন করা যাবে।');
-      }
       if (order) {
         await handleStatusChangeStock(order, status);
       }
@@ -1009,7 +977,17 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         console.warn('[OrderContext] Supabase update status notice:', sbErr);
       }
 
-      // 2. Local state update
+      // 2. Update in Firestore as well
+      try {
+        await setDoc(doc(db, 'orders', String(id)), {
+          status,
+          updatedAt: Date.now()
+        }, { merge: true });
+      } catch (fsErr) {
+        console.warn('[OrderContext] Firestore update status notice:', fsErr);
+      }
+
+      // 3. Local state update
       setOrders(prev => {
         const next = prev.map(o => o.id === id ? { ...o, status, updatedAt: Date.now() } : o);
         saveOrdersToCache(next);
@@ -1029,10 +1007,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     try {
       const order = orders.find(o => o.id === id);
       const safeData = { ...data };
-      if (safeData.status && order && !overrideLock && !canChangeOrderStatus(order.status) && safeData.status !== order.status) {
-        console.warn(`[OrderContext] Blocked changing status of locked order ${id}`);
-        delete safeData.status;
-      }
       if (safeData.status && order) {
         await handleStatusChangeStock(order, safeData.status);
       }
@@ -1049,7 +1023,17 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         console.warn('[OrderContext] Supabase update order notice:', sbErr);
       }
 
-      // 2. Local state update
+      // 2. Update in Firestore as well
+      try {
+        await setDoc(doc(db, 'orders', String(id)), {
+          ...updatedData,
+          updatedAt: Date.now()
+        }, { merge: true });
+      } catch (fsErr) {
+        console.warn('[OrderContext] Firestore update order notice:', fsErr);
+      }
+
+      // 3. Local state update
       setOrders(prev => {
         const next = prev.map(o => o.id === id ? { ...o, ...updatedData } : o);
         saveOrdersToCache(next);

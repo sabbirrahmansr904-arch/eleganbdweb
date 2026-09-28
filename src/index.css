@@ -434,16 +434,19 @@ div[class*="fixed"][class*="inset-0"] textarea:focus {
 
 @keyframes marquee {
   0% {
-    transform: translateX(0%);
+    transform: translate3d(0%, 0, 0);
   }
   100% {
-    transform: translateX(-50%);
+    transform: translate3d(-50%, 0, 0);
   }
 }
 
 .animate-marquee {
   display: inline-flex;
-  animation: marquee 25s linear infinite;
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  animation: marquee 35s linear infinite;
 }
 
 .animate-marquee:hover {

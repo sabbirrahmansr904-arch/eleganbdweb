@@ -65,18 +65,22 @@ export default function Navbar() {
     <div className="sticky top-0 left-0 w-full z-50">
       {showAnnouncementBar && (
         <div className="bg-white text-black py-2 overflow-hidden whitespace-nowrap border-b border-gray-200">
-          <motion.div
-            initial={{ x: "0%" }}
-            animate={{ x: "-100%" }}
-            transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
-            className="flex items-center gap-10 min-w-max"
-          >
-            {[...Array(10)].map((_, i) => (
-              <span key={i} className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] text-black">
-                {announcementMessage}
-              </span>
-            ))}
-          </motion.div>
+          <div className="animate-marquee flex items-center min-w-max">
+            <div className="flex items-center gap-10 shrink-0 pr-10">
+              {[...Array(6)].map((_, i) => (
+                <span key={`a1-${i}`} className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] text-black">
+                  {announcementMessage}
+                </span>
+              ))}
+            </div>
+            <div className="flex items-center gap-10 shrink-0 pr-10">
+              {[...Array(6)].map((_, i) => (
+                <span key={`a2-${i}`} className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] text-black">
+                  {announcementMessage}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
       )}
       <nav
