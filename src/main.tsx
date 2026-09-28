@@ -8,7 +8,7 @@ import './index.css'
 // Automatic Cache Migration & Invalidation
 (() => {
   try {
-    const CURRENT_CACHE_VERSION = 'v2026.09.28.3';
+    const CURRENT_CACHE_VERSION = 'v2026.09.28.6';
     const savedVersion = localStorage.getItem('eleganbd_cache_version');
     if (savedVersion !== CURRENT_CACHE_VERSION) {
       // Purge old cached data so browser immediately uses fresh Firestore/Supabase & Canonical assets

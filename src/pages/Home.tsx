@@ -380,87 +380,93 @@ const Home = () => {
     <div className="flex flex-col min-h-screen bg-white">
       
       {/* TOP SECTION: HERO BANNER (SLIDER SUPPORT FOR 2 OR MORE BANNERS) */}
-      {activeHeroBanners.length > 0 && showHeroBanner !== false && (
-        <section className="w-full m-0 p-0 pb-2 sm:pb-4">
-          <div className="relative w-full overflow-hidden bg-white flex items-center justify-center m-0 p-0 group">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentBanner}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.5 }}
-                className="w-full relative flex items-center justify-center overflow-hidden bg-white"
-              >
-                {/* Main Hero Banner Image - Responsive picture element for Mobile vs Desktop */}
-                {activeHeroBanners[currentBanner].link ? (
-                  <Link to={activeHeroBanners[currentBanner].link} className="relative z-10 block w-full">
-                    <picture className="w-full block">
-                      {activeHeroBanners[currentBanner].mobileImage && (
-                        <source media="(max-width: 767px)" srcSet={activeHeroBanners[currentBanner].mobileImage} />
+      {activeHeroBanners.length > 0 && showHeroBanner !== false && (() => {
+        const safeIdx = (currentBanner >= 0 && currentBanner < activeHeroBanners.length) ? currentBanner : 0;
+        const bannerItem = activeHeroBanners[safeIdx];
+        if (!bannerItem || !bannerItem.image) return null;
+
+        return (
+          <section className="w-full m-0 p-0 pb-2 sm:pb-4">
+            <div className="relative w-full overflow-hidden bg-white flex items-center justify-center m-0 p-0 group">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={safeIdx}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="w-full relative flex items-center justify-center overflow-hidden bg-white"
+                >
+                  {/* Main Hero Banner Image - Responsive picture element for Mobile vs Desktop */}
+                  {bannerItem.link ? (
+                    <Link to={bannerItem.link} className="relative z-10 block w-full">
+                      <picture className="w-full block">
+                        {bannerItem.mobileImage && (
+                          <source media="(max-width: 767px)" srcSet={bannerItem.mobileImage} />
+                        )}
+                        <img 
+                          src={bannerItem.image} 
+                          alt={`Hero Banner ${safeIdx + 1}`} 
+                          className="w-full h-auto max-h-[85vh] object-cover block mx-auto transition-opacity duration-300"
+                          referrerPolicy="no-referrer"
+                        />
+                      </picture>
+                    </Link>
+                  ) : (
+                    <picture className="relative z-10 w-full block">
+                      {bannerItem.mobileImage && (
+                        <source media="(max-width: 767px)" srcSet={bannerItem.mobileImage} />
                       )}
                       <img 
-                        src={activeHeroBanners[currentBanner].image} 
-                        alt={`Hero Banner ${currentBanner + 1}`} 
+                        src={bannerItem.image} 
+                        alt={`Hero Banner ${safeIdx + 1}`} 
                         className="w-full h-auto max-h-[85vh] object-cover block mx-auto transition-opacity duration-300"
                         referrerPolicy="no-referrer"
                       />
                     </picture>
-                  </Link>
-                ) : (
-                  <picture className="relative z-10 w-full block">
-                    {activeHeroBanners[currentBanner].mobileImage && (
-                      <source media="(max-width: 767px)" srcSet={activeHeroBanners[currentBanner].mobileImage} />
-                    )}
-                    <img 
-                      src={activeHeroBanners[currentBanner].image} 
-                      alt={`Hero Banner ${currentBanner + 1}`} 
-                      className="w-full h-auto max-h-[85vh] object-cover block mx-auto transition-opacity duration-300"
-                      referrerPolicy="no-referrer"
-                    />
-                  </picture>
-                )}
-              </motion.div>
-            </AnimatePresence>
+                  )}
+                </motion.div>
+              </AnimatePresence>
 
-            {/* Slider Navigation Arrows (When 2 or more banners) */}
-            {activeHeroBanners.length > 1 && (
-              <>
-                <button
-                  onClick={() => setCurrentBanner(prev => (prev - 1 + activeHeroBanners.length) % activeHeroBanners.length)}
-                  className="absolute left-3 md:left-5 top-1/2 -translate-y-1/2 z-20 w-9 h-9 md:w-11 md:h-11 rounded-full bg-black/40 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md transition-all opacity-70 hover:opacity-100 hover:scale-105 shadow-lg border border-white/20 cursor-pointer"
-                  title="Previous Banner"
-                >
-                  <ChevronLeft size={20} />
-                </button>
+              {/* Slider Navigation Arrows (When 2 or more banners) */}
+              {activeHeroBanners.length > 1 && (
+                <>
+                  <button
+                    onClick={() => setCurrentBanner(prev => (prev - 1 + activeHeroBanners.length) % activeHeroBanners.length)}
+                    className="absolute left-3 md:left-5 top-1/2 -translate-y-1/2 z-20 w-9 h-9 md:w-11 md:h-11 rounded-full bg-black/40 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md transition-all opacity-70 hover:opacity-100 hover:scale-105 shadow-lg border border-white/20 cursor-pointer"
+                    title="Previous Banner"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
 
-                <button
-                  onClick={() => setCurrentBanner(prev => (prev + 1) % activeHeroBanners.length)}
-                  className="absolute right-3 md:right-5 top-1/2 -translate-y-1/2 z-20 w-9 h-9 md:w-11 md:h-11 rounded-full bg-black/40 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md transition-all opacity-70 hover:opacity-100 hover:scale-105 shadow-lg border border-white/20 cursor-pointer"
-                  title="Next Banner"
-                >
-                  <ChevronRight size={20} />
-                </button>
+                  <button
+                    onClick={() => setCurrentBanner(prev => (prev + 1) % activeHeroBanners.length)}
+                    className="absolute right-3 md:right-5 top-1/2 -translate-y-1/2 z-20 w-9 h-9 md:w-11 md:h-11 rounded-full bg-black/40 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md transition-all opacity-70 hover:opacity-100 hover:scale-105 shadow-lg border border-white/20 cursor-pointer"
+                    title="Next Banner"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
 
-                {/* Slider Dots Indicator */}
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-black/50 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15">
-                  {activeHeroBanners.map((_, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setCurrentBanner(idx)}
-                      className={cn(
-                        "h-2 rounded-full transition-all cursor-pointer",
-                        currentBanner === idx ? "bg-white w-6" : "bg-white/40 hover:bg-white/70 w-2"
-                      )}
-                      title={`Slide ${idx + 1}`}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </section>
-      )}
+                  {/* Slider Dots Indicator */}
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-black/50 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15">
+                    {activeHeroBanners.map((_, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setCurrentBanner(idx)}
+                        className={cn(
+                          "h-2 rounded-full transition-all cursor-pointer",
+                          safeIdx === idx ? "bg-white w-6" : "bg-white/40 hover:bg-white/70 w-2"
+                        )}
+                        title={`Slide ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </section>
+        );
+      })()}
 
       {/* 4-COLUMN HIGHLIGHT BAR */}
       <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 py-3 sm:py-5">

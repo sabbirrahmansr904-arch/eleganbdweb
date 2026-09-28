@@ -141,7 +141,12 @@ const cleanBannerUrl = (url?: string) => {
 
 const cleanUrl = (url?: string) => {
   if (!url) return "";
-  if (url.includes('images.unsplash.com/photo-1441986300917') || url.includes('images.unsplash.com/photo-1490481651871')) return "";
+  if (
+    url.includes('images.unsplash.com/photo-1441986300917') ||
+    url.includes('images.unsplash.com/photo-1490481651871') ||
+    url.startsWith('data:image') ||
+    url.includes('mansavenue')
+  ) return "";
   return url;
 };
 

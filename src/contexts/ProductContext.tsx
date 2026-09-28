@@ -19,6 +19,25 @@ interface ProductContextType {
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
+export const FORMAL_PANT_DESCRIPTION = `Elevate your everyday formal style with our premium export-quality formal pant. Designed with a sleek fit, smooth breathable fabric, and clean finishing, it offers lasting comfort and a sharp look. Perfect for office wear, corporate meetings, and special occasions.
+
+Features:
+
+- Premium export-quality fabric
+- Breathable and comfortable fit
+- Smart and elegant design
+- Neat stitching and durable buttons
+- Suitable for formal and professional wear
+
+
+Formal Pant Size :
+Waist Size =28 Length =40 THIGH =23 LEG OPENING =13 HIP – 39
+Waist Size =30 Length =40 THIGH =24 LEG OPENING =13.5 HIP – 41
+Waist Size =32 Length =40 THIGH =25 LEG OPENING =14 HIP – 43
+Waist Size =34 Length =41 THIGH =26 LEG OPENING =14 HIP – 45
+Waist Size =36 Length =41 THIGH =27 LEG OPENING =14 HIP – 47
+Waist Size =38 Length =41 THIGH =28 LEG OPENING =14 HIP – 49`;
+
 export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
   {
     id: "1781129084604",
@@ -26,6 +45,7 @@ export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
     price: 999,
     regularPrice: 1399,
     category: "Formal Pant",
+    description: FORMAL_PANT_DESCRIPTION,
     image: "https://i.postimg.cc/QMcKmfvp/file-00000000e7cc8243a23ddc692238e4be.png",
     images: ["https://i.postimg.cc/QMcKmfvp/file-00000000e7cc8243a23ddc692238e4be.png"],
     sizes: ["28", "30", "32", "34", "36", "38", "40"],
@@ -44,6 +64,7 @@ export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
     price: 999,
     regularPrice: 1399,
     category: "Formal Pant",
+    description: FORMAL_PANT_DESCRIPTION,
     image: "https://i.postimg.cc/PfKLxpmD/file-00000000e2e88243ab5fb0a7251d0534.png",
     images: ["https://i.postimg.cc/PfKLxpmD/file-00000000e2e88243ab5fb0a7251d0534.png"],
     sizes: ["28", "30", "32", "34", "36", "38", "40"],
@@ -62,6 +83,7 @@ export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
     price: 999,
     regularPrice: 1399,
     category: "Formal Pant",
+    description: FORMAL_PANT_DESCRIPTION,
     image: "https://i.postimg.cc/RVkvV4bf/file-0000000061ac821182c564c6be9a7c7d.png",
     images: ["https://i.postimg.cc/RVkvV4bf/file-0000000061ac821182c564c6be9a7c7d.png"],
     sizes: ["28", "30", "32", "34", "36", "38", "40"],
@@ -80,6 +102,7 @@ export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
     price: 999,
     regularPrice: 1399,
     category: "Formal Pant",
+    description: FORMAL_PANT_DESCRIPTION,
     image: "https://i.postimg.cc/gkD11db0/file-000000009ba8821190f1af936db17314.png",
     images: ["https://i.postimg.cc/gkD11db0/file-000000009ba8821190f1af936db17314.png"],
     sizes: ["28", "30", "32", "34", "36", "38", "40"],
@@ -98,6 +121,7 @@ export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
     price: 999,
     regularPrice: 1399,
     category: "Formal Pant",
+    description: FORMAL_PANT_DESCRIPTION,
     image: "https://i.postimg.cc/3rZLxBfh/file-00000000f1188211a9d51e1fa6d96dcd.png",
     images: ["https://i.postimg.cc/3rZLxBfh/file-00000000f1188211a9d51e1fa6d96dcd.png"],
     sizes: ["28", "30", "32", "34", "36", "38", "40"],
@@ -116,6 +140,7 @@ export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
     price: 999,
     regularPrice: 1399,
     category: "Formal Pant",
+    description: FORMAL_PANT_DESCRIPTION,
     image: "https://i.postimg.cc/nVdvWww8/file-00000000e0bc8211a50101c686f1f31d.png",
     images: ["https://i.postimg.cc/nVdvWww8/file-00000000e0bc8211a50101c686f1f31d.png"],
     sizes: ["28", "30", "32", "34", "36", "38", "40"],
@@ -134,6 +159,7 @@ export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
     price: 999,
     regularPrice: 1399,
     category: "Formal Pant",
+    description: FORMAL_PANT_DESCRIPTION,
     image: "https://i.postimg.cc/kgPDYQ95/file-00000000f1c082088467d69575de0d11.png",
     images: ["https://i.postimg.cc/kgPDYQ95/file-00000000f1c082088467d69575de0d11.png"],
     sizes: ["28", "30", "32", "34", "36", "38", "40"],
@@ -150,7 +176,7 @@ export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
     id: "prod-1788869244806",
     name: "Man's Formal Shirt - WHITE",
     price: 750,
-    regularPrice: 1049,
+    regularPrice: 1150,
     category: "Formal Shirt",
     image: "https://i.postimg.cc/Qt7nxZ9N/7d44e508-aef3-47ac-8584-8bf926167142.jpg",
     images: ["https://i.postimg.cc/Qt7nxZ9N/7d44e508-aef3-47ac-8584-8bf926167142.jpg"],
@@ -168,7 +194,7 @@ export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
     id: "prod-1790064909058",
     name: "Man's Formal Shirt - BLACK",
     price: 750,
-    regularPrice: 1049,
+    regularPrice: 1150,
     category: "Formal Shirt",
     image: "https://i.postimg.cc/Y0k8rGBF/65b6dee7-1031-43f0-ad6c-5f34158b3ab9.jpg",
     images: ["https://i.postimg.cc/Y0k8rGBF/65b6dee7-1031-43f0-ad6c-5f34158b3ab9.jpg"],
@@ -186,7 +212,7 @@ export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
     id: "prod-1790064951659",
     name: "Man's Formal Shirt - SKY BLUE",
     price: 750,
-    regularPrice: 1049,
+    regularPrice: 1150,
     category: "Formal Shirt",
     image: "https://i.postimg.cc/Dwdv0RGd/file-000000009b308211a173618d462a4078.png",
     images: ["https://i.postimg.cc/Dwdv0RGd/file-000000009b308211a173618d462a4078.png"],
@@ -204,7 +230,7 @@ export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
     id: "prod-1790064986325",
     name: "Man's Formal Shirt - LIGHT ASH",
     price: 750,
-    regularPrice: 1049,
+    regularPrice: 1150,
     category: "Formal Shirt",
     image: "https://i.postimg.cc/ncfML45t/d7402744-097e-4587-a354-bc9e2ebde06c.jpg",
     images: ["https://i.postimg.cc/ncfML45t/d7402744-097e-4587-a354-bc9e2ebde06c.jpg"],
