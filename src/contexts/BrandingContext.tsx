@@ -160,7 +160,7 @@ const DEFAULT_FEATURE_BANNER = "";
 const DEFAULT_POLO_BANNER = "";
 const DEFAULT_COMBO_OFFER_BANNER = "";
 
-const DEFAULT_ANNOUNCEMENT_MSG = "🔥 Special Combo Deal: Buy 3 Shirts for Only ৳1,799";
+const DEFAULT_ANNOUNCEMENT_MSG = "🔥 Special Combo Deal: Buy 3 Items for Only ৳2,700";
 const DEFAULT_ABOUT_TEXT = "Premium minimalist fashion for the modern individual.";
 const DEFAULT_COMBO_TITLE = "নতুন অফিস উদ্বোধন উপলক্ষে অফিস ভিজিট কেনাকাটায় ১০% ফ্ল্যাট ছাড়!";
 const DEFAULT_COMBO_SUBTITLE = "আমাদের নতুন অফিসে সরাসরি এসে যেকোনো কেনাকাটা করলেই উপভোগ করুন ১০% বিশেষ ফ্ল্যাট ডিসকাউন্ট।";
@@ -354,8 +354,11 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const cached = localStorage.getItem('eleganbd_branding');
     if (cached) {
       try {
-        return JSON.parse(cached).announcementMessage || DEFAULT_ANNOUNCEMENT_MSG;
-      } catch (e) { return DEFAULT_ANNOUNCEMENT_MSG; }
+        const parsed = JSON.parse(cached);
+        if (parsed.announcementMessage && !parsed.announcementMessage.includes('1,799')) {
+          return parsed.announcementMessage;
+        }
+      } catch (e) {}
     }
     return DEFAULT_ANNOUNCEMENT_MSG;
   });
