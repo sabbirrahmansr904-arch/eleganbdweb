@@ -131,7 +131,11 @@ const DEFAULT_WHY_CHOOSE_TEXT_5 = "ELEGANT CRAFTSMANSHIP FOR MEN.";
 
 const cleanBannerUrl = (url?: string) => {
   if (!url) return "";
-  if (url.includes('images.unsplash.com/photo-1441986300917') || url.includes('images.unsplash.com/photo-1490481651871')) return "";
+  if (
+    url.includes('images.unsplash.com/photo-1441986300917') ||
+    url.includes('images.unsplash.com/photo-1490481651871') ||
+    url.includes('default-hero-banner.webp')
+  ) return "";
   return url;
 };
 

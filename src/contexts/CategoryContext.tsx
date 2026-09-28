@@ -83,7 +83,15 @@ const DEFAULT_CATEGORIES: Category[] = [
 
 export const sortCategories = (list: Category[]): Category[] => {
   if (!Array.isArray(list)) return [];
-  return [...list].filter(Boolean).sort((a, b) => {
+  const sanitized = list.filter(Boolean).map(c => {
+    let img = c.image || '';
+    if (!img || img.includes('images.unsplash.com')) {
+      img = getDefaultCategoryImage(c.name);
+    }
+    return { ...c, image: img };
+  });
+
+  return sanitized.sort((a, b) => {
     const aName = ((a && a.name) || '').toLowerCase();
     const bName = ((b && b.name) || '').toLowerCase();
     
