@@ -45,35 +45,14 @@ export const getDefaultCategoryImage = (categoryName?: string): string => {
 
 const DEFAULT_CATEGORIES: Category[] = [
   { 
-    id: '1', 
-    name: 'Formal Shirt', 
-    slug: 'formal-shirt', 
-    description: 'Premium formal shirts for professionals',
-    image: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=800&q=80'
-  },
-  { 
-    id: '2', 
-    name: 'Polo T-shirt', 
-    slug: 'polo-t-shirt', 
-    description: 'Comfortable and stylish polo t-shirts',
-    image: 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?auto=format&fit=crop&w=800&q=80'
-  },
-  { 
     id: '3', 
     name: 'Formal Pant', 
     slug: 'formal-pant', 
-    description: 'Tailored formal pants',
+    description: 'Tailored formal pants for men',
     image: 'https://i.postimg.cc/DZ8d79ZS/85a6253065fdedb2d422e0b15bbba34f-(1)-jpg.jpg'
   },
   { 
-    id: '5', 
-    name: 'Premium Shirt', 
-    slug: 'premium-shirt', 
-    description: 'Luxury collection shirts',
-    image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80'
-  },
-  { 
-    id: '6', 
+    id: 'i4mqgudn0', 
     name: 'Solid Shirt', 
     slug: 'solid-shirt', 
     description: 'Premium cotton solid shirts for men',
@@ -83,13 +62,24 @@ const DEFAULT_CATEGORIES: Category[] = [
 
 export const sortCategories = (list: Category[]): Category[] => {
   if (!Array.isArray(list)) return [];
-  const sanitized = list.filter(Boolean).map(c => {
-    let img = c.image || '';
-    if (!img || img.includes('images.unsplash.com')) {
-      img = getDefaultCategoryImage(c.name);
-    }
-    return { ...c, image: img };
-  });
+  const sanitized = list
+    .filter(Boolean)
+    .filter(c => {
+      const id = String(c.id || '').trim();
+      const name = (c.name || '').trim().toLowerCase();
+      // Filter out legacy dummy template categories
+      if (id === '1' && name === 'formal shirt') return false;
+      if (id === '2' || name === 'polo t-shirt' || name === 'polo shirt') return false;
+      if (id === '5' || name === 'premium shirt') return false;
+      return true;
+    })
+    .map(c => {
+      let img = c.image || '';
+      if (!img || img.includes('images.unsplash.com')) {
+        img = getDefaultCategoryImage(c.name);
+      }
+      return { ...c, image: img };
+    });
 
   return sanitized.sort((a, b) => {
     const aName = ((a && a.name) || '').toLowerCase();

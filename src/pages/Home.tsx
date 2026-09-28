@@ -310,54 +310,8 @@ const Home = () => {
 
   // Categories for Shop By Category section
   const displayCategories = React.useMemo(() => {
-    const list: typeof categories = [];
-
-    const getCatImage = (catName: string, existingImg?: string) => {
-      // 1. If explicit valid image is provided and not a placeholder
-      if (existingImg && existingImg !== '/logo.png' && !existingImg.includes('logo.png') && existingImg.trim().length > 5) {
-        return existingImg;
-      }
-      
-      // 2. Look for product matching this category exactly or partially
-      const lower = catName.toLowerCase().trim();
-      const prod = uniqueProducts.find(p => {
-        const pCat = (p.category || '').toLowerCase().trim();
-        const pName = (p.name || '').toLowerCase().trim();
-        return pCat === lower || (lower.length > 3 && pCat.includes(lower)) || (lower.length > 3 && pName.includes(lower));
-      });
-
-      const prodImg = prod?.images?.[0] || (prod as any)?.image;
-      if (prodImg && prodImg.trim().length > 5 && !prodImg.includes('logo.png')) {
-        return prodImg;
-      }
-
-      // 3. High quality curated category photography fallback
-      return getDefaultCategoryImage(catName);
-    };
-
-    categories.forEach(cat => {
-      list.push({
-        ...cat,
-        image: getCatImage(cat.name, cat.image)
-      });
-    });
-
-    if (uniqueProducts && uniqueProducts.length > 0) {
-      uniqueProducts.forEach(p => {
-        if (p.category && !list.some(c => c.name.toLowerCase() === p.category.toLowerCase() || c.slug.toLowerCase() === p.category.toLowerCase().replace(/\s+/g, '-'))) {
-          const slug = p.category.toLowerCase().replace(/\s+/g, '-');
-          list.push({
-            id: slug,
-            name: p.category,
-            slug: slug,
-            image: getCatImage(p.category)
-          });
-        }
-      });
-    }
-
-    return sortCategories(list);
-  }, [categories, uniqueProducts]);
+    return sortCategories(categories);
+  }, [categories]);
 
   // Formal Pant Collection Products
   const formalPantProducts = React.useMemo(() => {
