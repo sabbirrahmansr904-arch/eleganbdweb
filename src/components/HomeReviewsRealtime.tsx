@@ -54,7 +54,7 @@ const defaultSeedReviews: HomeReviewItem[] = [
   {
     id: 'seed-amit',
     userName: 'Amit Mahmud',
-    rating: 5,
+    rating: 4,
     comment: 'প্যান্টটা দেখতে অনেক প্রিমিয়াম। অফিসে পরার জন্য একদম পারফেক্ট। ফিটিংটাও সুন্দর হয়েছে এবং কাপড় যথেষ্ট কমফোর্টেবল',
     productName: 'Executive Formal Pant',
     createdAt: Date.now() - 1000 * 60 * 120,
@@ -72,8 +72,8 @@ const defaultSeedReviews: HomeReviewItem[] = [
   {
     id: 'seed-1',
     userName: 'Sabbir Rahman',
-    rating: 5,
-    comment: 'মানসম্মত পণ্য—যারা নিতে চান তারা নিশ্চিন্তে নিতে পারেন। খুবই সুন্দর এবং আরামদায়ক। ধন্যবাদ, Elegan BD!',
+    rating: 3,
+    comment: 'সব দিক দিয়ে ভালো, তবে সাইজ সিলেকশনে একটু খেয়াল রাখতে হবে। কোয়ালিটি নিয়ে কোনো অভিযোগ নেই।',
     productName: 'Premium Cotton Formal Shirt',
     createdAt: Date.now() - 1000 * 3600 * 5,
     isVerified: true
@@ -81,7 +81,7 @@ const defaultSeedReviews: HomeReviewItem[] = [
   {
     id: 'seed-2',
     userName: 'Tanvir Ahmed',
-    rating: 5,
+    rating: 4,
     comment: 'কাপড়ের কোয়ালিটি অসাধারণ, ফিটিং একদম পারফেক্ট হয়েছে। ডেলিভারিও খুব দ্রুত পেয়েছি। ধন্যবাদ সেলারকে!',
     productName: 'Tailored Slim Fit Trouser',
     createdAt: Date.now() - 1000 * 3600 * 12,
@@ -299,7 +299,7 @@ export default function HomeReviewsRealtime() {
               </Link>
             </div>
           ) : (
-            filteredReviews.map((review) => {
+            filteredReviews.slice(0, 4).map((review) => {
               const initials = review.userName.slice(0, 2).toUpperCase() || 'CU';
               const isRecent = Date.now() - review.createdAt < 1000 * 60 * 60 * 2; // under 2 hours
 
@@ -389,6 +389,17 @@ export default function HomeReviewsRealtime() {
               );
             })
           )}
+        </div>
+
+        {/* See More Button */}
+        <div className="relative z-10 mt-6 text-center">
+          <Link
+            to="/reviews"
+            className="inline-flex items-center gap-2 bg-gray-900 hover:bg-black text-white px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
+          >
+            <span>See More Reviews (সব রিভিউ দেখুন)</span>
+            <ArrowRight size={16} />
+          </Link>
         </div>
 
         {/* Bottom Bar */}

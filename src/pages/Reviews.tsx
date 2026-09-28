@@ -70,7 +70,7 @@ const generateSeedReviews = (): ReviewItem[] => {
     const name = banglaNames[(i - 1) % banglaNames.length];
     const prod = productNames[(i - 1) % productNames.length];
     const comm = banglaComments[(i - 1) % banglaComments.length];
-    const rating = (i % 18 === 0) ? 4 : 5; // Mostly 5 stars, occasional 4 stars
+    const rating = (i % 7 === 0) ? 3 : (i % 3 === 0) ? 4 : 5; // Mix of 5, 4, and 3 stars
     const createdAt = Date.now() - (i * 3600000 * 3);
 
     reviews.push({
