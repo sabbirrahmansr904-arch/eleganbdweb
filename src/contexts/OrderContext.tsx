@@ -1263,7 +1263,15 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       setLastOrder(newOrder);
       broadcastSync('ORDER_CREATED', newOrder);
 
-      // 2. Immediate Supabase Upsert with Offline Retry Queue
+      // 2. Immediate Direct Firestore Save (Guaranteed Cloud Persistence)
+      try {
+        await setDoc(doc(db, 'orders', String(finalOrderId)), newOrder);
+        console.log(`[OrderContext] Order #${finalOrderId} saved directly to Firestore!`);
+      } catch (fsErr) {
+        console.warn('[OrderContext] Direct Firestore save error:', fsErr);
+      }
+
+      // 3. Immediate Supabase Upsert with Offline Retry Queue
       const sbRow = orderToSupabaseRow(newOrder);
       try {
         const { error: sbError } = await supabase.from('orders').upsert(sbRow);

@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, setDoc, getDocs, collection } from "firebase/firestore";
+import { getFirestore, getDocs, collection } from "firebase/firestore";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
@@ -13,78 +13,44 @@ const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://eeifewkhrtveenyrri
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_XD9wPgNEzlHdAaJ2RN_BFw_izYEgB2p';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const targetFormalPantImg = "https://i.postimg.cc/DZ8d79ZS/85a6253065fdedb2d422e0b15bbba34f-(1)-jpg.jpg";
+async function syncOrders() {
+  const snap = await getDocs(collection(db, "orders"));
+  console.log(`Found ${snap.size} orders in Firestore to sync.`);
 
-async function main() {
-  console.log("Fetching categories from Firestore...");
-  const snap = await getDocs(collection(db, "categories"));
-  console.log(`Found ${snap.size} categories in Firestore.`);
-  let formalPantCategory = null;
-
-  snap.forEach(d => {
+  for (const d of snap.docs) {
     const data = d.data();
-    console.log(`Category: [${d.id}] name: "${data.name}", slug: "${data.slug}", image: "${data.image}"`);
-    if ((data.name || '').toLowerCase().includes('formal pant') || (data.slug || '').toLowerCase().includes('formal-pant') || (data.name || '').toLowerCase() === 'formal pant') {
-      formalPantCategory = { id: d.id, ...data };
-    }
-  });
-
-  if (formalPantCategory) {
-    console.log("Found existing Formal Pant category:", formalPantCategory.id);
-    const updated = {
-      ...formalPantCategory,
-      image: targetFormalPantImg,
-      updatedAt: Date.now()
+    const row = {
+      id: String(d.id),
+      invoice_no: typeof data.invoiceNo === 'number' ? data.invoiceNo : (parseInt(String(d.id).replace(/[^0-9]/g, ''), 10) || null),
+      customer_id: data.customerId || 'GUEST-1',
+      customer_name: data.customerName || data.name || 'Customer',
+      phone: data.phone || '',
+      email: data.email || null,
+      address: data.address || '',
+      city: data.city || 'Dhaka',
+      thana: data.thana || '',
+      items: Array.isArray(data.items) ? data.items : [],
+      discount: typeof data.discount === 'number' ? data.discount : 0,
+      total: Number(data.total) || 0,
+      status: data.status || 'Pending',
+      payment_method: data.paymentMethod || 'cod',
+      notes: typeof data.notes === 'string' ? data.notes : null,
+      created_at: data.createdAt || new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
-    await setDoc(doc(db, "categories", formalPantCategory.id), updated, { merge: true });
-    console.log("Updated Firestore Formal Pant category:", formalPantCategory.id);
 
-    try {
-      await supabase.from('categories').upsert({
-        id: formalPantCategory.id,
-        name: updated.name,
-        slug: updated.slug || 'formal-pant',
-        image: targetFormalPantImg,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'id' });
-      console.log("Synced Formal Pant category to Supabase!");
-    } catch (e) {
-      console.warn("Supabase category notice:", e.message);
-    }
-  } else {
-    console.log("Creating new Formal Pant category in Firestore & Supabase...");
-    const id = "3";
-    const newCategory = {
-      id,
-      name: "Formal Pant",
-      slug: "formal-pant",
-      description: "Tailored formal pants",
-      image: targetFormalPantImg,
-      createdAt: new Date().toISOString(),
-      updatedAt: Date.now()
-    };
-    await setDoc(doc(db, "categories", id), newCategory, { merge: true });
-    console.log("Created Firestore Formal Pant category:", id);
-
-    try {
-      await supabase.from('categories').upsert({
-        id: newCategory.id,
-        name: newCategory.name,
-        slug: newCategory.slug,
-        description: newCategory.description,
-        image: targetFormalPantImg,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'id' });
-      console.log("Synced new Formal Pant category to Supabase!");
-    } catch (e) {
-      console.warn("Supabase category notice:", e.message);
+    console.log("Upserting order to Supabase:", row.id, row.customer_name);
+    const { error } = await supabase.from("orders").upsert(row);
+    if (error) {
+      console.error("Error upserting order:", error);
+    } else {
+      console.log("Successfully synced order:", row.id);
     }
   }
 
-  console.log("ALL SYNC DONE FOR FORMAL PANT CATEGORY!");
+  console.log("ALL ORDERS SYNCED TO SUPABASE!");
 }
 
-main().catch(console.error);
+syncOrders().catch(console.error);
 
 

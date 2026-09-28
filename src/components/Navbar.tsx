@@ -62,9 +62,9 @@ export default function Navbar() {
   };
 
   return (
-    <>
+    <div className="sticky top-0 left-0 w-full z-50">
       {showAnnouncementBar && (
-        <div className="bg-black text-white py-2 overflow-hidden whitespace-nowrap relative z-[60] border-b border-black">
+        <div className="bg-white text-black py-2 overflow-hidden whitespace-nowrap border-b border-gray-200">
           <motion.div
             initial={{ x: "0%" }}
             animate={{ x: "-100%" }}
@@ -72,7 +72,7 @@ export default function Navbar() {
             className="flex items-center gap-10 min-w-max"
           >
             {[...Array(10)].map((_, i) => (
-              <span key={i} className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] text-white">
+              <span key={i} className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] text-black">
                 {announcementMessage}
               </span>
             ))}
@@ -81,7 +81,7 @@ export default function Navbar() {
       )}
       <nav
         className={cn(
-          'sticky top-0 left-0 w-full z-50 bg-white border-b border-gray-200/80 shadow-xs transition-all duration-300'
+          'w-full bg-white border-b border-gray-200/80 shadow-xs transition-all duration-300'
         )}
       >
         <div className="max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 h-[56px] md:h-[68px] flex items-center justify-between gap-2 md:gap-6">
@@ -473,6 +473,6 @@ export default function Navbar() {
         </AnimatePresence>
       </nav>
       
-    </>
+    </div>
   );
 }
