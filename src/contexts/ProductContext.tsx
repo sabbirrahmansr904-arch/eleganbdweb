@@ -147,10 +147,10 @@ export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
     newArrival: true
   },
   {
-    id: "prod-formal-shirt-white",
+    id: "prod-1788869244806",
     name: "Man's Formal Shirt - WHITE",
-    price: 999,
-    regularPrice: 1399,
+    price: 750,
+    regularPrice: 1049,
     category: "Formal Shirt",
     image: "https://i.postimg.cc/Qt7nxZ9N/7d44e508-aef3-47ac-8584-8bf926167142.jpg",
     images: ["https://i.postimg.cc/Qt7nxZ9N/7d44e508-aef3-47ac-8584-8bf926167142.jpg"],
@@ -167,8 +167,8 @@ export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
   {
     id: "prod-1790064909058",
     name: "Man's Formal Shirt - BLACK",
-    price: 999,
-    regularPrice: 1399,
+    price: 750,
+    regularPrice: 1049,
     category: "Formal Shirt",
     image: "https://i.postimg.cc/Y0k8rGBF/65b6dee7-1031-43f0-ad6c-5f34158b3ab9.jpg",
     images: ["https://i.postimg.cc/Y0k8rGBF/65b6dee7-1031-43f0-ad6c-5f34158b3ab9.jpg"],
@@ -185,8 +185,8 @@ export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
   {
     id: "prod-1790064951659",
     name: "Man's Formal Shirt - SKY BLUE",
-    price: 999,
-    regularPrice: 1399,
+    price: 750,
+    regularPrice: 1049,
     category: "Formal Shirt",
     image: "https://i.postimg.cc/Dwdv0RGd/file-000000009b308211a173618d462a4078.png",
     images: ["https://i.postimg.cc/Dwdv0RGd/file-000000009b308211a173618d462a4078.png"],
@@ -203,8 +203,8 @@ export const CANONICAL_DEFAULT_PRODUCTS: Product[] = [
   {
     id: "prod-1790064986325",
     name: "Man's Formal Shirt - LIGHT ASH",
-    price: 999,
-    regularPrice: 1399,
+    price: 750,
+    regularPrice: 1049,
     category: "Formal Shirt",
     image: "https://i.postimg.cc/ncfML45t/d7402744-097e-4587-a354-bc9e2ebde06c.jpg",
     images: ["https://i.postimg.cc/ncfML45t/d7402744-097e-4587-a354-bc9e2ebde06c.jpg"],
