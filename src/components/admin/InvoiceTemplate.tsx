@@ -102,7 +102,7 @@ export default function InvoiceTemplate({ order, preview = false }: InvoiceProps
               Fashion in everyday life make you stylist
             </p>
             <div className="mt-1 text-[9.5px] font-medium text-gray-600 leading-tight">
-              <span className="font-mono-numbers">01619835133</span>
+              <span className="font-mono-numbers">01631496122</span>
             </div>
 
             {/* Barcode encoding the invoice number, aligned left under location */}

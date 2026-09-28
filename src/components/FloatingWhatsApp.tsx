@@ -36,7 +36,7 @@ export const OfficialWhatsAppIcon = ({ className = "w-8 h-8" }: { className?: st
 );
 
 export default function FloatingWhatsApp({
-  phoneNumber = '8801619835133',
+  phoneNumber = '8801631496122',
   defaultMessage = 'আসসালামু আলাইকুম, আমি Elegan BD থেকে পণ্য ও কেনাকাটা সম্পর্কে জানতে চাই।'
 }: FloatingWhatsAppProps) {
   const [isOpen, setIsOpen] = useState(false);

@@ -73,6 +73,8 @@ export default function AdminSettings() {
   const { 
     logoUrl, 
     setLogoUrl, 
+    faviconUrl,
+    setFaviconUrl,
     sizeChartUrl, 
     setSizeChartUrl, 
     categoryImages, 
@@ -179,12 +181,17 @@ export default function AdminSettings() {
   }, [location]);
 
   const [tempLogo, setTempLogo] = useState(logoUrl);
+  const [tempFavicon, setTempFavicon] = useState(faviconUrl);
   const [tempHeroBanner, setTempHeroBanner] = useState(heroBannerUrl);
   const [tempSizeChart, setTempSizeChart] = useState(sizeChartUrl);
 
   useEffect(() => {
     if (logoUrl) setTempLogo(logoUrl);
   }, [logoUrl]);
+
+  useEffect(() => {
+    if (faviconUrl) setTempFavicon(faviconUrl);
+  }, [faviconUrl]);
 
   useEffect(() => {
     if (heroBannerUrl) setTempHeroBanner(heroBannerUrl);
@@ -237,8 +244,8 @@ export default function AdminSettings() {
   const [showZobityCredit, setShowZobityCredit] = useState(true);
   const [storeName, setStoreName] = useState("Elegan BD");
   const [shortDescription, setShortDescription] = useState('Premium minimalist fashion for the modern individual.');
-  const [phone, setPhone] = useState('01619835133');
-  const [whatsappNumber, setWhatsappNumber] = useState('01619835133');
+  const [phone, setPhone] = useState('01631496122');
+  const [whatsappNumber, setWhatsappNumber] = useState('01631496122');
   const [email, setEmail] = useState('care@eleganbd.com');
   const [address, setAddress] = useState('Dhaka, Bangladesh');
 
@@ -247,8 +254,8 @@ export default function AdminSettings() {
     showZobityCredit: true,
     storeName: "Elegan BD",
     shortDescription: 'Premium minimalist fashion for the modern individual.',
-    phone: '01619835133',
-    whatsappNumber: '01619835133',
+    phone: '01631496122',
+    whatsappNumber: '01631496122',
     email: 'care@eleganbd.com',
     address: 'Dhaka, Bangladesh'
   });
@@ -263,8 +270,8 @@ export default function AdminSettings() {
           showZobityCredit: d.showZobityCredit !== undefined ? d.showZobityCredit : true,
           storeName: d.storeName || "Elegan BD",
           shortDescription: d.shortDescription || '',
-          phone: d.phone || '01619835133',
-          whatsappNumber: d.whatsappNumber || '01619835133',
+          phone: d.phone || '01631496122',
+          whatsappNumber: d.whatsappNumber || '01631496122',
           email: d.email || 'care@eleganbd.com',
           address: d.address || ''
         };
@@ -369,15 +376,15 @@ export default function AdminSettings() {
   const [codEnabled, setCodEnabled] = useState(true);
   const [codLogo, setCodLogo] = useState('');
   const [bkashEnabled, setBkashEnabled] = useState(true);
-  const [bkashNumber, setBkashNumber] = useState('01619835133');
+  const [bkashNumber, setBkashNumber] = useState('01631496122');
   const [bkashType, setBkashType] = useState<'Personal' | 'Merchant' | 'Agent'>('Personal');
   const [bkashLogo, setBkashLogo] = useState('');
   const [nagadEnabled, setNagadEnabled] = useState(true);
-  const [nagadNumber, setNagadNumber] = useState('01619835133');
+  const [nagadNumber, setNagadNumber] = useState('01631496122');
   const [nagadType, setNagadType] = useState<'Personal' | 'Merchant' | 'Agent'>('Personal');
   const [nagadLogo, setNagadLogo] = useState('');
   const [rocketEnabled, setRocketEnabled] = useState(true);
-  const [rocketNumber, setRocketNumber] = useState('01619835133');
+  const [rocketNumber, setRocketNumber] = useState('01631496122');
   const [rocketType, setRocketType] = useState<'Personal' | 'Merchant' | 'Agent'>('Personal');
   const [rocketLogo, setRocketLogo] = useState('');
   const [paymentsLoading, setPaymentsLoading] = useState(false);
@@ -393,15 +400,15 @@ export default function AdminSettings() {
           codEnabled: data.codEnabled !== undefined ? data.codEnabled : true,
           codLogo: data.codLogo || '',
           bkashEnabled: data.bkashEnabled !== undefined ? data.bkashEnabled : true,
-          bkashNumber: data.bkashNumber || '01619835133',
+          bkashNumber: data.bkashNumber || '01631496122',
           bkashType: data.bkashType || 'Personal',
           bkashLogo: data.bkashLogo || '',
           nagadEnabled: data.nagadEnabled !== undefined ? data.nagadEnabled : true,
-          nagadNumber: data.nagadNumber || '01619835133',
+          nagadNumber: data.nagadNumber || '01631496122',
           nagadType: data.nagadType || 'Personal',
           nagadLogo: data.nagadLogo || '',
           rocketEnabled: data.rocketEnabled !== undefined ? data.rocketEnabled : true,
-          rocketNumber: data.rocketNumber || '01619835133',
+          rocketNumber: data.rocketNumber || '01631496122',
           rocketType: data.rocketType || 'Personal',
           rocketLogo: data.rocketLogo || ''
         };
@@ -425,30 +432,30 @@ export default function AdminSettings() {
           codEnabled: true,
           codLogo: '',
           bkashEnabled: true,
-          bkashNumber: '01619835133',
+          bkashNumber: '01631496122',
           bkashType: 'Personal' as const,
           bkashLogo: '',
           nagadEnabled: true,
-          nagadNumber: '01619835133',
+          nagadNumber: '01631496122',
           nagadType: 'Personal' as const,
           nagadLogo: '',
           rocketEnabled: true,
-          rocketNumber: '01619835133',
+          rocketNumber: '01631496122',
           rocketType: 'Personal' as const,
           rocketLogo: ''
         };
         setCodEnabled(true);
         setCodLogo('');
         setBkashEnabled(true);
-        setBkashNumber('01619835133');
+        setBkashNumber('01631496122');
         setBkashType('Personal');
         setBkashLogo('');
         setNagadEnabled(true);
-        setNagadNumber('01619835133');
+        setNagadNumber('01631496122');
         setNagadType('Personal');
         setNagadLogo('');
         setRocketEnabled(true);
-        setRocketNumber('01619835133');
+        setRocketNumber('01631496122');
         setRocketType('Personal');
         setRocketLogo('');
         setOriginalPayments(defaultPayments);
@@ -1470,6 +1477,22 @@ export default function AdminSettings() {
     setDeleteConfirm({ setter, name });
   };
 
+  const handleFaviconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const loadingToast = toast.loading('Uploading Favicon Icon...');
+      try {
+        const result = await compressImage(file, 512, 512, 0.9, true);
+        setTempFavicon(result);
+        setFaviconUrl(result);
+        autoSaveToMediaLibrary(result, { name: 'Favicon Icon', category: 'Branding & Logos', source: 'branding' });
+        toast.success('Favicon icon updated permanently and applied to browser tabs!', { id: loadingToast });
+      } catch (err) {
+        toast.error('Failed to update Favicon.', { id: loadingToast });
+      }
+    }
+  };
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -1855,10 +1878,10 @@ export default function AdminSettings() {
                   {/* Chrome tab visual mockup */}
                   <div className="bg-[#e9eef6] dark:bg-slate-800 p-2.5 rounded-xl border border-gray-200/60">
                     <div className="inline-flex items-center gap-2.5 bg-white dark:bg-slate-900 px-3.5 py-2 rounded-t-lg shadow-xs border-t border-x border-gray-200/80 max-w-sm">
-                      <div className="w-4 h-4 rounded-xs overflow-hidden flex items-center justify-center bg-slate-900 text-white text-[8px] font-black shrink-0">
-                        {tempLogo && !tempLogo.includes('logo.png') && !tempLogo.includes('logo.svg') ? (
+                      <div className="w-5 h-5 rounded-xs overflow-hidden flex items-center justify-center bg-slate-900 text-white text-[8px] font-black shrink-0">
+                        {(tempFavicon || tempLogo) && !(tempFavicon || tempLogo).includes('logo.png') && !(tempFavicon || tempLogo).includes('logo.svg') ? (
                           <img 
-                            src={tempLogo} 
+                            src={tempFavicon || tempLogo} 
                             alt="Tab Favicon" 
                             className="w-full h-full object-contain"
                             onError={(e) => {
@@ -1873,6 +1896,37 @@ export default function AdminSettings() {
                         Elegan BD | Premium Clothing Brand...
                       </span>
                       <span className="text-gray-400 text-xs hover:text-gray-700 cursor-pointer ml-1 font-bold">×</span>
+                    </div>
+                  </div>
+
+                  {/* Separate Dedicated Favicon Upload Option */}
+                  <div className="pt-3 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="text-left space-y-0.5">
+                      <p className="text-xs font-black text-gray-900">Custom Favicon Logo (ব্রাউজার ট্যাব আইকন)</p>
+                      <p className="text-[11px] text-gray-500">
+                        এখানে আপনার পছন্দের ব্লাক লোগো বা ফ্যাভিকন ইমেজ আপলোড করলে এটি শুধুমাত্র ব্রাউজার ট্যাবের আইকন হিসেবে থাকবে।
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <label className="px-4 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl cursor-pointer transition-all shadow-xs flex items-center gap-1.5">
+                        <Upload size={14} />
+                        <span>Upload Favicon</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={handleFaviconUpload} />
+                      </label>
+                      {tempFavicon && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTempFavicon('');
+                            setFaviconUrl('');
+                            toast.success('Favicon reset to store logo.');
+                          }}
+                          className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                        >
+                          Reset
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

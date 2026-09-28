@@ -50,7 +50,7 @@ export default function Footer() {
               <Instagram size={18} />
             </a>
             <a 
-              href="tel:+8801619835133" 
+              href="tel:+8801631496122" 
               className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-300 hover:text-white hover:bg-white/15 hover:border-white/30 transition-all cursor-pointer"
               aria-label="Call Us"
             >
@@ -149,8 +149,8 @@ export default function Footer() {
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">CALL US</p>
-                  <a href="tel:+8801619835133" className="text-gray-200 hover:text-white font-bold transition-colors block">
-                    01619835133
+                  <a href="tel:+8801631496122" className="text-gray-200 hover:text-white font-bold transition-colors block">
+                    01631496122
                   </a>
                 </div>
               </div>

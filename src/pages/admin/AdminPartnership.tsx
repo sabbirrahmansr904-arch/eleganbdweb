@@ -97,7 +97,7 @@ export const CANONICAL_3_PARTNERS: PartnerProfile[] = [
     id: 'partner_1',
     name: 'Sabbir Rahman',
     role: 'CEO & Managing Partner',
-    phone: '01619835133',
+    phone: '01631496122',
     email: 'sabbirrahmansr904@gmail.com',
     targetShare: 40,
     color: '#0284c7', // Sky Blue

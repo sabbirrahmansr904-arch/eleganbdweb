@@ -12,6 +12,7 @@ import toast from 'react-hot-toast';
 
 interface BrandingContextType {
   logoUrl: string;
+  faviconUrl: string;
   sizeChartUrl: string;
   ceoPhotoUrl: string;
   collectionsBannerUrl: string;
@@ -65,6 +66,7 @@ interface BrandingContextType {
   whyChooseText5: string;
 
   setLogoUrl: (url: string) => void;
+  setFaviconUrl: (url: string) => void;
   setSizeChartUrl: (url: string) => void;
   setCeoPhotoUrl: (url: string) => void;
   setCollectionsBannerUrl: (url: string) => void;
@@ -179,6 +181,37 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
     return "";
   });
+
+  const [faviconUrl, setFaviconUrlState] = useState<string>(() => {
+    const cached = localStorage.getItem('eleganbd_branding');
+    if (cached) {
+      try {
+        return cleanUrl(JSON.parse(cached).faviconUrl);
+      } catch (e) { return ""; }
+    }
+    return "";
+  });
+
+  useEffect(() => {
+    const activeFavicon = faviconUrl || logoUrl;
+    if (activeFavicon) {
+      const linkElements = document.querySelectorAll<HTMLLinkElement>("link[rel*='icon']");
+      if (linkElements.length > 0) {
+        linkElements.forEach(link => {
+          link.href = activeFavicon;
+        });
+      } else {
+        const link = document.createElement('link');
+        link.rel = 'icon';
+        link.href = activeFavicon;
+        document.head.appendChild(link);
+      }
+      const appleLink = document.querySelector<HTMLLinkElement>("link[rel='apple-touch-icon']");
+      if (appleLink) {
+        appleLink.href = activeFavicon;
+      }
+    }
+  }, [faviconUrl, logoUrl]);
   
   const [sizeChartUrl, setSizeChartUrlState] = useState<string>(() => {
     const cached = localStorage.getItem('eleganbd_branding');
@@ -640,6 +673,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (!data) return;
       if (recordId === 'branding') {
         if (data.logoUrl) setLogoUrlState(cleanUrl(data.logoUrl));
+        if (data.faviconUrl) setFaviconUrlState(cleanUrl(data.faviconUrl));
         if (data.sizeChartUrl) setSizeChartUrlState(cleanUrl(data.sizeChartUrl));
         if (data.ceoPhotoUrl) setCeoPhotoUrlState(data.ceoPhotoUrl);
         if (data.heroBannerUrl !== undefined) setHeroBannerUrlState(cleanBannerUrl(data.heroBannerUrl));
@@ -1013,6 +1047,12 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     updateFirestore('branding', { logoUrl: url });
   };
 
+  const setFaviconUrl = (url: string) => {
+    setFaviconUrlState(url);
+    safeSetStorage('eleganbd_branding', { ...getBrandingCache(), faviconUrl: url });
+    updateFirestore('branding', { faviconUrl: url });
+  };
+
   const setSizeChartUrl = (url: string) => {
     setSizeChartUrlState(url);
     safeSetStorage('eleganbd_branding', { ...getBrandingCache(), sizeChartUrl: url });
@@ -1338,7 +1378,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   useEffect(() => {
     const targetImage = heroBannerUrl || logoUrl || '/og-image.png';
-    const faviconImage = logoUrl || '/favicon.svg';
+    const faviconImage = faviconUrl || logoUrl || '/favicon.svg';
     
     if (typeof document !== 'undefined') {
       const origin = window.location.origin;
@@ -1394,11 +1434,11 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         console.warn('Favicon update error:', err);
       }
     }
-  }, [heroBannerUrl, logoUrl]);
+  }, [heroBannerUrl, logoUrl, faviconUrl]);
 
   return (
     <BrandingContext.Provider value={{ 
-      logoUrl, sizeChartUrl, ceoPhotoUrl, collectionsBannerUrl, 
+      logoUrl, faviconUrl, sizeChartUrl, ceoPhotoUrl, collectionsBannerUrl, 
       heroBannerUrl, heroBannerMobileUrl, 
       heroBanner2Url, heroBanner2MobileUrl, 
       heroBanner3Url, heroBanner3MobileUrl, 
@@ -1407,7 +1447,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       shirtBannerUrl: featureBannerUrl, pantBannerUrl: poloBannerUrl, comboOfferBannerUrl, showShowcase, categoryImages, 
       showAnnouncementBar, announcementMessage, showCountdownBanner, comboOfferTitle, comboOfferSubTitle, comboOfferDiscount, comboOfferHours, comboOfferMinutes, comboOfferSeconds, showHeroBanner, facebookUrl, instagramUrl, youtubeUrl, tiktokUrl, shippingInsideDhaka, shippingOutsideDhaka, shippingFreeAfter, primaryDeliveryDistrict, aboutText,
       whyChooseImg1, whyChooseImg2, whyChooseImg3, whyChooseImg4, whyChooseImg5, whyChooseText1, whyChooseText2, whyChooseText3, whyChooseText4, whyChooseText5,
-      setLogoUrl, setSizeChartUrl, setCeoPhotoUrl, setCollectionsBannerUrl, 
+      setLogoUrl, setFaviconUrl, setSizeChartUrl, setCeoPhotoUrl, setCollectionsBannerUrl, 
       setHeroBannerUrl, setHeroBannerMobileUrl, 
       setHeroBanner2Url, setHeroBanner2MobileUrl, 
       setHeroBanner3Url, setHeroBanner3MobileUrl, 

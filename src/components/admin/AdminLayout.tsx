@@ -357,7 +357,7 @@ export default function AdminLayout() {
     return isAdminStrictKey(key);
   };
 
-  const isPermitted = (key: string) => {
+   const isPermitted = (key: string) => {
     if (isSuperAdmin) return true;
     if (key === 'my-account') return true;
     if (!permissions || permissions.length === 0) return false;
@@ -370,7 +370,7 @@ export default function AdminLayout() {
     if (key === 'masterTable' && (permissions.includes('masterTable') || permissions.includes('master-table') || permissions.includes('products'))) return true;
     if (key === 'inventory-log' && (permissions.includes('inventory-log') || permissions.includes('masterTable') || permissions.includes('master-table'))) return true;
     if (key === 'media' && (permissions.includes('media') || permissions.includes('products') || permissions.includes('settings'))) return true;
-    if (['categories', 'branding', 'banners', 'notifications', 'media', 'pathao'].includes(key) && permissions.includes('settings')) return true;
+    if (['categories', 'branding', 'banners', 'notifications', 'media', 'pathao', 'payments', 'general', 'settings'].includes(key) && permissions.includes('settings')) return true;
     return false;
   };
 
@@ -417,6 +417,7 @@ export default function AdminLayout() {
       if (tab === 'Payments') return 'payments';
       if (tab === 'Admin Access') return 'admin-access';
       if (tab === 'Pixel & Analytics') return 'settings';
+      if (tab === 'General') return 'settings';
       return 'settings';
     }
     return null;
@@ -429,6 +430,7 @@ export default function AdminLayout() {
     { name: 'Dashboard', path: '/admin', icon: LayoutDashboard, perm: 'dashboard' },
     { name: 'Orders', path: '/admin/orders', icon: ShoppingCart, perm: 'orders' },
     { name: 'Products', path: '/admin/products', icon: Package, perm: 'products' },
+    { name: 'Branding & Favicon', path: '/admin/settings?tab=Branding', icon: Palette, perm: 'settings' },
     { name: 'Categories', path: '/admin/settings?tab=Categories', icon: Layers, perm: 'categories' },
     { name: 'Master Table', path: '/admin/master-table', icon: Table2, perm: 'master-table' },
     { name: 'Inventory Log', path: '/admin/inventory-log', icon: History, perm: 'inventory-log' },
