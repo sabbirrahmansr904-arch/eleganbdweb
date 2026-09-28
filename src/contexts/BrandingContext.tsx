@@ -344,10 +344,10 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (cached) {
       try {
         const val = JSON.parse(cached).showAnnouncementBar;
-        return val !== undefined ? val : false;
-      } catch (e) { return false; }
+        return val !== undefined ? val : true;
+      } catch (e) { return true; }
     }
-    return false;
+    return true;
   });
 
   const [announcementMessage, setAnnouncementMessageState] = useState<string>(() => {

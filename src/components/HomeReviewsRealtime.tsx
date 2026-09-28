@@ -41,6 +41,54 @@ function formatTimeAgo(timestamp: number) {
   return new Date(timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+const defaultSeedReviews: HomeReviewItem[] = [
+  {
+    id: 'seed-minhaz',
+    userName: 'মিনহাজ',
+    rating: 5,
+    comment: 'প্রথমবার নিয়েছিলাম, কিন্তু কোয়ালিটি দেখে সত্যিই ভালো লেগেছে। ফেব্রিক, স্টিচিং এবং ফিটিং—তিনটাই ভালো। Recommend করব',
+    productName: 'Executive Formal Pant',
+    createdAt: Date.now() - 1000 * 60 * 15,
+    isVerified: true
+  },
+  {
+    id: 'seed-amit',
+    userName: 'Amit Mahmud',
+    rating: 5,
+    comment: 'প্যান্টটা দেখতে অনেক প্রিমিয়াম। অফিসে পরার জন্য একদম পারফেক্ট। ফিটিংটাও সুন্দর হয়েছে এবং কাপড় যথেষ্ট কমফোর্টেবল',
+    productName: 'Executive Formal Pant',
+    createdAt: Date.now() - 1000 * 60 * 120,
+    isVerified: true
+  },
+  {
+    id: 'seed-shahidul',
+    userName: 'মো: শহীদুল',
+    rating: 5,
+    comment: 'প্যান্টের কোয়ালিটি সত্যিই অনেক ভালো। কাপড় খুব সুন্দর এবং পরলে বেশ আরামদায়ক লাগে। Export quality যে আসলেই ভালো, ব্যবহার করলেই বোঝা যায়!',
+    productName: 'Executive Formal Pant',
+    createdAt: Date.now() - 1000 * 60 * 180,
+    isVerified: true
+  },
+  {
+    id: 'seed-1',
+    userName: 'Sabbir Rahman',
+    rating: 5,
+    comment: 'মানসম্মত পণ্য—যারা নিতে চান তারা নিশ্চিন্তে নিতে পারেন। খুবই সুন্দর এবং আরামদায়ক। ধন্যবাদ, Elegan BD!',
+    productName: 'Premium Cotton Formal Shirt',
+    createdAt: Date.now() - 1000 * 3600 * 5,
+    isVerified: true
+  },
+  {
+    id: 'seed-2',
+    userName: 'Tanvir Ahmed',
+    rating: 5,
+    comment: 'কাপড়ের কোয়ালিটি অসাধারণ, ফিটিং একদম পারফেক্ট হয়েছে। ডেলিভারিও খুব দ্রুত পেয়েছি। ধন্যবাদ সেলারকে!',
+    productName: 'Tailored Slim Fit Trouser',
+    createdAt: Date.now() - 1000 * 3600 * 12,
+    isVerified: true
+  }
+];
+
 export default function HomeReviewsRealtime() {
   const [firestoreReviews, setFirestoreReviews] = useState<HomeReviewItem[]>([]);
   const [localReviews, setLocalReviews] = useState<HomeReviewItem[]>([]);
@@ -96,10 +144,11 @@ export default function HomeReviewsRealtime() {
     }
   }, []);
 
-  // Combine local reviews and Firestore reviews
+  // Combine seed reviews, local reviews, and Firestore reviews
   const combinedMap = new Map<string, HomeReviewItem>();
-  firestoreReviews.forEach(r => combinedMap.set(r.id, r));
+  defaultSeedReviews.forEach(r => combinedMap.set(r.id, r));
   localReviews.forEach(r => combinedMap.set(r.id, r));
+  firestoreReviews.forEach(r => combinedMap.set(r.id, r));
 
   const allReviews = Array.from(combinedMap.values()).sort((a, b) => b.createdAt - a.createdAt);
 
@@ -173,7 +222,7 @@ export default function HomeReviewsRealtime() {
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               )}
             >
-              All Reviews ({firestoreReviews.length})
+              All Reviews ({allReviews.length})
             </button>
             <button
               onClick={() => setSelectedFilter('5')}
