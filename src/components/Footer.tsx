@@ -19,7 +19,7 @@ export default function Footer() {
           <div className="space-y-4">
             <Link to="/" className="inline-block transform transition-transform hover:scale-102">
               <div className="flex items-center gap-2">
-                <span className="font-black text-2xl uppercase text-white tracking-tight">
+                <span className="font-black text-2xl uppercase tracking-tight text-white select-none">
                   ELEGAN BD
                 </span>
               </div>

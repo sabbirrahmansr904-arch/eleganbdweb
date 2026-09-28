@@ -13,7 +13,7 @@ export function formatPrice(price: number, currency: 'USD' | 'BDT' = 'BDT', rate
   if (currency === 'BDT') {
     const isNegative = displayPrice < 0;
     const absValue = Math.abs(displayPrice);
-    return `${isNegative ? '-' : ''}৳${new Intl.NumberFormat('en-IN', {
+    return `${isNegative ? '-' : ''}BDT ${new Intl.NumberFormat('en-IN', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(absValue)}`;

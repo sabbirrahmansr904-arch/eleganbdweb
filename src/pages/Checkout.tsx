@@ -891,7 +891,7 @@ export default function Checkout() {
                       </div>
                       <div className="flex-1 min-w-0 sm:hidden">
                         <p className="text-xs uppercase tracking-wider font-extrabold text-[#0C1421] truncate">{item.product.name}</p>
-                        <p className="text-xs font-black text-indigo-700 font-mono mt-0.5">
+                        <p className="text-xs font-black text-red-600 font-mono mt-0.5">
                           {formatPrice(item.product.price * item.quantity, currency, rate)}
                         </p>
                       </div>
@@ -961,7 +961,7 @@ export default function Checkout() {
 
                         {/* Total Price for item */}
                         <div className="hidden sm:block text-right">
-                          <span className="text-xs font-black text-[#0C1421] font-mono">
+                          <span className="text-xs font-black text-red-600 font-mono">
                             {formatPrice(item.product.price * item.quantity, currency, rate)}
                           </span>
                         </div>
@@ -1040,7 +1040,7 @@ export default function Checkout() {
             
             <div className="flex justify-between items-center pt-5 border-t border-gray-150 normal-case">
               <span className="text-xs uppercase font-black tracking-wider text-[#0C1421]">TOTAL</span>
-              <span className="text-xl font-black text-[#0C1421] tracking-tight font-mono">
+              <span className="text-xl font-black text-red-600 tracking-tight font-mono">
                 {formatPrice(total, currency, rate)}
               </span>
             </div>
@@ -1292,7 +1292,7 @@ export default function Checkout() {
                             />
                             <div className="min-w-0">
                               <p className="text-xs font-black uppercase text-[#0C1421] truncate">{prod.name}</p>
-                              <p className="text-xs font-bold text-indigo-600 font-mono mt-0.5">{formatPrice(prod.price, currency, rate)}</p>
+                              <p className="text-xs font-bold text-red-600 font-mono mt-0.5">{formatPrice(prod.price, currency, rate)}</p>
                               
                               {/* Size picker */}
                               <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">

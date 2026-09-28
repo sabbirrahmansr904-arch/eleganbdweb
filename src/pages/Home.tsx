@@ -723,9 +723,9 @@ const Home = () => {
 
       {/* 3. FORMAL PANT COLLECTION SECTION */}
       {(formalPantProducts.length > 0 || productsLoading) && (
-        <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-10">
+        <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-12">
           {/* Section Header: Formal Pant Collection (Larger & Centered) */}
-          <div className="relative flex items-center justify-center border-b border-gray-100 pb-4 mb-3 sm:mb-4 px-1">
+          <div className="relative flex items-center justify-center border-b border-gray-100 pb-4 mb-4 sm:mb-6 px-1">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase text-gray-900 tracking-tight text-center">
               Formal Pant Collection
             </h2>
@@ -739,66 +739,29 @@ const Home = () => {
           </div>
 
           {productsLoading ? (
-            <ProductScrollSkeleton count={6} />
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5 md:gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="bg-white rounded-2xl p-3 border border-gray-100 animate-pulse space-y-3">
+                  <div className="aspect-[3/4] bg-gray-100 rounded-xl" />
+                  <div className="h-4 bg-gray-100 rounded w-3/4" />
+                  <div className="h-4 bg-gray-100 rounded w-1/2" />
+                </div>
+              ))}
+            </div>
+          ) : formalPantProducts.length === 0 ? (
+            <div className="py-12 text-center bg-gray-50 rounded-2xl border border-gray-100">
+              <p className="text-sm font-bold text-gray-500">No formal pants available at the moment.</p>
+            </div>
           ) : (
-            <div className="relative group/carousel">
-              {/* Scroll Left Button */}
-              <button
-                onClick={() => scrollLeft(newArrivalScrollRef)}
-                className="absolute -left-2 sm:-left-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-all cursor-pointer opacity-90 hover:opacity-100"
-                aria-label="Scroll left"
-              >
-                <ChevronLeft size={18} />
-              </button>
-
-              {/* Scroll Right Button */}
-              <button
-                onClick={() => scrollRight(newArrivalScrollRef)}
-                className="absolute -right-2 sm:-right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-all cursor-pointer opacity-90 hover:opacity-100"
-                aria-label="Scroll right"
-              >
-                <ChevronRight size={18} />
-              </button>
-
-              {/* Scrollable Container */}
-              <div 
-                ref={newArrivalScrollRef}
-                onMouseEnter={() => setIsHoveredNewArrival(true)}
-                onMouseLeave={() => setIsHoveredNewArrival(false)}
-                onTouchStart={() => setIsHoveredNewArrival(true)}
-                onTouchEnd={() => setIsHoveredNewArrival(false)}
-                className="flex gap-2 sm:gap-3 overflow-x-auto pt-2 pb-3 scroll-smooth snap-x snap-mandatory no-scrollbar"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-              >
-                {formalPantProducts.map((product) => (
-                  <div key={`formalpant-${product.id}`} className="w-[calc(50%-4px)] sm:w-[calc(50%-6px)] md:w-[calc(33.333%-8px)] lg:w-[calc(25%-9px)] flex-shrink-0 snap-start">
-                    <ProductCard 
-                      key={`formalpant-card-${product.id}-${(product as any).updatedAt || ''}-${(product.images?.[0] || product.image || '').slice(-25)}`}
-                      product={product} 
-                    />
-                  </div>
-                ))}
-              </div>
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5 md:gap-4">
+              {formalPantProducts.map((product) => (
+                <ProductCard 
+                  key={`formalpant-card-${product.id}-${(product as any).updatedAt || ''}-${(product.images?.[0] || product.image || '').slice(-25)}`}
+                  product={product} 
+                />
+              ))}
             </div>
           )}
-        </section>
-      )}
-
-      {/* BANNER ABOVE FORMAL SHIRT COLLECTION - HERO BANNER SIZE */}
-      {(shirtBannerUrl || featureBannerUrl || subHeroBannerUrl) && (
-        <section className="w-full m-0 p-0 pb-6 sm:pb-8">
-          <div className="relative w-full overflow-hidden bg-white flex items-center justify-center m-0 p-0">
-            <Link to="/category/all" className="relative z-10 block w-full">
-              <picture className="w-full block">
-                <img 
-                  src={shirtBannerUrl || featureBannerUrl || subHeroBannerUrl} 
-                  alt="Formal Shirt Collection Banner" 
-                  className="w-full h-auto max-h-[85vh] object-cover block mx-auto transition-opacity duration-300"
-                  referrerPolicy="no-referrer"
-                />
-              </picture>
-            </Link>
-          </div>
         </section>
       )}
 
@@ -806,7 +769,7 @@ const Home = () => {
       {(formalShirtProducts.length > 0 || productsLoading) && (
         <section className="max-w-[1560px] mx-auto w-full px-3 sm:px-6 lg:px-8 pb-16">
           {/* Section Header: FORMAL SHIRT COLLECTION */}
-          <div className="relative flex items-center justify-center border-b border-gray-100 pb-4 mb-3 sm:mb-4 px-1">
+          <div className="relative flex items-center justify-center border-b border-gray-100 pb-4 mb-4 sm:mb-6 px-1">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase text-gray-900 tracking-tight text-center">
               FORMAL SHIRT COLLECTION
             </h2>
@@ -820,50 +783,27 @@ const Home = () => {
           </div>
 
           {productsLoading ? (
-            <ProductScrollSkeleton count={6} />
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5 md:gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="bg-white rounded-2xl p-3 border border-gray-100 animate-pulse space-y-3">
+                  <div className="aspect-[3/4] bg-gray-100 rounded-xl" />
+                  <div className="h-4 bg-gray-100 rounded w-3/4" />
+                  <div className="h-4 bg-gray-100 rounded w-1/2" />
+                </div>
+              ))}
+            </div>
           ) : formalShirtProducts.length === 0 ? (
             <div className="py-12 text-center bg-gray-50 rounded-2xl border border-gray-100">
               <p className="text-sm font-bold text-gray-500">No formal shirts available at the moment.</p>
             </div>
           ) : (
-            <div className="relative group/carousel">
-              {/* Scroll Left Button */}
-              <button
-                onClick={() => scrollLeft(formalShirtScrollRef)}
-                className="absolute -left-2 sm:-left-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-all cursor-pointer opacity-90 hover:opacity-100"
-                aria-label="Scroll left"
-              >
-                <ChevronLeft size={18} />
-              </button>
-
-              {/* Scroll Right Button */}
-              <button
-                onClick={() => scrollRight(formalShirtScrollRef)}
-                className="absolute -right-2 sm:-right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-all cursor-pointer opacity-90 hover:opacity-100"
-                aria-label="Scroll right"
-              >
-                <ChevronRight size={18} />
-              </button>
-
-              {/* Scrollable Container */}
-              <div 
-                ref={formalShirtScrollRef}
-                onMouseEnter={() => setIsHoveredFormalShirt(true)}
-                onMouseLeave={() => setIsHoveredFormalShirt(false)}
-                onTouchStart={() => setIsHoveredFormalShirt(true)}
-                onTouchEnd={() => setIsHoveredFormalShirt(false)}
-                className="flex gap-2 sm:gap-3 overflow-x-auto pt-2 pb-3 scroll-smooth snap-x snap-mandatory no-scrollbar"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-              >
-                {formalShirtProducts.map((product) => (
-                  <div key={`formalshirt-${product.id}`} className="w-[calc(50%-4px)] sm:w-[calc(50%-6px)] md:w-[calc(33.333%-8px)] lg:w-[calc(25%-9px)] flex-shrink-0 snap-start">
-                    <ProductCard 
-                      key={`formalshirt-card-${product.id}-${(product as any).updatedAt || ''}-${(product.images?.[0] || product.image || '').slice(-25)}`}
-                      product={product} 
-                    />
-                  </div>
-                ))}
-              </div>
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5 md:gap-4">
+              {formalShirtProducts.map((product) => (
+                <ProductCard 
+                  key={`formalshirt-card-${product.id}-${(product as any).updatedAt || ''}-${(product.images?.[0] || product.image || '').slice(-25)}`}
+                  product={product} 
+                />
+              ))}
             </div>
           )}
         </section>

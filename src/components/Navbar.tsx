@@ -64,7 +64,7 @@ export default function Navbar() {
   return (
     <>
       {showAnnouncementBar && (
-        <div className="bg-brand-gold text-black py-2 overflow-hidden whitespace-nowrap relative z-[60] border-b border-black/5">
+        <div className="bg-black text-white py-2 overflow-hidden whitespace-nowrap relative z-[60] border-b border-black">
           <motion.div
             initial={{ x: "0%" }}
             animate={{ x: "-100%" }}
@@ -72,7 +72,7 @@ export default function Navbar() {
             className="flex items-center gap-10 min-w-max"
           >
             {[...Array(10)].map((_, i) => (
-              <span key={i} className="text-[10px] md:text-xs font-black uppercase tracking-[0.15em] text-blue-600">
+              <span key={i} className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] text-white">
                 {announcementMessage}
               </span>
             ))}
@@ -84,13 +84,31 @@ export default function Navbar() {
           'sticky top-0 left-0 w-full z-50 bg-white border-b border-gray-200/80 shadow-xs transition-all duration-300'
         )}
       >
-        <div className="max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 h-[55px] md:h-[68px] flex items-center justify-between gap-2 md:gap-6">
+        <div className="max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 h-[56px] md:h-[68px] flex items-center justify-between gap-2 md:gap-6">
           
-          {/* Left: Brand Logo */}
-          <div className="flex items-center gap-3">
+          {/* Mobile Left: Menu & Search Icons */}
+          <div className="flex lg:hidden items-center gap-1">
+            <button 
+              onClick={() => setIsOpen(true)}
+              className="p-1.5 text-black hover:text-gray-600 transition-colors cursor-pointer"
+              aria-label="Open menu"
+            >
+              <Menu size={22} strokeWidth={2} />
+            </button>
+            <button 
+              onClick={() => setIsSearchOpen(true)}
+              className="p-1.5 text-black hover:text-gray-600 transition-colors cursor-pointer"
+              aria-label="Search"
+            >
+              <Search size={20} strokeWidth={2} />
+            </button>
+          </div>
+
+          {/* Brand Logo: Centered on mobile, Left-aligned on Desktop */}
+          <div className="flex items-center justify-center flex-1 lg:flex-initial lg:justify-start">
             <Link to="/" className="flex items-center group gap-2">
-              <span className="font-black text-lg sm:text-xl uppercase text-black whitespace-nowrap tracking-tight">
-                ELEGAN BD
+              <span className="font-black text-xl sm:text-2xl lg:text-[26px] uppercase whitespace-nowrap tracking-tight select-none hover:opacity-85 transition-opacity">
+                <span className="text-black">ELEGAN</span> <span className="text-[#8A1515]">BD</span>
               </span>
             </Link>
           </div>
@@ -99,7 +117,7 @@ export default function Navbar() {
           <div className="hidden lg:flex items-center gap-5 xl:gap-7 text-[12px] font-bold uppercase tracking-wider text-gray-800">
             <Link 
               to="/" 
-              className="hover:text-blue-600 transition-colors whitespace-nowrap"
+              className="hover:text-black transition-colors whitespace-nowrap"
             >
               Home
             </Link>
@@ -112,7 +130,7 @@ export default function Navbar() {
             >
               <button 
                 onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
-                className="flex items-center gap-1 hover:text-blue-600 transition-colors whitespace-nowrap cursor-pointer text-gray-800"
+                className="flex items-center gap-1 hover:text-black transition-colors whitespace-nowrap cursor-pointer text-gray-800"
               >
                 <span>Categories</span>
                 <ChevronDown size={14} className={cn("transition-transform duration-200", isCategoriesOpen && "rotate-180")} />
@@ -130,9 +148,9 @@ export default function Navbar() {
                     <Link 
                       to="/category/all" 
                       onClick={() => setIsCategoriesOpen(false)}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-gray-100 text-xs font-bold text-gray-900 hover:text-blue-600 transition-colors"
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-gray-100 text-xs font-bold text-gray-900 hover:text-black transition-colors"
                     >
-                      <Layers size={14} className="text-blue-600" />
+                      <Layers size={14} className="text-black" />
                       All Collection
                     </Link>
                     {Array.isArray(categories) && categories.map((cat) => (
@@ -140,7 +158,7 @@ export default function Navbar() {
                         key={cat.id}
                         to={`/category/${cat.name.toLowerCase().replace(/\s+/g, '-')}`}
                         onClick={() => setIsCategoriesOpen(false)}
-                        className="block px-3 py-2 rounded-xl hover:bg-gray-100 text-xs font-bold text-gray-800 hover:text-blue-600 transition-colors capitalize"
+                        className="block px-3 py-2 rounded-xl hover:bg-gray-100 text-xs font-bold text-gray-800 hover:text-black transition-colors capitalize"
                       >
                         {cat.name}
                       </Link>
@@ -152,77 +170,70 @@ export default function Navbar() {
 
             <Link 
               to="/category/all" 
-              className="hover:text-blue-600 transition-colors whitespace-nowrap"
+              className="hover:text-black transition-colors whitespace-nowrap"
             >
               Collections
             </Link>
 
             <Link 
               to="/track-order" 
-              className="flex items-center gap-1.5 hover:text-blue-600 transition-colors whitespace-nowrap"
+              className="flex items-center gap-1.5 hover:text-black transition-colors whitespace-nowrap"
             >
-              <Truck size={15} className="text-blue-600" />
+              <Truck size={15} className="text-black" />
               Track Order
             </Link>
 
             <Link 
               to="/reviews" 
-              className="flex items-center gap-1.5 hover:text-blue-600 transition-colors whitespace-nowrap"
+              className="flex items-center gap-1.5 hover:text-black transition-colors whitespace-nowrap"
             >
-              <Star size={14} className="text-blue-600 fill-blue-600/20" />
+              <Star size={14} className="text-black fill-black/20" />
               Reviews
             </Link>
           </div>
 
           {/* Right: Actions & Hotline */}
-          <div className="flex items-center gap-1.5 md:gap-3 text-gray-800">
+          <div className="flex items-center gap-1.5 md:gap-3 text-gray-900">
+            {/* Desktop Search Button */}
             <button 
               onClick={() => setIsSearchOpen(true)}
-              className="p-2 text-gray-700 hover:text-black hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+              className="hidden lg:flex p-2 text-black hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
               title="Search"
             >
               <Search size={20} strokeWidth={1.8} />
-            </button>
-
-            <button 
-              onClick={handleCartClick} 
-              className="relative p-2 text-gray-700 hover:text-black hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
-              title="Bag"
-            >
-              <ShoppingBag size={20} strokeWidth={1.8} />
-              {cartCount > 0 && (
-                <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-black text-white text-[9px] rounded-full flex items-center justify-center font-black">
-                  {cartCount}
-                </span>
-              )}
             </button>
 
             {/* Single Account Icon */}
             {currentUser ? (
               <Link 
                 to={isAdmin ? "/admin" : "/dashboard"} 
-                className="p-2 text-gray-700 hover:text-black hover:bg-gray-100 rounded-full transition-colors cursor-pointer" 
+                className="p-1.5 sm:p-2 text-black hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors cursor-pointer" 
                 title={isAdmin ? "Admin Panel" : "My Account"}
               >
                 <User size={20} strokeWidth={1.8} />
               </Link>
             ) : customerUser ? (
-              <button onClick={logoutCustomer} className="p-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-full transition-colors cursor-pointer" title="Logout Session">
+              <button onClick={logoutCustomer} className="p-1.5 sm:p-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-full transition-colors cursor-pointer" title="Logout Session">
                 <User size={20} strokeWidth={1.8} />
               </button>
             ) : (
-              <Link to="/login" className="p-2 text-gray-700 hover:text-black hover:bg-gray-100 rounded-full transition-colors cursor-pointer" title="Sign In">
+              <Link to="/login" className="p-1.5 sm:p-2 text-black hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors cursor-pointer" title="Sign In">
                 <User size={20} strokeWidth={1.8} />
               </Link>
             )}
 
-            {/* Mobile Hamburger Menu Button on Right */}
+            {/* Shopping Bag */}
             <button 
-              onClick={() => setIsOpen(true)}
-              className="lg:hidden p-1.5 text-gray-800 hover:text-black transition-colors cursor-pointer"
-              aria-label="Open menu"
+              onClick={handleCartClick} 
+              className="relative p-1.5 sm:p-2 text-black hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+              title="Bag"
             >
-              <Menu size={24} strokeWidth={1.8} />
+              <ShoppingBag size={20} strokeWidth={1.8} />
+              {cartCount > 0 && (
+                <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-black text-white text-[9px] rounded-full flex items-center justify-center font-bold">
+                  {cartCount}
+                </span>
+              )}
             </button>
 
             {/* Vertical Divider */}
@@ -233,7 +244,7 @@ export default function Navbar() {
               href="tel:01619835133" 
               className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 border border-gray-200 hover:bg-gray-200/80 transition-all text-gray-900 group shadow-2xs"
             >
-              <Phone size={14} className="text-amber-500 group-hover:rotate-12 transition-transform" />
+              <Phone size={14} className="text-black group-hover:rotate-12 transition-transform" />
               <div className="flex flex-col text-left leading-tight">
                 <span className="text-[7.5px] font-black uppercase tracking-widest text-gray-500">SUPPORT 24/7</span>
                 <span className="text-[10.5px] font-mono font-bold text-gray-900 tracking-wider">01619835133</span>
@@ -275,10 +286,10 @@ export default function Navbar() {
                   <div className="flex items-center justify-between mb-3.5">
                     <Link to="/" onClick={() => setIsOpen(false)} className="flex items-center gap-2.5 group">
                       <div>
-                        <span className="font-black text-lg uppercase tracking-tight text-black block leading-none">
-                          Elegan BD
+                        <span className="font-black text-xl uppercase tracking-tight block leading-none">
+                          <span className="text-black">ELEGAN</span> <span className="text-[#8A1515]">BD</span>
                         </span>
-                        <span className="text-[9px] font-bold tracking-widest text-gray-500 uppercase block mt-0.5">
+                        <span className="text-[9px] font-bold tracking-widest text-gray-500 uppercase block mt-1">
                           Exclusive Fashion
                         </span>
                       </div>

@@ -166,7 +166,7 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
                       <h4 className="text-[10px] font-black uppercase tracking-tight text-brand-black truncate w-48">
                         {product.name}
                       </h4>
-                      <p className="text-sm font-black text-brand-gold mt-1">
+                      <p className="text-sm font-black text-red-600 mt-1">
                         {formatPrice(product.price, currency, rate)}
                       </p>
                     </div>

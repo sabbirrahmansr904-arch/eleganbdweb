@@ -164,12 +164,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             {/* Price Row */}
             <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between gap-1.5">
               <div className="flex items-baseline gap-1.5 min-w-0">
-                <span className="text-sm sm:text-base font-black text-gray-950 tracking-tight">
-                  ৳{product.price.toLocaleString()}
+                <span className="text-sm sm:text-base font-black text-red-600 tracking-tight">
+                  BDT {product.price.toLocaleString()}
                 </span>
                 {hasDiscount && (
                   <span className="text-[11px] sm:text-xs text-gray-400 line-through font-semibold truncate">
-                    ৳{originalPrice.toLocaleString()}
+                    BDT {originalPrice.toLocaleString()}
                   </span>
                 )}
               </div>

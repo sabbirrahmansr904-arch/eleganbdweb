@@ -16,7 +16,7 @@ import {
   getDocs, 
   updateDoc 
 } from "firebase/firestore";
-import { supabase, orderToSupabaseRow, supabaseRowToOrder } from "./src/lib/supabase";
+import { supabase, orderToSupabaseRow, supabaseRowToOrder, productToSupabaseRow, supabaseRowToProduct } from "./src/lib/supabase";
 import { createRequire } from "module";
 
 

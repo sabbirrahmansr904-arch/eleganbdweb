@@ -31,7 +31,7 @@ const ScrollProductCard: React.FC<{ product: Product }> = ({ product }) => {
   const mainImage = imgError ? fallback : rawMain;
   const secondaryImage = imgError ? fallback : rawSecondary;
 
-  const formatPrice = (p: number) => `৳${p.toLocaleString()}`;
+  const formatPrice = (p: number) => `BDT ${p.toLocaleString()}`;
 
   return (
     <div
@@ -74,7 +74,7 @@ const ScrollProductCard: React.FC<{ product: Product }> = ({ product }) => {
 
         <div className="mt-2.5 pt-2 border-t border-gray-50 flex items-center justify-between">
           <div className="flex items-baseline gap-1.5">
-            <span className="text-sm sm:text-base font-black text-gray-900">
+            <span className="text-sm sm:text-base font-black text-red-600">
               {formatPrice(product.price)}
             </span>
             {product.originalPrice && product.originalPrice > product.price && (

@@ -11,7 +11,7 @@ export default function ShippingPolicy() {
             <Truck size={40} strokeWidth={2} />
           </div>
           <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight text-slate-900 mb-4">ফ্রি শিপিং (Free Shipping)</h1>
-          <p className="text-slate-500 font-medium">Over ৳5000</p>
+          <p className="text-slate-500 font-medium">Over BDT 5000</p>
         </div>
 
         <div className="space-y-6 text-slate-700 leading-relaxed text-lg">

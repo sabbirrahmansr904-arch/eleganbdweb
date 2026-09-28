@@ -66,7 +66,7 @@ export default function Cart() {
                         <Link to={`/product/${item.product.id}`}>{item.product.name}</Link>
                       </h3>
                       <p className="text-[10px] text-brand-ink/50 uppercase tracking-widest mb-4">Size: {item.selectedSize}</p>
-                      <p className="text-sm font-medium">{formatPrice(item.product.price, currency, rate)}</p>
+                      <p className="text-sm font-bold text-red-600">{formatPrice(item.product.price, currency, rate)}</p>
                     </div>
                     
                     <div className="flex items-center space-x-6 border border-brand-ink/10 w-fit px-4 py-2 mt-4">
@@ -88,7 +88,7 @@ export default function Cart() {
                   >
                     <Trash2 size={18} strokeWidth={1.5} />
                   </button>
-                  <p className="text-sm font-bold">{formatPrice(item.product.price * item.quantity, currency, rate)}</p>
+                  <p className="text-sm font-bold text-red-600">{formatPrice(item.product.price * item.quantity, currency, rate)}</p>
                 </div>
               </motion.div>
             ))}
@@ -126,15 +126,15 @@ export default function Cart() {
               <div className="flex justify-between">
                 <span className="text-brand-ink/60">Shipping</span>
                 <span className="font-bold text-[10px] text-right">
-                  Dhaka: ৳70<br />
-                  Outside: ৳130
+                  Dhaka: BDT 70<br />
+                  Outside: BDT 130
                 </span>
               </div>
             </div>
 
             <div className="pt-6 border-t border-brand-ink/20 mb-10 flex justify-between items-end">
               <span className="text-sm uppercase tracking-widest font-bold">Total</span>
-              <span className="text-2xl md:text-3xl font-serif">{formatPrice(subtotal, currency, rate)}</span>
+              <span className="text-2xl md:text-3xl font-serif font-black text-red-600">{formatPrice(subtotal, currency, rate)}</span>
             </div>
 
             <button

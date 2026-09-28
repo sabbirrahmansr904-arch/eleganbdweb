@@ -143,7 +143,7 @@ const CartDrawer: React.FC = () => {
                         </p>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-black text-black">
+                        <span className="text-xs font-black text-red-600">
                           {formatPrice(item.product.price, currency, rate)}
                         </span>
                         <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
@@ -192,7 +192,7 @@ const CartDrawer: React.FC = () => {
                       </span>
                     )}
                   </div>
-                  <span className="text-xl font-black text-black">{formatPrice(total, currency, rate)}</span>
+                  <span className="text-xl font-black text-red-600">{formatPrice(total, currency, rate)}</span>
                 </div>
                 <button
                   onClick={handleCheckout}

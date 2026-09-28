@@ -120,7 +120,7 @@ export default function QuickViewModal({ product, isOpen, onClose }: QuickViewMo
                     {product.name}
                   </h2>
                   <div className="flex items-center gap-4 mt-2">
-                    <span className="text-2xl font-black text-brand-gold">
+                    <span className="text-2xl font-black text-red-600">
                       {formatPrice(product.price, currency, rate)}
                     </span>
                     {product.regularPrice && product.regularPrice > product.price && (

@@ -176,8 +176,8 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                               <h4 className="font-extrabold text-gray-900 group-hover:text-blue-600 transition-colors uppercase text-xs sm:text-sm line-clamp-1">
                                 {product.name}
                               </h4>
-                              <p className="text-sm font-black text-gray-900 mt-1">
-                                ৳{product.price}
+                              <p className="text-sm font-black text-red-600 mt-1">
+                                BDT {product.price}
                               </p>
                             </div>
                           </motion.div>

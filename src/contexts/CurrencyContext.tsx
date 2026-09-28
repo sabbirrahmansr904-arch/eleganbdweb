@@ -66,7 +66,7 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setCurrencyState(code);
   };
 
-  const symbol = currency === 'BDT' ? '৳' : '$';
+  const symbol = currency === 'BDT' ? 'BDT ' : '$';
 
   return (
     <CurrencyContext.Provider value={{ currency, rate, symbol, isAutoDetected, setCurrency }}>

@@ -67,6 +67,9 @@ export default function AdminAddProduct() {
   const [isBestSelling, setIsBestSelling] = useState(false);
   const [isNewArrival, setIsNewArrival] = useState(true);
   const [coverFit, setCoverFit] = useState<'contain' | 'cover'>('contain');
+  const [directImageUrl, setDirectImageUrl] = useState('');
+  const [showBulkUrlModal, setShowBulkUrlModal] = useState(false);
+  const [bulkUrlText, setBulkUrlText] = useState('');
   const [previewModalImage, setPreviewModalImage] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [fabric, setFabric] = useState<string>('');
@@ -295,6 +298,52 @@ export default function AdminAddProduct() {
       toast.success('Added photo from library');
     } else {
       toast('Photo is already in gallery', { icon: 'ℹ️' });
+    }
+  };
+
+  const handleAddDirectUrl = (urlToUse?: string) => {
+    const raw = (urlToUse || directImageUrl).trim();
+    if (!raw) {
+      toast.error('Please enter an image URL');
+      return;
+    }
+    if (!raw.startsWith('http://') && !raw.startsWith('https://') && !raw.startsWith('data:')) {
+      toast.error('URL must start with https:// or http://');
+      return;
+    }
+    if (uploadedImages.includes(raw)) {
+      toast('Image URL already in gallery', { icon: 'ℹ️' });
+      return;
+    }
+    setUploadedImages(prev => [...prev, raw]);
+    setDirectImageUrl('');
+    toast.success('Direct Image URL added!');
+  };
+
+  const handleAddBulkUrls = () => {
+    const lines = bulkUrlText.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+    const validUrls = lines.filter(url => url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:'));
+    if (validUrls.length === 0) {
+      toast.error('No valid URLs found. Make sure URLs start with https://');
+      return;
+    }
+    const newItems = validUrls.filter(url => !uploadedImages.includes(url));
+    if (newItems.length === 0) {
+      toast('All URLs already exist in the gallery', { icon: 'ℹ️' });
+      return;
+    }
+    setUploadedImages(prev => [...prev, ...newItems]);
+    setBulkUrlText('');
+    setShowBulkUrlModal(false);
+    toast.success(`Added ${newItems.length} image URLs!`);
+  };
+
+  const handleClearAllImages = () => {
+    if (uploadedImages.length === 0) return;
+    if (window.confirm('Are you sure you want to remove all images from this product?')) {
+      setUploadedImages([]);
+      setCoverImageIndex(0);
+      toast.success('All product images removed');
     }
   };
 
@@ -820,14 +869,24 @@ Wash Care:
           </div>
 
           {/* Right Column: Media Management */}
-          <div className="lg:col-span-6 space-y-7">
+          <div className="lg:col-span-6 space-y-6">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-xs font-black uppercase tracking-[0.15em] text-gray-800 flex items-center gap-2">
-                  Media Management
+                  Media Management (Direct URL & Upload)
                 </h3>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                {uploadedImages.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearAllImages}
+                    className="text-[10px] font-black uppercase tracking-wider text-rose-600 bg-rose-50 hover:bg-rose-100 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1"
+                    title="Remove all photos from this product"
+                  >
+                    <Trash2 size={12} /> Clear All
+                  </button>
+                )}
                 <button 
                   type="button" 
                   onClick={openMediaLibraryModal}
@@ -838,6 +897,58 @@ Wash Care:
                 <span className="text-[10px] font-bold text-gray-400">
                   {uploadedImages.length} Photos
                 </span>
+              </div>
+            </div>
+
+            {/* DIRECT IMAGE URL INPUT SYSTEM (PRIMARY RECOMMENDED) */}
+            <div className="bg-[#F8F9FD] border-2 border-blue-200/80 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-blue-600 text-white text-xs">
+                    🔗
+                  </span>
+                  <label className="text-[11px] font-black uppercase tracking-wider text-gray-900 block">
+                    Direct Image URL System
+                  </label>
+                  <span className="text-[9px] font-black uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                    Recommended (Fastest Real-Time)
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowBulkUrlModal(true)}
+                  className="text-[10px] font-bold text-blue-700 hover:text-blue-900 underline cursor-pointer"
+                >
+                  Bulk Add URLs
+                </button>
+              </div>
+
+              <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
+                সরাসরি ছবির লিংক (ImgBB, PostImages, Cloudinary, Imgur, Supabase ইত্যাদি) পেস্ট করুন। এতে ডাটাবেজে কোনো চাপ পড়বে না এবং সব ডিভাইসে লাইভ রিয়েল-টাইমে নিখুঁতভাবে ছবি লোড হবে।
+              </p>
+
+              {/* Single URL Input Row */}
+              <div className="flex gap-2">
+                <input 
+                  type="url"
+                  value={directImageUrl}
+                  onChange={(e) => setDirectImageUrl(e.target.value)}
+                  placeholder="Paste direct image URL (e.g. https://i.ibb.co/... or any image link)"
+                  className="flex-1 bg-white border border-gray-300 rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-800 placeholder:text-gray-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-mono"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddDirectUrl();
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => handleAddDirectUrl()}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-xs shrink-0 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Plus size={14} /> Add URL
+                </button>
               </div>
             </div>
 
@@ -1174,6 +1285,69 @@ Wash Care:
                 className="px-5 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-black transition-all cursor-pointer"
               >
                 Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Add Image URLs Modal */}
+      {showBulkUrlModal && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4"
+          onClick={() => setShowBulkUrlModal(false)}
+        >
+          <div 
+            className="relative max-w-lg w-full bg-white rounded-3xl overflow-hidden shadow-2xl p-6 flex flex-col max-h-[85vh] space-y-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <span className="w-7 h-7 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold">
+                  🔗
+                </span>
+                <div>
+                  <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">Bulk Add Image URLs</h3>
+                  <p className="text-[10px] text-gray-400">Paste multiple image links (one per line or comma-separated)</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBulkUrlModal(false)}
+                className="text-gray-400 hover:text-gray-800 p-1.5 rounded-xl hover:bg-gray-100 transition-all cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-wider text-gray-500">Image URLs</label>
+              <textarea
+                value={bulkUrlText}
+                onChange={(e) => setBulkUrlText(e.target.value)}
+                placeholder="https://i.ibb.co/example1.jpg&#10;https://i.ibb.co/example2.jpg&#10;https://i.ibb.co/example3.jpg"
+                rows={6}
+                className="w-full bg-[#F8F9FD] border border-gray-300 rounded-2xl p-4 text-xs font-mono text-gray-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none"
+              />
+              <p className="text-[10px] text-gray-400 leading-normal">
+                Supported formats: PNG, JPG, JPEG, WEBP, AVIF directly hosted on ImgBB, PostImages, Cloudinary, Imgur, Supabase Storage, Google Drive or any public web URL.
+              </p>
+            </div>
+
+            <div className="pt-3 border-t border-gray-100 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowBulkUrlModal(false)}
+                className="px-4 py-2 border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAddBulkUrls}
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+              >
+                <Plus size={14} /> Add All URLs
               </button>
             </div>
           </div>

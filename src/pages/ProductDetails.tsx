@@ -393,7 +393,7 @@ export default function ProductDetails() {
 
               {/* Pricing */}
               <div className="flex items-center gap-4 mt-3">
-                <span className="text-3xl font-black text-brand-black tracking-tight">
+                <span className="text-3xl font-black text-red-600 tracking-tight">
                   {formatPrice(product.price, currency, rate)}
                 </span>
                 {product.regularPrice && product.regularPrice > product.price && (
@@ -499,7 +499,7 @@ export default function ProductDetails() {
                 </div>
                 <div>
                   <p className="text-sm font-bold text-slate-900">হোম ডেলিভারি সুবিধা (Home Delivery)</p>
-                  <p className="text-xs text-slate-600 mt-0.5">ঢাকা: ৳{shippingInsideDhaka} • ঢাকার বাইরে: ৳{shippingOutsideDhaka}</p>
+                  <p className="text-xs text-slate-600 mt-0.5">ঢাকা: BDT {shippingInsideDhaka} • ঢাকার বাইরে: BDT {shippingOutsideDhaka}</p>
                 </div>
               </div>
 
@@ -637,7 +637,7 @@ export default function ProductDetails() {
                   <h4 className="text-xs font-bold text-gray-900 group-hover:text-brand-gold transition-colors truncate">
                     {p.name}
                   </h4>
-                  <p className="text-xs font-black text-black">
+                  <p className="text-xs font-black text-red-600">
                     {formatPrice(p.price, currency, rate)}
                   </p>
                 </Link>

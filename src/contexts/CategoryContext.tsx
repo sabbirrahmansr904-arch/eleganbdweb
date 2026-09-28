@@ -16,11 +16,14 @@ interface CategoryContextType {
 const CategoryContext = createContext<CategoryContextType | undefined>(undefined);
 
 export const getDefaultCategoryImage = (categoryName?: string): string => {
-  if (!categoryName) return 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=800&q=80';
+  if (!categoryName) return 'https://i.postimg.cc/DZ8d79ZS/85a6253065fdedb2d422e0b15bbba34f-(1)-jpg.jpg';
   const lower = categoryName.toLowerCase().trim();
 
   if (lower.includes('pant') || lower.includes('trouser') || lower.includes('jeans')) {
-    return 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=800&q=80';
+    return 'https://i.postimg.cc/DZ8d79ZS/85a6253065fdedb2d422e0b15bbba34f-(1)-jpg.jpg';
+  }
+  if (lower.includes('solid')) {
+    return 'https://i.postimg.cc/brhLy62g/63d425e12f1c31cff08e567b294fbbb9-jpg.jpg';
   }
   if (lower.includes('polo') || lower.includes('t-shirt') || lower.includes('tshirt') || lower.includes('tee')) {
     return 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?auto=format&fit=crop&w=800&q=80';
@@ -60,7 +63,7 @@ const DEFAULT_CATEGORIES: Category[] = [
     name: 'Formal Pant', 
     slug: 'formal-pant', 
     description: 'Tailored formal pants',
-    image: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=800&q=80'
+    image: 'https://i.postimg.cc/DZ8d79ZS/85a6253065fdedb2d422e0b15bbba34f-(1)-jpg.jpg'
   },
   { 
     id: '5', 
@@ -68,6 +71,13 @@ const DEFAULT_CATEGORIES: Category[] = [
     slug: 'premium-shirt', 
     description: 'Luxury collection shirts',
     image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80'
+  },
+  { 
+    id: '6', 
+    name: 'Solid Shirt', 
+    slug: 'solid-shirt', 
+    description: 'Premium cotton solid shirts for men',
+    image: 'https://i.postimg.cc/brhLy62g/63d425e12f1c31cff08e567b294fbbb9-jpg.jpg'
   }
 ];
 
