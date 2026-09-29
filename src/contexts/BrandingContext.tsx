@@ -186,10 +186,11 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const cached = localStorage.getItem('eleganbd_branding');
     if (cached) {
       try {
-        return cleanUrl(JSON.parse(cached).faviconUrl);
-      } catch (e) { return ""; }
+        const parsed = JSON.parse(cached);
+        if (parsed.faviconUrl) return cleanUrl(parsed.faviconUrl);
+      } catch (e) {}
     }
-    return "";
+    return "https://i.postimg.cc/c1tGy31B/file-00000000eff48207ba39506dfdc27b89.png";
   });
 
   useEffect(() => {
