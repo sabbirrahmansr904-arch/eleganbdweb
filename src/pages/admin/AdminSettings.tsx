@@ -310,8 +310,8 @@ export default function AdminSettings() {
 
   // Pixel & Analytics States
   const [pixelConfig, setPixelConfig] = useState({
-    facebookPixelId: '',
-    facebookAccessToken: '',
+    facebookPixelId: '2764209090639198',
+    facebookAccessToken: 'EAAWAJlOgDjEBR9neUBLKddjPEtZC7hh1GaNtXxias3ZA6H7ifPwygz2lWBKB1R6tj612EFhZCxHvyIXNUTjPsyZByRVwcGxaCR9SWHNgZCWwVEQ1UnSOAusUlCYGAQsR9cwZCr0QaHjy9qNQXOjECPZADQasdO0Gx7TpqjI8vHO3YxccN47D1uOXhKxmJ5fRwZDZD',
     facebookTestCode: '',
     googleAnalyticsId: '',
     googleAnalyticsSecret: '',

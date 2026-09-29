@@ -22,10 +22,18 @@ export function getLocalPixelConfig(): PixelAnalyticsConfig | null {
     const saved = localStorage.getItem('eleganbd_pixel_analytics');
     if (saved) {
       cachedConfig = JSON.parse(saved);
-      return cachedConfig;
+      if (cachedConfig && cachedConfig.facebookPixelId) {
+        return cachedConfig;
+      }
     }
   } catch (e) {}
-  return null;
+
+  const defaultConfig: PixelAnalyticsConfig = {
+    facebookPixelId: '2764209090639198',
+    facebookAccessToken: 'EAAWAJlOgDjEBR9neUBLKddjPEtZC7hh1GaNtXxias3ZA6H7ifPwygz2lWBKB1R6tj612EFhZCxHvyIXNUTjPsyZByRVwcGxaCR9SWHNgZCWwVEQ1UnSOAusUlCYGAQsR9cwZCr0QaHjy9qNQXOjECPZADQasdO0Gx7TpqjI8vHO3YxccN47D1uOXhKxmJ5fRwZDZD'
+  };
+  cachedConfig = defaultConfig;
+  return defaultConfig;
 }
 
 export function setLocalPixelConfig(config: PixelAnalyticsConfig) {
