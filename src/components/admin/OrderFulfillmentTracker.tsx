@@ -17,15 +17,7 @@ import {
   XCircle,
   TrendingUp
 } from 'lucide-react';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  Tooltip, 
-  ResponsiveContainer,
-  CartesianGrid 
-} from 'recharts';
+import FulfillmentBarChart from './FulfillmentBarChart';
 
 interface OrderFulfillmentTrackerProps {
   orders: Order[];
@@ -233,59 +225,6 @@ export default function OrderFulfillmentTracker({ orders = [] }: OrderFulfillmen
     if (startDate && endDate) {
       setCustomRangeActive(true);
     }
-  };
-
-  // Custom Dark Tooltip matching reference image
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      const successRate = data.taken > 0 ? ((data.delivered / data.taken) * 100).toFixed(1) : '0.0';
-
-      return (
-        <div className="bg-[#1E293B] text-white p-4 rounded-2xl shadow-2xl border border-slate-700/60 min-w-[200px] z-50">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-700/80 mb-3">
-            <span className="text-xs font-black tracking-wider uppercase text-slate-200">
-              {data.fullDateLabel}
-            </span>
-            <span className="text-[10px] font-extrabold bg-[#059669]/90 text-emerald-100 px-2 py-0.5 rounded-full border border-emerald-500/40">
-              {successRate}% Success
-            </span>
-          </div>
-
-          <div className="space-y-2 text-xs font-bold">
-            <div className="flex items-center justify-between text-slate-300">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#6366F1]" />
-                Taken
-              </span>
-              <span className="font-black text-white">{data.taken}</span>
-            </div>
-            <div className="flex items-center justify-between text-slate-300">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#10B981]" />
-                Delivered
-              </span>
-              <span className="font-black text-white">{data.delivered}</span>
-            </div>
-            <div className="flex items-center justify-between text-slate-300">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#F59E0B]" />
-                In Process
-              </span>
-              <span className="font-black text-white">{data.inProcess}</span>
-            </div>
-            <div className="flex items-center justify-between text-slate-300">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#EF4444]" />
-                Not Delivered
-              </span>
-              <span className="font-black text-white">{data.notDelivered}</span>
-            </div>
-          </div>
-        </div>
-      );
-    }
-    return null;
   };
 
   return (
@@ -522,29 +461,8 @@ export default function OrderFulfillmentTracker({ orders = [] }: OrderFulfillmen
 
         {/* Dynamic Display (Chart or Table) */}
         {viewMode === 'chart' ? (
-          <div className="h-[340px] w-full pt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(200,210,225,0.4)" />
-                <XAxis 
-                  dataKey="dateLabel" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: '#64748B', fontSize: 11, fontWeight: '700' }}
-                  dy={10}
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: '#64748B', fontSize: 11, fontWeight: '700' }}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="taken" fill="#6366F1" radius={[4, 4, 0, 0]} maxBarSize={12} />
-                <Bar dataKey="delivered" fill="#10B981" radius={[4, 4, 0, 0]} maxBarSize={12} />
-                <Bar dataKey="inProcess" fill="#F59E0B" radius={[4, 4, 0, 0]} maxBarSize={12} />
-                <Bar dataKey="notDelivered" fill="#EF4444" radius={[4, 4, 0, 0]} maxBarSize={12} />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="h-[340px] w-full pt-2 min-w-0">
+            <FulfillmentBarChart data={chartData} />
           </div>
         ) : (
           /* Table View */

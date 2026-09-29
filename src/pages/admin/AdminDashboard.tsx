@@ -41,9 +41,10 @@ import {
   ReceiptText
 } from 'lucide-react';
 import { isDeliveredOrSuccess, isOrderDeliveredOrEligible, isOrderReturned, isOfficeSaleOrStorePickup, getOrderAdvanceAmount } from '../../utils/orderUtils';
-import { PieChart, Pie, Cell, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import toast from 'react-hot-toast';
 import OrderFulfillmentTracker from '../../components/admin/OrderFulfillmentTracker';
+import SalesReportAreaChart from '../../components/admin/SalesReportAreaChart';
 
 export default function AdminDashboard(): React.JSX.Element {
   const navigate = useNavigate();
@@ -1219,43 +1220,6 @@ export default function AdminDashboard(): React.JSX.Element {
     });
   }, [orders, currency, rate]);
 
-  // Custom tooltips matching visual specs perfectly
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const dataObj = payload[0]?.payload;
-      return (
-        <div className="bg-[#F8F9FD]/95 backdrop-blur-md border border-gray-100 p-4 rounded-2xl shadow-xl w-64 text-xs select-none">
-          <div className="flex items-center justify-between pb-3 border-b border-gray-50 mb-3">
-            <span className="font-black text-gray-500 uppercase tracking-wider">
-              {label} {dataObj?.dateLabel ? `(${dataObj.dateLabel})` : ''}
-            </span>
-          </div>
-          
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#6366F1]" />
-              <div className="flex-1 flex justify-between items-center">
-                <span className="text-gray-500 font-medium">{legendLabels.curr}</span>
-                <span className="font-black text-gray-900">{formatPrice(payload[0].value || 0, currency, rate)}</span>
-              </div>
-            </div>
-            
-            {payload[1] && (
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#94A3B8]" />
-                <div className="flex-1 flex justify-between items-center">
-                  <span className="text-gray-500 font-medium">{legendLabels.prev}</span>
-                  <span className="font-black text-gray-900">{formatPrice(payload[1].value || 0, currency, rate)}</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
-
   return (
     <div className="p-6 space-y-6 bg-[#F8F9FD] min-h-screen text-slate-900 antialiased font-sans">
       
@@ -1610,58 +1574,15 @@ export default function AdminDashboard(): React.JSX.Element {
           </div>
         </div>
 
-        {/* Core Recharts AreaChart with curved lines and dots */}
-        <div className="h-72 w-full mt-4">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={salesReportData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorThisYear" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#6366F1" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#6366F1" stopOpacity={0.01} />
-                </linearGradient>
-                <linearGradient id="colorLastYear" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#94A3B8" stopOpacity={0.10} />
-                  <stop offset="95%" stopColor="#94A3B8" stopOpacity={0.01} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-              <XAxis
-                dataKey="name"
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: '#9CA3AF', fontSize: 10, fontWeight: 700 }}
-              />
-              <YAxis
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: '#9CA3AF', fontSize: 10, fontWeight: 700 }}
-                tickFormatter={(val) => {
-                  if (val === 0) return '৳0';
-                  if (val >= 1000) return `৳${(val / 1000).toFixed(val % 1000 === 0 ? 0 : 1)}k`;
-                  return `৳${val}`;
-                }}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Area
-                type="monotone"
-                dataKey="sales"
-                stroke="#6366F1"
-                strokeWidth={3}
-                fillOpacity={1}
-                fill="url(#colorThisYear)"
-                activeDot={{ r: 6, strokeWidth: 0, fill: '#6366F1' }}
-              />
-              <Area
-                type="monotone"
-                dataKey="profit"
-                stroke="#94A3B8"
-                strokeWidth={2}
-                fillOpacity={1}
-                fill="url(#colorLastYear)"
-                activeDot={{ r: 5, strokeWidth: 0, fill: '#94A3B8' }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+        {/* Core Sales Report Area Chart */}
+        <div className="h-72 w-full mt-4 min-w-0">
+          <SalesReportAreaChart
+            data={salesReportData}
+            currLabel={legendLabels.curr}
+            prevLabel={legendLabels.prev}
+            currency={currency}
+            rate={rate}
+          />
         </div>
 
       </div>

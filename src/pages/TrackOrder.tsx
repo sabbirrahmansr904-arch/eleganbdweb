@@ -30,7 +30,9 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { trackCourierOrder } from '../utils/apiClient';
+import { trackCourierOrder, safeApiFetch } from '../utils/apiClient';
+import { db } from '../lib/firebase';
+import { doc, getDoc, getDocs, collection } from 'firebase/firestore';
 
 export default function TrackOrder() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -117,50 +119,87 @@ export default function TrackOrder() {
     try {
       let foundOrders: Order[] = [];
 
-      // 1. Search directly in Supabase orders table
+      // 1. Search directly in Firestore cloud database
       try {
-        if (isNumeric) {
-          const numVal = Number(cleanInput);
-          const { data: sbNumeric } = await supabase
-            .from('orders')
-            .select('*')
-            .or(`id.eq.${cleanInput},invoice_no.eq.${numVal}`);
-          
-          if (sbNumeric && Array.isArray(sbNumeric) && sbNumeric.length > 0) {
-            sbNumeric.forEach(row => {
-              const o = supabaseRowToOrder(row);
-              if (!foundOrders.some(existing => existing.id === o.id)) {
-                foundOrders.push(o);
-              }
-            });
+        const docSnap = await getDoc(doc(db, 'orders', cleanInput));
+        if (docSnap.exists()) {
+          const ord = { id: docSnap.id, ...docSnap.data() } as Order;
+          if (!foundOrders.some(existing => existing.id === ord.id)) {
+            foundOrders.push(ord);
           }
-        } else {
-          const { data: sbId } = await supabase
-            .from('orders')
-            .select('*')
-            .eq('id', cleanInput);
-          
-          if (sbId && Array.isArray(sbId) && sbId.length > 0) {
-            sbId.forEach(row => {
-              const o = supabaseRowToOrder(row);
-              if (!foundOrders.some(existing => existing.id === o.id)) {
-                foundOrders.push(o);
+        }
+
+        if (foundOrders.length === 0) {
+          const fsSnap = await getDocs(collection(db, 'orders'));
+          if (!fsSnap.empty) {
+            fsSnap.docs.forEach(d => {
+              const o = { id: d.id, ...d.data() } as Order;
+              const matchesId = String(o.id || '').toLowerCase() === cleanInput.toLowerCase() ||
+                String(o.id || '').replace(/^ORD-?/i, '') === cleanInput ||
+                (typeof o.invoiceNo === 'number' && String(o.invoiceNo) === cleanInput);
+              const oPhone = String(o.phone || '').replace(/\D/g, '');
+              const cleanPhone = cleanInput.replace(/\D/g, '');
+              const matchesPhone = Boolean(cleanPhone.length >= 8 && oPhone && (oPhone.endsWith(cleanPhone) || cleanPhone.endsWith(oPhone)));
+              if (matchesId || matchesPhone) {
+                if (!foundOrders.some(existing => existing.id === o.id)) {
+                  foundOrders.push(o);
+                }
               }
             });
           }
         }
+      } catch (fsErr) {
+        console.warn('[TrackOrder] Firestore lookup notice:', fsErr);
+      }
 
-        // Search by phone in Supabase if not found
-        if (foundOrders.length === 0) {
-          const cleanPhoneDigits = cleanInput.replace(/\D/g, '');
-          if (cleanPhoneDigits.length >= 8) {
-            const { data: sbPhone } = await supabase
+      // 2. High-speed Server API fallback
+      if (foundOrders.length === 0) {
+        try {
+          const apiRes = await safeApiFetch('/api/orders');
+          if (apiRes.ok && apiRes.data && apiRes.data.success && Array.isArray(apiRes.data.orders)) {
+            apiRes.data.orders.forEach((o: Order) => {
+              const matchesId = String(o.id || '').toLowerCase() === cleanInput.toLowerCase() ||
+                String(o.id || '').replace(/^ORD-?/i, '') === cleanInput ||
+                (typeof o.invoiceNo === 'number' && String(o.invoiceNo) === cleanInput);
+              const oPhone = String(o.phone || '').replace(/\D/g, '');
+              const cleanPhone = cleanInput.replace(/\D/g, '');
+              const matchesPhone = Boolean(cleanPhone.length >= 8 && oPhone && (oPhone.endsWith(cleanPhone) || cleanPhone.endsWith(oPhone)));
+              if (matchesId || matchesPhone) {
+                if (!foundOrders.some(existing => existing.id === o.id)) {
+                  foundOrders.push(o);
+                }
+              }
+            });
+          }
+        } catch (apiErr) {}
+      }
+
+      // 3. Search in Supabase orders table
+      if (foundOrders.length === 0) {
+        try {
+          if (isNumeric) {
+            const numVal = Number(cleanInput);
+            const { data: sbNumeric } = await supabase
               .from('orders')
               .select('*')
-              .ilike('phone', `%${cleanPhoneDigits.slice(-10)}%`);
-
-            if (sbPhone && Array.isArray(sbPhone) && sbPhone.length > 0) {
-              sbPhone.forEach(row => {
+              .or(`id.eq.${cleanInput},invoice_no.eq.${numVal}`);
+            
+            if (sbNumeric && Array.isArray(sbNumeric) && sbNumeric.length > 0) {
+              sbNumeric.forEach(row => {
+                const o = supabaseRowToOrder(row);
+                if (!foundOrders.some(existing => existing.id === o.id)) {
+                  foundOrders.push(o);
+                }
+              });
+            }
+          } else {
+            const { data: sbId } = await supabase
+              .from('orders')
+              .select('*')
+              .eq('id', cleanInput);
+            
+            if (sbId && Array.isArray(sbId) && sbId.length > 0) {
+              sbId.forEach(row => {
                 const o = supabaseRowToOrder(row);
                 if (!foundOrders.some(existing => existing.id === o.id)) {
                   foundOrders.push(o);
@@ -168,9 +207,29 @@ export default function TrackOrder() {
               });
             }
           }
+
+          // Search by phone in Supabase if not found
+          if (foundOrders.length === 0) {
+            const cleanPhoneDigits = cleanInput.replace(/\D/g, '');
+            if (cleanPhoneDigits.length >= 8) {
+              const { data: sbPhone } = await supabase
+                .from('orders')
+                .select('*')
+                .ilike('phone', `%${cleanPhoneDigits.slice(-10)}%`);
+
+              if (sbPhone && Array.isArray(sbPhone) && sbPhone.length > 0) {
+                sbPhone.forEach(row => {
+                  const o = supabaseRowToOrder(row);
+                  if (!foundOrders.some(existing => existing.id === o.id)) {
+                    foundOrders.push(o);
+                  }
+                });
+              }
+            }
+          }
+        } catch (sbErr) {
+          console.warn('[TrackOrder] Supabase lookup notice:', sbErr);
         }
-      } catch (sbErr) {
-        console.warn('[TrackOrder] Supabase lookup notice:', sbErr);
       }
 
       // 2. Local cache fallback

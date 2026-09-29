@@ -437,18 +437,18 @@ export default function Checkout() {
         thana: formData.thana,
         items: items.map(item => ({ ...item.product, selectedSize: item.selectedSize, quantity: item.quantity })),
         deliveryCharge: shipping,
-        isFreeShipping: freeShippingStatus.isFree,
+        isFreeShipping: Boolean(freeShippingStatus.isFree),
         freeShippingOffer: freeShippingStatus.isFree 
           ? (freeShippingStatus.pantsCount >= 3 ? '৩টি ফরমাল প্যান্টে ফ্রি ডেলিভারি' : 'ফ্রি ডেলিভারি অফার') 
-          : undefined,
-        originalDeliveryCharge: freeShippingStatus.isFree ? baseShipping : undefined,
+          : '',
+        originalDeliveryCharge: freeShippingStatus.isFree ? baseShipping : shipping,
         total: total,
         status: 'Pending',
-        paymentMethod: formData.paymentMethod,
-        transactionId: formData.transactionId,
-        paidAmount: formData.paidAmount ? Number(formData.paidAmount) : undefined,
-        advancePayment: formData.paidAmount ? Number(formData.paidAmount) : undefined,
-        notes: formData.orderNote,
+        paymentMethod: formData.paymentMethod || 'cod',
+        transactionId: formData.transactionId || '',
+        paidAmount: formData.paidAmount ? Number(formData.paidAmount) : 0,
+        advancePayment: formData.paidAmount ? Number(formData.paidAmount) : 0,
+        notes: formData.orderNote || '',
         createdAt: new Date().toISOString(),
         invoiceBy: 'Website order'
       };

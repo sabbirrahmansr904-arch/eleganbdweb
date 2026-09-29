@@ -214,6 +214,23 @@ async function startServer() {
     }
   });
 
+  function cleanOrderForFirestore(obj: any): any {
+    if (obj === undefined) return null;
+    if (obj === null || typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) {
+      return obj
+        .filter(item => item !== undefined)
+        .map(item => cleanOrderForFirestore(item));
+    }
+    const result: Record<string, any> = {};
+    for (const [key, val] of Object.entries(obj)) {
+      if (val !== undefined) {
+        result[key] = cleanOrderForFirestore(val);
+      }
+    }
+    return result;
+  }
+
   // Production API endpoint to create and instantly persist orders across devices
   app.post("/api/orders/create", async (req, res) => {
     try {
@@ -222,7 +239,8 @@ async function startServer() {
         return res.status(400).json({ error: "Missing order data or ID" });
       }
 
-      await setDoc(doc(db, 'orders', String(orderData.id)), orderData);
+      const cleanData = cleanOrderForFirestore(orderData);
+      await setDoc(doc(db, 'orders', String(orderData.id)), cleanData);
 
       try {
         const row = orderToSupabaseRow(orderData);

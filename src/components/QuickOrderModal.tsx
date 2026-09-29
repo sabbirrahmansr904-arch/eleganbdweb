@@ -107,6 +107,10 @@ export default function QuickOrderModal({ product, isOpen, onClose }: QuickOrder
       total: total,
       status: 'Pending',
       paymentMethod: 'cod',
+      transactionId: '',
+      advancePayment: 0,
+      paidAmount: 0,
+      notes: '',
       createdAt: new Date().toISOString(),
       invoiceBy: 'Website order'
     };

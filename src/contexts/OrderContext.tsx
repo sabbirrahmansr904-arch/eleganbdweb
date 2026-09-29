@@ -2,11 +2,11 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { Order } from '../types';
 import { supabase, orderToSupabaseRow, supabaseRowToOrder, getSupabaseClient } from '../lib/supabase';
 import { db } from '../lib/firebase';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, getDocs, doc, setDoc } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { useProducts } from './ProductContext';
 import { useInventory } from './InventoryContext';
-import { isDeliveredOrSuccess, compareOrdersByInvoice, canChangeOrderStatus, isCancelledStatus } from '../utils/orderUtils';
+import { isDeliveredOrSuccess, compareOrdersByInvoice, canChangeOrderStatus, isCancelledStatus, cleanOrderForFirestore } from '../utils/orderUtils';
 import { safeApiFetch } from '../utils/apiClient';
 
 interface OrderContextType {
@@ -417,14 +417,57 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     };
 
-    // A. Multi-channel Orders Synchronizer with Direct Supabase Priority & Local Server API Fallback
+    // A. Multi-channel Orders Synchronizer with Direct Firestore Cloud Priority & Fast Server API Fallback
     const isFetchingRef = { current: false };
 
     const syncOrders = async (isBackground = false) => {
       if (isFetchingRef.current) return;
       isFetchingRef.current = true;
       try {
-        let supabaseOrders: Order[] | null = null;
+        const ordersMap = new Map<string, Order>();
+
+        // 1. Primary Direct Cloud Database: Firestore (Fast, authoritative & real-time)
+        try {
+          const fsSnap = await getDocs(collection(db, 'orders'));
+          if (fsSnap && !fsSnap.empty) {
+            fsSnap.docs.forEach(d => {
+              const dData = d.data();
+              if (dData && dData.id) {
+                const ord = { id: d.id, ...dData } as Order;
+                const idStr = String(ord.id).trim();
+                const invStr = ord.invoiceNo ? String(ord.invoiceNo).trim() : '';
+                if (!deletedOrderIdsRef.current.has(idStr) && (!invStr || !deletedOrderIdsRef.current.has(invStr))) {
+                  ordersMap.set(idStr, ord);
+                }
+              }
+            });
+          }
+        } catch (fsErr) {
+          console.warn('[OrderContext] Firestore query in syncOrders notice:', fsErr);
+        }
+
+        // 2. High-speed Server API Fallback & Merge
+        try {
+          const apiRes = await safeApiFetch('/api/orders');
+          if (apiRes.ok && apiRes.data && apiRes.data.success && Array.isArray(apiRes.data.orders)) {
+            apiRes.data.orders.forEach((ord: any) => {
+              if (ord && ord.id) {
+                const idStr = String(ord.id).trim();
+                const invStr = ord.invoiceNo ? String(ord.invoiceNo).trim() : '';
+                if (!deletedOrderIdsRef.current.has(idStr) && (!invStr || !deletedOrderIdsRef.current.has(invStr))) {
+                  const existing = ordersMap.get(idStr);
+                  if (existing) {
+                    ordersMap.set(idStr, { ...existing, ...ord });
+                  } else {
+                    ordersMap.set(idStr, ord);
+                  }
+                }
+              }
+            });
+          }
+        } catch (apiErr) {}
+
+        // 3. Optional Supabase Sync (falls back gracefully without breaking if egress quota exceeded)
         try {
           const { data, error } = await supabase
             .from('orders')
@@ -433,74 +476,54 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             .limit(1000);
 
           if (!error && Array.isArray(data)) {
-            supabaseOrders = data.map(row => supabaseRowToOrder(row));
-          }
-        } catch (sbErr) {
-          console.warn('[OrderContext] Direct Supabase sync notice:', sbErr);
-        }
-
-        const ordersMap = new Map<string, Order>();
-
-        if (supabaseOrders !== null) {
-          // Supabase is source of truth
-          if (supabaseOrders.length === 0) {
-            // Wiped completely! Clear all local order caches so old orders never resurrect
-            try {
-              for (const k of CACHE_KEYS) {
-                localStorage.removeItem(k);
-              }
-              for (let i = localStorage.length - 1; i >= 0; i--) {
-                const k = localStorage.key(i);
-                if (k && (k.startsWith('eleganbd_orders') || k === 'orders')) {
-                  localStorage.removeItem(k);
+            data.forEach(row => {
+              const ord = supabaseRowToOrder(row);
+              if (ord && ord.id) {
+                const idStr = String(ord.id).trim();
+                const invStr = ord.invoiceNo ? String(ord.invoiceNo).trim() : '';
+                if (!deletedOrderIdsRef.current.has(idStr) && (!invStr || !deletedOrderIdsRef.current.has(invStr))) {
+                  const existing = ordersMap.get(idStr);
+                  if (existing) {
+                    ordersMap.set(idStr, { ...existing, ...ord });
+                  } else {
+                    ordersMap.set(idStr, ord);
+                  }
                 }
               }
-            } catch {}
+            });
           }
-          supabaseOrders.forEach(o => {
-            if (o && o.id) ordersMap.set(String(o.id), o);
-          });
-        } else {
-          // Fallback to local storage if Supabase failed
-          const localList = loadAllStoredOrders();
-          localList.forEach(o => {
-            if (o && o.id) ordersMap.set(String(o.id), o);
-          });
-        }
+        } catch (sbErr) {}
 
-        // Also check local pending offline orders if any
+        // 4. Local storage & offline pending orders merge (Guarantees customer orders placed locally are NEVER lost)
+        const localList = loadAllStoredOrders();
+        localList.forEach(o => {
+          if (o && o.id) {
+            const idStr = String(o.id).trim();
+            const invStr = o.invoiceNo ? String(o.invoiceNo).trim() : '';
+            if (!deletedOrderIdsRef.current.has(idStr) && (!invStr || !deletedOrderIdsRef.current.has(invStr))) {
+              if (!ordersMap.has(idStr)) {
+                ordersMap.set(idStr, o);
+              }
+            }
+          }
+        });
+
         try {
           const rawPending = localStorage.getItem('eleganbd_pending_sync_orders');
           if (rawPending) {
             const pending = JSON.parse(rawPending);
             if (Array.isArray(pending)) {
               pending.forEach(po => {
-                if (po && po.id && !ordersMap.has(String(po.id))) {
-                  ordersMap.set(String(po.id), po);
+                if (po && po.id) {
+                  const idStr = String(po.id).trim();
+                  if (!ordersMap.has(idStr)) {
+                    ordersMap.set(idStr, po);
+                  }
                 }
               });
             }
           }
         } catch {}
-
-        // 3. Local API endpoint fallback & merge if Supabase was null/error
-        if (supabaseOrders === null) {
-          try {
-            const apiRes = await safeApiFetch('/api/orders');
-            if (apiRes.ok && apiRes.data && apiRes.data.success && Array.isArray(apiRes.data.orders)) {
-              apiRes.data.orders.forEach((ord: any) => {
-                if (ord && ord.id) {
-                  const existing = ordersMap.get(String(ord.id));
-                  if (existing) {
-                    ordersMap.set(String(ord.id), { ...existing, ...ord });
-                  } else {
-                    ordersMap.set(String(ord.id), ord);
-                  }
-                }
-              });
-            }
-          } catch (apiErr) {}
-        }
 
         const fetchedList = Array.from(ordersMap.values());
         fetchedList.sort((a, b) => compareOrdersByInvoice(a, b, 'desc'));
@@ -539,58 +562,32 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener('visibilitychange', handleFocus);
     window.addEventListener('online', handleFocus);
 
-    // B. Real-time Heartbeat Poll (every 4 seconds, checks count & latest order in <50ms without loading heavy items)
+    // B. Real-time Heartbeat Poll (every 5 seconds, fast count & sync from server API / Firestore)
     const heartbeatInterval = setInterval(async () => {
       if (!isMounted || isFetchingRef.current || (typeof document !== 'undefined' && document.hidden)) return;
 
       try {
-        const { data, count, error } = await supabase
-          .from('orders')
-          .select('id, invoice_no, updated_at', { count: 'exact' })
-          .order('created_at', { ascending: false })
-          .limit(1);
-
-        if (!error && typeof count === 'number') {
-          const topOrder = data && data[0];
-          const dbCount = count;
+        const apiRes = await safeApiFetch('/api/orders');
+        if (apiRes.ok && apiRes.data && apiRes.data.success && Array.isArray(apiRes.data.orders)) {
+          const dbOrders: Order[] = apiRes.data.orders;
+          const dbCount = apiRes.data.count || dbOrders.length;
+          const topOrder = dbOrders[0];
           const topId = topOrder ? String(topOrder.id) : null;
-          const topUpdatedAt = topOrder ? String(topOrder.updated_at) : null;
+          const topUpdatedAt = topOrder ? String((topOrder as any).updatedAt || topOrder.createdAt || '') : null;
 
           const hasCountDiff = lastKnownCountRef.current !== null && dbCount !== lastKnownCountRef.current;
           const hasTopDiff = lastKnownTopIdRef.current !== null && topId !== null && topId !== lastKnownTopIdRef.current;
           const hasUpdateDiff = lastKnownUpdatedAtRef.current !== null && topUpdatedAt !== null && topUpdatedAt !== lastKnownUpdatedAtRef.current;
 
           if (hasCountDiff || hasTopDiff || hasUpdateDiff) {
-            syncOrders(true);
-          } else {
-            if (lastKnownCountRef.current === null) lastKnownCountRef.current = dbCount;
-            if (lastKnownTopIdRef.current === null && topId) lastKnownTopIdRef.current = topId;
-            if (lastKnownUpdatedAtRef.current === null && topUpdatedAt) lastKnownUpdatedAtRef.current = topUpdatedAt;
+            mergeAndSetOrders(dbOrders, false);
+            lastKnownCountRef.current = dbCount;
+            lastKnownTopIdRef.current = topId;
+            lastKnownUpdatedAtRef.current = topUpdatedAt;
           }
         }
-
-        // Check & flush pending offline orders queue if any
-        try {
-          const rawPending = localStorage.getItem('eleganbd_pending_sync_orders');
-          if (rawPending) {
-            const pendingOrders: Order[] = JSON.parse(rawPending);
-            if (Array.isArray(pendingOrders) && pendingOrders.length > 0) {
-              const remaining: Order[] = [];
-              for (const po of pendingOrders) {
-                const { error: poErr } = await supabase.from('orders').upsert(orderToSupabaseRow(po));
-                if (poErr) remaining.push(po);
-              }
-              if (remaining.length === 0) {
-                localStorage.removeItem('eleganbd_pending_sync_orders');
-                syncOrders(true);
-              } else {
-                localStorage.setItem('eleganbd_pending_sync_orders', JSON.stringify(remaining));
-              }
-            }
-          }
-        } catch {}
       } catch (err) {}
-    }, 4000);
+    }, 5000);
 
     // C. Broadcast Channel Listener (0ms inter-tab sync)
     let bc: BroadcastChannel | null = null;
@@ -735,7 +732,48 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     try {
       const ordersMap = new Map<string, Order>();
 
-      let supabaseOrders: Order[] | null = null;
+      // 1. Direct Firestore Cloud Query (Primary Source of Truth)
+      try {
+        const fsSnap = await getDocs(collection(db, 'orders'));
+        if (fsSnap && !fsSnap.empty) {
+          fsSnap.docs.forEach(d => {
+            const dData = d.data();
+            if (dData && dData.id) {
+              const ord = { id: d.id, ...dData } as Order;
+              const idStr = String(ord.id).trim();
+              const invStr = ord.invoiceNo ? String(ord.invoiceNo).trim() : '';
+              if (!deletedOrderIdsRef.current.has(idStr) && (!invStr || !deletedOrderIdsRef.current.has(invStr))) {
+                ordersMap.set(idStr, ord);
+              }
+            }
+          });
+        }
+      } catch (fsErr) {
+        console.warn('[OrderContext] Firestore query in refreshOrders notice:', fsErr);
+      }
+
+      // 2. High-speed Server API fallback & merge
+      try {
+        const apiRes = await safeApiFetch('/api/orders');
+        if (apiRes.ok && apiRes.data && apiRes.data.success && Array.isArray(apiRes.data.orders)) {
+          apiRes.data.orders.forEach((ord: any) => {
+            if (ord && ord.id) {
+              const idStr = String(ord.id).trim();
+              const invStr = ord.invoiceNo ? String(ord.invoiceNo).trim() : '';
+              if (!deletedOrderIdsRef.current.has(idStr) && (!invStr || !deletedOrderIdsRef.current.has(invStr))) {
+                const existing = ordersMap.get(idStr);
+                if (existing) {
+                  ordersMap.set(idStr, { ...existing, ...ord });
+                } else {
+                  ordersMap.set(idStr, ord);
+                }
+              }
+            }
+          });
+        }
+      } catch (err) {}
+
+      // 3. Optional Supabase Sync
       try {
         const client = getSupabaseClient() || supabase;
         if (client) {
@@ -746,71 +784,55 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             .limit(1000);
 
           if (!error && Array.isArray(data)) {
-            supabaseOrders = data.map(row => supabaseRowToOrder(row));
+            data.forEach(row => {
+              const ord = supabaseRowToOrder(row);
+              if (ord && ord.id) {
+                const idStr = String(ord.id).trim();
+                const invStr = ord.invoiceNo ? String(ord.invoiceNo).trim() : '';
+                if (!deletedOrderIdsRef.current.has(idStr) && (!invStr || !deletedOrderIdsRef.current.has(invStr))) {
+                  const existing = ordersMap.get(idStr);
+                  if (existing) {
+                    ordersMap.set(idStr, { ...existing, ...ord });
+                  } else {
+                    ordersMap.set(idStr, ord);
+                  }
+                }
+              }
+            });
           }
         }
-      } catch (sbErr) {
-        console.warn('[OrderContext] Supabase refresh notice:', sbErr);
-      }
+      } catch (sbErr) {}
 
-      if (supabaseOrders !== null) {
-        if (supabaseOrders.length === 0) {
-          // Wiped completely! Clear cache
-          try {
-            for (const k of CACHE_KEYS) {
-              localStorage.removeItem(k);
+      // 4. Local storage & offline pending orders merge
+      const localList = loadAllStoredOrders();
+      localList.forEach(o => {
+        if (o && o.id) {
+          const idStr = String(o.id).trim();
+          const invStr = o.invoiceNo ? String(o.invoiceNo).trim() : '';
+          if (!deletedOrderIdsRef.current.has(idStr) && (!invStr || !deletedOrderIdsRef.current.has(invStr))) {
+            if (!ordersMap.has(idStr)) {
+              ordersMap.set(idStr, o);
             }
-            for (let i = localStorage.length - 1; i >= 0; i--) {
-              const k = localStorage.key(i);
-              if (k && (k.startsWith('eleganbd_orders') || k === 'orders')) {
-                localStorage.removeItem(k);
-              }
-            }
-          } catch {}
+          }
         }
-        supabaseOrders.forEach(o => {
-          if (o && o.id) ordersMap.set(String(o.id), o);
-        });
-      } else {
-        const localList = loadAllStoredOrders();
-        localList.forEach(o => {
-          if (o && o.id) ordersMap.set(String(o.id), o);
-        });
-      }
+      });
 
-      // Also check local pending offline orders if any
       try {
         const rawPending = localStorage.getItem('eleganbd_pending_sync_orders');
         if (rawPending) {
           const pending = JSON.parse(rawPending);
           if (Array.isArray(pending)) {
             pending.forEach(po => {
-              if (po && po.id && !ordersMap.has(String(po.id))) {
-                ordersMap.set(String(po.id), po);
+              if (po && po.id) {
+                const idStr = String(po.id).trim();
+                if (!ordersMap.has(idStr)) {
+                  ordersMap.set(idStr, po);
+                }
               }
             });
           }
         }
       } catch {}
-
-      // 3. Local server API fallback & merge if Supabase was null/error
-      if (supabaseOrders === null) {
-        try {
-          const apiRes = await safeApiFetch('/api/orders');
-          if (apiRes.ok && apiRes.data && apiRes.data.success && Array.isArray(apiRes.data.orders)) {
-            apiRes.data.orders.forEach((ord: any) => {
-              if (ord && ord.id) {
-                const existing = ordersMap.get(String(ord.id));
-                if (existing) {
-                  ordersMap.set(String(ord.id), { ...existing, ...ord });
-                } else {
-                  ordersMap.set(String(ord.id), ord);
-                }
-              }
-            });
-          }
-        } catch (err) {}
-      }
 
       const allList = Array.from(ordersMap.values());
       const valid = allList.filter(o => {
@@ -824,12 +846,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       setOrders(valid);
       if (valid.length > 0) {
         saveOrdersToCache(valid);
-      } else {
-        try {
-          for (const k of CACHE_KEYS) {
-            localStorage.removeItem(k);
-          }
-        } catch {}
       }
 
       lastKnownCountRef.current = valid.length;
@@ -979,10 +995,10 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
       // 2. Update in Firestore as well
       try {
-        await setDoc(doc(db, 'orders', String(id)), {
+        await setDoc(doc(db, 'orders', String(id)), cleanOrderForFirestore({
           status,
           updatedAt: Date.now()
-        }, { merge: true });
+        }), { merge: true });
       } catch (fsErr) {
         console.warn('[OrderContext] Firestore update status notice:', fsErr);
       }
@@ -1025,10 +1041,10 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
       // 2. Update in Firestore as well
       try {
-        await setDoc(doc(db, 'orders', String(id)), {
+        await setDoc(doc(db, 'orders', String(id)), cleanOrderForFirestore({
           ...updatedData,
           updatedAt: Date.now()
-        }, { merge: true });
+        }), { merge: true });
       } catch (fsErr) {
         console.warn('[OrderContext] Firestore update order notice:', fsErr);
       }
@@ -1228,6 +1244,15 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       // Advance our internal counter
       lastCounterRef.current = Math.max(lastCounterRef.current, calculatedNextIdNum);
 
+      // Ensure newly created order is NEVER filtered out by deletedOrderIdsRef
+      deletedOrderIdsRef.current.delete(String(finalOrderId).trim());
+      if (finalInvoiceNo) {
+        deletedOrderIdsRef.current.delete(String(finalInvoiceNo).trim());
+      }
+      try {
+        localStorage.setItem('eleganbd_deleted_order_ids', JSON.stringify(Array.from(deletedOrderIdsRef.current)));
+      } catch {}
+
       const newOrder: Order = {
         ...order,
         id: finalOrderId,
@@ -1236,6 +1261,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         createdAt: order.createdAt || new Date().toISOString(),
         updatedAt: Date.now()
       };
+
+      const cleanDoc = cleanOrderForFirestore(newOrder);
 
       // 1. Local State Update & Cache FIRST (Guaranteed Persistence & Display)
       setOrders(prev => {
@@ -1249,7 +1276,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
       // 2. Immediate Direct Firestore Save (Guaranteed Cloud Persistence)
       try {
-        await setDoc(doc(db, 'orders', String(finalOrderId)), newOrder);
+        await setDoc(doc(db, 'orders', String(finalOrderId)), cleanDoc);
         console.log(`[OrderContext] Order #${finalOrderId} saved directly to Firestore!`);
       } catch (fsErr) {
         console.warn('[OrderContext] Direct Firestore save error:', fsErr);
@@ -1283,7 +1310,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         fetch('/api/orders/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newOrder),
+          body: JSON.stringify(cleanDoc),
         }).catch(err => console.warn('[OrderContext] Server order sync notice:', err));
       } catch (err) {}
 

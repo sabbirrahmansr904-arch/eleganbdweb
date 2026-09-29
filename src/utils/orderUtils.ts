@@ -417,5 +417,27 @@ export const formatOrderDateTimeStr = (dateStr?: any): string => {
   }
 };
 
+/**
+ * Recursively cleans an object for Firebase Firestore by eliminating all undefined values.
+ * Firestore runtime throws an exception if any field is undefined.
+ */
+export function cleanOrderForFirestore(obj: any): any {
+  if (obj === undefined) return null;
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) {
+    return obj
+      .filter(item => item !== undefined)
+      .map(item => cleanOrderForFirestore(item));
+  }
+  const result: Record<string, any> = {};
+  for (const [key, val] of Object.entries(obj)) {
+    if (val !== undefined) {
+      result[key] = cleanOrderForFirestore(val);
+    }
+  }
+  return result;
+}
+
+
 
 
